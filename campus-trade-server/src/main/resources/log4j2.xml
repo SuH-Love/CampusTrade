@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Properties>
+        <Property name="LOG_PATH">logs</Property>
+        <Property name="PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] [%X{traceId}] %-5level %logger{36} - %msg%n</Property>
+    </Properties>
+
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="${PATTERN}"/>
+        </Console>
+
+        <RollingFile name="InfoFile" fileName="${LOG_PATH}/info.log"
+                     filePattern="${LOG_PATH}/info-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${PATTERN}"/>
+            <Filters>
+                <ThresholdFilter level="WARN" onMatch="DENY" onMismatch="NEUTRAL"/>
+            </Filters>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="100MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+
+        <RollingFile name="ErrorFile" fileName="${LOG_PATH}/error.log"
+                     filePattern="${LOG_PATH}/error-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${PATTERN}"/>
+            <Filters>
+                <ThresholdFilter level="ERROR" onMatch="ACCEPT" onMismatch="DENY"/>
+            </Filters>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="100MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+
+        <RollingFile name="AuditFile" fileName="${LOG_PATH}/audit.log"
+                     filePattern="${LOG_PATH}/audit-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="100MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+
+        <RollingFile name="SecurityFile" fileName="${LOG_PATH}/security.log"
+                     filePattern="${LOG_PATH}/security-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="100MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+
+        <RollingFile name="SqlFile" fileName="${LOG_PATH}/sql.log"
+                     filePattern="${LOG_PATH}/sql-%d{yyyy-MM-dd}-%i.log">
+            <PatternLayout pattern="${PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="1"/>
+                <SizeBasedTriggeringPolicy size="100MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="30"/>
+        </RollingFile>
+    </Appenders>
+
+    <Loggers>
+        <Logger name="com.campustrade" level="INFO" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="InfoFile"/>
+        </Logger>
+
+        <Logger name="com.campustrade.mapper" level="DEBUG" additivity="false">
+            <AppenderRef ref="SqlFile"/>
+        </Logger>
+
+        <Logger name="AuditLogger" level="INFO" additivity="false">
+            <AppenderRef ref="AuditFile"/>
+        </Logger>
+
+        <Logger name="SecurityLogger" level="INFO" additivity="false">
+            <AppenderRef ref="SecurityFile"/>
+        </Logger>
+
+        <Root level="INFO">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="InfoFile"/>
+            <AppenderRef ref="ErrorFile"/>
+        </Root>
+    </Loggers>
+</Configuration>

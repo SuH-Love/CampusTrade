@@ -1,0 +1,50 @@
+<template>
+  <div class="log-center-page">
+    <el-card>
+      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
+        <el-tab-pane label="操作日志" name="operation" />
+        <el-tab-pane label="安全日志" name="security" />
+      </el-tabs>
+      <el-table :data="logs" stripe>
+        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column v-if="activeTab === 'operation'" prop="operator" label="操作人" width="120" />
+        <el-table-column v-if="activeTab === 'operation'" prop="action" label="操作" width="150" />
+        <el-table-column v-if="activeTab === 'security'" prop="eventType" label="事件类型" width="150" />
+        <el-table-column v-if="activeTab === 'security'" prop="username" label="用户" width="120" />
+        <el-table-column prop="ip" label="IP" width="140" />
+        <el-table-column prop="detail" label="详情" show-overflow-tooltip />
+        <el-table-column prop="createTime" label="时间" width="170" />
+      </el-table>
+      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
+    </el-card>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { getOperationLogs, getSecurityLogs } from '@/api/admin'
+
+const activeTab = ref('operation')
+const logs = ref<any[]>([])
+const pageNum = ref(1)
+const pageSize = ref(15)
+const total = ref(0)
+
+const loadData = async () => {
+  const params = { pageNum: pageNum.value, pageSize: pageSize.value }
+  const res = activeTab.value === 'operation' ? await getOperationLogs(params) : await getSecurityLogs(params)
+  logs.value = res.list || []
+  total.value = res.total || 0
+}
+
+const handleTabChange = () => {
+  pageNum.value = 1
+  loadData()
+}
+
+onMounted(loadData)
+</script>
+
+<style scoped lang="scss">
+.log-center-page { padding: 20px; }
+</style>

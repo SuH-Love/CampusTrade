@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.NotificationMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.Notification">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="notification_type" property="notificationType"/>
+        <result column="related_id" property="relatedId"/>
+        <result column="is_read" property="isRead"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+    </resultMap>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT * FROM t_notification WHERE user_id = #{userId} AND deleted = 0
+        <if test="isRead != null">AND is_read = #{isRead}</if>
+        ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectCountByUserId" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_notification WHERE user_id = #{userId} AND deleted = 0
+        <if test="isRead != null">AND is_read = #{isRead}</if>
+    </select>
+
+    <select id="selectUnreadCount" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_notification WHERE user_id = #{userId} AND is_read = 0 AND deleted = 0
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_notification (user_id, title, content, notification_type, related_id, is_read)
+        VALUES (#{userId}, #{title}, #{content}, #{notificationType}, #{relatedId}, #{isRead})
+    </insert>
+
+    <update id="markAsRead">
+        UPDATE t_notification SET is_read = 1 WHERE id = #{id} AND user_id = #{userId} AND deleted = 0
+    </update>
+
+    <update id="markAllAsRead">
+        UPDATE t_notification SET is_read = 1 WHERE user_id = #{userId} AND is_read = 0 AND deleted = 0
+    </update>
+
+    <update id="logicDeleteById">
+        UPDATE t_notification SET deleted = 1 WHERE id = #{id} AND user_id = #{userId}
+    </update>
+</mapper>

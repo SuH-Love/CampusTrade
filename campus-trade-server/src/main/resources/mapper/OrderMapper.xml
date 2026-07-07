@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.OrderMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.Order">
+        <id column="id" property="id"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="buyer_id" property="buyerId"/>
+        <result column="seller_id" property="sellerId"/>
+        <result column="total_amount" property="totalAmount"/>
+        <result column="status" property="status"/>
+        <result column="pay_time" property="payTime"/>
+        <result column="ship_time" property="shipTime"/>
+        <result column="finish_time" property="finishTime"/>
+        <result column="cancel_time" property="cancelTime"/>
+        <result column="cancel_reason" property="cancelReason"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM t_order WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByOrderNo" resultMap="BaseResultMap">
+        SELECT * FROM t_order WHERE order_no = #{orderNo} AND deleted = 0
+    </select>
+
+    <select id="selectByBuyerId" resultMap="BaseResultMap">
+        SELECT * FROM t_order WHERE buyer_id = #{buyerId} AND deleted = 0
+        <if test="status != null and status != ''">AND status = #{status}</if>
+        ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectCountByBuyerId" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_order WHERE buyer_id = #{buyerId} AND deleted = 0
+        <if test="status != null and status != ''">AND status = #{status}</if>
+    </select>
+
+    <select id="selectBySellerId" resultMap="BaseResultMap">
+        SELECT * FROM t_order WHERE seller_id = #{sellerId} AND deleted = 0
+        <if test="status != null and status != ''">AND status = #{status}</if>
+        ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectCountBySellerId" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_order WHERE seller_id = #{sellerId} AND deleted = 0
+        <if test="status != null and status != ''">AND status = #{status}</if>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_order (order_no, buyer_id, seller_id, total_amount, status, remark)
+        VALUES (#{orderNo}, #{buyerId}, #{sellerId}, #{totalAmount}, #{status}, #{remark})
+    </insert>
+
+    <update id="updateById">
+        UPDATE t_order
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="payTime != null">pay_time = #{payTime},</if>
+            <if test="shipTime != null">ship_time = #{shipTime},</if>
+            <if test="finishTime != null">finish_time = #{finishTime},</if>
+            <if test="cancelTime != null">cancel_time = #{cancelTime},</if>
+            <if test="cancelReason != null">cancel_reason = #{cancelReason},</if>
+            version = version + 1
+        </set>
+        WHERE id = #{id} AND deleted = 0 AND version = #{version}
+    </update>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM t_order WHERE deleted = 0
+        <if test="status != null and status != ''">AND status = #{status}</if>
+        ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectCountAll" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_order WHERE deleted = 0
+        <if test="status != null and status != ''">AND status = #{status}</if>
+    </select>
+</mapper>

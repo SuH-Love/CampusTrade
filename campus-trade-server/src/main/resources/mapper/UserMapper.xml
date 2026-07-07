@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.UserMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.User">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="password" property="password"/>
+        <result column="nickname" property="nickname"/>
+        <result column="phone" property="phone"/>
+        <result column="email" property="email"/>
+        <result column="avatar" property="avatar"/>
+        <result column="real_name" property="realName"/>
+        <result column="student_id" property="studentId"/>
+        <result column="real_verified" property="realVerified"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM t_user WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByIds" resultMap="BaseResultMap">
+        SELECT * FROM t_user WHERE deleted = 0 AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="selectByUsername" resultMap="BaseResultMap">
+        SELECT * FROM t_user WHERE username = #{username} AND deleted = 0
+    </select>
+
+    <select id="selectByPhone" resultMap="BaseResultMap">
+        SELECT * FROM t_user WHERE phone = #{phone} AND deleted = 0
+    </select>
+
+    <select id="selectByEmail" resultMap="BaseResultMap">
+        SELECT * FROM t_user WHERE email = #{email} AND deleted = 0
+    </select>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT * FROM t_user WHERE deleted = 0
+        <if test="username != null and username != ''">
+            AND username LIKE CONCAT('%', #{username}, '%')
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectCount" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_user WHERE deleted = 0
+        <if test="username != null and username != ''">
+            AND username LIKE CONCAT('%', #{username}, '%')
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_user (username, password, nickname, phone, email, avatar, real_name, student_id, real_verified, status)
+        VALUES (#{username}, #{password}, #{nickname}, #{phone}, #{email}, #{avatar}, #{realName}, #{studentId}, #{realVerified}, #{status})
+    </insert>
+
+    <update id="updateById">
+        UPDATE t_user
+        <set>
+            <if test="nickname != null">nickname = #{nickname},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="avatar != null">avatar = #{avatar},</if>
+            <if test="realName != null">real_name = #{realName},</if>
+            <if test="studentId != null">student_id = #{studentId},</if>
+            <if test="realVerified != null">real_verified = #{realVerified},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="password != null">password = #{password},</if>
+            version = version + 1
+        </set>
+        WHERE id = #{id} AND deleted = 0 AND version = #{version}
+    </update>
+
+    <update id="logicDeleteById">
+        UPDATE t_user SET deleted = 1 WHERE id = #{id}
+    </update>
+</mapper>

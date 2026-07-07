@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.GoodsCategoryMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.GoodsCategory">
+        <id column="id" property="id"/>
+        <result column="category_name" property="categoryName"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="icon" property="icon"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM t_goods_category WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByIds" resultMap="BaseResultMap">
+        SELECT * FROM t_goods_category WHERE deleted = 0 AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM t_goods_category WHERE deleted = 0 AND status = 1 ORDER BY sort_order
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_goods_category (category_name, parent_id, sort_order, icon, status)
+        VALUES (#{categoryName}, #{parentId}, #{sortOrder}, #{icon}, #{status})
+    </insert>
+
+    <update id="updateById">
+        UPDATE t_goods_category
+        <set>
+            <if test="categoryName != null">category_name = #{categoryName},</if>
+            <if test="sortOrder != null">sort_order = #{sortOrder},</if>
+            <if test="icon != null">icon = #{icon},</if>
+            <if test="status != null">status = #{status},</if>
+            version = version + 1
+        </set>
+        WHERE id = #{id} AND deleted = 0 AND version = #{version}
+    </update>
+</mapper>

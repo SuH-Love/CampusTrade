@@ -1,0 +1,18 @@
+package com.campustrade.mapper;
+
+import com.campustrade.entity.SecurityLog;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
+
+@Mapper
+public interface SecurityLogMapper {
+
+    List<SecurityLog> selectList(@Param("eventType") String eventType, @Param("username") String username,
+                                 @Param("offset") Integer offset, @Param("pageSize") Integer pageSize);
+
+    Long selectCount(@Param("eventType") String eventType, @Param("username") String username);
+
+    int insert(SecurityLog log);
+}

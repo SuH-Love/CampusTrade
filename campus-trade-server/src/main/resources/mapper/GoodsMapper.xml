@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.GoodsMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.Goods">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="category_id" property="categoryId"/>
+        <result column="title" property="title"/>
+        <result column="description" property="description"/>
+        <result column="price" property="price"/>
+        <result column="original_price" property="originalPrice"/>
+        <result column="cover_image" property="coverImage"/>
+        <result column="images" property="images"/>
+        <result column="status" property="status"/>
+        <result column="reject_reason" property="rejectReason"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="favorite_count" property="favoriteCount"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM t_goods WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT * FROM t_goods WHERE deleted = 0
+        <if test="categoryId != null">AND category_id = #{categoryId}</if>
+        <if test="keyword != null and keyword != ''">AND title LIKE CONCAT('%', #{keyword}, '%')</if>
+        <if test="minPrice != null">AND price &gt;= #{minPrice}</if>
+        <if test="maxPrice != null">AND price &lt;= #{maxPrice}</if>
+        <if test="status != null and status != ''">AND status = #{status}</if>
+        <if test="userId != null">AND user_id = #{userId}</if>
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectCount" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_goods WHERE deleted = 0
+        <if test="categoryId != null">AND category_id = #{categoryId}</if>
+        <if test="keyword != null and keyword != ''">AND title LIKE CONCAT('%', #{keyword}, '%')</if>
+        <if test="minPrice != null">AND price &gt;= #{minPrice}</if>
+        <if test="maxPrice != null">AND price &lt;= #{maxPrice}</if>
+        <if test="status != null and status != ''">AND status = #{status}</if>
+        <if test="userId != null">AND user_id = #{userId}</if>
+    </select>
+
+    <select id="selectHotGoods" resultMap="BaseResultMap">
+        SELECT * FROM t_goods WHERE deleted = 0 AND status = 'ONLINE'
+        ORDER BY view_count DESC, favorite_count DESC LIMIT #{limit}
+    </select>
+
+    <select id="selectRecommendGoods" resultMap="BaseResultMap">
+        SELECT * FROM t_goods WHERE deleted = 0 AND status = 'ONLINE'
+        ORDER BY create_time DESC LIMIT #{limit}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_goods (user_id, category_id, title, description, price, original_price, cover_image, images, status)
+        VALUES (#{userId}, #{categoryId}, #{title}, #{description}, #{price}, #{originalPrice}, #{coverImage}, #{images}, #{status})
+    </insert>
+
+    <update id="updateById">
+        UPDATE t_goods
+        <set>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="title != null">title = #{title},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="price != null">price = #{price},</if>
+            <if test="originalPrice != null">original_price = #{originalPrice},</if>
+            <if test="coverImage != null">cover_image = #{coverImage},</if>
+            <if test="images != null">images = #{images},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="rejectReason != null">reject_reason = #{rejectReason},</if>
+            version = version + 1
+        </set>
+        WHERE id = #{id} AND deleted = 0 AND version = #{version}
+    </update>
+
+    <update id="logicDeleteById">
+        UPDATE t_goods SET deleted = 1 WHERE id = #{id}
+    </update>
+
+    <update id="incrementViewCount">
+        UPDATE t_goods SET view_count = view_count + 1 WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="incrementFavoriteCount">
+        UPDATE t_goods SET favorite_count = favorite_count + 1 WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <update id="decrementFavoriteCount">
+        UPDATE t_goods SET favorite_count = favorite_count - 1 WHERE id = #{id} AND deleted = 0 AND favorite_count > 0
+    </update>
+
+    <select id="selectCountAll" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_goods WHERE deleted = 0
+    </select>
+
+    <select id="selectCountByStatus" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_goods WHERE deleted = 0 AND status = #{status}
+    </select>
+</mapper>

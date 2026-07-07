@@ -1,0 +1,92 @@
+import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
+import { ElMessage } from 'element-plus'
+import { useUserStore } from '@/stores/user'
+import { refreshToken as refreshTokenApi } from '@/api/auth'
+import router from '@/router'
+
+const service: AxiosInstance = axios.create({
+  baseURL: '/api',
+  timeout: 15000
+})
+
+let isRefreshing = false
+let pendingRequests: Array<(token: string) => void> = []
+
+const processPendingRequests = (token: string) => {
+  pendingRequests.forEach(cb => cb(token))
+  pendingRequests = []
+}
+
+service.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const userStore = useUserStore()
+    if (userStore.token) {
+      config.headers.Authorization = `Bearer ${userStore.token}`
+    }
+    return config
+  },
+  (error) => Promise.reject(error)
+)
+
+service.interceptors.response.use(
+  (response: AxiosResponse) => {
+    const { code, message, data } = response.data
+    if (code === 200) {
+      return data
+    }
+    ElMessage.error(message || '请求失败')
+    return Promise.reject(new Error(message))
+  },
+  async (error) => {
+    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
+    if (error.response) {
+      const { status } = error.response
+      if (status === 401 && !originalRequest._retry) {
+        const userStore = useUserStore()
+        if (!userStore.refreshToken) {
+          userStore.clearAuth()
+          router.push('/login')
+          ElMessage.error('请先登录')
+          return Promise.reject(error)
+        }
+        if (isRefreshing) {
+          return new Promise((resolve) => {
+            pendingRequests.push((token: string) => {
+              originalRequest.headers = originalRequest.headers || {}
+              originalRequest.headers.Authorization = `Bearer ${token}`
+              originalRequest._retry = true
+              resolve(service(originalRequest))
+            })
+          })
+        }
+        isRefreshing = true
+        originalRequest._retry = true
+        try {
+          const data = await refreshTokenApi(userStore.refreshToken)
+          userStore.setAuth(data)
+          processPendingRequests(data.accessToken)
+          originalRequest.headers = originalRequest.headers || {}
+          originalRequest.headers.Authorization = `Bearer ${data.accessToken}`
+          return service(originalRequest)
+        } catch {
+          userStore.clearAuth()
+          router.push('/login')
+          ElMessage.error('登录已过期，请重新登录')
+          pendingRequests = []
+          return Promise.reject(error)
+        } finally {
+          isRefreshing = false
+        }
+      } else if (status === 403) {
+        ElMessage.error('无权限')
+      } else if (status === 429) {
+        ElMessage.error('请求过于频繁')
+      } else {
+        ElMessage.error(error.response.data?.message || '系统异常')
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
+export default service

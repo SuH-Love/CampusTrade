@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.ReportMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.Report">
+        <id column="id" property="id"/>
+        <result column="reporter_id" property="reporterId"/>
+        <result column="target_type" property="targetType"/>
+        <result column="target_id" property="targetId"/>
+        <result column="reason" property="reason"/>
+        <result column="description" property="description"/>
+        <result column="images" property="images"/>
+        <result column="status" property="status"/>
+        <result column="handler_id" property="handlerId"/>
+        <result column="handle_result" property="handleResult"/>
+        <result column="handle_time" property="handleTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM t_report WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByReporterId" resultMap="BaseResultMap">
+        SELECT * FROM t_report WHERE reporter_id = #{reporterId} AND deleted = 0
+        ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT * FROM t_report WHERE deleted = 0
+        <if test="status != null and status != ''">AND status = #{status}</if>
+        <if test="targetType != null">AND target_type = #{targetType}</if>
+        ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectCount" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_report WHERE deleted = 0
+        <if test="status != null and status != ''">AND status = #{status}</if>
+        <if test="targetType != null">AND target_type = #{targetType}</if>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_report (reporter_id, target_type, target_id, reason, description, images, status)
+        VALUES (#{reporterId}, #{targetType}, #{targetId}, #{reason}, #{description}, #{images}, #{status})
+    </insert>
+
+    <update id="updateById">
+        UPDATE t_report
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="handlerId != null">handler_id = #{handlerId},</if>
+            <if test="handleResult != null">handle_result = #{handleResult},</if>
+            <if test="handleTime != null">handle_time = #{handleTime},</if>
+            version = version + 1
+        </set>
+        WHERE id = #{id} AND deleted = 0 AND version = #{version}
+    </update>
+
+    <select id="selectAllByStatus" resultMap="BaseResultMap">
+        SELECT * FROM t_report WHERE deleted = 0
+        <if test="status != null and status != ''">AND status = #{status}</if>
+        ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectCountByStatus" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_report WHERE deleted = 0
+        <if test="status != null and status != ''">AND status = #{status}</if>
+    </select>
+</mapper>

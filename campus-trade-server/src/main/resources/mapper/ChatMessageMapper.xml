@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.ChatMessageMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.ChatMessage">
+        <id column="id" property="id"/>
+        <result column="sender_id" property="senderId"/>
+        <result column="receiver_id" property="receiverId"/>
+        <result column="content" property="content"/>
+        <result column="message_type" property="messageType"/>
+        <result column="is_read" property="isRead"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+    </resultMap>
+
+    <select id="selectHistory" resultMap="BaseResultMap">
+        SELECT * FROM t_chat_message WHERE deleted = 0
+        AND ((sender_id = #{userId1} AND receiver_id = #{userId2}) OR (sender_id = #{userId2} AND receiver_id = #{userId1}))
+        ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectRecentContacts" resultMap="BaseResultMap">
+        SELECT cm.* FROM t_chat_message cm
+        INNER JOIN (
+            SELECT MAX(id) AS max_id FROM t_chat_message
+            WHERE (sender_id = #{userId} OR receiver_id = #{userId}) AND deleted = 0
+            GROUP BY CASE WHEN sender_id = #{userId} THEN receiver_id ELSE sender_id END
+        ) latest ON cm.id = latest.max_id
+        ORDER BY cm.create_time DESC
+    </select>
+
+    <select id="selectUnreadCount" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_chat_message
+        WHERE receiver_id = #{receiverId} AND sender_id = #{senderId} AND is_read = 0 AND deleted = 0
+    </select>
+
+    <update id="markAsRead">
+        UPDATE t_chat_message SET is_read = 1
+        WHERE receiver_id = #{receiverId} AND sender_id = #{senderId} AND is_read = 0 AND deleted = 0
+    </update>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_chat_message (sender_id, receiver_id, content, message_type, is_read)
+        VALUES (#{senderId}, #{receiverId}, #{content}, #{messageType}, #{isRead})
+    </insert>
+
+    <insert id="insertBatch">
+        INSERT INTO t_chat_message (sender_id, receiver_id, content, message_type, is_read)
+        VALUES
+        <foreach collection="messages" item="msg" separator=",">
+            (#{msg.senderId}, #{msg.receiverId}, #{msg.content}, #{msg.messageType}, #{msg.isRead})
+        </foreach>
+    </insert>
+</mapper>
