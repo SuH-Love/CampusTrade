@@ -36,7 +36,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import request from '@/utils/request'
+import { getOrderList } from '@/api/admin'
 
 const orders = ref<any[]>([])
 const statusFilter = ref('')
@@ -53,7 +53,7 @@ const statusLabel = (status: string) => {
 const loadData = async () => {
   const params: any = { pageNum: pageNum.value, pageSize: pageSize.value }
   if (statusFilter.value) params.status = statusFilter.value
-  const res = await request.get('/admin/order', { params })
+  const res = await getOrderList(params)
   orders.value = res.list || []
   total.value = res.total || 0
 }

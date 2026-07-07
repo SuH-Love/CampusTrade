@@ -40,7 +40,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import request from '@/utils/request'
+import { getReportList, resolveReport, dismissReport } from '@/api/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const reports = ref<any[]>([])
@@ -62,20 +62,20 @@ const targetTypeLabel = (type: string) => {
 const loadData = async () => {
   const params: any = { pageNum: pageNum.value, pageSize: pageSize.value }
   if (statusFilter.value) params.status = statusFilter.value
-  const res = await request.get('/admin/report', { params })
+  const res = await getReportList(params)
   reports.value = res.list || []
   total.value = res.total || 0
 }
 
 const handleResolve = async (id: number) => {
   await ElMessageBox.confirm('确认处理该举报？处理后将下架相关内容', '确认')
-  await request.put(`/admin/report/${id}/resolve`)
+  await resolveReport(id)
   ElMessage.success('已处理')
   loadData()
 }
 
 const handleDismiss = async (id: number) => {
-  await request.put(`/admin/report/${id}/dismiss`)
+  await dismissReport(id)
   ElMessage.success('已驳回')
   loadData()
 }
