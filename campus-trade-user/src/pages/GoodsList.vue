@@ -79,7 +79,7 @@ const loadData = async () => {
 const loadCategories = async () => {
   try {
     const res = await getCategoryList()
-    categories.value = res.list || res || []
+    categories.value = res || []
   } catch { /* ignore */ }
 }
 

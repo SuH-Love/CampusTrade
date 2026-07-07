@@ -52,7 +52,7 @@ import { ref, onMounted, nextTick } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { getRecentContacts, getHistory, sendMessage, markAsRead, getUnreadCount } from '@/api/chat'
 import type { ChatMessageVO } from '@/api/chat'
-import { ElMessage } from 'element-plus'
+
 
 const userStore = useUserStore()
 

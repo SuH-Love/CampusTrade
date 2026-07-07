@@ -50,5 +50,5 @@ export const useUserStore = defineStore('user', () => {
     userInfo.value = data
   }
 
-  return { token, refreshToken, userInfo, login, register, logout, clearAuth, fetchUserInfo }
+  return { token, refreshToken, userInfo, login, register, logout, clearAuth, fetchUserInfo, setAuth }
 })
