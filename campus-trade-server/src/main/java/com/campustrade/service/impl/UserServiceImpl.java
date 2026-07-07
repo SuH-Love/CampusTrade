@@ -136,7 +136,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public long countUsers() {
-        return userMapper.selectCount(null);
+        return userMapper.selectCount(null, null);
     }
 
     private UserVO toVO(User user) {

@@ -237,7 +237,7 @@ public class GoodsServiceImpl implements GoodsService {
         if (!goods.getUserId().equals(userId)) return Result.error(ResultCode.GOODS_NOT_OWNER);
         if (!GoodsStatus.ONLINE.getCode().equals(goods.getStatus())) return Result.error(ResultCode.GOODS_STATUS_ERROR);
         goods.setStatus(GoodsStatus.OFFLINE.getCode());
-        int rows =         int rows = goodsMapper.updateById(goods);
+        int rows = goodsMapper.updateById(goods);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
         redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + goodsId);
         return Result.success();
