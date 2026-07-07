@@ -9,6 +9,10 @@ target/
 
 # IDE
 .idea/
+.arts/
+
+# Docs
+campus-trade-docs/
 *.iml
 *.iws
 *.ipr
