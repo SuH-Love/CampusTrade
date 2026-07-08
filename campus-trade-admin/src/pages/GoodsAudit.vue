@@ -6,10 +6,9 @@
           <h3>商品审核</h3>
           <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="loadData" style="width: 160px">
             <el-option label="待审核" value="PENDING" />
-            <el-option label="已通过" value="APPROVED" />
+            <el-option label="已上架" value="ONLINE" />
             <el-option label="已拒绝" value="REJECTED" />
             <el-option label="草稿" value="DRAFT" />
-            <el-option label="已上架" value="ONLINE" />
             <el-option label="已下架" value="OFFLINE" />
             <el-option label="已售出" value="SOLD" />
           </el-select>
@@ -61,16 +60,16 @@ import { getGoodsList, auditGoods } from '@/api/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const goodsList = ref<any[]>([])
-const statusFilter = ref('PENDING')
+const statusFilter = ref('')
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const detailVisible = ref(false)
 const currentGoods = ref<any>(null)
 
-const statusTagMap: Record<string, string> = { DRAFT: 'info', PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger', ONLINE: '', OFFLINE: 'info', SOLD: 'success' }
+const statusTagMap: Record<string, string> = { DRAFT: 'info', PENDING: 'warning', REJECTED: 'danger', ONLINE: '', OFFLINE: 'info', SOLD: 'success' }
 const statusLabel = (status: string) => {
-  const map: Record<string, string> = { DRAFT: '草稿', PENDING: '待审核', APPROVED: '已通过', REJECTED: '已拒绝', ONLINE: '已上架', OFFLINE: '已下架', SOLD: '已售出' }
+  const map: Record<string, string> = { DRAFT: '草稿', PENDING: '待审核', REJECTED: '已拒绝', ONLINE: '已上架', OFFLINE: '已下架', SOLD: '已售出' }
   return map[status] || status
 }
 

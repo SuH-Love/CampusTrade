@@ -151,12 +151,14 @@ public class GoodsServiceImpl implements GoodsService {
     @Override
     public Result<PageResult<GoodsVO>> listGoods(GoodsQueryDTO dto) {
         int offset = (dto.getPageNum() - 1) * dto.getPageSize();
+        String status = dto.getStatus();
+        if (status == null && dto.getUserId() == null) {
+            status = GoodsStatus.ONLINE.getCode();
+        }
         List<Goods> list = goodsMapper.selectList(dto.getCategoryId(), dto.getKeyword(),
-                dto.getMinPrice(), dto.getMaxPrice(), dto.getStatus() != null ? dto.getStatus() : GoodsStatus.ONLINE.getCode(),
-                dto.getUserId(), offset, dto.getPageSize());
+                dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId(), offset, dto.getPageSize());
         Long total = goodsMapper.selectCount(dto.getCategoryId(), dto.getKeyword(),
-                dto.getMinPrice(), dto.getMaxPrice(), dto.getStatus() != null ? dto.getStatus() : GoodsStatus.ONLINE.getCode(),
-                dto.getUserId());
+                dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId());
         List<GoodsVO> vos = toVOList(list);
         return Result.success(new PageResult<>(vos, total));
     }
@@ -206,7 +208,11 @@ public class GoodsServiceImpl implements GoodsService {
     public Result<Void> auditGoods(Long goodsId, String status, String rejectReason) {
         Goods goods = goodsMapper.selectById(goodsId);
         if (goods == null) return Result.error(ResultCode.GOODS_NOT_FOUND);
-        goods.setStatus(status);
+        if (GoodsStatus.APPROVED.getCode().equals(status)) {
+            goods.setStatus(GoodsStatus.ONLINE.getCode());
+        } else {
+            goods.setStatus(status);
+        }
         if (GoodsStatus.REJECTED.getCode().equals(status)) goods.setRejectReason(rejectReason);
         int rows = goodsMapper.updateById(goods);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);

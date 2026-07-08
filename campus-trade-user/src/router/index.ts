@@ -20,6 +20,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'goods', name: 'GoodsList', component: () => import('@/pages/GoodsList.vue') },
       { path: 'goods/:id', name: 'GoodsDetail', component: () => import('@/pages/GoodsDetail.vue') },
       { path: 'goods/publish', name: 'GoodsPublish', component: () => import('@/pages/GoodsPublish.vue'), meta: { auth: true } },
+      { path: 'my-goods', name: 'MyGoods', component: () => import('@/pages/MyGoods.vue'), meta: { auth: true } },
       { path: 'profile', name: 'Profile', component: () => import('@/pages/Profile.vue'), meta: { auth: true } },
       { path: 'order', name: 'Orders', component: () => import('@/pages/Orders.vue'), meta: { auth: true } },
       { path: 'chat', name: 'Chat', component: () => import('@/pages/Chat.vue'), meta: { auth: true } },

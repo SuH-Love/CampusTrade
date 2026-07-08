@@ -5,6 +5,7 @@
       <el-menu mode="horizontal" :default-active="activeMenu" router>
         <el-menu-item index="/">首页</el-menu-item>
         <el-menu-item index="/goods">商品</el-menu-item>
+        <el-menu-item v-if="userStore.token" index="/my-goods">我的商品</el-menu-item>
         <el-menu-item v-if="userStore.token" index="/order">订单</el-menu-item>
         <el-menu-item v-if="userStore.token" index="/chat">聊天</el-menu-item>
       </el-menu>

@@ -104,8 +104,8 @@ const handleSubmit = async () => {
   submitting.value = true
   try {
     await createGoods(form)
-    ElMessage.success('发布成功，请提交审核')
-    router.push('/goods')
+    ElMessage.success('发布成功，可在"我的商品"中提交审核')
+    router.push('/my-goods')
   } finally {
     submitting.value = false
   }
