@@ -107,7 +107,7 @@ const handleFavorite = async () => {
   } catch { /* ignore */ } finally {
     favoriting.value = false
   }
-  }
+
 }
 
 const handleChat = () => {
