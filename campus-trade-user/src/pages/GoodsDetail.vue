@@ -100,7 +100,7 @@ const handleChat = () => {
 }
 
 const handleReport = () => {
-  router.push({ path: '/goods/' + route.params.id, query: { report: '1' } })
+  router.push({ path: '/report', query: { targetType: '1', targetId: String(route.params.id) } })
 }
 
 onMounted(loadData)

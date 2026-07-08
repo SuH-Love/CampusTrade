@@ -9,7 +9,7 @@ interface DashboardStats {
   userCount: number
   goodsCount: number
   orderCount: number
-  pendingAuditCount: number
+  pendingAudit: number
 }
 
 export const adminLogin = (data: { username: string; password: string }) =>

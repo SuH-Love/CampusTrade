@@ -26,8 +26,8 @@
         <el-card>
           <template #header><span>最近操作日志</span></template>
           <el-table :data="recentLogs" size="small" stripe>
-            <el-table-column prop="operator" label="操作人" width="100" />
-            <el-table-column prop="action" label="操作" />
+            <el-table-column prop="username" label="操作人" width="100" />
+            <el-table-column prop="operation" label="操作" show-overflow-tooltip />
             <el-table-column prop="createTime" label="时间" width="170" />
           </el-table>
         </el-card>
@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getGoodsList, getOperationLogs } from '@/api/admin'
+import { getDashboardStats, getReportList, getOperationLogs } from '@/api/admin'
 
 const stats = ref([
   { label: '用户总数', value: 0, icon: 'User', color: '#409eff' },
@@ -56,10 +56,16 @@ const recentLogs = ref<any[]>([])
 
 const loadStats = async () => {
   try {
-    const res = await getGoodsList({ pageNum: 1, pageSize: 1, status: 'PENDING' })
-    const pendingCount = res.total || 0
-    stats.value[3].value = pendingCount
-    todoItems.value[0].count = pendingCount
+    const res = await getDashboardStats()
+    stats.value[0].value = res.userCount || 0
+    stats.value[1].value = res.goodsCount || 0
+    stats.value[2].value = res.orderCount || 0
+    stats.value[3].value = res.pendingAudit || 0
+    todoItems.value[0].count = res.pendingAudit || 0
+  } catch { /* ignore */ }
+  try {
+    const res = await getReportList({ pageNum: 1, pageSize: 1, status: 'PENDING' })
+    todoItems.value[1].count = res.total || 0
   } catch { /* ignore */ }
 }
 

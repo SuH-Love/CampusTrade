@@ -7,7 +7,7 @@
         </el-col>
         <el-col :span="6">
           <el-select v-model="categoryId" placeholder="全部分类" clearable @change="handleSearch" style="width: 100%">
-            <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="cat.id" />
+            <el-option v-for="cat in categories" :key="cat.id" :label="cat.categoryName" :value="cat.id" />
           </el-select>
         </el-col>
         <el-col :span="4">
@@ -37,14 +37,14 @@
               <span v-if="item.originalPrice" style="text-decoration: line-through; color: #999; font-size: 12px">¥{{ item.originalPrice }}</span>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; color: #999; font-size: 12px">
-              <span>{{ item.categoryName }}</span>
+              <span>{{ item.categoryName || getCategoryName(item.categoryId) }}</span>
               <span>{{ item.viewCount }}次浏览</span>
             </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
-    <el-empty v-if="goodsList.length === 0" description="暂无商品" />
+    <el-empty v-if="!loading && goodsList.length === 0" description="暂无商品" />
     <div style="text-align: center; margin-top: 16px">
       <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" />
     </div>
@@ -56,24 +56,35 @@ import { ref, onMounted } from 'vue'
 import { getGoodsList } from '@/api/goods'
 import { getCategoryList } from '@/api/category'
 import type { GoodsVO } from '@/api/goods'
+import type { GoodsCategory } from '@/api/category'
 
 const goodsList = ref<GoodsVO[]>([])
-const categories = ref<any[]>([])
+const categories = ref<GoodsCategory[]>([])
 const keyword = ref('')
 const categoryId = ref<number | undefined>(undefined)
 const sortBy = ref('latest')
 const pageNum = ref(1)
 const pageSize = ref(12)
 const total = ref(0)
+const loading = ref(false)
+
+const getCategoryName = (id: number) => {
+  const cat = categories.value.find(c => c.id === id)
+  return cat ? cat.categoryName : ''
+}
 
 const loadData = async () => {
-  const params: any = { pageNum: pageNum.value, pageSize: pageSize.value, status: 'ONLINE' }
-  if (keyword.value) params.keyword = keyword.value
-  if (categoryId.value) params.categoryId = categoryId.value
-  if (sortBy.value) params.sortBy = sortBy.value
-  const res = await getGoodsList(params)
-  goodsList.value = res.list || []
-  total.value = res.total || 0
+  loading.value = true
+  try {
+    const params: any = { pageNum: pageNum.value, pageSize: pageSize.value, status: 'ONLINE' }
+    if (keyword.value) params.keyword = keyword.value
+    if (categoryId.value) params.categoryId = categoryId.value
+    const res = await getGoodsList(params)
+    goodsList.value = res.list || []
+    total.value = res.total || 0
+  } finally {
+    loading.value = false
+  }
 }
 
 const loadCategories = async () => {

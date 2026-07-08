@@ -62,9 +62,9 @@ const rules = {
   reason: [{ required: true, message: '请输入举报原因', trigger: 'blur' }]
 }
 
-const statusTagMap: Record<string, string> = { PENDING: 'warning', PROCESSING: '', RESOLVED: 'success', DISMISSED: 'info' }
-const statusLabel = (s: string) => ({ PENDING: '待处理', PROCESSING: '处理中', RESOLVED: '已处理', DISMISSED: '已驳回' }[s] || s)
-const targetTypeLabel = (t: number) => ({ 1: '商品', 2: '用户', 3: '订单' }[t] || '其他')
+const statusTagMap: Record<string, string> = { PENDING: 'warning', FINISHED: '', RESOLVED: 'success', DISMISSED: 'info' }
+const statusLabel = (s: string) => ({ PENDING: '待处理', FINISHED: '已处理', RESOLVED: '已解决', DISMISSED: '已驳回' }[s] || s)
+const targetTypeLabel = (t: number) => ({ 1: '商品', 2: '用户', 3: '聊天' }[t] || '其他')
 
 const handleSubmit = async () => {
   if (!formRef.value) return
@@ -89,9 +89,11 @@ const loadReports = async () => {
 }
 
 onMounted(() => {
-  if (route.query.goodsId) {
-    form.targetType = 1
-    form.targetId = Number(route.query.goodsId)
+  if (route.query.targetType) {
+    form.targetType = Number(route.query.targetType)
+  }
+  if (route.query.targetId) {
+    form.targetId = Number(route.query.targetId)
   }
   loadReports()
 })

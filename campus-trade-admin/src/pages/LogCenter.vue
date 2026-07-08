@@ -7,14 +7,16 @@
       </el-tabs>
       <el-table :data="logs" stripe>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column v-if="activeTab === 'operation'" prop="operator" label="操作人" width="120" />
-        <el-table-column v-if="activeTab === 'operation'" prop="action" label="操作" width="150" />
+        <el-table-column v-if="activeTab === 'operation'" prop="username" label="操作人" width="120" />
+        <el-table-column v-if="activeTab === 'operation'" prop="operation" label="操作" width="200" show-overflow-tooltip />
+        <el-table-column v-if="activeTab === 'operation'" prop="module" label="模块" width="100" />
         <el-table-column v-if="activeTab === 'security'" prop="eventType" label="事件类型" width="150" />
         <el-table-column v-if="activeTab === 'security'" prop="username" label="用户" width="120" />
         <el-table-column prop="ip" label="IP" width="140" />
         <el-table-column prop="detail" label="详情" show-overflow-tooltip />
         <el-table-column prop="createTime" label="时间" width="170" />
       </el-table>
+      <el-empty v-if="logs.length === 0" description="暂无日志" />
       <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
     </el-card>
   </div>
