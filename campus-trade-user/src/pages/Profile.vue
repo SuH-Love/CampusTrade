@@ -65,7 +65,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { updateUserInfo, updatePassword, realNameVerify, uploadAvatar } from '@/api/user'
-import { uploadImage } from '@/api/file'
+
 import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 
