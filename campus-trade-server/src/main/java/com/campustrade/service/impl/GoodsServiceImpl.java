@@ -137,12 +137,8 @@ public class GoodsServiceImpl implements GoodsService {
                         return Result.error(ResultCode.GOODS_NOT_FOUND);
                     }
 
-                    String viewKey = RedisConstant.LOCK_GOODS_PREFIX + "view:" + goodsId + ":" + (currentUserId != null ? currentUserId : IpUtil.getIpAddr());
-                    Boolean viewed = redisTemplate.opsForValue().setIfAbsent(viewKey, "1", 300, TimeUnit.SECONDS);
-                    if (viewed != null && viewed) {
-                        goodsMapper.incrementViewCount(goodsId);
-                        goods.setViewCount(goods.getViewCount() + 1);
-                    }
+                    goodsMapper.incrementViewCount(goodsId);
+                    goods.setViewCount(goods.getViewCount() + 1);
                     GoodsVO vo = toVO(goods);
 
                     if (currentUserId != null) {

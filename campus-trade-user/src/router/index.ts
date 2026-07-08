@@ -25,9 +25,11 @@ const routes: RouteRecordRaw[] = [
       { path: 'favorites', name: 'Favorites', component: () => import('@/pages/Favorites.vue'), meta: { auth: true } },
       { path: 'profile', name: 'Profile', component: () => import('@/pages/Profile.vue'), meta: { auth: true } },
       { path: 'order', name: 'Orders', component: () => import('@/pages/Orders.vue'), meta: { auth: true } },
+      { path: 'order/:id', name: 'OrderDetail', component: () => import('@/pages/OrderDetail.vue'), meta: { auth: true } },
       { path: 'chat', name: 'Chat', component: () => import('@/pages/Chat.vue'), meta: { auth: true } },
       { path: 'notification', name: 'Notification', component: () => import('@/pages/Notification.vue'), meta: { auth: true } },
-      { path: 'report', name: 'Report', component: () => import('@/pages/Report.vue'), meta: { auth: true } }
+      { path: 'report', name: 'Report', component: () => import('@/pages/Report.vue'), meta: { auth: true } },
+      { path: 'my-reports', name: 'MyReports', component: () => import('@/pages/MyReports.vue'), meta: { auth: true } }
     ]
   }
 ]

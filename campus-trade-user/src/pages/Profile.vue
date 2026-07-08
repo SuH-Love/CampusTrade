@@ -4,7 +4,17 @@
       <el-col :span="8">
         <el-card class="profile-card">
           <div class="avatar-section">
-            <el-avatar :size="100" :src="userStore.userInfo?.avatar" />
+            <el-upload
+              action="/api/file/upload"
+              :headers="uploadHeaders"
+              :show-file-list="false"
+              :on-success="handleAvatarSuccess"
+              :before-upload="beforeAvatarUpload"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+            >
+              <el-avatar :size="100" :src="userStore.userInfo?.avatar" class="avatar-clickable" />
+              <div class="avatar-overlay">更换头像</div>
+            </el-upload>
             <h3>{{ userStore.userInfo?.nickname || userStore.userInfo?.username }}</h3>
             <el-tag v-if="userStore.userInfo?.realVerified === 1" type="success">已认证</el-tag>
             <el-tag v-else type="info">未认证</el-tag>
@@ -52,14 +62,37 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { updateUserInfo, updatePassword, realNameVerify } from '@/api/user'
+import { updateUserInfo, updatePassword, realNameVerify, uploadAvatar } from '@/api/user'
+import { uploadImage } from '@/api/file'
 import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 
 const userStore = useUserStore()
 const activeTab = ref('info')
+
+const uploadHeaders = computed(() => ({
+  Authorization: userStore.token ? `Bearer ${userStore.token}` : ''
+}))
+
+const beforeAvatarUpload = (file: File) => {
+  const isImage = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)
+  const isLt10M = file.size / 1024 / 1024 < 10
+  if (!isImage) ElMessage.error('仅支持 jpg/png/gif/webp 格式')
+  if (!isLt10M) ElMessage.error('图片大小不能超过 10MB')
+  return isImage && isLt10M
+}
+
+const handleAvatarSuccess = async (response: { code: number; data: string; message?: string }) => {
+  if (response.code === 200 && response.data) {
+    await uploadAvatar(response.data)
+    await userStore.fetchUserInfo()
+    ElMessage.success('头像更新成功')
+  } else {
+    ElMessage.error(response.message || '上传失败')
+  }
+}
 
 const infoFormRef = ref<FormInstance>()
 const pwdFormRef = ref<FormInstance>()
@@ -163,5 +196,17 @@ const handleVerify = async () => {
 <style scoped lang="scss">
 .profile-page { padding: 20px; }
 .profile-card { text-align: center; }
-.avatar-section { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.avatar-section {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  position: relative;
+}
+.avatar-clickable { cursor: pointer; }
+.avatar-overlay {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 100px; height: 100px; border-radius: 50%;
+  background: rgba(0,0,0,0.5); color: #fff; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.3s; cursor: pointer; pointer-events: none;
+}
+.avatar-section:hover .avatar-overlay { opacity: 1; }
 </style>
