@@ -20,13 +20,17 @@
           <div class="chat-messages" ref="messagesRef">
             <div v-for="msg in messages" :key="msg.id" class="message-item" :class="{ self: msg.senderId === myId }">
               <template v-if="msg.senderId === myId">
-                <div class="msg-bubble self-bubble">{{ msg.content }}</div>
+                <div class="msg-wrap self-wrap">
+                  <div class="msg-bubble self-bubble">{{ msg.content }}</div>
+                  <div class="msg-time">{{ formatTime(msg.createTime) }}</div>
+                </div>
               </template>
               <template v-else>
                 <el-avatar :size="36" :src="msg.senderAvatar" />
-                <div>
+                <div class="msg-wrap">
                   <div class="sender-name">{{ msg.senderName }}</div>
                   <div class="msg-bubble">{{ msg.content }}</div>
+                  <div class="msg-time">{{ formatTime(msg.createTime) }}</div>
                 </div>
               </template>
             </div>
@@ -85,6 +89,17 @@ const handleSend = async () => { if (!inputText.value.trim() || !currentTarget.v
 
 const scrollToBottom = () => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight }
 
+const formatTime = (t: string) => {
+  if (!t) return ''
+  const d = new Date(t)
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const isToday = d.toDateString() === now.toDateString()
+  if (isToday) return time
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${time}`
+}
+
 onMounted(async () => {
   await loadContacts()
   if (route.query.targetUserId) {
@@ -110,8 +125,11 @@ onMounted(async () => {
 .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 .message-item { display: flex; gap: 10px; &.self { justify-content: flex-end; } }
 .sender-name { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
-.msg-bubble { background: #f1f5f9; padding: 10px 16px; border-radius: 16px 16px 16px 4px; word-break: break-all; max-width: 60%; font-size: 14px; line-height: 1.6; }
+.msg-wrap { min-width: 0; width: fit-content; max-width: 60%; }
+.msg-wrap.self-wrap { display: flex; flex-direction: column; align-items: flex-end; }
+.msg-bubble { background: #f1f5f9; padding: 10px 16px; border-radius: 16px 16px 16px 4px; word-break: break-all; font-size: 14px; line-height: 1.6; }
 .self-bubble { background: var(--primary); color: #fff; border-radius: 16px 16px 4px 16px; }
+.msg-time { font-size: 11px; color: var(--text-muted); margin-top: 4px; padding: 0 4px; }
 .chat-input { display: flex; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--border); }
 .chat-empty { display: flex; align-items: center; justify-content: center; height: 100%; }
 </style>

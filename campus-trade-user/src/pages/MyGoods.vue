@@ -25,7 +25,8 @@
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
-            <div v-if="row.rejectReason" style="color: #f56c6c; font-size: 12px; margin-top: 4px">{{ row.rejectReason }}</div>
+            <div v-if="statusTip(row.status)" style="color: var(--text-muted); font-size: 12px; margin-top: 4px">{{ statusTip(row.status) }}</div>
+            <div v-if="row.rejectReason" style="color: #f56c6c; font-size: 12px; margin-top: 4px">原因：{{ row.rejectReason }}</div>
           </template>
         </el-table-column>
         <el-table-column prop="viewCount" label="浏览" width="70" />
@@ -70,6 +71,11 @@ const statusLabel = (status: string) => {
 
 const statusTagType = (status: string) => {
   const map: Record<string, string> = { DRAFT: 'info', PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger', ONLINE: '', OFFLINE: 'info', SOLD: 'success' }
+  return map[status] || 'info'
+}
+
+const statusTip = (status: string) => {
+  const map: Record<string, string> = { APPROVED: '可点击上架', PENDING: '等待管理员审核', REJECTED: '请修改后重新提交', DRAFT: '可提交审核或继续编辑' }
   return map[status] || ''
 }
 

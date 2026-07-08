@@ -6,32 +6,32 @@
           <div class="logo-icon">C</div>
           <span class="logo-text">CampusTrade</span>
         </div>
-        <el-menu mode="horizontal" :default-active="activeMenu" router class="nav-menu">
-          <el-menu-item index="/">首页</el-menu-item>
-          <el-menu-item index="/goods">商品</el-menu-item>
-        </el-menu>
+        <nav class="nav-links">
+          <router-link to="/" class="nav-link" :class="{ active: route.path === '/' }">首页</router-link>
+          <router-link to="/goods" class="nav-link" :class="{ active: route.path.startsWith('/goods') }">商品</router-link>
+          <template v-if="userStore.token">
+            <router-link to="/my-goods" class="nav-link" :class="{ active: route.path === '/my-goods' }">我的商品</router-link>
+            <router-link to="/order" class="nav-link" :class="{ active: route.path.startsWith('/order') }">订单</router-link>
+            <router-link to="/favorites" class="nav-link" :class="{ active: route.path === '/favorites' }">收藏</router-link>
+          </template>
+        </nav>
         <div class="header-right">
           <template v-if="userStore.token">
-            <el-menu mode="horizontal" :default-active="activeMenu" router class="user-menu">
-              <el-menu-item index="/my-goods">我的商品</el-menu-item>
-              <el-menu-item index="/order">订单</el-menu-item>
-              <el-menu-item index="/favorites">收藏</el-menu-item>
-            </el-menu>
+
+            <el-badge :value="notifyCount || undefined" :hidden="!notifyCount" :max="99" class="header-badge">
+              <router-link to="/notification" class="icon-btn" title="通知">
+                <el-icon :size="20"><Bell /></el-icon>
+              </router-link>
+            </el-badge>
             <el-dropdown>
               <div class="user-info">
-                <el-avatar :size="34" :src="userStore.userInfo?.avatar" />
+                <el-avatar :size="32" :src="userStore.userInfo?.avatar" />
                 <span class="user-name">{{ userStore.userInfo?.nickname || userStore.userInfo?.username }}</span>
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item @click="$router.push('/profile')">
                     <el-icon><User /></el-icon>个人中心
-                  </el-dropdown-item>
-                  <el-dropdown-item @click="$router.push('/chat')">
-                    <el-icon><ChatDotRound /></el-icon>聊天
-                  </el-dropdown-item>
-                  <el-dropdown-item @click="$router.push('/notification')">
-                    <el-icon><Bell /></el-icon>通知
                   </el-dropdown-item>
                   <el-dropdown-item @click="$router.push('/my-reports')">
                     <el-icon><Warning /></el-icon>我的举报
@@ -60,18 +60,26 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { getUnreadCount as getNotifyUnread } from '@/api/notification'
 
 const route = useRoute()
 const userStore = useUserStore()
-const activeMenu = computed(() => route.path)
+const notifyCount = ref(0)
+
+const fetchCounts = async () => {
+  if (!userStore.token) return
+  try { const r = await getNotifyUnread(); notifyCount.value = typeof r === 'number' ? r : 0 } catch { /* */ }
+}
 
 const handleLogout = async () => {
   await userStore.logout()
   location.href = '/login'
 }
+
+onMounted(fetchCounts)
 </script>
 
 <style scoped lang="scss">
@@ -81,7 +89,7 @@ const handleLogout = async () => {
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   padding: 0;
-  height: 64px;
+  height: 60px;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -103,13 +111,13 @@ const handleLogout = async () => {
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  margin-right: 16px;
+  margin-right: 24px;
   flex-shrink: 0;
 }
 
 .logo-icon {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   border-radius: 10px;
   display: flex;
@@ -117,11 +125,11 @@ const handleLogout = async () => {
   justify-content: center;
   color: #fff;
   font-weight: 800;
-  font-size: 18px;
+  font-size: 17px;
 }
 
 .logo-text {
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 700;
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   -webkit-background-clip: text;
@@ -129,34 +137,47 @@ const handleLogout = async () => {
   white-space: nowrap;
 }
 
-.nav-menu {
-  flex-shrink: 0;
-  .el-menu-item {
-    font-size: 15px;
-    font-weight: 500;
-    height: 64px;
-    line-height: 64px;
-    border-bottom: 2px solid transparent !important;
-    &.is-active { border-bottom-color: var(--primary) !important; color: var(--primary) !important; }
-  }
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.nav-link {
+  padding: 6px 16px;
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: var(--transition);
+  white-space: nowrap;
+  &:hover { color: var(--primary); background: var(--primary-lighter); }
+  &.active { color: var(--primary); background: var(--primary-lighter); font-weight: 600; }
 }
 
 .header-right {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.user-menu {
-  flex-shrink: 0;
-  .el-menu-item {
-    font-size: 14px;
-    height: 64px;
-    line-height: 64px;
-    border-bottom: 2px solid transparent !important;
-    &.is-active { border-bottom-color: var(--primary) !important; color: var(--primary) !important; }
-  }
+.header-badge { display: flex; align-items: center; }
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: var(--transition);
+  &:hover { color: var(--primary); background: var(--primary-lighter); }
 }
 
 .user-info {
@@ -164,7 +185,7 @@ const handleLogout = async () => {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  padding: 4px 12px;
+  padding: 4px 12px 4px 4px;
   border-radius: var(--radius-xl);
   transition: var(--transition);
   &:hover { background: var(--bg-hover); }

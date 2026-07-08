@@ -61,38 +61,38 @@ const handleTabChange = () => {
 
 const moduleLabel = (module: string) => {
   const map: Record<string, string> = {
-    AUTH: '认证', USER: '用户', GOODS: '商品', ORDER: '订单',
-    REPORT: '举报', NOTIFICATION: '通知', CHAT: '聊天', FILE: '文件',
-    ADMIN: '管理', LOG: '日志', SYSTEM: '系统'
+    Auth: '认证', User: '用户', Goods: '商品', GoodsCategory: '商品分类',
+    Order: '订单', Report: '举报', Notification: '通知', Chat: '聊天',
+    FileUpload: '文件上传', Admin: '管理'
   }
   return map[module] || module
 }
 
 const operationLabel = (op: string) => {
-  if (!op) return ''
-  if (op.includes('login') || op.includes('Login')) return '登录'
-  if (op.includes('logout') || op.includes('Logout')) return '退出'
-  if (op.includes('register') || op.includes('Register')) return '注册'
-  if (op.includes('create') || op.includes('Create') || op.includes('publish') || op.includes('Publish')) return '创建'
-  if (op.includes('update') || op.includes('Update') || op.includes('edit') || op.includes('Edit')) return '修改'
-  if (op.includes('delete') || op.includes('Delete')) return '删除'
-  if (op.includes('audit') || op.includes('Audit') || op.includes('approve') || op.includes('Approve')) return '审核'
-  if (op.includes('reject') || op.includes('Reject')) return '驳回'
-  if (op.includes('ban') || op.includes('Ban')) return '封禁'
-  if (op.includes('unban') || op.includes('Unban')) return '解封'
-  if (op.includes('upload') || op.includes('Upload')) return '上传'
-  if (op.includes('resolve') || op.includes('Resolve')) return '处理'
-  if (op.includes('dismiss') || op.includes('Dismiss')) return '驳回'
-  if (op.includes('online') || op.includes('Online')) return '上架'
-  if (op.includes('offline') || op.includes('Offline')) return '下架'
-  if (op.includes('submit') || op.includes('Submit')) return '提交'
-  if (op.includes('pay') || op.includes('Pay')) return '支付'
-  if (op.includes('ship') || op.includes('Ship')) return '发货'
-  if (op.includes('finish') || op.includes('Finish') || op.includes('complete') || op.includes('Complete')) return '完成'
-  if (op.includes('cancel') || op.includes('Cancel')) return '取消'
-  if (op.includes('refund') || op.includes('Refund')) return '退款'
-  if (op.includes('favorite') || op.includes('Favorite') || op.includes('collect') || op.includes('Collect')) return '收藏'
-  return op
+  const map: Record<string, string> = {
+    register: '注册', login: '登录', logout: '退出', refreshToken: '刷新Token',
+    getUserInfo: '获取用户信息', updateUserInfo: '修改用户信息', updatePassword: '修改密码',
+    realNameVerify: '实名认证', uploadAvatar: '上传头像',
+    createGoods: '发布商品', updateGoods: '修改商品', deleteGoods: '删除商品',
+    getGoodsDetail: '查看商品详情', listGoods: '查询商品列表', hotGoods: '热门商品',
+    recommendGoods: '推荐商品', submitAudit: '提交审核', onlineGoods: '上架商品',
+    offlineGoods: '下架商品', favoriteGoods: '收藏商品', unfavoriteGoods: '取消收藏',
+    listFavorites: '收藏列表',
+    listAll: '查询全部分类',
+    createOrder: '创建订单', cancelOrder: '取消订单', payOrder: '支付订单',
+    shipOrder: '发货', finishOrder: '确认收货', refundOrder: '退款',
+    getOrderDetail: '查看订单详情', listBuyerOrders: '买家订单列表', listSellerOrders: '卖家订单列表',
+    createReport: '提交举报', listMyReports: '我的举报', handleReport: '处理举报',
+    listNotifications: '通知列表', getUnreadCount: '未读数查询',
+    markAsRead: '标记已读', markAllAsRead: '全部已读', deleteNotification: '删除通知',
+    sendMessage: '发送消息', getHistory: '聊天记录', getRecentContacts: '最近联系人',
+    uploadImage: '上传图片', deleteImage: '删除图片',
+    dashboardStats: '仪表盘统计', listUsers: '用户列表', banUser: '封禁用户',
+    unbanUser: '解封用户', auditGoods: '审核商品', listOrders: '订单列表',
+    listReports: '举报列表', resolveReport: '处理举报', dismissReport: '驳回举报',
+    listOperationLogs: '操作日志', listSecurityLogs: '安全日志'
+  }
+  return map[op] || op
 }
 
 const eventTypeLabel = (type: string) => {
