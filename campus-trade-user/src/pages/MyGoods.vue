@@ -25,6 +25,7 @@
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+            <div v-if="row.rejectReason" style="color: #f56c6c; font-size: 12px; margin-top: 4px">{{ row.rejectReason }}</div>
           </template>
         </el-table-column>
         <el-table-column prop="viewCount" label="浏览" width="70" />
@@ -33,6 +34,7 @@
         <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="$router.push(`/goods/${row.id}`)">查看</el-button>
+            <el-button v-if="row.status === 'DRAFT' || row.status === 'REJECTED'" size="small" @click="$router.push(`/goods/edit/${row.id}`)">编辑</el-button>
             <el-button v-if="row.status === 'DRAFT' || row.status === 'REJECTED'" type="warning" size="small" @click="handleSubmitAudit(row.id)">提交审核</el-button>
             <el-button v-if="row.status === 'APPROVED' || row.status === 'OFFLINE'" type="success" size="small" @click="handleOnline(row.id)">上架</el-button>
             <el-button v-if="row.status === 'ONLINE'" type="info" size="small" @click="handleOffline(row.id)">下架</el-button>

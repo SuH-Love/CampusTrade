@@ -42,15 +42,15 @@
     </update>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO t_chat_message (sender_id, receiver_id, content, message_type, is_read)
-        VALUES (#{senderId}, #{receiverId}, #{content}, #{messageType}, #{isRead})
+        INSERT INTO t_chat_message (sender_id, receiver_id, content, message_type, is_read, create_time, update_time, deleted, version)
+        VALUES (#{senderId}, #{receiverId}, #{content}, #{messageType}, #{isRead}, NOW(), NOW(), 0, 0)
     </insert>
 
     <insert id="insertBatch">
-        INSERT INTO t_chat_message (sender_id, receiver_id, content, message_type, is_read)
+        INSERT INTO t_chat_message (sender_id, receiver_id, content, message_type, is_read, create_time, update_time, deleted, version)
         VALUES
         <foreach collection="messages" item="msg" separator=",">
-            (#{msg.senderId}, #{msg.receiverId}, #{msg.content}, #{msg.messageType}, #{msg.isRead})
+            (#{msg.senderId}, #{msg.receiverId}, #{msg.content}, #{msg.messageType}, #{msg.isRead}, NOW(), NOW(), 0, 0)
         </foreach>
     </insert>
 </mapper>

@@ -13,7 +13,7 @@ services:
     volumes:
       - /app/mysql:/var/lib/mysql
       - ./campus-trade-server/src/main/resources/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --character-set-client-handshake=FALSE --init-connect='SET NAMES utf8mb4'
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --character-set-client-handshake=FALSE --init-connect='SET NAMES utf8mb4' --default-time-zone='+08:00'
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -75,7 +75,7 @@ services:
       JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-604800000}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:81,http://localhost:5173,http://localhost:5174,http://61.139.2.140,http://61.139.2.140:81}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
-      JAVA_OPTS: ${JAVA_OPTS:--Xms512m -Xmx1024m -XX:+UseG1GC}
+      JAVA_OPTS: ${JAVA_OPTS:--Xms512m -Xmx1024m -XX:+UseG1GC -Duser.timezone=Asia/Shanghai}
     depends_on:
       mysql:
         condition: service_healthy

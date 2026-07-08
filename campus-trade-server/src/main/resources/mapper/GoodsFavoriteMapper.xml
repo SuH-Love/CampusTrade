@@ -31,7 +31,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO t_goods_favorite (user_id, goods_id) VALUES (#{userId}, #{goodsId})
+        INSERT INTO t_goods_favorite (user_id, goods_id, create_time, update_time, deleted, version)
+        VALUES (#{userId}, #{goodsId}, NOW(), NOW(), 0, 0)
     </insert>
 
     <update id="deleteByUserAndGoods">

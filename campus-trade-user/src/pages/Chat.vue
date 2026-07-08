@@ -76,12 +76,16 @@ const loadContacts = async () => {
   try {
     const res = await getRecentContacts()
     const list = res.list || res || []
-    contacts.value = list.map((c: any) => ({
-      userId: c.senderId || c.receiverId,
-      name: c.senderName || c.receiverName || '未知用户',
-      avatar: c.senderAvatar || c.receiverAvatar || '',
-      lastMessage: c.content || ''
-    }))
+    const myId = userStore.userInfo?.id
+    contacts.value = list.map((c: any) => {
+      const isMeSender = c.senderId === myId
+      return {
+        userId: isMeSender ? c.receiverId : c.senderId,
+        name: isMeSender ? (c.receiverName || '用户' + c.receiverId) : (c.senderName || '用户' + c.senderId),
+        avatar: isMeSender ? (c.receiverAvatar || '') : (c.senderAvatar || ''),
+        lastMessage: c.content || ''
+      }
+    })
   } catch { contacts.value = [] }
 }
 

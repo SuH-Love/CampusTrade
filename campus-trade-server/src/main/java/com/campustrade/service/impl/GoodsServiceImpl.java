@@ -134,6 +134,7 @@ public class GoodsServiceImpl implements GoodsService {
                     Boolean viewed = redisTemplate.opsForValue().setIfAbsent(viewKey, "1", 300, TimeUnit.SECONDS);
                     if (viewed != null && viewed) {
                         goodsMapper.incrementViewCount(goodsId);
+                        goods.setViewCount(goods.getViewCount() + 1);
                     }
                     GoodsVO vo = toVO(goods);
 

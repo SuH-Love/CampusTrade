@@ -43,8 +43,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO t_report (reporter_id, target_type, target_id, reason, description, images, status)
-        VALUES (#{reporterId}, #{targetType}, #{targetId}, #{reason}, #{description}, #{images}, #{status})
+        INSERT INTO t_report (reporter_id, target_type, target_id, reason, description, images, status, create_time, update_time, deleted, version)
+        VALUES (#{reporterId}, #{targetType}, #{targetId}, #{reason}, #{description}, #{images}, #{status}, NOW(), NOW(), 0, 0)
     </insert>
 
     <update id="updateById">

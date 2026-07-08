@@ -43,11 +43,7 @@ public class ChatServiceImpl implements ChatService {
         message.setContent(dto.getContent());
         message.setMessageType(dto.getMessageType() != null ? dto.getMessageType() : 1);
         message.setIsRead(0);
-
-        String recentKey = RedisConstant.CHAT_RECENT_PREFIX + senderId;
-        redisTemplate.opsForValue().set(recentKey, toVO(message), 3600, TimeUnit.SECONDS);
-
-        rabbitTemplate.convertAndSend(MQConstant.CHAT_EXCHANGE, MQConstant.CHAT_SAVE_KEY, message);
+        chatMessageMapper.insert(message);
         return Result.success();
     }
 
