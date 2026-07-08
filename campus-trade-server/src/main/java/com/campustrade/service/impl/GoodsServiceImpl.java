@@ -209,7 +209,7 @@ public class GoodsServiceImpl implements GoodsService {
         Goods goods = goodsMapper.selectById(goodsId);
         if (goods == null) return Result.error(ResultCode.GOODS_NOT_FOUND);
         if (GoodsStatus.APPROVED.getCode().equals(status)) {
-            goods.setStatus(GoodsStatus.ONLINE.getCode());
+            goods.setStatus(GoodsStatus.APPROVED.getCode());
         } else {
             goods.setStatus(status);
         }
