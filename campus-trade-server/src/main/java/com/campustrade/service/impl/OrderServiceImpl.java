@@ -85,6 +85,10 @@ public class OrderServiceImpl implements OrderService {
         int goodsRows = goodsMapper.updateById(goods);
         if (goodsRows == 0) throw new RuntimeException("商品状态已变更，请刷新后重试");
 
+        redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + goods.getId());
+        redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
+        redisTemplate.delete(RedisConstant.GOODS_RECOMMEND_KEY);
+
         rabbitTemplate.convertAndSend(MQConstant.ORDER_EXCHANGE, MQConstant.ORDER_CREATE_KEY, order.getId());
 
         return Result.success(toVO(order));
@@ -112,6 +116,8 @@ public class OrderServiceImpl implements OrderService {
                 goods.setStatus(GoodsStatus.ONLINE.getCode());
                 goodsMapper.updateById(goods);
                 redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + item.getGoodsId());
+                redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
+                redisTemplate.delete(RedisConstant.GOODS_RECOMMEND_KEY);
             }
         }
         return Result.success();

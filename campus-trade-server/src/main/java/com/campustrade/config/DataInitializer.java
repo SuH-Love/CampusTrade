@@ -1,10 +1,12 @@
 package com.campustrade.config;
 
+import com.campustrade.constant.RedisConstant;
 import com.campustrade.entity.*;
 import com.campustrade.mapper.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -27,6 +29,9 @@ public class DataInitializer implements CommandLineRunner {
     private GoodsCategoryMapper categoryMapper;
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -54,6 +59,17 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void fixExistingTimezoneData() {
+        try {
+            jdbcTemplate.execute("UPDATE t_user_role SET deleted = 0, create_time = COALESCE(create_time, NOW()), update_time = COALESCE(update_time, NOW()), version = COALESCE(version, 0) WHERE deleted IS NULL");
+            jdbcTemplate.execute("UPDATE t_role_permission SET deleted = 0, create_time = COALESCE(create_time, NOW()), update_time = COALESCE(update_time, NOW()), version = COALESCE(version, 0) WHERE deleted IS NULL");
+            try {
+                var keys = redisTemplate.keys(RedisConstant.PERMISSIONS_PREFIX + "*");
+                if (keys != null && !keys.isEmpty()) redisTemplate.delete(keys);
+            } catch (Exception ignored) {}
+            log.info("Fixed NULL deleted fields in t_user_role and t_role_permission, cleared permission cache");
+        } catch (Exception e) {
+            log.warn("Fix NULL deleted failed: {}", e.getMessage());
+        }
         try {
             Long cnt = jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM t_user WHERE create_time IS NOT NULL AND create_time < DATE_SUB(NOW(), INTERVAL 7 HOUR)", Long.class);

@@ -23,7 +23,7 @@
         <el-divider />
         <p style="line-height: 1.8; color: #333">{{ goods.description }}</p>
         <el-divider />
-        <div class="seller-info" @click="handleChat">
+        <div class="seller-info" @click="handleChat" v-if="userStore.token && goods.userId !== userStore.userInfo?.id">
           <el-avatar :size="40" :src="goods.userAvatar" />
           <div style="margin-left: 10px">
             <div style="font-weight: 500">{{ goods.username }}</div>
