@@ -65,7 +65,6 @@ const inputText = ref('')
 const sending = ref(false)
 const messagesRef = ref<HTMLElement>()
 
-const formatTime = (t: string) => { if (!t) return ''; const d = new Date(t); if (isNaN(d.getTime())) return t; const pad = (n: number) => String(n).padStart(2, '0'); return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}` }
 
 const loadContacts = async () => {
   try {
