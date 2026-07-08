@@ -25,10 +25,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getOperationLogs, getSecurityLogs } from '@/api/admin'
-import type { OperationLogVO, PageQueryParams } from '@/types'
+import type { OperationLogVO, SecurityLogVO, PageQueryParams } from '@/types'
+
+type LogItem = OperationLogVO | SecurityLogVO
 
 const activeTab = ref('operation')
-const logs = ref<OperationLogVO[]>([])
+const logs = ref<LogItem[]>([])
 const pageNum = ref(1)
 const pageSize = ref(15)
 const total = ref(0)
