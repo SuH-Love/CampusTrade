@@ -29,8 +29,9 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO t_role (role_name, role_code, description, status)
-        VALUES (#{roleName}, #{roleCode}, #{description}, #{status})
+        INSERT INTO t_role (id, role_name, role_code, description, status)
+        VALUES (#{id}, #{roleName}, #{roleCode}, #{description}, #{status})
+        ON DUPLICATE KEY UPDATE role_name = #{roleName}
     </insert>
 
     <update id="updateById">

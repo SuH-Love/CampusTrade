@@ -15,4 +15,8 @@
         SELECT permission_id FROM t_role_permission WHERE role_id = #{roleId} AND deleted = 0
     </select>
 
+    <select id="selectByRoleIdAndPermissionId" resultType="com.campustrade.entity.RolePermission">
+        SELECT * FROM t_role_permission WHERE role_id = #{roleId} AND permission_id = #{permissionId} AND deleted = 0
+    </select>
+
 </mapper>

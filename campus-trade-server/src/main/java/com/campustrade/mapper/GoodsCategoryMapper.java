@@ -18,5 +18,7 @@ public interface GoodsCategoryMapper {
 
     int insert(GoodsCategory category);
 
+    Long selectCountAll();
+
     int updateById(GoodsCategory category);
 }

@@ -30,6 +30,10 @@
         SELECT * FROM t_goods_category WHERE deleted = 0 AND status = 1 ORDER BY sort_order
     </select>
 
+    <select id="selectCountAll" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_goods_category WHERE deleted = 0
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO t_goods_category (category_name, parent_id, sort_order, icon, status)
         VALUES (#{categoryName}, #{parentId}, #{sortOrder}, #{icon}, #{status})

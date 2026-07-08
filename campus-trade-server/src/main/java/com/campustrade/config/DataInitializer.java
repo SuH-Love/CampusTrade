@@ -1,9 +1,7 @@
 package com.campustrade.config;
 
-import com.campustrade.entity.User;
-import com.campustrade.entity.UserRole;
-import com.campustrade.mapper.UserMapper;
-import com.campustrade.mapper.UserRoleMapper;
+import com.campustrade.entity.*;
+import com.campustrade.mapper.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -16,16 +14,102 @@ public class DataInitializer implements CommandLineRunner {
 
     @Autowired
     private UserMapper userMapper;
-
     @Autowired
     private UserRoleMapper userRoleMapper;
-
+    @Autowired
+    private RoleMapper roleMapper;
+    @Autowired
+    private PermissionMapper permissionMapper;
+    @Autowired
+    private RolePermissionMapper rolePermissionMapper;
+    @Autowired
+    private GoodsCategoryMapper categoryMapper;
     @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
+        initRoles();
+        initPermissions();
+        initRolePermissions();
         initAdminUser();
+        initCategories();
+    }
+
+    private void initRoles() {
+        if (roleMapper.selectById(1L) == null) {
+            insertRole(1L, "超级管理员", "ROLE_SUPER_ADMIN", "系统超级管理员");
+        }
+        if (roleMapper.selectById(2L) == null) {
+            insertRole(2L, "管理员", "ROLE_ADMIN", "普通管理员");
+        }
+        if (roleMapper.selectById(3L) == null) {
+            insertRole(3L, "普通用户", "ROLE_USER", "注册用户");
+        }
+    }
+
+    private void insertRole(Long id, String name, String code, String desc) {
+        Role role = new Role();
+        role.setId(id);
+        role.setRoleName(name);
+        role.setRoleCode(code);
+        role.setDescription(desc);
+        role.setStatus(1);
+        roleMapper.insert(role);
+    }
+
+    private void initPermissions() {
+        if (permissionMapper.selectById(1L) == null) {
+            insertPerm(1L, "商品管理", "goods:manage", 1, 0L, 1);
+            insertPerm(2L, "商品创建", "goods:create", 2, 1L, 1);
+            insertPerm(3L, "商品修改", "goods:update", 2, 1L, 2);
+            insertPerm(4L, "商品删除", "goods:delete", 2, 1L, 3);
+            insertPerm(5L, "商品审核", "goods:audit", 2, 1L, 4);
+            insertPerm(6L, "用户管理", "user:manage", 1, 0L, 2);
+            insertPerm(7L, "用户封禁", "user:ban", 2, 6L, 1);
+            insertPerm(8L, "举报管理", "report:manage", 1, 0L, 3);
+            insertPerm(9L, "举报审核", "report:review", 2, 8L, 1);
+            insertPerm(10L, "日志管理", "log:manage", 1, 0L, 4);
+            insertPerm(11L, "日志查看", "log:view", 2, 10L, 1);
+        }
+    }
+
+    private void insertPerm(Long id, String name, String code, int type, Long parentId, int sort) {
+        Permission p = new Permission();
+        p.setId(id);
+        p.setPermissionName(name);
+        p.setPermissionCode(code);
+        p.setResourceType(type);
+        p.setParentId(parentId);
+        p.setSortOrder(sort);
+        p.setStatus(1);
+        permissionMapper.insert(p);
+    }
+
+    private void initRolePermissions() {
+        if (rolePermissionMapper.selectByRoleIdAndPermissionId(1L, 1L) == null) {
+            Long[][] superAdminPerms = {
+                    {1L, 1L}, {1L, 2L}, {1L, 3L}, {1L, 4L}, {1L, 5L},
+                    {1L, 6L}, {1L, 7L}, {1L, 8L}, {1L, 9L}, {1L, 10L}, {1L, 11L}
+            };
+            for (Long[] rp : superAdminPerms) {
+                insertRolePermission(rp[0], rp[1]);
+            }
+            Long[][] adminPerms = {
+                    {2L, 1L}, {2L, 4L}, {2L, 6L}, {2L, 7L},
+                    {2L, 8L}, {2L, 9L}, {2L, 10L}, {2L, 11L}
+            };
+            for (Long[] rp : adminPerms) {
+                insertRolePermission(rp[0], rp[1]);
+            }
+        }
+    }
+
+    private void insertRolePermission(Long roleId, Long permId) {
+        RolePermission rp = new RolePermission();
+        rp.setRoleId(roleId);
+        rp.setPermissionId(permId);
+        rolePermissionMapper.insert(rp);
     }
 
     private void initAdminUser() {
@@ -45,6 +129,22 @@ public class DataInitializer implements CommandLineRunner {
             userRoleMapper.insert(userRole);
 
             log.info("Admin user created: admin/admin123");
+        }
+    }
+
+    private void initCategories() {
+        Long count = categoryMapper.selectCountAll();
+        if (count == null || count == 0) {
+            String[][] cats = {{"数码电子", "1"}, {"书籍教材", "2"}, {"生活用品", "3"}, {"服装鞋帽", "4"}, {"运动户外", "5"}, {"其他", "6"}};
+            for (String[] cat : cats) {
+                GoodsCategory c = new GoodsCategory();
+                c.setCategoryName(cat[0]);
+                c.setParentId(0L);
+                c.setSortOrder(Integer.parseInt(cat[1]));
+                c.setStatus(1);
+                categoryMapper.insert(c);
+            }
+            log.info("Goods categories initialized");
         }
     }
 }

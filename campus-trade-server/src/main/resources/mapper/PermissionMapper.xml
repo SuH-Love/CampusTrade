@@ -47,8 +47,9 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO t_permission (permission_name, permission_code, resource_type, parent_id, sort_order, status)
-        VALUES (#{permissionName}, #{permissionCode}, #{resourceType}, #{parentId}, #{sortOrder}, #{status})
+        INSERT INTO t_permission (id, permission_name, permission_code, resource_type, parent_id, sort_order, status)
+        VALUES (#{id}, #{permissionName}, #{permissionCode}, #{resourceType}, #{parentId}, #{sortOrder}, #{status})
+        ON DUPLICATE KEY UPDATE permission_name = #{permissionName}
     </insert>
 
     <update id="updateById">
