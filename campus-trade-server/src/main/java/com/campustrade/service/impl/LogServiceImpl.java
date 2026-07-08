@@ -49,6 +49,7 @@ public class LogServiceImpl implements LogService {
     }
 
     @Override
+    @Async
     public void recordOperationLog(OperationLog log) {
         try {
             operationLogMapper.insert(log);
@@ -58,6 +59,7 @@ public class LogServiceImpl implements LogService {
     }
 
     @Override
+    @Async
     public void recordSecurityLog(SecurityLog log) {
         try {
             securityLogMapper.insert(log);
