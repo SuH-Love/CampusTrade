@@ -27,13 +27,22 @@
               v-for="msg in messages"
               :key="msg.id"
               class="message-item"
-              :class="{ self: msg.senderId === userStore.userInfo?.id }"
+              :class="{ self: msg.senderId === myId }"
             >
-              <el-avatar :size="36" :src="msg.senderAvatar" />
-              <div class="message-content">
-                <div class="message-text">{{ msg.content }}</div>
-                <div class="message-time">{{ msg.createTime }}</div>
-              </div>
+              <template v-if="msg.senderId === myId">
+                <div class="message-content self-content">
+                  <div class="message-text self-text">{{ msg.content }}</div>
+                  <div class="message-time">{{ formatTime(msg.createTime) }}</div>
+                </div>
+              </template>
+              <template v-else>
+                <el-avatar :size="36" :src="msg.senderAvatar" />
+                <div class="message-content">
+                  <div class="sender-name">{{ msg.senderName }}</div>
+                  <div class="message-text">{{ msg.content }}</div>
+                  <div class="message-time">{{ formatTime(msg.createTime) }}</div>
+                </div>
+              </template>
             </div>
             <el-empty v-if="messages.length === 0" description="暂无消息，发送第一条消息吧" :image-size="60" />
           </div>
@@ -49,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getRecentContacts, getHistory, sendMessage, markAsRead } from '@/api/chat'
@@ -57,6 +66,7 @@ import type { ChatMessageVO } from '@/api/chat'
 
 const route = useRoute()
 const userStore = useUserStore()
+const myId = computed(() => userStore.userInfo?.id)
 
 interface ContactItem {
   userId: number
@@ -72,17 +82,24 @@ const messages = ref<ChatMessageVO[]>([])
 const inputText = ref('')
 const messagesRef = ref<HTMLElement>()
 
+const formatTime = (t: string) => {
+  if (!t) return ''
+  const d = new Date(t)
+  if (isNaN(d.getTime())) return t
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 const loadContacts = async () => {
   try {
     const res = await getRecentContacts()
     const list = res.list || res || []
-    const myId = userStore.userInfo?.id
     contacts.value = list.map((c: any) => {
-      const isMeSender = c.senderId === myId
+      const isMeSender = c.senderId === myId.value
       return {
         userId: isMeSender ? c.receiverId : c.senderId,
-        name: isMeSender ? (c.receiverName || '用户' + c.receiverId) : (c.senderName || '用户' + c.senderId),
-        avatar: isMeSender ? (c.receiverAvatar || '') : (c.senderAvatar || ''),
+        name: isMeSender ? ('用户' + c.receiverId) : (c.senderName || '用户' + c.senderId),
+        avatar: isMeSender ? '' : (c.senderAvatar || ''),
         lastMessage: c.content || ''
       }
     })
@@ -149,11 +166,13 @@ onMounted(async () => {
 .contact-name { font-weight: 500; }
 .contact-last { font-size: 12px; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-header { padding: 16px; border-bottom: 1px solid #e4e7ed; font-weight: bold; font-size: 16px; }
-.chat-messages { flex: 1; overflow-y: auto; padding: 16px; }
-.message-item { display: flex; gap: 10px; margin-bottom: 16px; &.self { flex-direction: row-reverse; } }
+.chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; }
+.message-item { display: flex; gap: 10px; margin-bottom: 16px; &.self { justify-content: flex-end; } }
 .message-content { max-width: 60%; }
-.message-text { background: #f4f4f5; padding: 10px 14px; border-radius: 8px; word-break: break-all; }
-.self .message-text { background: #409eff; color: #fff; }
+.self-content { text-align: right; }
+.sender-name { font-size: 12px; color: #999; margin-bottom: 4px; }
+.message-text { background: #f4f4f5; padding: 10px 14px; border-radius: 8px; word-break: break-all; display: inline-block; text-align: left; }
+.self-text { background: #409eff; color: #fff; }
 .message-time { font-size: 12px; color: #999; margin-top: 4px; }
 .chat-input { display: flex; gap: 10px; padding: 16px; border-top: 1px solid #e4e7ed; }
 </style>
