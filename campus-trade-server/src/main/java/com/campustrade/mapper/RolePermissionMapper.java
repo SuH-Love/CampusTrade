@@ -2,6 +2,7 @@ package com.campustrade.mapper;
 
 import com.campustrade.entity.RolePermission;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
