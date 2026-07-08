@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { login as loginApi, register as registerApi } from '@/api/auth'
+import { login as loginApi, register as registerApi, logout as logoutApi } from '@/api/auth'
 import type { LoginParams, RegisterParams, TokenVO } from '@/api/auth'
 import { getUserInfo } from '@/api/user'
 import type { UserVO } from '@/api/user'
@@ -35,7 +35,10 @@ export const useUserStore = defineStore('user', () => {
     await registerApi(params)
   }
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await logoutApi()
+    } catch { /* ignore */ }
     clearAuth()
     window.location.href = '/login'
   }
