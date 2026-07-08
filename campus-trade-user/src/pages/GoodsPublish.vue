@@ -107,9 +107,10 @@ const handleSubmit = async () => {
   if (!formRef.value) return
   await formRef.value.validate()
   if (form.price <= 0) { ElMessage.error('售价必须大于0'); return }
+  if (!form.categoryId) { ElMessage.error('请选择分类'); return }
   submitting.value = true
   try {
-    await createGoods(form)
+    await createGoods({ ...form, categoryId: form.categoryId })
     ElMessage.success('发布成功，可在"我的商品"中提交审核')
     router.push('/my-goods')
   } finally {

@@ -95,7 +95,7 @@ const formatTime = (t: string) => {
 const loadContacts = async () => {
   try {
     const res = await getRecentContacts()
-    const list: ContactVO[] = res.list || res || []
+    const list: ContactVO[] = Array.isArray(res) ? res : ((res as { list?: ContactVO[] }).list || [])
     contacts.value = list.map((c) => {
       const isMeSender = c.senderId === myId.value
       return {
