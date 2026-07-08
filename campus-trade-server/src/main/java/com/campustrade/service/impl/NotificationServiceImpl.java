@@ -8,6 +8,7 @@ import com.campustrade.entity.Notification;
 import com.campustrade.mapper.NotificationMapper;
 import com.campustrade.service.NotificationService;
 import com.campustrade.vo.NotificationVO;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class NotificationServiceImpl implements NotificationService {
 
@@ -41,10 +43,21 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public Result<Long> getUnreadCount(Long userId) {
         String cacheKey = RedisConstant.NOTIFY_USER_PREFIX + userId + ":unread";
-        Object cached = redisTemplate.opsForValue().get(cacheKey);
-        if (cached != null) return Result.success((Long) cached);
+        try {
+            Object cached = redisTemplate.opsForValue().get(cacheKey);
+            if (cached != null) {
+                long val = ((Number) cached).longValue();
+                return Result.success(val);
+            }
+        } catch (Exception e) {
+            log.warn("Redis read unread count failed: {}", e.getMessage());
+        }
         Long count = notificationMapper.selectUnreadCount(userId);
-        redisTemplate.opsForValue().set(cacheKey, count, 300, TimeUnit.SECONDS);
+        try {
+            redisTemplate.opsForValue().set(cacheKey, count, 300, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis write unread count failed: {}", e.getMessage());
+        }
         return Result.success(count);
     }
 

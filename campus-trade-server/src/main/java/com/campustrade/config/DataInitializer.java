@@ -38,6 +38,7 @@ public class DataInitializer implements CommandLineRunner {
         initPermissions();
         initRolePermissions();
         initAdminUser();
+        initNormalUser();
         initCategories();
     }
 
@@ -48,34 +49,7 @@ public class DataInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.warn("Failed to set MySQL time_zone: {}", e.getMessage());
         }
-        fixTimezoneData();
-    }
 
-    private void fixTimezoneData() {
-        try {
-            String[] tables = {"t_user", "t_goods", "t_order", "t_order_item", "t_report",
-                    "t_chat_message", "t_operation_log", "t_security_log", "t_goods_favorite",
-                    "t_notification", "t_user_role", "t_role_permission"};
-            for (String table : tables) {
-                try {
-                    jdbcTemplate.execute("UPDATE " + table + " SET create_time = DATE_ADD(create_time, INTERVAL 8 HOUR) WHERE create_time IS NOT NULL AND create_time < '2026-07-09 00:00:00'");
-                    jdbcTemplate.execute("UPDATE " + table + " SET update_time = DATE_ADD(update_time, INTERVAL 8 HOUR) WHERE update_time IS NOT NULL AND update_time < '2026-07-09 00:00:00'");
-                } catch (Exception ignored) {}
-            }
-            String[] extraCols = {
-                    "UPDATE t_order SET pay_time = DATE_ADD(pay_time, INTERVAL 8 HOUR) WHERE pay_time IS NOT NULL AND pay_time < '2026-07-09 00:00:00'",
-                    "UPDATE t_order SET ship_time = DATE_ADD(ship_time, INTERVAL 8 HOUR) WHERE ship_time IS NOT NULL AND ship_time < '2026-07-09 00:00:00'",
-                    "UPDATE t_order SET finish_time = DATE_ADD(finish_time, INTERVAL 8 HOUR) WHERE finish_time IS NOT NULL AND finish_time < '2026-07-09 00:00:00'",
-                    "UPDATE t_order SET cancel_time = DATE_ADD(cancel_time, INTERVAL 8 HOUR) WHERE cancel_time IS NOT NULL AND cancel_time < '2026-07-09 00:00:00'",
-                    "UPDATE t_report SET handle_time = DATE_ADD(handle_time, INTERVAL 8 HOUR) WHERE handle_time IS NOT NULL AND handle_time < '2026-07-09 00:00:00'"
-            };
-            for (String sql : extraCols) {
-                try { jdbcTemplate.execute(sql); } catch (Exception ignored) {}
-            }
-            log.info("Timezone data fix applied");
-        } catch (Exception e) {
-            log.warn("Timezone data fix failed: {}", e.getMessage());
-        }
     }
 
     private void initRoles() {
@@ -171,6 +145,26 @@ public class DataInitializer implements CommandLineRunner {
             userRoleMapper.insert(userRole);
 
             log.info("Admin user created: admin/admin123");
+        }
+    }
+
+    private void initNormalUser() {
+        User user = userMapper.selectByUsername("user");
+        if (user == null) {
+            user = new User();
+            user.setUsername("user");
+            user.setPassword(passwordEncoder.encode("user123"));
+            user.setNickname("普通用户");
+            user.setStatus(1);
+            user.setRealVerified(0);
+            userMapper.insert(user);
+
+            UserRole userRole = new UserRole();
+            userRole.setUserId(user.getId());
+            userRole.setRoleId(3L);
+            userRoleMapper.insert(userRole);
+
+            log.info("Normal user created: user/user123");
         }
     }
 
