@@ -34,6 +34,7 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         setTimeZone();
+        fixExistingTimezoneData();
         initRoles();
         initPermissions();
         initRolePermissions();
@@ -49,6 +50,37 @@ public class DataInitializer implements CommandLineRunner {
             log.info("MySQL time_zone set to +08:00 (global and session)");
         } catch (Exception e) {
             log.warn("Failed to set MySQL time_zone: {}", e.getMessage());
+        }
+    }
+
+    private void fixExistingTimezoneData() {
+        try {
+            Long cnt = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM t_user WHERE create_time IS NOT NULL AND create_time < DATE_SUB(NOW(), INTERVAL 7 HOUR)", Long.class);
+            if (cnt != null && cnt > 0) {
+                String[] tables = {"t_user", "t_goods", "t_order", "t_order_item", "t_report",
+                        "t_chat_message", "t_operation_log", "t_security_log", "t_goods_favorite",
+                        "t_notification", "t_user_role", "t_role_permission"};
+                for (String table : tables) {
+                    try {
+                        jdbcTemplate.execute("UPDATE " + table + " SET create_time = DATE_ADD(create_time, INTERVAL 8 HOUR) WHERE create_time IS NOT NULL AND create_time < DATE_SUB(NOW(), INTERVAL 7 HOUR)");
+                        jdbcTemplate.execute("UPDATE " + table + " SET update_time = DATE_ADD(update_time, INTERVAL 8 HOUR) WHERE update_time IS NOT NULL AND update_time < DATE_SUB(NOW(), INTERVAL 7 HOUR)");
+                    } catch (Exception ignored) {}
+                }
+                String[] extraCols = {
+                        "UPDATE t_order SET pay_time = DATE_ADD(pay_time, INTERVAL 8 HOUR) WHERE pay_time IS NOT NULL AND pay_time < DATE_SUB(NOW(), INTERVAL 7 HOUR)",
+                        "UPDATE t_order SET ship_time = DATE_ADD(ship_time, INTERVAL 8 HOUR) WHERE ship_time IS NOT NULL AND ship_time < DATE_SUB(NOW(), INTERVAL 7 HOUR)",
+                        "UPDATE t_order SET finish_time = DATE_ADD(finish_time, INTERVAL 8 HOUR) WHERE finish_time IS NOT NULL AND finish_time < DATE_SUB(NOW(), INTERVAL 7 HOUR)",
+                        "UPDATE t_order SET cancel_time = DATE_ADD(cancel_time, INTERVAL 8 HOUR) WHERE cancel_time IS NOT NULL AND cancel_time < DATE_SUB(NOW(), INTERVAL 7 HOUR)",
+                        "UPDATE t_report SET handle_time = DATE_ADD(handle_time, INTERVAL 8 HOUR) WHERE handle_time IS NOT NULL AND handle_time < DATE_SUB(NOW(), INTERVAL 7 HOUR)"
+                };
+                for (String sql : extraCols) {
+                    try { jdbcTemplate.execute(sql); } catch (Exception ignored) {}
+                }
+                log.info("Existing timezone data fix applied ({} users had UTC times)", cnt);
+            }
+        } catch (Exception e) {
+            log.warn("Timezone data fix check failed: {}", e.getMessage());
         }
     }
 
