@@ -5,12 +5,15 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 
 @Mapper
 public interface GoodsMapper {
 
     Goods selectById(@Param("id") Long id);
+
+    List<Goods> selectByIds(@Param("ids") Collection<Long> ids);
 
     List<Goods> selectList(@Param("categoryId") Long categoryId, @Param("keyword") String keyword,
                            @Param("minPrice") BigDecimal minPrice, @Param("maxPrice") BigDecimal maxPrice,

@@ -20,6 +20,7 @@ import com.campustrade.mapper.UserMapper;
 import com.campustrade.service.GoodsService;
 import com.campustrade.service.LogService;
 import com.campustrade.vo.GoodsVO;
+import com.campustrade.util.IpUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -129,7 +130,11 @@ public class GoodsServiceImpl implements GoodsService {
                         return Result.error(ResultCode.GOODS_NOT_FOUND);
                     }
 
-                    goodsMapper.incrementViewCount(goodsId);
+                    String viewKey = RedisConstant.LOCK_GOODS_PREFIX + "view:" + goodsId + ":" + (currentUserId != null ? currentUserId : IpUtil.getIpAddr());
+                    Boolean viewed = redisTemplate.opsForValue().setIfAbsent(viewKey, "1", 300, TimeUnit.SECONDS);
+                    if (viewed != null && viewed) {
+                        goodsMapper.incrementViewCount(goodsId);
+                    }
                     GoodsVO vo = toVO(goods);
 
                     if (currentUserId != null) {
@@ -217,6 +222,8 @@ public class GoodsServiceImpl implements GoodsService {
         int rows = goodsMapper.updateById(goods);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
         redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + goodsId);
+        redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
+        redisTemplate.delete(RedisConstant.GOODS_RECOMMEND_KEY);
         return Result.success();
     }
 
@@ -232,6 +239,8 @@ public class GoodsServiceImpl implements GoodsService {
         int rows = goodsMapper.updateById(goods);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
         redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + goodsId);
+        redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
+        redisTemplate.delete(RedisConstant.GOODS_RECOMMEND_KEY);
         return Result.success();
     }
 
@@ -246,6 +255,8 @@ public class GoodsServiceImpl implements GoodsService {
         int rows = goodsMapper.updateById(goods);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
         redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + goodsId);
+        redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
+        redisTemplate.delete(RedisConstant.GOODS_RECOMMEND_KEY);
         return Result.success();
     }
 
@@ -268,6 +279,18 @@ public class GoodsServiceImpl implements GoodsService {
         favoriteMapper.deleteByUserAndGoods(userId, goodsId);
         goodsMapper.decrementFavoriteCount(goodsId);
         return Result.success();
+    }
+
+    @Override
+    public Result<PageResult<GoodsVO>> listFavoriteGoods(Long userId, Integer pageNum, Integer pageSize) {
+        int offset = (pageNum - 1) * pageSize;
+        List<Long> goodsIds = favoriteMapper.selectGoodsIdsByUserId(userId, offset, pageSize);
+        Long total = favoriteMapper.selectCountByUserId(userId);
+        if (goodsIds.isEmpty()) return Result.success(new PageResult<>(List.of(), 0L));
+        List<Goods> goodsList = goodsMapper.selectByIds(goodsIds);
+        List<GoodsVO> vos = toVOList(goodsList);
+        vos.forEach(v -> v.setIsFavorited(true));
+        return Result.success(new PageResult<>(vos, total));
     }
 
     @Override
@@ -335,4 +358,5 @@ public class GoodsServiceImpl implements GoodsService {
         Long count = goodsMapper.selectCountByStatus(GoodsStatus.PENDING.getCode());
         return count != null ? count : 0L;
     }
+
 }

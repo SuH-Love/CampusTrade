@@ -48,3 +48,5 @@ export const offlineGoods = (id: number) => request.put(`/goods/${id}/offline`)
 export const favoriteGoods = (id: number) => request.post(`/goods/${id}/favorite`)
 
 export const unfavoriteGoods = (id: number) => request.delete(`/goods/${id}/favorite`)
+
+export const getFavoriteList = (params: any) => request.get<any, PageResult<GoodsVO>>('/goods/favorites', { params })

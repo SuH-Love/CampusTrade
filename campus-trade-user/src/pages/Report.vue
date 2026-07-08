@@ -4,14 +4,20 @@
       <template #header><h3>提交举报</h3></template>
       <el-form :model="form" :rules="rules" ref="formRef" label-width="80px" style="max-width: 600px">
         <el-form-item label="举报类型" prop="targetType">
-          <el-select v-model="form.targetType" placeholder="选择类型">
+          <el-select v-model="form.targetType" placeholder="选择类型" :disabled="!!route.query.targetType" @change="handleTypeChange">
             <el-option label="商品" :value="1" />
             <el-option label="用户" :value="2" />
-            <el-option label="订单" :value="3" />
+            <el-option label="聊天" :value="3" />
           </el-select>
         </el-form-item>
-        <el-form-item label="目标ID" prop="targetId">
-          <el-input-number v-model="form.targetId" :min="1" />
+        <el-form-item label="举报目标" prop="targetId">
+          <el-input v-model="form.targetId" disabled placeholder="举报目标ID" />
+        </el-form-item>
+        <el-form-item label="目标信息" v-if="targetInfo">
+          <el-descriptions :column="1" border size="small">
+            <el-descriptions-item label="名称">{{ targetInfo.name }}</el-descriptions-item>
+            <el-descriptions-item label="详情">{{ targetInfo.detail }}</el-descriptions-item>
+          </el-descriptions>
         </el-form-item>
         <el-form-item label="举报原因" prop="reason">
           <el-input v-model="form.reason" placeholder="简要描述原因" />
@@ -47,6 +53,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { createReport, listMyReports } from '@/api/report'
+import { getGoodsDetail } from '@/api/goods'
 import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 
@@ -54,11 +61,12 @@ const route = useRoute()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 const reports = ref<any[]>([])
+const targetInfo = ref<{ name: string; detail: string } | null>(null)
 
-const form = reactive({ targetType: 1, targetId: 1, reason: '', description: '' })
+const form = reactive({ targetType: 1, targetId: '', reason: '', description: '' })
 const rules = {
   targetType: [{ required: true, message: '请选择举报类型', trigger: 'change' }],
-  targetId: [{ required: true, message: '请输入目标ID', trigger: 'blur' }],
+  targetId: [{ required: true, message: '举报目标不能为空', trigger: 'change' }],
   reason: [{ required: true, message: '请输入举报原因', trigger: 'blur' }]
 }
 
@@ -66,12 +74,27 @@ const statusTagMap: Record<string, string> = { PENDING: 'warning', FINISHED: '',
 const statusLabel = (s: string) => ({ PENDING: '待处理', FINISHED: '已处理', RESOLVED: '已解决', DISMISSED: '已驳回' }[s] || s)
 const targetTypeLabel = (t: number) => ({ 1: '商品', 2: '用户', 3: '聊天' }[t] || '其他')
 
+const handleTypeChange = () => {
+  form.targetId = ''
+  targetInfo.value = null
+}
+
+const loadTargetInfo = async () => {
+  if (!form.targetId) { targetInfo.value = null; return }
+  try {
+    if (form.targetType === 1) {
+      const goods = await getGoodsDetail(Number(form.targetId))
+      targetInfo.value = { name: goods.title, detail: `¥${goods.price} · ${goods.categoryName || ''}` }
+    }
+  } catch { targetInfo.value = null }
+}
+
 const handleSubmit = async () => {
   if (!formRef.value) return
   await formRef.value.validate()
   loading.value = true
   try {
-    await createReport(form)
+    await createReport({ targetType: form.targetType, targetId: Number(form.targetId), reason: form.reason, description: form.description })
     ElMessage.success('举报已提交')
     form.reason = ''
     form.description = ''
@@ -88,12 +111,13 @@ const loadReports = async () => {
   } catch { /* ignore */ }
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (route.query.targetType) {
     form.targetType = Number(route.query.targetType)
   }
   if (route.query.targetId) {
-    form.targetId = Number(route.query.targetId)
+    form.targetId = String(route.query.targetId)
+    await loadTargetInfo()
   }
   loadReports()
 })

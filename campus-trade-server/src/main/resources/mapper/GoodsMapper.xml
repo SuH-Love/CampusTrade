@@ -26,6 +26,11 @@
         SELECT * FROM t_goods WHERE id = #{id} AND deleted = 0
     </select>
 
+    <select id="selectByIds" resultMap="BaseResultMap">
+        SELECT * FROM t_goods WHERE deleted = 0 AND id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </select>
+
     <select id="selectList" resultMap="BaseResultMap">
         SELECT * FROM t_goods WHERE deleted = 0
         <if test="categoryId != null">AND category_id = #{categoryId}</if>

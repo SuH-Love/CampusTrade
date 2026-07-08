@@ -28,6 +28,12 @@
             <el-tag :type="statusTagMap[row.status] || 'info'">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column prop="rejectReason" label="拒绝原因" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.rejectReason" style="color: #f56c6c">{{ row.rejectReason }}</span>
+            <span v-else style="color: #c0c4cc">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="createTime" label="提交时间" width="170" />
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">

@@ -132,8 +132,10 @@ public class AuthServiceImpl implements AuthService {
         if (lockObj != null) {
             long failCount = Long.parseLong(lockObj.toString());
             if (failCount >= AccountLockConstant.MAX_LOGIN_FAIL) {
+                Long ttl = redisTemplate.getExpire(lockKey, TimeUnit.MINUTES);
+                long remainMinutes = ttl != null && ttl > 0 ? ttl : AccountLockConstant.LOCK_DURATION / 60;
                 logService.recordSecurityLog(buildSecurityLog(null, dto.getUsername(), SecurityEventType.RATE_LIMIT.getCode(), ip, "账号已锁定"));
-                return Result.error(423, "账号已锁定，请" + AccountLockConstant.LOCK_DURATION / 60 + "分钟后重试");
+                return Result.error(423, "账号已锁定，请" + remainMinutes + "分钟后重试");
             }
         }
 
@@ -153,9 +155,10 @@ public class AuthServiceImpl implements AuthService {
             if (failCount != null && failCount == 1) {
                 redisTemplate.expire(lockKey, AccountLockConstant.LOCK_DURATION, TimeUnit.SECONDS);
             }
-            logService.recordSecurityLog(buildSecurityLog(null, dto.getUsername(), SecurityEventType.LOGIN_FAIL.getCode(), ip,
-                    "用户名或密码错误，剩余" + (AccountLockConstant.MAX_LOGIN_FAIL - (failCount != null ? failCount : 0)) + "次"));
-            return Result.error(ResultCode.LOGIN_FAIL);
+            long remaining = AccountLockConstant.MAX_LOGIN_FAIL - (failCount != null ? failCount : 1);
+            String msg = remaining <= 0 ? "账号已锁定，请30分钟后重试" : "用户名或密码错误，剩余" + remaining + "次尝试机会";
+            logService.recordSecurityLog(buildSecurityLog(null, dto.getUsername(), SecurityEventType.LOGIN_FAIL.getCode(), ip, msg));
+            return Result.error(ResultCode.LOGIN_FAIL.getCode(), msg);
         }
         if (user.getStatus() == 0) {
             return Result.error(ResultCode.ACCOUNT_DISABLED);

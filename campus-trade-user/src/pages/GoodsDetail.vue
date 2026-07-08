@@ -32,7 +32,7 @@
         </div>
         <div style="margin-top: 24px; display: flex; gap: 12px">
           <el-button type="primary" size="large" @click="handleBuy" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id">立即购买</el-button>
-          <el-button size="large" @click="handleFavorite">
+          <el-button size="large" :type="goods.isFavorited ? 'warning' : 'default'" @click="handleFavorite">
             <el-icon><Star /></el-icon>
             {{ goods.isFavorited ? '已收藏' : '收藏' }}
           </el-button>
@@ -70,7 +70,8 @@ const discount = computed(() => {
 })
 
 const loadData = async () => {
-  goods.value = await getGoodsDetail(Number(route.params.id))
+  const data = await getGoodsDetail(Number(route.params.id))
+  goods.value = data
 }
 
 const handleBuy = async () => {
@@ -83,20 +84,29 @@ const handleBuy = async () => {
 
 const handleFavorite = async () => {
   if (!goods.value || !userStore.token) { ElMessage.warning('请先登录'); return }
-  if (goods.value.isFavorited) {
-    await unfavoriteGoods(goods.value.id)
-    goods.value.isFavorited = false
-    goods.value.favoriteCount--
-  } else {
-    await favoriteGoods(goods.value.id)
-    goods.value.isFavorited = true
-    goods.value.favoriteCount++
+  try {
+    if (goods.value.isFavorited) {
+      await unfavoriteGoods(goods.value.id)
+      goods.value.isFavorited = false
+      goods.value.favoriteCount = Math.max(0, goods.value.favoriteCount - 1)
+      ElMessage.success('已取消收藏')
+    } else {
+      await favoriteGoods(goods.value.id)
+      goods.value.isFavorited = true
+      goods.value.favoriteCount++
+      ElMessage.success('已收藏')
+    }
+  } catch (e: any) {
+    if (e?.message?.includes('已收藏')) {
+      goods.value.isFavorited = true
+    }
   }
 }
 
 const handleChat = () => {
   if (!userStore.token) { ElMessage.warning('请先登录'); return }
-  router.push('/chat')
+  if (!goods.value) return
+  router.push({ path: '/chat', query: { targetUserId: String(goods.value.userId), name: goods.value.username } })
 }
 
 const handleReport = () => {

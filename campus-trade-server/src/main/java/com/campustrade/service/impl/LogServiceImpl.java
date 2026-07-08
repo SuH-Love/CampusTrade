@@ -49,16 +49,21 @@ public class LogServiceImpl implements LogService {
     }
 
     @Override
-    @Async
     public void recordOperationLog(OperationLog log) {
-        rabbitTemplate.convertAndSend(MQConstant.LOG_EXCHANGE, MQConstant.LOG_RECORD_KEY, log);
-        operationLogMapper.insert(log);
+        try {
+            operationLogMapper.insert(log);
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(LogServiceImpl.class).warn("记录操作日志失败", e);
+        }
     }
 
     @Override
-    @Async
     public void recordSecurityLog(SecurityLog log) {
-        securityLogMapper.insert(log);
+        try {
+            securityLogMapper.insert(log);
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(LogServiceImpl.class).warn("记录安全日志失败", e);
+        }
     }
 
     private OperationLogVO toOperationLogVO(OperationLog log) {

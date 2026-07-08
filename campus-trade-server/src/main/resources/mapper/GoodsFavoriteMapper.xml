@@ -25,6 +25,11 @@
         SELECT COUNT(*) FROM t_goods_favorite WHERE user_id = #{userId} AND deleted = 0
     </select>
 
+    <select id="selectGoodsIdsByUserId" resultType="java.lang.Long">
+        SELECT goods_id FROM t_goods_favorite WHERE user_id = #{userId} AND deleted = 0
+        ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO t_goods_favorite (user_id, goods_id) VALUES (#{userId}, #{goodsId})
     </insert>

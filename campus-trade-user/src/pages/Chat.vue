@@ -5,19 +5,19 @@
         <div class="contact-list">
           <div
             v-for="contact in contacts"
-            :key="contact.senderId"
+            :key="contact.userId"
             class="contact-item"
-            :class="{ active: currentTarget === contact.senderId }"
+            :class="{ active: currentTarget === contact.userId }"
             @click="selectContact(contact)"
           >
-            <el-avatar :size="40" :src="contact.senderAvatar" />
+            <el-avatar :size="40" :src="contact.avatar" />
             <div class="contact-info">
-              <div class="contact-name">{{ contact.senderName }}</div>
+              <div class="contact-name">{{ contact.name }}</div>
               <div class="contact-last">{{ contact.lastMessage }}</div>
             </div>
-            <el-badge v-if="contact.unreadCount > 0" :value="contact.unreadCount" />
           </div>
         </div>
+        <el-empty v-if="contacts.length === 0" description="暂无会话" :image-size="60" />
       </el-aside>
       <el-main style="display: flex; flex-direction: column; padding: 0">
         <template v-if="currentTarget">
@@ -35,6 +35,7 @@
                 <div class="message-time">{{ msg.createTime }}</div>
               </div>
             </div>
+            <el-empty v-if="messages.length === 0" description="暂无消息，发送第一条消息吧" :image-size="60" />
           </div>
           <div class="chat-input">
             <el-input v-model="inputText" placeholder="输入消息..." @keyup.enter="handleSend" />
@@ -49,19 +50,19 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getRecentContacts, getHistory, sendMessage, markAsRead, getUnreadCount } from '@/api/chat'
 import type { ChatMessageVO } from '@/api/chat'
 
-
+const route = useRoute()
 const userStore = useUserStore()
 
 interface ContactItem {
-  senderId: number
-  senderName: string
-  senderAvatar: string
+  userId: number
+  name: string
+  avatar: string
   lastMessage: string
-  unreadCount: number
 }
 
 const contacts = ref<ContactItem[]>([])
@@ -72,45 +73,42 @@ const inputText = ref('')
 const messagesRef = ref<HTMLElement>()
 
 const loadContacts = async () => {
-  const res = await getRecentContacts()
-  contacts.value = (res.list || res || []).map((c: any) => ({
-    senderId: c.senderId,
-    senderName: c.senderName,
-    senderAvatar: c.senderAvatar,
-    lastMessage: c.content || '',
-    unreadCount: 0
-  }))
-  for (const contact of contacts.value) {
-    try {
-      const count = await getUnreadCount(contact.senderId)
-      contact.unreadCount = count || 0
-    } catch { /* ignore */ }
-  }
+  try {
+    const res = await getRecentContacts()
+    const list = res.list || res || []
+    contacts.value = list.map((c: any) => ({
+      userId: c.senderId || c.receiverId,
+      name: c.senderName || c.receiverName || '未知用户',
+      avatar: c.senderAvatar || c.receiverAvatar || '',
+      lastMessage: c.content || ''
+    }))
+  } catch { contacts.value = [] }
 }
 
 const selectContact = async (contact: ContactItem) => {
-  currentTarget.value = contact.senderId
-  currentContactName.value = contact.senderName
+  currentTarget.value = contact.userId
+  currentContactName.value = contact.name
   await loadMessages()
-  if (contact.unreadCount > 0) {
-    await markAsRead(contact.senderId)
-    contact.unreadCount = 0
-  }
+  try { await markAsRead(contact.userId) } catch { /* ignore */ }
 }
 
 const loadMessages = async () => {
   if (!currentTarget.value) return
-  const res = await getHistory(currentTarget.value)
-  messages.value = res.list || res || []
-  await nextTick()
-  scrollToBottom()
+  try {
+    const res = await getHistory(currentTarget.value)
+    messages.value = res.list || res || []
+    await nextTick()
+    scrollToBottom()
+  } catch { messages.value = [] }
 }
 
 const handleSend = async () => {
   if (!inputText.value.trim() || !currentTarget.value) return
-  await sendMessage({ receiverId: currentTarget.value, content: inputText.value.trim() })
-  inputText.value = ''
-  await loadMessages()
+  try {
+    await sendMessage({ receiverId: currentTarget.value, content: inputText.value.trim() })
+    inputText.value = ''
+    await loadMessages()
+  } catch { /* ignore */ }
 }
 
 const scrollToBottom = () => {
@@ -119,7 +117,21 @@ const scrollToBottom = () => {
   }
 }
 
-onMounted(loadContacts)
+onMounted(async () => {
+  await loadContacts()
+  if (route.query.targetUserId) {
+    const targetId = Number(route.query.targetUserId)
+    const targetName = route.query.name as string || '卖家'
+    const existing = contacts.value.find(c => c.userId === targetId)
+    if (existing) {
+      selectContact(existing)
+    } else {
+      contacts.value.unshift({ userId: targetId, name: targetName, avatar: '', lastMessage: '' })
+      currentTarget.value = targetId
+      currentContactName.value = targetName
+    }
+  }
+})
 </script>
 
 <style scoped lang="scss">

@@ -93,4 +93,12 @@ public class GoodsController {
     public Result<Void> unfavoriteGoods(@PathVariable Long id) {
         return goodsService.unfavoriteGoods(SecurityUtil.requireCurrentUserId(), id);
     }
+
+    @ApiOperation("收藏列表")
+    @GetMapping("/favorites")
+    public Result<PageResult<GoodsVO>> listFavorites(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        return goodsService.listFavoriteGoods(SecurityUtil.requireCurrentUserId(), pageNum, pageSize);
+    }
 }
