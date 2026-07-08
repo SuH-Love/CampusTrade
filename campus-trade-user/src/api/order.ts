@@ -1,6 +1,15 @@
 import request from '@/utils/request'
 import type { PageResult, OrderQueryParams } from '@/types'
 
+export interface OrderItemVO {
+  id: number
+  orderId: number
+  goodsId: number
+  goodsTitle: string
+  goodsImage: string | null
+  price: number
+}
+
 export interface OrderVO {
   id: number
   orderNo: string
@@ -11,7 +20,13 @@ export interface OrderVO {
   totalAmount: number
   status: string
   remark: string
+  payTime: string | null
+  shipTime: string | null
+  finishTime: string | null
+  cancelTime: string | null
+  cancelReason: string | null
   createTime: string
+  items: OrderItemVO[]
 }
 
 export const createOrder = (data: { goodsId: number; remark?: string }) =>
