@@ -5,7 +5,9 @@
         <div style="display: flex; justify-content: space-between; align-items: center">
           <h3>举报审核</h3>
           <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="loadData" style="width: 160px">
+            <el-option label="全部" value="" />
             <el-option label="待处理" value="PENDING" />
+            <el-option label="处理中" value="PROCESSING" />
             <el-option label="已处理" value="FINISHED" />
             <el-option label="已解决" value="RESOLVED" />
             <el-option label="已驳回" value="DISMISSED" />
@@ -30,8 +32,8 @@
         <el-table-column prop="createTime" label="举报时间" width="170" />
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button v-if="row.status === 'PENDING'" type="success" size="small" @click="handleResolve(row.id)">处理</el-button>
-            <el-button v-if="row.status === 'PENDING'" type="warning" size="small" @click="handleDismiss(row.id)">驳回</el-button>
+            <el-button v-if="row.status === 'PENDING' || row.status === 'PROCESSING'" type="success" size="small" @click="handleResolve(row.id)">处理</el-button>
+            <el-button v-if="row.status === 'PENDING' || row.status === 'PROCESSING'" type="warning" size="small" @click="handleDismiss(row.id)">驳回</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -48,15 +50,15 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { AdminReportVO, PageQueryParams } from '@/types'
 
 const reports = ref<AdminReportVO[]>([])
-const statusFilter = ref('PENDING')
+const statusFilter = ref('')
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const loading = ref(false)
 
-const statusTagMap: Record<string, string> = { PENDING: 'warning', FINISHED: '', RESOLVED: 'success', DISMISSED: 'info' }
+const statusTagMap: Record<string, string> = { PENDING: 'warning', PROCESSING: 'primary', FINISHED: '', RESOLVED: 'success', DISMISSED: 'info' }
 const statusLabel = (status: string) => {
-  const map: Record<string, string> = { PENDING: '待处理', FINISHED: '已处理', RESOLVED: '已解决', DISMISSED: '已驳回' }
+  const map: Record<string, string> = { PENDING: '待处理', PROCESSING: '处理中', FINISHED: '已处理', RESOLVED: '已解决', DISMISSED: '已驳回' }
   return map[status] || status
 }
 const targetTypeLabel = (type: number) => {
