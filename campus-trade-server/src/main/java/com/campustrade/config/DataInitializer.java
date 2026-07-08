@@ -45,11 +45,11 @@ public class DataInitializer implements CommandLineRunner {
     private void setTimeZone() {
         try {
             jdbcTemplate.execute("SET GLOBAL time_zone = '+08:00'");
-            log.info("MySQL time_zone set to +08:00");
+            jdbcTemplate.execute("SET SESSION time_zone = '+08:00'");
+            log.info("MySQL time_zone set to +08:00 (global and session)");
         } catch (Exception e) {
             log.warn("Failed to set MySQL time_zone: {}", e.getMessage());
         }
-
     }
 
     private void initRoles() {

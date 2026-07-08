@@ -19,6 +19,7 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
       connection-timeout: 30000
+      connection-init-sql: SET time_zone = '+08:00'
 
   redis:
     host: localhost

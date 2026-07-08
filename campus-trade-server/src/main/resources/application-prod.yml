@@ -24,6 +24,7 @@ spring:
       max-lifetime: 1800000
       connection-timeout: 30000
       leak-detection-threshold: 60000
+      connection-init-sql: SET time_zone = '+08:00'
 
   redis:
     host: ${REDIS_HOST:localhost}
