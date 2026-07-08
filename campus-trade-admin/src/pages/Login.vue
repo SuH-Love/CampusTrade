@@ -1,13 +1,23 @@
 <template>
-  <div class="login-page">
-    <el-card class="login-card">
-      <h2>管理后台登录</h2>
-      <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin">
-        <el-form-item prop="username"><el-input v-model="form.username" placeholder="用户名" prefix-icon="User" /></el-form-item>
-        <el-form-item prop="password"><el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" show-password /></el-form-item>
-        <el-form-item><el-button type="primary" style="width: 100%" native-type="submit" :loading="loading">登录</el-button></el-form-item>
+  <div class="admin-login-page">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-logo">C</div>
+        <h2>CampusTrade 管理后台</h2>
+        <p>请使用管理员账号登录</p>
+      </div>
+      <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin" size="large">
+        <el-form-item prop="username">
+          <el-input v-model="form.username" placeholder="管理员账号" prefix-icon="User" />
+        </el-form-item>
+        <el-form-item prop="password">
+          <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" show-password />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" style="width: 100%" native-type="submit" :loading="loading" round>登录</el-button>
+        </el-form-item>
       </el-form>
-    </el-card>
+    </div>
   </div>
 </template>
 
@@ -40,13 +50,33 @@ const handleLogin = async () => {
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : '登录失败'
     ElMessage.error(msg)
-  } finally {
-    loading.value = false
-  }
+  } finally { loading.value = false }
 }
 </script>
 
 <style scoped lang="scss">
-.login-page { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f0f2f5; }
-.login-card { width: 400px; h2 { text-align: center; margin-bottom: 20px; } }
+.admin-login-page {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+}
+
+.login-card {
+  width: 420px;
+  background: var(--admin-card-bg);
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+}
+
+.login-header { text-align: center; margin-bottom: 32px; }
+.login-logo {
+  width: 56px; height: 56px;
+  background: linear-gradient(135deg, var(--admin-primary), var(--admin-primary-light));
+  border-radius: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 800; font-size: 24px; margin-bottom: 16px;
+}
+.login-header h2 { font-size: 22px; font-weight: 700; color: var(--admin-text); margin-bottom: 4px; }
+.login-header p { font-size: 14px; color: var(--admin-text-secondary); }
 </style>

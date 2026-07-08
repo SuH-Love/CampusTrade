@@ -1,47 +1,59 @@
 <template>
-  <div v-if="goods" class="goods-detail">
-    <el-row :gutter="24">
-      <el-col :span="12">
-        <el-carousel height="400px" indicator-position="outside" v-if="imageList.length > 0">
-          <el-carousel-item v-for="(img, idx) in imageList" :key="idx">
-            <el-image :src="img" fit="cover" style="width: 100%; height: 100%; border-radius: 8px" />
-          </el-carousel-item>
-        </el-carousel>
-        <el-image v-else :src="goods.coverImage || '/placeholder.png'" fit="cover" style="width: 100%; height: 400px; border-radius: 8px" />
+  <div v-if="goods" class="goods-detail page-container">
+    <el-row :gutter="32">
+      <el-col :xs="24" :md="12">
+        <div class="detail-gallery">
+          <el-carousel height="420px" indicator-position="outside" v-if="imageList.length > 1">
+            <el-carousel-item v-for="(img, idx) in imageList" :key="idx">
+              <el-image :src="img" fit="cover" class="gallery-img" />
+            </el-carousel-item>
+          </el-carousel>
+          <el-image v-else :src="goods.coverImage || '/placeholder.png'" fit="cover" class="gallery-img single" />
+        </div>
       </el-col>
-      <el-col :span="12">
-        <h2>{{ goods.title }}</h2>
-        <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0">
-          <el-tag>{{ goods.categoryName }}</el-tag>
-          <span style="color: #999; font-size: 13px">{{ goods.viewCount }}次浏览 · {{ goods.favoriteCount }}人收藏</span>
-        </div>
-        <div style="margin: 20px 0; padding: 16px; background: #fff8f0; border-radius: 8px">
-          <span style="font-size: 32px; color: #f56c6c; font-weight: bold">¥{{ goods.price }}</span>
-          <span v-if="goods.originalPrice" style="text-decoration: line-through; color: #999; margin-left: 12px; font-size: 16px">¥{{ goods.originalPrice}}</span>
-          <el-tag v-if="goods.originalPrice > goods.price" type="danger" style="margin-left: 8px">{{ discount }}折</el-tag>
-        </div>
-        <el-divider />
-        <p style="line-height: 1.8; color: #333">{{ goods.description }}</p>
-        <el-divider />
-        <div class="seller-info" @click="handleChat" v-if="userStore.token && goods.userId !== userStore.userInfo?.id">
-          <el-avatar :size="40" :src="goods.userAvatar" />
-          <div style="margin-left: 10px">
-            <div style="font-weight: 500">{{ goods.username }}</div>
-            <div style="color: #999; font-size: 12px">点击联系卖家</div>
+      <el-col :xs="24" :md="12">
+        <div class="detail-info">
+          <div class="detail-status">
+            <el-tag type="success" effect="dark" round>在售</el-tag>
+            <el-tag round>{{ goods.categoryName }}</el-tag>
           </div>
-        </div>
-        <div style="margin-top: 24px; display: flex; gap: 12px">
-          <el-button type="primary" size="large" @click="handleBuy" :loading="buying" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id">立即购买</el-button>
-          <el-button size="large" :type="goods.isFavorited ? 'warning' : 'default'" @click="handleFavorite" :loading="favoriting">
-            <el-icon><Star /></el-icon>
-            {{ goods.isFavorited ? '已收藏' : '收藏' }}
-          </el-button>
-          <el-button size="large" @click="handleReport" v-if="userStore.token && goods.userId !== userStore.userInfo?.id">举报</el-button>
+          <h1 class="detail-title">{{ goods.title }}</h1>
+          <div class="detail-stats">
+            <span>{{ goods.viewCount }} 浏览</span>
+            <span>·</span>
+            <span>{{ goods.favoriteCount }} 收藏</span>
+          </div>
+          <div class="price-box">
+            <span class="price-current">¥{{ goods.price }}</span>
+            <span v-if="goods.originalPrice && goods.originalPrice > goods.price" class="price-original">¥{{ goods.originalPrice }}</span>
+            <el-tag v-if="goods.originalPrice > goods.price" type="danger" effect="dark" round size="small">{{ discount }}折</el-tag>
+          </div>
+          <div class="detail-desc">
+            <h3>商品描述</h3>
+            <p>{{ goods.description || '暂无描述' }}</p>
+          </div>
+          <div class="seller-card" @click="handleChat" v-if="userStore.token && goods.userId !== userStore.userInfo?.id">
+            <el-avatar :size="44" :src="goods.userAvatar" />
+            <div class="seller-info">
+              <div class="seller-name">{{ goods.username }}</div>
+              <div class="seller-action">点击联系卖家</div>
+            </div>
+            <el-icon style="margin-left: auto; color: var(--text-muted)"><ArrowRight /></el-icon>
+          </div>
+          <div class="action-bar">
+            <el-button type="primary" size="large" @click="handleBuy" :loading="buying" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id" round>
+              立即购买
+            </el-button>
+            <el-button size="large" :type="goods.isFavorited ? 'warning' : 'default'" @click="handleFavorite" :loading="favoriting" round>
+              <el-icon><Star /></el-icon> {{ goods.isFavorited ? '已收藏' : '收藏' }}
+            </el-button>
+            <el-button size="large" @click="handleReport" v-if="userStore.token && goods.userId !== userStore.userInfo?.id" round>举报</el-button>
+          </div>
         </div>
       </el-col>
     </el-row>
   </div>
-  <el-empty v-else description="商品不存在" />
+  <div v-else class="page-container"><el-empty description="商品不存在" /></div>
 </template>
 
 <script setup lang="ts">
@@ -71,22 +83,13 @@ const discount = computed(() => {
   return (goods.value.price / goods.value.originalPrice * 10).toFixed(1)
 })
 
-const loadData = async () => {
-  const data = await getGoodsDetail(Number(route.params.id))
-  goods.value = data
-}
+const loadData = async () => { goods.value = await getGoodsDetail(Number(route.params.id)) }
 
 const handleBuy = async () => {
   if (!goods.value) return
   await ElMessageBox.confirm(`确认购买「${goods.value.title}」？价格 ¥${goods.value.price}`, '确认购买')
   buying.value = true
-  try {
-    await createOrder({ goodsId: goods.value.id })
-    ElMessage.success('下单成功')
-    router.push('/order')
-  } finally {
-    buying.value = false
-  }
+  try { await createOrder({ goodsId: goods.value.id }); ElMessage.success('下单成功'); router.push('/order') } finally { buying.value = false }
 }
 
 const handleFavorite = async () => {
@@ -94,20 +97,11 @@ const handleFavorite = async () => {
   favoriting.value = true
   try {
     if (goods.value.isFavorited) {
-      await unfavoriteGoods(goods.value.id)
-      goods.value.isFavorited = false
-      goods.value.favoriteCount = Math.max(0, goods.value.favoriteCount - 1)
-      ElMessage.success('已取消收藏')
+      await unfavoriteGoods(goods.value.id); goods.value.isFavorited = false; goods.value.favoriteCount = Math.max(0, goods.value.favoriteCount - 1); ElMessage.success('已取消收藏')
     } else {
-      await favoriteGoods(goods.value.id)
-      goods.value.isFavorited = true
-      goods.value.favoriteCount++
-      ElMessage.success('已收藏')
+      await favoriteGoods(goods.value.id); goods.value.isFavorited = true; goods.value.favoriteCount++; ElMessage.success('已收藏')
     }
-  } catch { /* ignore */ } finally {
-    favoriting.value = false
-  }
-
+  } catch { /* ignore */ } finally { favoriting.value = false }
 }
 
 const handleChat = () => {
@@ -116,14 +110,45 @@ const handleChat = () => {
   router.push({ path: '/chat', query: { targetUserId: String(goods.value.userId), name: goods.value.username } })
 }
 
-const handleReport = () => {
-  router.push({ path: '/report', query: { targetType: '1', targetId: String(route.params.id) } })
-}
+const handleReport = () => { router.push({ path: '/report', query: { targetType: '1', targetId: String(route.params.id) } }) }
 
 onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
-.goods-detail { padding: 20px; }
-.seller-info { display: flex; align-items: center; cursor: pointer; padding: 12px; border-radius: 8px; &:hover { background: #f5f7fa; } }
+.detail-gallery { border-radius: var(--radius-lg); overflow: hidden; background: #f1f5f9; }
+.gallery-img { width: 100%; height: 420px; border-radius: var(--radius-lg); &.single { display: block; } }
+
+.detail-info { padding-top: 8px; }
+.detail-status { display: flex; gap: 8px; margin-bottom: 12px; }
+.detail-title { font-size: 24px; font-weight: 700; color: var(--text-primary); line-height: 1.4; margin-bottom: 8px; }
+.detail-stats { color: var(--text-muted); font-size: 13px; display: flex; gap: 6px; margin-bottom: 20px; }
+
+.price-box {
+  background: linear-gradient(135deg, #fef2f2, #fff7ed);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  display: flex; align-items: baseline; gap: 12px;
+  margin-bottom: 24px;
+}
+.price-current { font-size: 36px; font-weight: 800; color: var(--danger); }
+.price-original { font-size: 16px; color: var(--text-muted); text-decoration: line-through; }
+
+.detail-desc {
+  margin-bottom: 24px;
+  h3 { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+  p { font-size: 14px; color: var(--text-secondary); line-height: 1.8; }
+}
+
+.seller-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-radius: var(--radius-md);
+  border: 1px solid var(--border); cursor: pointer;
+  transition: var(--transition); margin-bottom: 24px;
+  &:hover { background: var(--bg-hover); border-color: var(--primary-lighter); }
+}
+.seller-name { font-weight: 600; font-size: 15px; }
+.seller-action { font-size: 12px; color: var(--primary); margin-top: 2px; }
+
+.action-bar { display: flex; gap: 12px; flex-wrap: wrap; }
 </style>

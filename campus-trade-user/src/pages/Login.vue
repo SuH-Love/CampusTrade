@@ -1,22 +1,38 @@
 <template>
-  <div class="login-page">
-    <el-card class="login-card">
-      <h2>登录</h2>
-      <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin">
-        <el-form-item prop="username">
-          <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" />
-        </el-form-item>
-        <el-form-item prop="password">
-          <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" show-password />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" style="width: 100%" :loading="loading" native-type="submit">登录</el-button>
-        </el-form-item>
-        <div style="text-align: center">
-          <router-link to="/register">没有账号？去注册</router-link>
+  <div class="auth-page">
+    <div class="auth-left">
+      <div class="auth-brand">
+        <div class="brand-icon">C</div>
+        <h1>CampusTrade</h1>
+        <p>校园二手交易平台</p>
+      </div>
+      <div class="auth-features">
+        <div class="feature-item" v-for="f in features" :key="f.title">
+          <div class="feature-icon">{{ f.icon }}</div>
+          <div><div class="feature-title">{{ f.title }}</div><div class="feature-desc">{{ f.desc }}</div></div>
         </div>
-      </el-form>
-    </el-card>
+      </div>
+    </div>
+    <div class="auth-right">
+      <div class="auth-form-wrap">
+        <h2>欢迎回来</h2>
+        <p class="auth-subtitle">登录你的账号，开始交易</p>
+        <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin" size="large">
+          <el-form-item prop="username">
+            <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" />
+          </el-form-item>
+          <el-form-item prop="password">
+            <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" show-password />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" style="width: 100%" :loading="loading" native-type="submit" round>登录</el-button>
+          </el-form-item>
+        </el-form>
+        <div class="auth-footer">
+          还没有账号？<router-link to="/register">立即注册</router-link>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -33,6 +49,12 @@ const userStore = useUserStore()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 
+const features = [
+  { icon: '🔒', title: '安全交易', desc: '实名认证保障买卖安全' },
+  { icon: '💬', title: '即时沟通', desc: '买卖双方在线聊天' },
+  { icon: '✅', title: '品质保障', desc: '商品审核确保质量' }
+]
+
 const form = reactive({ username: '', password: '' })
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
@@ -47,23 +69,53 @@ const handleLogin = async () => {
     ElMessage.success('登录成功')
     const redirect = (route.query.redirect as string) || '/'
     router.push(redirect)
-  } catch (e) {
-  } finally {
-    loading.value = false
-  }
+  } catch (e) { /* ignore */ } finally { loading.value = false }
 }
 </script>
 
 <style scoped lang="scss">
-.login-page {
+.auth-page { display: flex; min-height: 100vh; }
+
+.auth-left {
+  flex: 1;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa);
+  padding: 60px 48px;
   display: flex;
+  flex-direction: column;
   justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background: #f0f2f5;
-  .login-card {
-    width: 400px;
-    h2 { text-align: center; margin-bottom: 20px; }
-  }
+  color: #fff;
+  @media (max-width: 768px) { display: none; }
 }
+
+.brand-icon {
+  width: 56px; height: 56px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 800; margin-bottom: 20px;
+}
+
+.auth-brand h1 { font-size: 36px; font-weight: 800; margin-bottom: 8px; }
+.auth-brand p { font-size: 16px; opacity: 0.85; }
+
+.auth-features { margin-top: 48px; display: flex; flex-direction: column; gap: 24px; }
+.feature-item { display: flex; gap: 14px; align-items: flex-start; }
+.feature-icon { font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+.feature-title { font-size: 15px; font-weight: 600; }
+.feature-desc { font-size: 13px; opacity: 0.75; margin-top: 2px; }
+
+.auth-right {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px;
+  background: var(--bg-page);
+}
+
+.auth-form-wrap {
+  width: 100%; max-width: 400px;
+  h2 { font-size: 28px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+}
+
+.auth-subtitle { color: var(--text-secondary); margin-bottom: 32px; font-size: 15px; }
+.auth-footer { text-align: center; margin-top: 16px; color: var(--text-secondary); font-size: 14px; }
 </style>
