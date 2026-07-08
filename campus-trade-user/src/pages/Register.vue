@@ -49,8 +49,8 @@ const handleRegister = async () => {
   loading.value = true
   try {
     await userStore.register(form)
-    ElMessage.success('注册成功')
-    router.push('/')
+    ElMessage.success('注册成功，请登录')
+    router.push('/login')
   } catch (e) {
   } finally {
     loading.value = false

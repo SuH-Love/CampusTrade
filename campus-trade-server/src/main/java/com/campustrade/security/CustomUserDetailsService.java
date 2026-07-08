@@ -1,7 +1,9 @@
 package com.campustrade.security;
 
 import com.campustrade.entity.User;
+import com.campustrade.entity.Role;
 import com.campustrade.mapper.UserMapper;
+import com.campustrade.mapper.RoleMapper;
 import com.campustrade.mapper.PermissionMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -19,6 +21,9 @@ public class CustomUserDetailsService implements UserDetailsService {
     private UserMapper userMapper;
 
     @Autowired
+    private RoleMapper roleMapper;
+
+    @Autowired
     private PermissionMapper permissionMapper;
 
     @Override
@@ -31,11 +36,16 @@ public class CustomUserDetailsService implements UserDetailsService {
             throw new UsernameNotFoundException("账号已被禁用: " + username);
         }
 
+        List<String> authorities = new ArrayList<>();
+        List<Role> roles = roleMapper.selectByUserId(user.getId());
+        for (Role role : roles) {
+            authorities.add(role.getRoleCode());
+        }
         List<String> permissions = permissionMapper.selectPermissionCodesByUserId(user.getId());
-        if (permissions == null) {
-            permissions = new ArrayList<>();
+        if (permissions != null) {
+            authorities.addAll(permissions);
         }
 
-        return new CustomUserDetails(user, permissions);
+        return new CustomUserDetails(user, authorities);
     }
 }

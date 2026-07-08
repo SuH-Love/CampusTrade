@@ -5,12 +5,16 @@ server:
   shutdown: graceful
 
 spring:
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/campus_trade?useUnicode=true&characterEncoding=utf8mb4&useSSL=true&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/campus_trade?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
     username: ${MYSQL_USERNAME:root}
     password: ${MYSQL_PASSWORD:root123}
     hikari:
@@ -24,7 +28,7 @@ spring:
   redis:
     host: ${REDIS_HOST:localhost}
     port: ${REDIS_PORT:6379}
-    password: ${REDIS_PASSWORD:}
+
     database: 0
     lettuce:
       pool:
@@ -77,7 +81,7 @@ jwt:
   refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
 cors:
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174}
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost,http://localhost:81,http://localhost:5173,http://localhost:5174,http://61.139.2.140,http://61.139.2.140:81}
 
 file:
   upload:
@@ -97,7 +101,7 @@ management:
       base-path: /actuator
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: always
 
 logging:
   config: classpath:log4j2.xml

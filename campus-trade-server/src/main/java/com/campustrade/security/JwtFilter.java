@@ -48,15 +48,19 @@ public class JwtFilter extends OncePerRequestFilter {
             Long userId = jwtUtil.getUserIdFromToken(token);
             String username = jwtUtil.getUsernameFromToken(token);
 
-            @SuppressWarnings("unchecked")
-            List<String> permissions = (List<String>) redisTemplate.opsForValue().get(RedisConstant.PERMISSIONS_PREFIX + userId);
-
-            List<SimpleGrantedAuthority> authorities = permissions != null
-                    ? permissions.stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList())
-                    : List.of();
+            List<SimpleGrantedAuthority> grantedAuthorities = List.of();
+            try {
+                @SuppressWarnings("unchecked")
+                List<String> authorities = (List<String>) redisTemplate.opsForValue().get(RedisConstant.PERMISSIONS_PREFIX + userId);
+                if (authorities != null) {
+                    grantedAuthorities = authorities.stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to load permissions from Redis for userId={}: {}", userId, e.getMessage());
+            }
 
             UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(userId, null, authorities);
+                    new UsernamePasswordAuthenticationToken(userId, null, grantedAuthorities);
             authentication.setDetails(username);
             SecurityContextHolder.getContext().setAuthentication(authentication);
         }

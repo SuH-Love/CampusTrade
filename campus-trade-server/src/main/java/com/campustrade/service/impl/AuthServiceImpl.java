@@ -7,10 +7,12 @@ import com.campustrade.constant.RedisConstant;
 import com.campustrade.constant.SecurityConstant;
 import com.campustrade.dto.*;
 import com.campustrade.entity.User;
+import com.campustrade.entity.Role;
 import com.campustrade.entity.UserRole;
 import com.campustrade.enum_.SecurityEventType;
 import com.campustrade.mapper.UserMapper;
 import com.campustrade.mapper.RoleMapper;
+import com.campustrade.mapper.PermissionMapper;
 import com.campustrade.mapper.UserRoleMapper;
 import com.campustrade.service.AuthService;
 import com.campustrade.service.LogService;
@@ -27,8 +29,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -51,6 +55,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    private PermissionMapper permissionMapper;
 
     @Autowired
     private LogService logService;
@@ -108,6 +115,10 @@ public class AuthServiceImpl implements AuthService {
         userRole.setUserId(user.getId());
         userRole.setRoleId(3L);
         userRoleMapper.insert(userRole);
+
+        List<String> permissions = loadUserPermissions(user.getId());
+        redisTemplate.opsForValue().set(RedisConstant.PERMISSIONS_PREFIX + user.getId(), permissions,
+                RedisConstant.TOKEN_TTL, TimeUnit.SECONDS);
 
         return generateTokenPair(user);
     }
@@ -191,11 +202,23 @@ public class AuthServiceImpl implements AuthService {
         if (user == null || user.getStatus() == 0) {
             return Result.error(ResultCode.ACCOUNT_DISABLED);
         }
+
+        List<String> permissions = loadUserPermissions(user.getId());
+        redisTemplate.opsForValue().set(RedisConstant.PERMISSIONS_PREFIX + user.getId(), permissions,
+                RedisConstant.TOKEN_TTL, TimeUnit.SECONDS);
+
         return generateTokenPair(user);
     }
 
     private List<String> loadUserPermissions(Long userId) {
-        return List.of();
+        List<String> authorities = new ArrayList<>();
+        List<Role> roles = roleMapper.selectByUserId(userId);
+        for (Role role : roles) {
+            authorities.add(role.getRoleCode());
+        }
+        List<String> permissionCodes = permissionMapper.selectPermissionCodesByUserId(userId);
+        authorities.addAll(permissionCodes);
+        return authorities;
     }
 
     private SecurityLog buildSecurityLog(Long userId, String username, String eventType, String ip, String detail) {

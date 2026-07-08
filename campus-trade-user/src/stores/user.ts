@@ -32,17 +32,12 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const register = async (params: RegisterParams) => {
-    const data = await registerApi(params)
-    setAuth(data)
-    await fetchUserInfo()
+    await registerApi(params)
   }
 
-  const logout = async () => {
-    try {
-      await logoutApi()
-    } finally {
-      clearAuth()
-    }
+  const logout = () => {
+    clearAuth()
+    window.location.href = '/login'
   }
 
   const fetchUserInfo = async () => {
