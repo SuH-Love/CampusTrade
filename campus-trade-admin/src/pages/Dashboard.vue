@@ -1,30 +1,36 @@
 <template>
   <div class="dashboard-page">
-    <el-row :gutter="20" style="margin-bottom: 20px">
-      <el-col :span="6" v-for="item in stats" :key="item.label">
-        <el-card shadow="hover" class="stat-card">
-          <el-statistic :title="item.label" :value="item.value">
-            <template #prefix><el-icon :style="{ color: item.color }"><component :is="item.icon" /></el-icon></template>
-          </el-statistic>
-        </el-card>
+    <el-row :gutter="20" style="margin-bottom: 24px">
+      <el-col :xs="12" :sm="6" v-for="item in stats" :key="item.label">
+        <div class="stat-card" :style="{ borderLeftColor: item.color }">
+          <div class="stat-icon" :style="{ background: item.color + '15', color: item.color }">
+            <el-icon :size="24"><component :is="item.icon" /></el-icon>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value">{{ item.value }}</div>
+            <div class="stat-label">{{ item.label }}</div>
+          </div>
+        </div>
       </el-col>
     </el-row>
     <el-row :gutter="20">
       <el-col :span="12">
-        <el-card>
-          <template #header><span>待处理事项</span></template>
+        <el-card class="todo-card">
+          <template #header><span class="card-title">待处理事项</span></template>
           <div class="todo-list">
             <div class="todo-item" v-for="item in todoItems" :key="item.label" @click="$router.push(item.path)">
-              <el-badge :value="item.count" :type="item.count > 0 ? 'danger' : 'info'" />
-              <span style="margin-left: 10px">{{ item.label }}</span>
-              <el-icon style="margin-left: auto"><ArrowRight /></el-icon>
+              <div class="todo-info">
+                <span class="todo-label">{{ item.label }}</span>
+                <el-tag :type="item.count > 0 ? 'danger' : 'info'" round>{{ item.count }}</el-tag>
+              </div>
+              <el-icon style="color: var(--admin-text-secondary)"><ArrowRight /></el-icon>
             </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card>
-          <template #header><span>最近操作日志</span></template>
+          <template #header><span class="card-title">最近操作日志</span></template>
           <el-table :data="recentLogs" size="small" stripe>
             <el-table-column prop="username" label="操作人" width="100" />
             <el-table-column prop="operation" label="操作" show-overflow-tooltip />
@@ -42,10 +48,10 @@ import { getDashboardStats, getReportList, getOperationLogs } from '@/api/admin'
 import type { OperationLogVO, PageQueryParams } from '@/types'
 
 const stats = ref([
-  { label: '用户总数', value: 0, icon: 'User', color: '#409eff' },
-  { label: '商品总数', value: 0, icon: 'Goods', color: '#67c23a' },
-  { label: '订单总数', value: 0, icon: 'List', color: '#e6a23c' },
-  { label: '待审核', value: 0, icon: 'Warning', color: '#f56c6c' }
+  { label: '用户总数', value: 0, icon: 'User', color: '#6366f1' },
+  { label: '商品总数', value: 0, icon: 'Goods', color: '#10b981' },
+  { label: '订单总数', value: 0, icon: 'List', color: '#f59e0b' },
+  { label: '待审核', value: 0, icon: 'Warning', color: '#ef4444' }
 ])
 
 const todoItems = ref([
@@ -81,7 +87,39 @@ onMounted(() => { loadStats(); loadRecentLogs() })
 </script>
 
 <style scoped lang="scss">
-.dashboard-page { padding: 20px; }
-.stat-card { text-align: center; }
-.todo-list { .todo-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0; cursor: pointer; &:hover { background: #fafafa; } &:last-child { border-bottom: none; } } }
+.stat-card {
+  background: var(--admin-card-bg);
+  border-radius: var(--admin-radius);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-left: 4px solid;
+  box-shadow: var(--admin-shadow);
+  transition: var(--admin-transition);
+  &:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+}
+
+.stat-icon {
+  width: 52px; height: 52px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-value { font-size: 28px; font-weight: 700; color: var(--admin-text); line-height: 1.2; }
+.stat-label { font-size: 13px; color: var(--admin-text-secondary); margin-top: 2px; }
+
+.card-title { font-size: 16px; font-weight: 600; }
+
+.todo-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0; border-bottom: 1px solid var(--admin-border);
+  cursor: pointer; transition: var(--admin-transition);
+  &:hover { padding-left: 8px; }
+  &:last-child { border-bottom: none; }
+}
+
+.todo-info { display: flex; align-items: center; gap: 12px; }
+.todo-label { font-size: 14px; font-weight: 500; }
 </style>

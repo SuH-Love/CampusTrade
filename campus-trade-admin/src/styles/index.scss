@@ -1,2 +1,43 @@
+:root {
+  --admin-primary: #6366f1;
+  --admin-primary-light: #818cf8;
+  --admin-sidebar-bg: #1e1b4b;
+  --admin-sidebar-active: #312e81;
+  --admin-sidebar-text: #c7d2fe;
+  --admin-sidebar-active-text: #ffffff;
+  --admin-header-bg: #ffffff;
+  --admin-bg: #f1f5f9;
+  --admin-card-bg: #ffffff;
+  --admin-text: #1e293b;
+  --admin-text-secondary: #64748b;
+  --admin-border: #e2e8f0;
+  --admin-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  --admin-radius: 12px;
+  --admin-transition: all 0.2s ease;
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.el-card {
+  border-radius: var(--admin-radius) !important;
+  border: 1px solid var(--admin-border) !important;
+  box-shadow: var(--admin-shadow) !important;
+}
+
+.el-button--primary {
+  background: var(--admin-primary) !important;
+  border-color: var(--admin-primary) !important;
+  border-radius: 8px !important;
+}
+
+.el-button { border-radius: 8px !important; }
+.el-input__wrapper { border-radius: 8px !important; }
+.el-table { border-radius: var(--admin-radius) !important; overflow: hidden; }
+.el-tag { border-radius: 6px !important; }

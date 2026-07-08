@@ -1,62 +1,67 @@
 <template>
   <div class="home-page">
-    <el-row :gutter="20">
-      <el-col :span="24">
-        <el-carousel height="300px">
-          <el-carousel-item v-for="i in 3" :key="i">
-            <div class="banner" :style="{ background: `hsl(${i * 120}, 70%, 60%)` }">
-              <h2>CampusTrade 校园二手交易平台</h2>
-              <p>安全、便捷、值得信赖</p>
-            </div>
-          </el-carousel-item>
-        </el-carousel>
-      </el-col>
-    </el-row>
-    <el-row :gutter="20" style="margin-top: 20px">
-      <el-col :span="24">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px">
-          <h3 style="margin: 0">热门商品</h3>
-          <el-select v-model="selectedCategoryId" placeholder="全部分类" clearable @change="loadHotGoods" style="width: 180px">
-            <el-option v-for="cat in categories" :key="cat.id" :label="cat.categoryName" :value="cat.id" />
-          </el-select>
-        </div>
+    <section class="hero">
+      <div class="hero-inner">
+        <h1>校园二手交易平台</h1>
+        <p>安全 · 便捷 · 值得信赖的校园闲置好物流转平台</p>
+        <el-button type="primary" size="large" round @click="$router.push('/goods')">浏览商品</el-button>
+      </div>
+    </section>
+
+    <div class="page-container">
+      <section class="category-bar">
+        <div
+          v-for="cat in categories" :key="cat.id"
+          class="category-chip"
+          :class="{ active: selectedCategoryId === cat.id }"
+          @click="toggleCategory(cat.id)"
+        >{{ cat.categoryName }}</div>
+      </section>
+
+      <section style="margin-top: 32px">
+        <h3 class="section-title">热门商品</h3>
         <el-row :gutter="16">
           <el-col :xs="12" :sm="8" :md="6" v-for="item in hotGoods" :key="item.id">
-            <el-card shadow="hover" @click="$router.push(`/goods/${item.id}`)" style="margin-bottom: 16px; cursor: pointer">
-              <img :src="item.coverImage || '/placeholder.png'" style="width: 100%; height: 160px; object-fit: cover" />
-              <div style="padding: 8px 0">
+            <div class="goods-card" @click="$router.push(`/goods/${item.id}`)">
+              <div class="goods-img-wrap">
+                <img :src="item.coverImage || '/placeholder.png'" class="goods-img" />
+                <span class="goods-category-tag">{{ item.categoryName }}</span>
+              </div>
+              <div class="goods-info">
                 <div class="goods-title">{{ item.title }}</div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px">
-                  <span style="color: #f56c6c; font-weight: bold">¥{{ item.price }}</span>
-                  <span style="color: #999; font-size: 12px">{{ item.categoryName }}</span>
+                <div class="goods-bottom">
+                  <span class="price-text">¥{{ item.price }}</span>
+                  <span class="goods-views">{{ item.viewCount }} 浏览</span>
                 </div>
               </div>
-            </el-card>
+            </div>
           </el-col>
         </el-row>
         <el-empty v-if="hotGoods.length === 0" description="暂无热门商品" />
-      </el-col>
-    </el-row>
-    <el-row :gutter="20" style="margin-top: 20px">
-      <el-col :span="24">
-        <h3>推荐商品</h3>
+      </section>
+
+      <section style="margin-top: 40px">
+        <h3 class="section-title">最新上架</h3>
         <el-row :gutter="16">
           <el-col :xs="12" :sm="8" :md="6" v-for="item in recommendGoods" :key="item.id">
-            <el-card shadow="hover" @click="$router.push(`/goods/${item.id}`)" style="margin-bottom: 16px; cursor: pointer">
-              <img :src="item.coverImage || '/placeholder.png'" style="width: 100%; height: 160px; object-fit: cover" />
-              <div style="padding: 8px 0">
+            <div class="goods-card" @click="$router.push(`/goods/${item.id}`)">
+              <div class="goods-img-wrap">
+                <img :src="item.coverImage || '/placeholder.png'" class="goods-img" />
+                <span class="goods-category-tag">{{ item.categoryName }}</span>
+              </div>
+              <div class="goods-info">
                 <div class="goods-title">{{ item.title }}</div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px">
-                  <span style="color: #f56c6c; font-weight: bold">¥{{ item.price }}</span>
-                  <span style="color: #999; font-size: 12px">{{ item.categoryName }}</span>
+                <div class="goods-bottom">
+                  <span class="price-text">¥{{ item.price }}</span>
+                  <span class="goods-views">{{ item.viewCount }} 浏览</span>
                 </div>
               </div>
-            </el-card>
+            </div>
           </el-col>
         </el-row>
         <el-empty v-if="recommendGoods.length === 0" description="暂无推荐商品" />
-      </el-col>
-    </el-row>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -72,49 +77,124 @@ const recommendGoods = ref<GoodsVO[]>([])
 const categories = ref<GoodsCategory[]>([])
 const selectedCategoryId = ref<number | undefined>(undefined)
 
+const toggleCategory = (id: number) => {
+  selectedCategoryId.value = selectedCategoryId.value === id ? undefined : id
+  loadHotGoods()
+}
+
 const loadHotGoods = async () => {
   try {
     const res = await getHotGoods()
     let list = res.list || []
-    if (selectedCategoryId.value) {
-      list = list.filter((g: GoodsVO) => g.categoryId === selectedCategoryId.value)
-    }
+    if (selectedCategoryId.value) list = list.filter((g: GoodsVO) => g.categoryId === selectedCategoryId.value)
     hotGoods.value = list
   } catch { /* ignore */ }
 }
 
 const loadRecommendGoods = async () => {
-  try {
-    const res = await getRecommendGoods()
-    recommendGoods.value = res.list || []
-  } catch { /* ignore */ }
+  try { const res = await getRecommendGoods(); recommendGoods.value = res.list || [] } catch { /* ignore */ }
 }
 
 const loadCategories = async () => {
-  try {
-    const res = await getCategoryList()
-    categories.value = res || []
-  } catch { /* ignore */ }
+  try { const res = await getCategoryList(); categories.value = res || [] } catch { /* ignore */ }
 }
 
 onMounted(() => { loadHotGoods(); loadRecommendGoods(); loadCategories() })
 </script>
 
 <style scoped lang="scss">
-.banner {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+.hero {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%);
+  padding: 60px 24px;
+  text-align: center;
   color: #fff;
-  h2 { font-size: 28px; margin-bottom: 10px; }
-  p { font-size: 16px; }
 }
+
+.hero-inner {
+  max-width: 600px;
+  margin: 0 auto;
+  h1 { font-size: 32px; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.5px; }
+  p { font-size: 16px; opacity: 0.9; margin-bottom: 24px; }
+  .el-button { font-size: 16px; padding: 12px 32px; }
+}
+
+.category-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+
+.category-chip {
+  padding: 6px 18px;
+  border-radius: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+  &:hover { border-color: var(--primary); color: var(--primary); }
+  &.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+}
+
+.goods-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  transition: var(--transition);
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+  &:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+}
+
+.goods-img-wrap {
+  position: relative;
+  padding-top: 75%;
+  overflow: hidden;
+  background: #f1f5f9;
+}
+
+.goods-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+  .goods-card:hover & { transform: scale(1.05); }
+}
+
+.goods-category-tag {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.goods-info { padding: 12px; }
+
 .goods-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
 }
+
+.goods-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.goods-views { font-size: 12px; color: var(--text-muted); }
 </style>
