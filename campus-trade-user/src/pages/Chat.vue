@@ -48,7 +48,7 @@
           </div>
           <div class="chat-input">
             <el-input v-model="inputText" placeholder="输入消息..." @keyup.enter="handleSend" />
-            <el-button type="primary" @click="handleSend" :disabled="!inputText.trim()">发送</el-button>
+            <el-button type="primary" @click="handleSend" :disabled="!inputText.trim()" :loading="sending">发送</el-button>
           </div>
         </template>
         <el-empty v-else description="选择联系人开始聊天" />
@@ -63,6 +63,7 @@ import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getRecentContacts, getHistory, sendMessage, markAsRead } from '@/api/chat'
 import type { ChatMessageVO } from '@/api/chat'
+import type { ContactVO } from '@/types'
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -80,6 +81,7 @@ const currentTarget = ref<number | null>(null)
 const currentContactName = ref('')
 const messages = ref<ChatMessageVO[]>([])
 const inputText = ref('')
+const sending = ref(false)
 const messagesRef = ref<HTMLElement>()
 
 const formatTime = (t: string) => {
@@ -93,13 +95,13 @@ const formatTime = (t: string) => {
 const loadContacts = async () => {
   try {
     const res = await getRecentContacts()
-    const list = res.list || res || []
-    contacts.value = list.map((c: any) => {
+    const list: ContactVO[] = res.list || res || []
+    contacts.value = list.map((c) => {
       const isMeSender = c.senderId === myId.value
       return {
         userId: isMeSender ? c.receiverId : c.senderId,
-        name: isMeSender ? ('用户' + c.receiverId) : (c.senderName || '用户' + c.senderId),
-        avatar: isMeSender ? '' : (c.senderAvatar || ''),
+        name: isMeSender ? (c.receiverName || '用户' + c.receiverId) : (c.senderName || '用户' + c.senderId),
+        avatar: isMeSender ? (c.receiverAvatar || '') : (c.senderAvatar || ''),
         lastMessage: c.content || ''
       }
     })
@@ -125,11 +127,14 @@ const loadMessages = async () => {
 
 const handleSend = async () => {
   if (!inputText.value.trim() || !currentTarget.value) return
+  sending.value = true
   try {
     await sendMessage({ receiverId: currentTarget.value, content: inputText.value.trim() })
     inputText.value = ''
     await loadMessages()
-  } catch { /* ignore */ }
+  } finally {
+    sending.value = false
+  }
 }
 
 const scrollToBottom = () => {

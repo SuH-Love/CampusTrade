@@ -18,10 +18,10 @@ export interface TokenVO {
   expiresIn: number
 }
 
-export const login = (data: LoginParams) => request.post<any, TokenVO>('/auth/login', data)
+export const login = (data: LoginParams) => request.post<never, TokenVO>('/auth/login', data)
 
-export const register = (data: RegisterParams) => request.post<any, TokenVO>('/auth/register', data)
+export const register = (data: RegisterParams) => request.post<never, TokenVO>('/auth/register', data)
 
 export const logout = () => request.post('/auth/logout')
 
-export const refreshToken = (refreshToken: string) => request.post<any, TokenVO>('/auth/refresh', { refreshToken })
+export const refreshToken = (refreshToken: string) => request.post<never, TokenVO>('/auth/refresh', { refreshToken })

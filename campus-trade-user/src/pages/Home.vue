@@ -54,6 +54,7 @@
             </el-card>
           </el-col>
         </el-row>
+        <el-empty v-if="recommendGoods.length === 0" description="暂无推荐商品" />
       </el-col>
     </el-row>
   </div>

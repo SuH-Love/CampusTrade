@@ -2,7 +2,7 @@
   <div class="favorites-page">
     <el-card>
       <template #header><h3 style="margin: 0">我的收藏</h3></template>
-      <el-row :gutter="16">
+      <el-row :gutter="16" v-loading="loading">
         <el-col :xs="12" :sm="8" :md="6" v-for="item in goodsList" :key="item.id">
           <el-card shadow="hover" @click="$router.push(`/goods/${item.id}`)" style="margin-bottom: 16px; cursor: pointer">
             <img :src="item.coverImage || '/placeholder.png'" style="width: 100%; height: 160px; object-fit: cover; border-radius: 4px" />
@@ -32,11 +32,17 @@ const goodsList = ref<GoodsVO[]>([])
 const pageNum = ref(1)
 const pageSize = ref(12)
 const total = ref(0)
+const loading = ref(false)
 
 const loadData = async () => {
-  const res = await getFavoriteList({ pageNum: pageNum.value, pageSize: pageSize.value })
-  goodsList.value = res.list || []
-  total.value = res.total || 0
+  loading.value = true
+  try {
+    const res = await getFavoriteList({ pageNum: pageNum.value, pageSize: pageSize.value })
+    goodsList.value = res.list || []
+    total.value = res.total || 0
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleUnfavorite = async (id: number) => {

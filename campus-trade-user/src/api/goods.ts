@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import type { PageResult, GoodsQueryParams, GoodsCreateParams } from '@/types'
 
 export interface GoodsVO {
   id: number
@@ -20,24 +21,19 @@ export interface GoodsVO {
   createTime: string
 }
 
-export interface PageResult<T> {
-  list: T[]
-  total: number
-}
+export const getGoodsList = (params: GoodsQueryParams) => request.get<never, PageResult<GoodsVO>>('/goods', { params })
 
-export const getGoodsList = (params: any) => request.get<any, PageResult<GoodsVO>>('/goods', { params })
+export const getGoodsDetail = (id: number) => request.get<never, GoodsVO>(`/goods/${id}`)
 
-export const getGoodsDetail = (id: number) => request.get<any, GoodsVO>(`/goods/${id}`)
+export const createGoods = (data: GoodsCreateParams) => request.post<never, GoodsVO>('/goods', data)
 
-export const createGoods = (data: any) => request.post<any, GoodsVO>('/goods', data)
-
-export const updateGoods = (id: number, data: any) => request.put<any, GoodsVO>(`/goods/${id}`, data)
+export const updateGoods = (id: number, data: Partial<GoodsCreateParams>) => request.put<never, GoodsVO>(`/goods/${id}`, data)
 
 export const deleteGoods = (id: number) => request.delete(`/goods/${id}`)
 
-export const getHotGoods = () => request.get<any, PageResult<GoodsVO>>('/goods/hot')
+export const getHotGoods = () => request.get<never, PageResult<GoodsVO>>('/goods/hot')
 
-export const getRecommendGoods = () => request.get<any, PageResult<GoodsVO>>('/goods/recommend')
+export const getRecommendGoods = () => request.get<never, PageResult<GoodsVO>>('/goods/recommend')
 
 export const submitAudit = (id: number) => request.put(`/goods/${id}/submit`)
 
@@ -49,4 +45,4 @@ export const favoriteGoods = (id: number) => request.post(`/goods/${id}/favorite
 
 export const unfavoriteGoods = (id: number) => request.delete(`/goods/${id}/favorite`)
 
-export const getFavoriteList = (params: any) => request.get<any, PageResult<GoodsVO>>('/goods/favorites', { params })
+export const getFavoriteList = (params: GoodsQueryParams) => request.get<never, PageResult<GoodsVO>>('/goods/favorites', { params })

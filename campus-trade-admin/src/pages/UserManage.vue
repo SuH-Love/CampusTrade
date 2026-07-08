@@ -7,7 +7,7 @@
           <el-input v-model="searchUsername" placeholder="搜索用户名" clearable style="width: 200px" @keyup.enter="handleSearch" />
         </div>
       </template>
-      <el-table :data="users" style="width: 100%" stripe>
+      <el-table :data="users" style="width: 100%" stripe v-loading="loading">
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="username" label="用户名" width="120" />
         <el-table-column prop="nickname" label="昵称" width="120" />
@@ -30,6 +30,7 @@
             <el-button v-else type="success" size="small" @click="handleUnban(row.id)">解封</el-button>
           </template>
         </el-table-column>
+        <template #empty><el-empty description="暂无用户" :image-size="60" /></template>
       </el-table>
       <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
     </el-card>
@@ -40,19 +41,26 @@
 import { ref, onMounted } from 'vue'
 import { getUserList, banUser, unbanUser } from '@/api/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { AdminUserVO, PageQueryParams } from '@/types'
 
-const users = ref<any[]>([])
+const users = ref<AdminUserVO[]>([])
 const searchUsername = ref('')
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+const loading = ref(false)
 
 const loadData = async () => {
-  const params: any = { pageNum: pageNum.value, pageSize: pageSize.value }
+  loading.value = true
+  try {
+  const params: PageQueryParams = { pageNum: pageNum.value, pageSize: pageSize.value }
   if (searchUsername.value) params.username = searchUsername.value
   const res = await getUserList(params)
   users.value = res.list || []
   total.value = res.total || 0
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleSearch = () => {

@@ -56,11 +56,12 @@ import { createReport, listMyReports } from '@/api/report'
 import { getGoodsDetail } from '@/api/goods'
 import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
+import type { ReportVO } from '@/api/report'
 
 const route = useRoute()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
-const reports = ref<any[]>([])
+const reports = ref<ReportVO[]>([])
 const targetInfo = ref<{ name: string; detail: string } | null>(null)
 
 const form = reactive({ targetType: 1, targetId: '', reason: '', description: '' })

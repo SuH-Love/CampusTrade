@@ -15,7 +15,7 @@
           </el-select>
         </div>
       </template>
-      <el-table :data="goodsList" stripe>
+      <el-table :data="goodsList" stripe v-loading="loading">
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="title" label="标题" show-overflow-tooltip />
         <el-table-column prop="username" label="卖家" width="120" />
@@ -42,6 +42,7 @@
             <el-button size="small" @click="handleViewDetail(row)">查看</el-button>
           </template>
         </el-table-column>
+        <template #empty><el-empty description="暂无商品" :image-size="60" /></template>
       </el-table>
       <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
     </el-card>
@@ -65,14 +66,17 @@
 import { ref, onMounted } from 'vue'
 import { getGoodsList, auditGoods } from '@/api/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { AdminGoodsVO } from '@/types'
+import type { PageQueryParams } from '@/types'
 
-const goodsList = ref<any[]>([])
+const goodsList = ref<AdminGoodsVO[]>([])
 const statusFilter = ref('')
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const detailVisible = ref(false)
-const currentGoods = ref<any>(null)
+const currentGoods = ref<AdminGoodsVO | null>(null)
+const loading = ref(false)
 
 const statusTagMap: Record<string, string> = { DRAFT: 'info', PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger', ONLINE: '', OFFLINE: 'info', SOLD: 'success' }
 const statusLabel = (status: string) => {
@@ -81,11 +85,16 @@ const statusLabel = (status: string) => {
 }
 
 const loadData = async () => {
-  const params: any = { pageNum: pageNum.value, pageSize: pageSize.value }
+  loading.value = true
+  try {
+  const params: PageQueryParams = { pageNum: pageNum.value, pageSize: pageSize.value }
   if (statusFilter.value) params.status = statusFilter.value
   const res = await getGoodsList(params)
   goodsList.value = res.list || []
   total.value = res.total || 0
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleAudit = async (id: number, status: string) => {
@@ -101,7 +110,7 @@ const handleReject = async (id: number) => {
   loadData()
 }
 
-const handleViewDetail = (row: any) => {
+const handleViewDetail = (row: AdminGoodsVO) => {
   currentGoods.value = row
   detailVisible.value = true
 }

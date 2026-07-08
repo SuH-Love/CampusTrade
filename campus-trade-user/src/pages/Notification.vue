@@ -12,7 +12,7 @@
         <el-tab-pane :label="`未读 (${unreadCount})`" name="unread" />
       </el-tabs>
       <el-empty v-if="notifications.length === 0" description="暂无通知" />
-      <div v-else class="notification-list">
+      <div v-else class="notification-list" v-loading="loading">
         <div
           v-for="item in notifications"
           :key="item.id"
@@ -49,6 +49,7 @@ const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const unreadCount = ref(0)
+const loading = ref(false)
 
 const typeTagMap: Record<string, string> = { SYSTEM: 'danger', ORDER: 'warning', GOODS: 'success', CHAT: '' }
 const typeLabel = (type: string) => {
@@ -57,10 +58,15 @@ const typeLabel = (type: string) => {
 }
 
 const loadData = async () => {
-  const isRead = activeTab.value === 'unread' ? 0 : undefined
-  const res = await listNotifications(isRead, pageNum.value, pageSize.value)
-  notifications.value = res.list || []
-  total.value = res.total || 0
+  loading.value = true
+  try {
+    const isRead = activeTab.value === 'unread' ? 0 : undefined
+    const res = await listNotifications(isRead, pageNum.value, pageSize.value)
+    notifications.value = res.list || []
+    total.value = res.total || 0
+  } finally {
+    loading.value = false
+  }
 }
 
 const loadUnreadCount = async () => {

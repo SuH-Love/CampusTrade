@@ -26,7 +26,7 @@
         </el-col>
       </el-row>
     </el-card>
-    <el-row :gutter="16">
+    <el-row :gutter="16" v-loading="loading">
       <el-col :xs="12" :sm="8" :md="6" v-for="item in goodsList" :key="item.id">
         <el-card shadow="hover" @click="$router.push(`/goods/${item.id}`)" style="margin-bottom: 16px; cursor: pointer">
           <img :src="item.coverImage || '/placeholder.png'" style="width: 100%; height: 160px; object-fit: cover; border-radius: 4px" />
@@ -57,6 +57,7 @@ import { getGoodsList } from '@/api/goods'
 import { getCategoryList } from '@/api/category'
 import type { GoodsVO } from '@/api/goods'
 import type { GoodsCategory } from '@/api/category'
+import type { GoodsQueryParams } from '@/types'
 
 const goodsList = ref<GoodsVO[]>([])
 const categories = ref<GoodsCategory[]>([])
@@ -76,7 +77,7 @@ const getCategoryName = (id: number) => {
 const loadData = async () => {
   loading.value = true
   try {
-    const params: any = { pageNum: pageNum.value, pageSize: pageSize.value, status: 'ONLINE' }
+    const params: GoodsQueryParams = { pageNum: pageNum.value, pageSize: pageSize.value, status: 'ONLINE' }
     if (keyword.value) params.keyword = keyword.value
     if (categoryId.value) params.categoryId = categoryId.value
     const res = await getGoodsList(params)

@@ -5,7 +5,7 @@
         <el-tab-pane label="操作日志" name="operation" />
         <el-tab-pane label="安全日志" name="security" />
       </el-tabs>
-      <el-table :data="logs" stripe>
+      <el-table :data="logs" stripe v-loading="loading">
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column v-if="activeTab === 'operation'" prop="username" label="操作人" width="120" />
         <el-table-column v-if="activeTab === 'operation'" prop="operation" label="操作" width="200" show-overflow-tooltip />
@@ -25,18 +25,25 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getOperationLogs, getSecurityLogs } from '@/api/admin'
+import type { OperationLogVO, PageQueryParams } from '@/types'
 
 const activeTab = ref('operation')
-const logs = ref<any[]>([])
+const logs = ref<OperationLogVO[]>([])
 const pageNum = ref(1)
 const pageSize = ref(15)
 const total = ref(0)
+const loading = ref(false)
 
 const loadData = async () => {
-  const params = { pageNum: pageNum.value, pageSize: pageSize.value }
+  loading.value = true
+  try {
+  const params: PageQueryParams = { pageNum: pageNum.value, pageSize: pageSize.value }
   const res = activeTab.value === 'operation' ? await getOperationLogs(params) : await getSecurityLogs(params)
   logs.value = res.list || []
   total.value = res.total || 0
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleTabChange = () => {

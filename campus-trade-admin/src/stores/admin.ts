@@ -23,7 +23,7 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   const login = async (params: { username: string; password: string }) => {
-    const data: any = await loginApi(params)
+    const data = await loginApi(params)
     setAuth(data.accessToken, data.refreshToken)
     username.value = params.username
   }

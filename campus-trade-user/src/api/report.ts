@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import type { PageResult } from '@/types'
 
 export interface ReportVO {
   id: number
@@ -17,4 +18,4 @@ export const createReport = (data: { targetType: number; targetId: number; reaso
   request.post('/report', data)
 
 export const listMyReports = (pageNum: number = 1, pageSize: number = 10) =>
-  request.get<any, any>('/report/mine', { params: { pageNum, pageSize } })
+  request.get<never, PageResult<ReportVO>>('/report/mine', { params: { pageNum, pageSize } })

@@ -8,5 +8,5 @@ export interface GoodsCategory {
   icon: string
 }
 
-export const getCategoryList = () => request.get<any, GoodsCategory[]>('/goods-category')
+export const getCategoryList = () => request.get<never, GoodsCategory[]>('/goods-category')
 export const listCategories = getCategoryList

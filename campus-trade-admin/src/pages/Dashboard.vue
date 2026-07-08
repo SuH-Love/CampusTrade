@@ -39,6 +39,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getDashboardStats, getReportList, getOperationLogs } from '@/api/admin'
+import type { OperationLogVO, PageQueryParams } from '@/types'
 
 const stats = ref([
   { label: '用户总数', value: 0, icon: 'User', color: '#409eff' },
@@ -52,7 +53,7 @@ const todoItems = ref([
   { label: '待处理举报', count: 0, path: '/report' }
 ])
 
-const recentLogs = ref<any[]>([])
+const recentLogs = ref<OperationLogVO[]>([])
 
 const loadStats = async () => {
   try {
@@ -64,14 +65,14 @@ const loadStats = async () => {
     todoItems.value[0].count = res.pendingAudit || 0
   } catch { /* ignore */ }
   try {
-    const res = await getReportList({ pageNum: 1, pageSize: 1, status: 'PENDING' })
+    const res = await getReportList({ pageNum: 1, pageSize: 1, status: 'PENDING' } as PageQueryParams)
     todoItems.value[1].count = res.total || 0
   } catch { /* ignore */ }
 }
 
 const loadRecentLogs = async () => {
   try {
-    const res = await getOperationLogs({ pageNum: 1, pageSize: 5 })
+    const res = await getOperationLogs({ pageNum: 1, pageSize: 5 } as PageQueryParams)
     recentLogs.value = res.list || []
   } catch { /* ignore */ }
 }

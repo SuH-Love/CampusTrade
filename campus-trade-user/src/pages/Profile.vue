@@ -22,26 +22,26 @@
         <el-card>
           <el-tabs v-model="activeTab">
             <el-tab-pane label="编辑资料" name="info">
-              <el-form :model="infoForm" label-width="80px" style="max-width: 500px">
-                <el-form-item label="昵称"><el-input v-model="infoForm.nickname" /></el-form-item>
-                <el-form-item label="手机号"><el-input v-model="infoForm.phone" /></el-form-item>
-                <el-form-item label="邮箱"><el-input v-model="infoForm.email" /></el-form-item>
-                <el-form-item><el-button type="primary" @click="handleUpdateInfo">保存</el-button></el-form-item>
+              <el-form :model="infoForm" :rules="infoRules" ref="infoFormRef" label-width="80px" style="max-width: 500px">
+                <el-form-item label="昵称" prop="nickname"><el-input v-model="infoForm.nickname" placeholder="请输入昵称" /></el-form-item>
+                <el-form-item label="手机号" prop="phone"><el-input v-model="infoForm.phone" placeholder="请输入手机号" /></el-form-item>
+                <el-form-item label="邮箱" prop="email"><el-input v-model="infoForm.email" placeholder="请输入邮箱" /></el-form-item>
+                <el-form-item><el-button type="primary" @click="handleUpdateInfo" :loading="infoLoading">保存</el-button></el-form-item>
               </el-form>
             </el-tab-pane>
             <el-tab-pane label="修改密码" name="password">
-              <el-form :model="pwdForm" label-width="100px" style="max-width: 500px">
-                <el-form-item label="当前密码"><el-input v-model="pwdForm.oldPassword" type="password" show-password /></el-form-item>
-                <el-form-item label="新密码"><el-input v-model="pwdForm.newPassword" type="password" show-password /></el-form-item>
-                <el-form-item label="确认新密码"><el-input v-model="pwdForm.confirmPassword" type="password" show-password /></el-form-item>
-                <el-form-item><el-button type="primary" @click="handleUpdatePwd">修改密码</el-button></el-form-item>
+              <el-form :model="pwdForm" :rules="pwdRules" ref="pwdFormRef" label-width="100px" style="max-width: 500px">
+                <el-form-item label="当前密码" prop="oldPassword"><el-input v-model="pwdForm.oldPassword" type="password" show-password placeholder="请输入当前密码" /></el-form-item>
+                <el-form-item label="新密码" prop="newPassword"><el-input v-model="pwdForm.newPassword" type="password" show-password placeholder="8-20位密码" /></el-form-item>
+                <el-form-item label="确认新密码" prop="confirmPassword"><el-input v-model="pwdForm.confirmPassword" type="password" show-password placeholder="再次输入新密码" /></el-form-item>
+                <el-form-item><el-button type="primary" @click="handleUpdatePwd" :loading="pwdLoading">修改密码</el-button></el-form-item>
               </el-form>
             </el-tab-pane>
             <el-tab-pane label="实名认证" name="verify" v-if="userStore.userInfo?.realVerified !== 1">
-              <el-form :model="verifyForm" label-width="80px" style="max-width: 500px">
-                <el-form-item label="真实姓名"><el-input v-model="verifyForm.realName" /></el-form-item>
-                <el-form-item label="学号"><el-input v-model="verifyForm.studentId" /></el-form-item>
-                <el-form-item><el-button type="primary" @click="handleVerify">提交认证</el-button></el-form-item>
+              <el-form :model="verifyForm" :rules="verifyRules" ref="verifyFormRef" label-width="80px" style="max-width: 500px">
+                <el-form-item label="真实姓名" prop="realName"><el-input v-model="verifyForm.realName" placeholder="请输入真实姓名" /></el-form-item>
+                <el-form-item label="学号" prop="studentId"><el-input v-model="verifyForm.studentId" placeholder="请输入学号" /></el-form-item>
+                <el-form-item><el-button type="primary" @click="handleVerify" :loading="verifyLoading">提交认证</el-button></el-form-item>
               </el-form>
             </el-tab-pane>
           </el-tabs>
@@ -56,13 +56,59 @@ import { ref, reactive, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { updateUserInfo, updatePassword, realNameVerify } from '@/api/user'
 import { ElMessage } from 'element-plus'
+import type { FormInstance } from 'element-plus'
 
 const userStore = useUserStore()
 const activeTab = ref('info')
 
+const infoFormRef = ref<FormInstance>()
+const pwdFormRef = ref<FormInstance>()
+const verifyFormRef = ref<FormInstance>()
+const infoLoading = ref(false)
+const pwdLoading = ref(false)
+const verifyLoading = ref(false)
+
 const infoForm = reactive({ nickname: '', phone: '', email: '' })
 const pwdForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
 const verifyForm = reactive({ realName: '', studentId: '' })
+
+const phoneValidator = (_rule: unknown, value: string, callback: (err?: Error) => void) => {
+  if (value && !/^1[3-9]\d{9}$/.test(value)) callback(new Error('手机号格式不正确'))
+  else callback()
+}
+
+const emailValidator = (_rule: unknown, value: string, callback: (err?: Error) => void) => {
+  if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) callback(new Error('邮箱格式不正确'))
+  else callback()
+}
+
+const confirmPwdValidator = (_rule: unknown, value: string, callback: (err?: Error) => void) => {
+  if (value !== pwdForm.newPassword) callback(new Error('两次密码不一致'))
+  else callback()
+}
+
+const infoRules = {
+  nickname: [{ max: 20, message: '昵称不能超过20个字符', trigger: 'blur' }],
+  phone: [{ validator: phoneValidator, trigger: 'blur' }],
+  email: [{ validator: emailValidator, trigger: 'blur' }]
+}
+
+const pwdRules = {
+  oldPassword: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 8, max: 20, message: '密码长度8-20位', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请确认新密码', trigger: 'blur' },
+    { validator: confirmPwdValidator, trigger: 'blur' }
+  ]
+}
+
+const verifyRules = {
+  realName: [{ required: true, message: '请输入真实姓名', trigger: 'blur' }],
+  studentId: [{ required: true, message: '请输入学号', trigger: 'blur' }]
+}
 
 onMounted(() => {
   if (userStore.userInfo) {
@@ -73,31 +119,44 @@ onMounted(() => {
 })
 
 const handleUpdateInfo = async () => {
-  await updateUserInfo(infoForm)
-  await userStore.fetchUserInfo()
-  ElMessage.success('更新成功')
+  if (!infoFormRef.value) return
+  await infoFormRef.value.validate()
+  infoLoading.value = true
+  try {
+    await updateUserInfo(infoForm)
+    await userStore.fetchUserInfo()
+    ElMessage.success('更新成功')
+  } finally {
+    infoLoading.value = false
+  }
 }
 
 const handleUpdatePwd = async () => {
-  if (pwdForm.newPassword !== pwdForm.confirmPassword) {
-    ElMessage.error('两次密码不一致')
-    return
+  if (!pwdFormRef.value) return
+  await pwdFormRef.value.validate()
+  pwdLoading.value = true
+  try {
+    await updatePassword({ oldPassword: pwdForm.oldPassword, newPassword: pwdForm.newPassword })
+    ElMessage.success('密码修改成功')
+    pwdForm.oldPassword = ''
+    pwdForm.newPassword = ''
+    pwdForm.confirmPassword = ''
+  } finally {
+    pwdLoading.value = false
   }
-  if (pwdForm.newPassword.length < 8) {
-    ElMessage.error('密码长度不能少于8位')
-    return
-  }
-  await updatePassword({ oldPassword: pwdForm.oldPassword, newPassword: pwdForm.newPassword })
-  ElMessage.success('密码修改成功')
-  pwdForm.oldPassword = ''
-  pwdForm.newPassword = ''
-  pwdForm.confirmPassword = ''
 }
 
 const handleVerify = async () => {
-  await realNameVerify(verifyForm.realName, verifyForm.studentId)
-  await userStore.fetchUserInfo()
-  ElMessage.success('认证申请已提交')
+  if (!verifyFormRef.value) return
+  await verifyFormRef.value.validate()
+  verifyLoading.value = true
+  try {
+    await realNameVerify(verifyForm.realName, verifyForm.studentId)
+    await userStore.fetchUserInfo()
+    ElMessage.success('认证申请已提交')
+  } finally {
+    verifyLoading.value = false
+  }
 }
 </script>
 

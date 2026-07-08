@@ -31,8 +31,8 @@
           </div>
         </div>
         <div style="margin-top: 24px; display: flex; gap: 12px">
-          <el-button type="primary" size="large" @click="handleBuy" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id">立即购买</el-button>
-          <el-button size="large" :type="goods.isFavorited ? 'warning' : 'default'" @click="handleFavorite">
+          <el-button type="primary" size="large" @click="handleBuy" :loading="buying" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id">立即购买</el-button>
+          <el-button size="large" :type="goods.isFavorited ? 'warning' : 'default'" @click="handleFavorite" :loading="favoriting">
             <el-icon><Star /></el-icon>
             {{ goods.isFavorited ? '已收藏' : '收藏' }}
           </el-button>
@@ -57,6 +57,8 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const goods = ref<GoodsVO | null>(null)
+const buying = ref(false)
+const favoriting = ref(false)
 
 const imageList = computed(() => {
   if (!goods.value) return []
@@ -77,13 +79,19 @@ const loadData = async () => {
 const handleBuy = async () => {
   if (!goods.value) return
   await ElMessageBox.confirm(`确认购买「${goods.value.title}」？价格 ¥${goods.value.price}`, '确认购买')
-  await createOrder({ goodsId: goods.value.id })
-  ElMessage.success('下单成功')
-  router.push('/order')
+  buying.value = true
+  try {
+    await createOrder({ goodsId: goods.value.id })
+    ElMessage.success('下单成功')
+    router.push('/order')
+  } finally {
+    buying.value = false
+  }
 }
 
 const handleFavorite = async () => {
   if (!goods.value || !userStore.token) { ElMessage.warning('请先登录'); return }
+  favoriting.value = true
   try {
     if (goods.value.isFavorited) {
       await unfavoriteGoods(goods.value.id)
@@ -96,10 +104,9 @@ const handleFavorite = async () => {
       goods.value.favoriteCount++
       ElMessage.success('已收藏')
     }
-  } catch (e: any) {
-    if (e?.message?.includes('已收藏')) {
-      goods.value.isFavorited = true
-    }
+  } catch { /* ignore */ } finally {
+    favoriting.value = false
+  }
   }
 }
 

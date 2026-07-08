@@ -14,7 +14,7 @@
           </el-select>
         </div>
       </template>
-      <el-table :data="orders" stripe>
+      <el-table :data="orders" stripe v-loading="loading">
         <el-table-column prop="orderNo" label="订单号" width="200" />
         <el-table-column prop="buyerName" label="买家" width="100" />
         <el-table-column prop="sellerName" label="卖家" width="100" />
@@ -38,12 +38,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getOrderList } from '@/api/admin'
+import type { AdminOrderVO, PageQueryParams } from '@/types'
 
-const orders = ref<any[]>([])
+const orders = ref<AdminOrderVO[]>([])
 const statusFilter = ref('')
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+const loading = ref(false)
 
 const statusTagMap: Record<string, string> = {
   PENDING_PAY: 'warning', PAID: 'primary', SHIPPING: '',
@@ -58,11 +60,16 @@ const statusLabel = (status: string) => {
 }
 
 const loadData = async () => {
-  const params: any = { pageNum: pageNum.value, pageSize: pageSize.value }
+  loading.value = true
+  try {
+  const params: PageQueryParams = { pageNum: pageNum.value, pageSize: pageSize.value }
   if (statusFilter.value) params.status = statusFilter.value
   const res = await getOrderList(params)
   orders.value = res.list || []
   total.value = res.total || 0
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(loadData)

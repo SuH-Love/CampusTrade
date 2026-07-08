@@ -5,7 +5,7 @@
       <el-tab-pane label="我卖出的" name="seller" />
       <el-tab-pane label="已取消" name="cancelled" />
     </el-tabs>
-    <el-table :data="orders" stripe style="width: 100%">
+    <el-table :data="orders" stripe style="width: 100%" v-loading="loading">
       <el-table-column prop="orderNo" label="订单号" width="200" />
       <el-table-column :label="activeTab === 'buyer' ? '卖家' : '买家'" width="120">
         <template #default="{ row }">{{ activeTab === 'buyer' ? row.sellerName : row.buyerName }}</template>
@@ -40,12 +40,14 @@ import { ref, onMounted } from 'vue'
 import { getBuyerOrders, getSellerOrders, payOrder, cancelOrder, shipOrder, finishOrder } from '@/api/order'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { OrderVO } from '@/api/order'
+import type { OrderQueryParams } from '@/types'
 
 const activeTab = ref('buyer')
 const orders = ref<OrderVO[]>([])
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+const loading = ref(false)
 
 const statusLabel = (status: string) => {
   const map: Record<string, string> = {
@@ -64,7 +66,9 @@ const statusTagType = (status: string) => {
 }
 
 const loadData = async () => {
-  const params: any = { pageNum: pageNum.value, pageSize: pageSize.value }
+  loading.value = true
+  try {
+  const params: OrderQueryParams = { pageNum: pageNum.value, pageSize: pageSize.value }
   if (activeTab.value === 'cancelled') {
     params.status = 'CANCELLED'
     const [bRes, sRes] = await Promise.all([getBuyerOrders(params), getSellerOrders(params)])
@@ -72,8 +76,11 @@ const loadData = async () => {
     total.value = (bRes.total || 0) + (sRes.total || 0)
   } else {
     const res = activeTab.value === 'buyer' ? await getBuyerOrders(params) : await getSellerOrders(params)
-    orders.value = (res.list || []).filter((o: any) => o.status !== 'CANCELLED')
+    orders.value = (res.list || []).filter((o: OrderVO) => o.status !== 'CANCELLED')
     total.value = res.total || 0
+  }
+  } finally {
+    loading.value = false
   }
 }
 

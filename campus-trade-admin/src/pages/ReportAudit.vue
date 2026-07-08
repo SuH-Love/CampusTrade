@@ -12,7 +12,7 @@
           </el-select>
         </div>
       </template>
-      <el-table :data="reports" stripe>
+      <el-table :data="reports" stripe v-loading="loading">
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="reporterName" label="举报人" width="100" />
         <el-table-column prop="targetType" label="类型" width="100">
@@ -45,12 +45,14 @@
 import { ref, onMounted } from 'vue'
 import { getReportList, resolveReport, dismissReport } from '@/api/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { AdminReportVO, PageQueryParams } from '@/types'
 
-const reports = ref<any[]>([])
+const reports = ref<AdminReportVO[]>([])
 const statusFilter = ref('PENDING')
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+const loading = ref(false)
 
 const statusTagMap: Record<string, string> = { PENDING: 'warning', FINISHED: '', RESOLVED: 'success', DISMISSED: 'info' }
 const statusLabel = (status: string) => {
@@ -63,11 +65,16 @@ const targetTypeLabel = (type: number) => {
 }
 
 const loadData = async () => {
-  const params: any = { pageNum: pageNum.value, pageSize: pageSize.value }
+  loading.value = true
+  try {
+  const params: PageQueryParams = { pageNum: pageNum.value, pageSize: pageSize.value }
   if (statusFilter.value) params.status = statusFilter.value
   const res = await getReportList(params)
   reports.value = res.list || []
   total.value = res.total || 0
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleResolve = async (id: number) => {

@@ -37,6 +37,7 @@ import type { GoodsCategory } from '@/api/category'
 import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import type { UploadResponse } from '@/types'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -66,8 +67,13 @@ const uploadHeaders = computed(() => ({
   Authorization: userStore.token ? `Bearer ${userStore.token}` : ''
 }))
 
-const coverFileList = ref<any[]>([])
-const imageFileList = ref<any[]>([])
+interface FileItem {
+  name: string
+  url: string
+}
+
+const coverFileList = ref<FileItem[]>([])
+const imageFileList = ref<FileItem[]>([])
 const imageUrls = ref<string[]>([])
 
 const beforeUpload = (file: File) => {
@@ -78,7 +84,7 @@ const beforeUpload = (file: File) => {
   return true
 }
 
-const handleCoverSuccess = (response: any) => {
+const handleCoverSuccess = (response: UploadResponse) => {
   if (response.code === 200) {
     form.coverImage = response.data
     coverFileList.value = [{ name: 'cover', url: response.data }]
@@ -87,7 +93,7 @@ const handleCoverSuccess = (response: any) => {
   }
 }
 
-const handleImageSuccess = (response: any) => {
+const handleImageSuccess = (response: UploadResponse) => {
   if (response.code === 200) {
     imageUrls.value.push(response.data)
     form.images = imageUrls.value.join(',')

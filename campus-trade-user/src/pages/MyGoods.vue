@@ -7,7 +7,7 @@
           <el-button type="success" @click="$router.push('/goods/publish')">发布商品</el-button>
         </div>
       </template>
-      <el-table :data="goodsList" stripe>
+      <el-table :data="goodsList" stripe v-loading="loading">
         <el-table-column label="商品" min-width="250">
           <template #default="{ row }">
             <div style="display: flex; align-items: center; gap: 12px">
@@ -35,10 +35,10 @@
           <template #default="{ row }">
             <el-button size="small" @click="$router.push(`/goods/${row.id}`)">查看</el-button>
             <el-button v-if="row.status === 'DRAFT' || row.status === 'REJECTED'" size="small" @click="$router.push(`/goods/edit/${row.id}`)">编辑</el-button>
-            <el-button v-if="row.status === 'DRAFT' || row.status === 'REJECTED'" type="warning" size="small" @click="handleSubmitAudit(row.id)">提交审核</el-button>
-            <el-button v-if="row.status === 'APPROVED' || row.status === 'OFFLINE'" type="success" size="small" @click="handleOnline(row.id)">上架</el-button>
-            <el-button v-if="row.status === 'ONLINE'" type="info" size="small" @click="handleOffline(row.id)">下架</el-button>
-            <el-button v-if="row.status !== 'ONLINE'" type="danger" size="small" @click="handleDelete(row.id)">删除</el-button>
+            <el-button v-if="row.status === 'DRAFT' || row.status === 'REJECTED'" type="warning" size="small" @click="handleSubmitAudit(row.id)" :loading="actionLoading === row.id">提交审核</el-button>
+            <el-button v-if="row.status === 'APPROVED' || row.status === 'OFFLINE'" type="success" size="small" @click="handleOnline(row.id)" :loading="actionLoading === row.id">上架</el-button>
+            <el-button v-if="row.status === 'ONLINE'" type="info" size="small" @click="handleOffline(row.id)" :loading="actionLoading === row.id">下架</el-button>
+            <el-button v-if="row.status !== 'ONLINE'" type="danger" size="small" @click="handleDelete(row.id)" :loading="actionLoading === row.id">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -60,6 +60,8 @@ const goodsList = ref<GoodsVO[]>([])
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
+const loading = ref(false)
+const actionLoading = ref<number | null>(null)
 
 const statusLabel = (status: string) => {
   const map: Record<string, string> = { DRAFT: '草稿', PENDING: '待审核', APPROVED: '审核通过', REJECTED: '已拒绝', ONLINE: '已上架', OFFLINE: '已下架', SOLD: '已售出' }
@@ -72,36 +74,37 @@ const statusTagType = (status: string) => {
 }
 
 const loadData = async () => {
-  const res = await getGoodsList({ pageNum: pageNum.value, pageSize: pageSize.value, userId: userStore.userInfo?.id })
-  goodsList.value = res.list || []
-  total.value = res.total || 0
+  loading.value = true
+  try {
+    const res = await getGoodsList({ pageNum: pageNum.value, pageSize: pageSize.value, userId: userStore.userInfo?.id })
+    goodsList.value = res.list || []
+    total.value = res.total || 0
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleSubmitAudit = async (id: number) => {
   await ElMessageBox.confirm('确认提交审核？提交后管理员将审核您的商品', '提交审核')
-  await submitAudit(id)
-  ElMessage.success('已提交审核')
-  loadData()
+  actionLoading.value = id
+  try { await submitAudit(id); ElMessage.success('已提交审核'); loadData() } finally { actionLoading.value = null }
 }
 
 const handleOnline = async (id: number) => {
-  await onlineGoods(id)
-  ElMessage.success('已上架')
-  loadData()
+  actionLoading.value = id
+  try { await onlineGoods(id); ElMessage.success('已上架'); loadData() } finally { actionLoading.value = null }
 }
 
 const handleOffline = async (id: number) => {
   await ElMessageBox.confirm('确认下架该商品？', '下架确认')
-  await offlineGoods(id)
-  ElMessage.success('已下架')
-  loadData()
+  actionLoading.value = id
+  try { await offlineGoods(id); ElMessage.success('已下架'); loadData() } finally { actionLoading.value = null }
 }
 
 const handleDelete = async (id: number) => {
   await ElMessageBox.confirm('确认删除该商品？删除后不可恢复', '删除确认')
-  await deleteGoods(id)
-  ElMessage.success('已删除')
-  loadData()
+  actionLoading.value = id
+  try { await deleteGoods(id); ElMessage.success('已删除'); loadData() } finally { actionLoading.value = null }
 }
 
 onMounted(loadData)

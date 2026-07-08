@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import type { UserUpdateParams } from '@/types'
 
 export interface UserVO {
   id: number
@@ -14,9 +15,9 @@ export interface UserVO {
   createTime: string
 }
 
-export const getUserInfo = () => request.get<any, UserVO>('/user/info')
+export const getUserInfo = () => request.get<never, UserVO>('/user/info')
 
-export const updateUserInfo = (data: any) => request.put<any, UserVO>('/user/info', data)
+export const updateUserInfo = (data: UserUpdateParams) => request.put<never, UserVO>('/user/info', data)
 
 export const updatePassword = (data: { oldPassword: string; newPassword: string }) =>
   request.put('/user/password', data)

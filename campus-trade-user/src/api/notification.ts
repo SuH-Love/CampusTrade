@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import type { PageResult } from '@/types'
 
 export interface NotificationVO {
   id: number
@@ -12,9 +13,9 @@ export interface NotificationVO {
 }
 
 export const listNotifications = (isRead?: number, pageNum: number = 1, pageSize: number = 10) =>
-  request.get<any, any>('/notification', { params: { isRead, pageNum, pageSize } })
+  request.get<never, PageResult<NotificationVO>>('/notification', { params: { isRead, pageNum, pageSize } })
 
-export const getUnreadCount = () => request.get<any, number>('/notification/unread-count')
+export const getUnreadCount = () => request.get<never, number>('/notification/unread-count')
 
 export const markAsRead = (id: number) => request.put(`/notification/${id}/read`)
 

@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import type { PageResult, ContactVO } from '@/types'
 
 export interface ChatMessageVO {
   id: number
@@ -6,6 +7,8 @@ export interface ChatMessageVO {
   senderName: string
   senderAvatar: string
   receiverId: number
+  receiverName: string
+  receiverAvatar: string
   content: string
   messageType: number
   isRead: number
@@ -16,10 +19,10 @@ export const sendMessage = (data: { receiverId: number; content: string; message
   request.post('/chat', data)
 
 export const getHistory = (targetUserId: number, pageNum: number = 1, pageSize: number = 20) =>
-  request.get<any, any>('/chat/history/' + targetUserId, { params: { pageNum, pageSize } })
+  request.get<never, PageResult<ChatMessageVO>>('/chat/history/' + targetUserId, { params: { pageNum, pageSize } })
 
-export const getRecentContacts = () => request.get<any, any>('/chat/recent')
+export const getRecentContacts = () => request.get<never, ContactVO[]>('/chat/recent')
 
-export const getUnreadCount = (senderId: number) => request.get<any, number>('/chat/unread/' + senderId)
+export const getUnreadCount = (senderId: number) => request.get<never, number>('/chat/unread/' + senderId)
 
 export const markAsRead = (senderId: number) => request.put('/chat/read/' + senderId)
