@@ -52,7 +52,7 @@
 import { ref, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getRecentContacts, getHistory, sendMessage, markAsRead, getUnreadCount } from '@/api/chat'
+import { getRecentContacts, getHistory, sendMessage, markAsRead } from '@/api/chat'
 import type { ChatMessageVO } from '@/api/chat'
 
 const route = useRoute()
