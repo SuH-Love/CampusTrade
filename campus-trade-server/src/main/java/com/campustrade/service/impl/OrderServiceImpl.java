@@ -97,12 +97,23 @@ public class OrderServiceImpl implements OrderService {
         if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
         if (!order.getBuyerId().equals(userId) && !order.getSellerId().equals(userId))
             return Result.error(ResultCode.ORDER_NOT_OWNER);
-        if (!OrderStatus.PENDING_PAY.getCode().equals(order.getStatus())) return Result.error(ResultCode.ORDER_STATUS_ERROR);
+        if (!OrderStatus.PENDING_PAY.getCode().equals(order.getStatus()) && !OrderStatus.PAID.getCode().equals(order.getStatus()))
+            return Result.error(ResultCode.ORDER_STATUS_ERROR);
         order.setStatus(OrderStatus.CANCELLED.getCode());
         order.setCancelReason(reason);
         order.setCancelTime(LocalDateTime.now());
         int rows = orderMapper.updateById(order);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
+
+        List<OrderItem> items = orderItemMapper.selectByOrderId(orderId);
+        for (OrderItem item : items) {
+            Goods goods = goodsMapper.selectById(item.getGoodsId());
+            if (goods != null && GoodsStatus.SOLD.getCode().equals(goods.getStatus())) {
+                goods.setStatus(GoodsStatus.ONLINE.getCode());
+                goodsMapper.updateById(goods);
+                redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + item.getGoodsId());
+            }
+        }
         return Result.success();
     }
 

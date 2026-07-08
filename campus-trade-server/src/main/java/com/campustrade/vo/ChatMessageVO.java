@@ -12,6 +12,8 @@ public class ChatMessageVO {
     private String senderName;
     private String senderAvatar;
     private Long receiverId;
+    private String receiverName;
+    private String receiverAvatar;
     private String content;
     private Integer messageType;
     private Integer isRead;

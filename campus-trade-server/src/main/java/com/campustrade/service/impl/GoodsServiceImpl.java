@@ -115,7 +115,14 @@ public class GoodsServiceImpl implements GoodsService {
             if (cached instanceof String && "NULL".equals(cached)) {
                 return Result.error(ResultCode.GOODS_NOT_FOUND);
             }
-            return Result.success((GoodsVO) cached);
+            GoodsVO vo = (GoodsVO) cached;
+            if (currentUserId != null) {
+                GoodsFavorite fav = favoriteMapper.selectByUserAndGoods(currentUserId, goodsId);
+                vo.setIsFavorited(fav != null);
+            } else {
+                vo.setIsFavorited(false);
+            }
+            return Result.success(vo);
         }
 
         String lockKey = RedisConstant.LOCK_GOODS_PREFIX + goodsId;

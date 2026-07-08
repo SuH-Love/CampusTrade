@@ -88,14 +88,23 @@ public class ChatServiceImpl implements ChatService {
             vo.setSenderName(sender.getNickname() != null ? sender.getNickname() : sender.getUsername());
             vo.setSenderAvatar(sender.getAvatar());
         }
+        User receiver = userMapper.selectById(msg.getReceiverId());
+        if (receiver != null) {
+            vo.setReceiverName(receiver.getNickname() != null ? receiver.getNickname() : receiver.getUsername());
+            vo.setReceiverAvatar(receiver.getAvatar());
+        }
         return vo;
     }
 
     private List<ChatMessageVO> toVOList(List<ChatMessage> messages) {
         if (messages == null || messages.isEmpty()) return List.of();
 
-        List<Long> senderIds = messages.stream().map(ChatMessage::getSenderId).distinct().collect(Collectors.toList());
-        Map<Long, User> userMap = userMapper.selectByIds(senderIds).stream()
+        Set<Long> userIds = new HashSet<>();
+        for (ChatMessage msg : messages) {
+            userIds.add(msg.getSenderId());
+            userIds.add(msg.getReceiverId());
+        }
+        Map<Long, User> userMap = userMapper.selectByIds(userIds).stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
 
         return messages.stream().map(msg -> {
@@ -111,6 +120,11 @@ public class ChatServiceImpl implements ChatService {
             if (sender != null) {
                 vo.setSenderName(sender.getNickname() != null ? sender.getNickname() : sender.getUsername());
                 vo.setSenderAvatar(sender.getAvatar());
+            }
+            User receiver = userMap.get(msg.getReceiverId());
+            if (receiver != null) {
+                vo.setReceiverName(receiver.getNickname() != null ? receiver.getNickname() : receiver.getUsername());
+                vo.setReceiverAvatar(receiver.getAvatar());
             }
             return vo;
         }).collect(Collectors.toList());

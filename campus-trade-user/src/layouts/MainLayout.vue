@@ -23,6 +23,7 @@
                 <el-dropdown-item @click="$router.push('/profile')">个人中心</el-dropdown-item>
                 <el-dropdown-item @click="$router.push('/chat')">聊天</el-dropdown-item>
                 <el-dropdown-item @click="$router.push('/notification')">通知</el-dropdown-item>
+                <el-dropdown-item @click="$router.push('/report')">我的举报</el-dropdown-item>
                 <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -35,7 +36,7 @@
       </div>
     </el-header>
     <el-main>
-      <router-view />
+      <router-view :key="route.fullPath" />
     </el-main>
   </el-container>
 </template>
