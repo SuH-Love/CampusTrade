@@ -17,7 +17,11 @@
         </nav>
         <div class="header-right">
           <template v-if="userStore.token">
-
+            <el-badge :value="chatUnread || undefined" :hidden="!chatUnread" :max="99" class="header-badge">
+              <router-link to="/chat" class="icon-btn" title="聊天">
+                <el-icon :size="20"><ChatDotRound /></el-icon>
+              </router-link>
+            </el-badge>
             <el-badge :value="notifyCount || undefined" :hidden="!notifyCount" :max="99" class="header-badge">
               <router-link to="/notification" class="icon-btn" title="通知">
                 <el-icon :size="20"><Bell /></el-icon>
@@ -60,19 +64,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getUnreadCount as getNotifyUnread } from '@/api/notification'
+import { useChatWs } from '@/composables/useChatWs'
 
 const route = useRoute()
 const userStore = useUserStore()
 const notifyCount = ref(0)
+const chatUnread = ref(0)
+const { wsUnreadCount } = useChatWs()
 
 const fetchCounts = async () => {
   if (!userStore.token) return
   try { const r = await getNotifyUnread(); notifyCount.value = typeof r === 'number' ? r : 0 } catch { /* */ }
 }
+
+watch(wsUnreadCount, (v) => { chatUnread.value = v }, { immediate: true })
 
 const handleLogout = async () => {
   await userStore.logout()

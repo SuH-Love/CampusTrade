@@ -2,10 +2,17 @@
   <div class="chat-page">
     <el-container style="height: calc(100vh - 112px)">
       <el-aside width="300px" class="chat-sidebar">
-        <div class="sidebar-header">消息</div>
+        <div class="sidebar-header">
+          <span>消息</span>
+          <el-tag v-if="connected" type="success" size="small" effect="dark">在线</el-tag>
+          <el-tag v-else type="info" size="small" effect="dark">离线</el-tag>
+        </div>
         <div class="contact-list">
           <div v-for="contact in contacts" :key="contact.userId" class="contact-item" :class="{ active: currentTarget === contact.userId }" @click="selectContact(contact)">
-            <el-avatar :size="44" :src="contact.avatar" />
+            <div class="avatar-wrap">
+              <el-avatar :size="44" :src="contact.avatar" />
+              <span v-if="isOnline(contact.userId)" class="online-dot"></span>
+            </div>
             <div class="contact-info">
               <div class="contact-name">{{ contact.name }}</div>
               <div class="contact-last">{{ contact.lastMessage }}</div>
@@ -16,7 +23,11 @@
       </el-aside>
       <el-main class="chat-main">
         <template v-if="currentTarget">
-          <div class="chat-header">{{ currentContactName }}</div>
+          <div class="chat-header">
+            <span>{{ currentContactName }}</span>
+            <span v-if="isOnline(currentTarget)" class="header-online">在线</span>
+            <span v-else class="header-offline">离线</span>
+          </div>
           <div class="chat-messages" ref="messagesRef">
             <div v-for="msg in messages" :key="msg.id" class="message-item" :class="{ self: msg.senderId === myId }">
               <template v-if="msg.senderId === myId">
@@ -34,10 +45,11 @@
                 </div>
               </template>
             </div>
+            <div v-if="typingHint" class="typing-hint">{{ typingHint }}</div>
             <el-empty v-if="messages.length === 0" description="暂无消息，发送第一条消息吧" :image-size="60" />
           </div>
           <div class="chat-input">
-            <el-input v-model="inputText" placeholder="输入消息..." @keyup.enter="handleSend" size="large" />
+            <el-input v-model="inputText" placeholder="输入消息..." @keyup.enter="handleSend" @input="handleTyping" size="large" />
             <el-button type="primary" size="large" @click="handleSend" :disabled="!inputText.trim()" :loading="sending" round>发送</el-button>
           </div>
         </template>
@@ -48,16 +60,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getRecentContacts, getHistory, sendMessage, markAsRead } from '@/api/chat'
+import { getRecentContacts, getHistory, markAsRead } from '@/api/chat'
+import { useChatWs } from '@/composables/useChatWs'
 import type { ChatMessageVO } from '@/api/chat'
 import type { ContactVO } from '@/types'
 
 const route = useRoute()
 const userStore = useUserStore()
 const myId = computed(() => userStore.userInfo?.id)
+
+const { connected, onlineUsers, sendChat, sendTyping, onMessage, wsUnreadCount } = useChatWs()
 
 interface ContactItem { userId: number; name: string; avatar: string; lastMessage: string }
 
@@ -68,7 +83,10 @@ const messages = ref<ChatMessageVO[]>([])
 const inputText = ref('')
 const sending = ref(false)
 const messagesRef = ref<HTMLElement>()
+const typingHint = ref('')
+let typingTimer: ReturnType<typeof setTimeout> | null = null
 
+const isOnline = (userId: number) => onlineUsers.value.has(userId)
 
 const loadContacts = async () => {
   try {
@@ -81,11 +99,45 @@ const loadContacts = async () => {
   } catch { contacts.value = [] }
 }
 
-const selectContact = async (contact: ContactItem) => { currentTarget.value = contact.userId; currentContactName.value = contact.name; await loadMessages(); try { await markAsRead(contact.userId) } catch { /* ignore */ } }
+const selectContact = async (contact: ContactItem) => {
+  currentTarget.value = contact.userId
+  currentContactName.value = contact.name
+  await loadMessages()
+  try { await markAsRead(contact.userId) } catch { /* ignore */ }
+  wsUnreadCount.value = 0
+}
 
-const loadMessages = async () => { if (!currentTarget.value) return; try { const res = await getHistory(currentTarget.value); messages.value = res.list || res || []; await nextTick(); scrollToBottom() } catch { messages.value = [] } }
+const loadMessages = async () => {
+  if (!currentTarget.value) return
+  try {
+    const res = await getHistory(currentTarget.value)
+    messages.value = res.list || res || []
+    await nextTick(); scrollToBottom()
+  } catch { messages.value = [] }
+}
 
-const handleSend = async () => { if (!inputText.value.trim() || !currentTarget.value) return; sending.value = true; try { await sendMessage({ receiverId: currentTarget.value, content: inputText.value.trim() }); inputText.value = ''; await loadMessages() } finally { sending.value = false } }
+const handleSend = async () => {
+  if (!inputText.value.trim() || !currentTarget.value) return
+  const content = inputText.value.trim()
+  sending.value = true
+  try {
+    const sent = sendChat(currentTarget.value, content)
+    if (!sent) {
+      const { sendMessage } = await import('@/api/chat')
+      await sendMessage({ receiverId: currentTarget.value, content })
+    }
+    inputText.value = ''
+  } finally {
+    sending.value = false
+  }
+}
+
+const handleTyping = () => {
+  if (!currentTarget.value) return
+  sendTyping(currentTarget.value)
+  if (typingTimer) clearTimeout(typingTimer)
+  typingTimer = setTimeout(() => { typingHint.value = '' }, 3000)
+}
 
 const scrollToBottom = () => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight }
 
@@ -100,28 +152,78 @@ const formatTime = (t: string) => {
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${time}`
 }
 
+const removeWsHandler = onMessage((msg) => {
+  if (msg.type === 'CHAT' && msg.data) {
+    const chatMsg = msg.data as ChatMessageVO
+    if (currentTarget.value && (chatMsg.senderId === currentTarget.value || chatMsg.receiverId === currentTarget.value)) {
+      messages.value.push(chatMsg)
+      nextTick(scrollToBottom)
+      if (chatMsg.senderId === currentTarget.value) {
+        markAsRead(chatMsg.senderId).catch(() => {})
+      }
+    }
+    const contactIdx = contacts.value.findIndex(c =>
+      c.userId === chatMsg.senderId || c.userId === chatMsg.receiverId
+    )
+    if (contactIdx > -1) {
+      const contact = contacts.value[contactIdx]
+      contact.lastMessage = chatMsg.content
+      if (contactIdx > 0) {
+        contacts.value.splice(contactIdx, 1)
+        contacts.value.unshift(contact)
+      }
+    } else if (chatMsg.senderId !== myId.value) {
+      contacts.value.unshift({
+        userId: chatMsg.senderId,
+        name: chatMsg.senderName || '用户',
+        avatar: chatMsg.senderAvatar || '',
+        lastMessage: chatMsg.content
+      })
+    }
+  } else if (msg.type === 'TYPING' && msg.userId === currentTarget.value) {
+    const contact = contacts.value.find(c => c.userId === msg.userId)
+    typingHint.value = `${contact?.name || '对方'} 正在输入...`
+    if (typingTimer) clearTimeout(typingTimer)
+    typingTimer = setTimeout(() => { typingHint.value = '' }, 3000)
+  }
+})
+
 onMounted(async () => {
   await loadContacts()
   if (route.query.targetUserId) {
-    const targetId = Number(route.query.targetUserId); const targetName = route.query.name as string || '卖家'
+    const targetId = Number(route.query.targetUserId)
+    const targetName = route.query.name as string || '卖家'
     const existing = contacts.value.find(c => c.userId === targetId)
-    if (existing) { selectContact(existing) } else { contacts.value.unshift({ userId: targetId, name: targetName, avatar: '', lastMessage: '' }); currentTarget.value = targetId; currentContactName.value = targetName }
+    if (existing) { selectContact(existing) } else {
+      contacts.value.unshift({ userId: targetId, name: targetName, avatar: '', lastMessage: '' })
+      currentTarget.value = targetId
+      currentContactName.value = targetName
+    }
   }
+})
+
+onUnmounted(() => {
+  removeWsHandler()
+  if (typingTimer) clearTimeout(typingTimer)
 })
 </script>
 
 <style scoped lang="scss">
 .chat-page { padding: 0 24px; }
 .chat-sidebar { background: var(--bg-card); border-right: 1px solid var(--border); border-radius: var(--radius-md) 0 0 var(--radius-md); overflow-y: auto; }
-.sidebar-header { padding: 20px; font-size: 18px; font-weight: 700; border-bottom: 1px solid var(--border); }
+.sidebar-header { padding: 20px; font-size: 18px; font-weight: 700; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
 .contact-list { padding: 4px 0; }
 .contact-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; transition: var(--transition); &:hover { background: var(--bg-hover); } &.active { background: var(--primary-lighter); } }
+.avatar-wrap { position: relative; flex-shrink: 0; }
+.online-dot { position: absolute; bottom: 1px; right: 1px; width: 10px; height: 10px; background: #22c55e; border: 2px solid var(--bg-card); border-radius: 50%; }
 .contact-info { flex: 1; overflow: hidden; }
 .contact-name { font-weight: 600; font-size: 14px; }
 .contact-last { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
 
 .chat-main { display: flex; flex-direction: column; padding: 0; background: var(--bg-card); border-radius: 0 var(--radius-md) var(--radius-md) 0; }
-.chat-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 16px; }
+.chat-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.header-online { font-size: 12px; font-weight: 500; color: #22c55e; background: #f0fdf4; padding: 2px 8px; border-radius: 10px; }
+.header-offline { font-size: 12px; font-weight: 500; color: var(--text-muted); background: var(--bg-hover); padding: 2px 8px; border-radius: 10px; }
 .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 .message-item { display: flex; gap: 10px; &.self { justify-content: flex-end; } }
 .sender-name { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
@@ -130,6 +232,7 @@ onMounted(async () => {
 .msg-bubble { background: #f1f5f9; padding: 10px 16px; border-radius: 16px 16px 16px 4px; word-break: break-all; font-size: 14px; line-height: 1.6; }
 .self-bubble { background: var(--primary); color: #fff; border-radius: 16px 16px 4px 16px; }
 .msg-time { font-size: 11px; color: var(--text-muted); margin-top: 4px; padding: 0 4px; }
+.typing-hint { font-size: 12px; color: var(--text-muted); padding: 4px 8px; font-style: italic; }
 .chat-input { display: flex; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--border); }
 .chat-empty { display: flex; align-items: center; justify-content: center; height: 100%; }
 </style>

@@ -21,4 +21,6 @@ public interface ChatMessageMapper {
     int insert(ChatMessage message);
 
     int insertBatch(@Param("messages") List<ChatMessage> messages);
+
+    int updateById(ChatMessage message);
 }

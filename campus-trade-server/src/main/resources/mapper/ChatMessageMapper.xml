@@ -53,4 +53,8 @@
             (#{msg.senderId}, #{msg.receiverId}, #{msg.content}, #{msg.messageType}, #{msg.isRead}, NOW(), NOW(), 0, 0)
         </foreach>
     </insert>
+
+    <update id="updateById">
+        UPDATE t_chat_message SET is_read = #{isRead}, update_time = NOW() WHERE id = #{id} AND deleted = 0
+    </update>
 </mapper>
