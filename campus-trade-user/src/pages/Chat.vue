@@ -168,7 +168,7 @@ const handleSend = async () => {
     content,
     messageType: 1,
     isRead: 0,
-    createTime: new Date().toISOString().replace('T', ' ').substring(0, 19) as any,
+    createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
     senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
     senderAvatar: userStore.userInfo?.avatar || '',
     receiverName: currentContactName.value,

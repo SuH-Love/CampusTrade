@@ -71,7 +71,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getGoodsDetail, favoriteGoods, unfavoriteGoods } from '@/api/goods'
 import { createOrder } from '@/api/order'
-import { addToCart, getCartList } from '@/api/cart'
+import { addToCart, getCartList, type CartVO } from '@/api/cart'
 import { toggleFollow, isFollowing } from '@/api/follow'
 import { getAverageRating } from '@/api/rating'
 import { useUserStore } from '@/stores/user'
@@ -123,7 +123,7 @@ const loadData = async () => {
   if (goods.value && userStore.token) {
     try {
       const cartList = await getCartList()
-      isInCart.value = cartList ? cartList.some((c: any) => c.goodsId === goods.value!.id) : false
+      isInCart.value = cartList ? cartList.some((c: CartVO) => c.goodsId === goods.value!.id) : false
     } catch { /* ignore */ }
   }
 }
