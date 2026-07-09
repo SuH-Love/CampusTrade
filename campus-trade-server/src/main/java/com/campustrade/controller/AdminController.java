@@ -2,6 +2,7 @@ package com.campustrade.controller;
 
 import com.campustrade.common.PageResult;
 import com.campustrade.common.Result;
+import com.campustrade.common.ResultCode;
 import com.campustrade.dto.GoodsAuditDTO;
 import com.campustrade.dto.GoodsQueryDTO;
 import com.campustrade.service.GoodsService;
@@ -72,6 +73,18 @@ public class AdminController {
 
     @Autowired
     private PermissionMapper permissionMapper;
+
+    @Autowired
+    private OrderMapper orderMapper;
+
+    @Autowired
+    private OrderItemMapper orderItemMapper;
+
+    @Autowired
+    private GoodsMapper goodsMapper;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @ApiOperation("获取当前管理员信息")
     @GetMapping("/info")

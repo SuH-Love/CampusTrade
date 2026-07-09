@@ -18,6 +18,10 @@ public interface GoodsFavoriteMapper {
 
     List<Long> selectGoodsIdsByUserId(@Param("userId") Long userId, @Param("offset") Integer offset, @Param("pageSize") Integer pageSize);
 
+    List<Long> selectGoodsIdsByUserIdAndStatus(@Param("userId") Long userId, @Param("status") String status, @Param("offset") Integer offset, @Param("pageSize") Integer pageSize);
+
+    Long selectCountByUserIdAndStatus(@Param("userId") Long userId, @Param("status") String status);
+
     int insert(GoodsFavorite favorite);
 
     int deleteByUserAndGoods(@Param("userId") Long userId, @Param("goodsId") Long goodsId);

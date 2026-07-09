@@ -89,6 +89,7 @@ const handleRead = async (item: NotificationVO) => {
   if (item.isRead === 0) {
     await markAsRead(item.id)
     item.isRead = 1
+
     loadUnreadCount()
   }
 }
@@ -96,15 +97,15 @@ const handleRead = async (item: NotificationVO) => {
 const handleMarkAllRead = async () => {
   await markAllAsRead()
   ElMessage.success('已全部标记为已读')
+  notifyUnread.value = 0
   loadData()
-  loadUnreadCount()
 }
 
 const handleDelete = async (id: number) => {
   await deleteNotification(id)
   ElMessage.success('已删除')
-  loadData()
   loadUnreadCount()
+  loadData()
 }
 
 onMounted(() => { loadData(); loadUnreadCount() })

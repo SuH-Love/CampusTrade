@@ -5,6 +5,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px">
           <h3 style="margin: 0">我的商品</h3>
           <div class="filter-bar">
+            <el-button type="success" @click="$router.push('/goods/publish')">发布商品</el-button>
             <el-input v-model="searchKeyword" placeholder="搜索商品标题" clearable style="width: 200px" @keyup.enter="handleSearch" @clear="handleSearch" />
             <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch" style="width: 140px">
               <el-option label="草稿" value="DRAFT" />
@@ -15,7 +16,6 @@
               <el-option label="已下架" value="OFFLINE" />
               <el-option label="已售出" value="SOLD" />
             </el-select>
-            <el-button type="success" @click="$router.push('/goods/publish')">发布商品</el-button>
           </div>
         </div>
       </template>

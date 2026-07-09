@@ -4,6 +4,7 @@ import com.campustrade.security.StompPrincipal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
@@ -53,8 +54,14 @@ public class StompEventListener {
             var message = event instanceof SessionConnectEvent
                     ? ((SessionConnectEvent) event).getMessage()
                     : ((SessionDisconnectEvent) event).getMessage();
-            var headers = message.getHeaders();
-            var simpUser = headers.get("simpUser");
+            StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
+            var user = accessor.getUser();
+            if (user instanceof StompPrincipal) return (StompPrincipal) user;
+            if (user instanceof org.springframework.security.core.Authentication) {
+                var principal = ((org.springframework.security.core.Authentication) user).getPrincipal();
+                if (principal instanceof StompPrincipal) return (StompPrincipal) principal;
+            }
+            var simpUser = message.getHeaders().get("simpUser");
             if (simpUser instanceof StompPrincipal) return (StompPrincipal) simpUser;
             if (simpUser instanceof org.springframework.security.core.Authentication) {
                 var details = ((org.springframework.security.core.Authentication) simpUser).getPrincipal();
