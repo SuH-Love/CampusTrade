@@ -6,14 +6,6 @@
           <h3 style="margin: 0">我的订单</h3>
           <div class="filter-bar">
             <el-input v-model="searchKeyword" placeholder="搜索订单号" clearable style="width: 200px" @keyup.enter="handleSearch" @clear="handleSearch" />
-            <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch" style="width: 140px">
-              <el-option label="待支付" value="PENDING_PAY" />
-              <el-option label="已支付" value="PAID" />
-              <el-option label="已发货" value="SHIPPING" />
-              <el-option label="已完成" value="FINISHED" />
-              <el-option label="退款中" value="REFUND" />
-              <el-option label="已取消" value="CANCELLED" />
-            </el-select>
           </div>
         </div>
       </template>
@@ -21,6 +13,16 @@
         <el-tab-pane label="我买到的" name="buyer" />
         <el-tab-pane label="我卖出的" name="seller" />
       </el-tabs>
+      <div class="status-tabs">
+        <el-radio-group v-model="statusFilter" @change="handleSearch" size="default">
+          <el-radio-button label="">全部</el-radio-button>
+          <el-radio-button label="PENDING_PAY">待支付</el-radio-button>
+          <el-radio-button label="PAID">待发货</el-radio-button>
+          <el-radio-button label="SHIPPING">待收货</el-radio-button>
+          <el-radio-button label="PENDING_REVIEW">待评价</el-radio-button>
+          <el-radio-button label="REFUND">退款售后</el-radio-button>
+        </el-radio-group>
+      </div>
       <el-table :data="filteredOrders" stripe style="width: 100%" v-loading="loading">
         <el-table-column prop="orderNo" label="订单号" width="200" />
         <el-table-column :label="activeTab === 'buyer' ? '卖家' : '买家'" width="120">
@@ -74,7 +76,7 @@ const statusFilter = ref('')
 const statusLabel = (status: string) => {
   const map: Record<string, string> = {
     PENDING_PAY: '待支付', PAID: '已支付', SHIPPING: '已发货',
-    FINISHED: '已完成', CANCELLED: '已取消', REFUND: '退款中'
+    PENDING_REVIEW: '待评价', FINISHED: '已完成', CANCELLED: '已取消', REFUND: '退款中'
   }
   return map[status] || status
 }
@@ -82,7 +84,7 @@ const statusLabel = (status: string) => {
 const statusTagType = (status: string) => {
   const map: Record<string, string> = {
     PENDING_PAY: 'warning', PAID: 'primary', SHIPPING: '',
-    FINISHED: 'success', CANCELLED: 'info', REFUND: 'danger'
+    PENDING_REVIEW: 'warning', FINISHED: 'success', CANCELLED: 'info', REFUND: 'danger'
   }
   return map[status] || ''
 }
@@ -181,4 +183,5 @@ onMounted(loadData)
 <style scoped lang="scss">
 .orders-page { padding: 20px; }
 .filter-bar { display: flex; gap: 12px; align-items: center; }
+.status-tabs { margin-bottom: 16px; }
 </style>

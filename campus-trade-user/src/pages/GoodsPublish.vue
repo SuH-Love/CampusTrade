@@ -12,6 +12,16 @@
         <el-form-item label="描述" prop="description"><el-input v-model="form.description" type="textarea" :rows="4" placeholder="请描述商品详情" /></el-form-item>
         <el-form-item label="售价" prop="price"><el-input-number v-model="form.price" :min="0.01" :precision="2" style="width: 100%" /></el-form-item>
         <el-form-item label="原价"><el-input-number v-model="form.originalPrice" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <el-form-item label="成色" prop="condition">
+          <el-select v-model="form.condition" placeholder="请选择成色" style="width: 100%">
+            <el-option label="九九新" value="九九新" />
+            <el-option label="九五新" value="九五新" />
+            <el-option label="九成新" value="九成新" />
+            <el-option label="八五新" value="八五新" />
+            <el-option label="八成新" value="八成新" />
+            <el-option label="七成新" value="七成新" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="封面图">
           <el-upload :action="uploadUrl" :headers="uploadHeaders" :on-success="handleCoverSuccess" :before-upload="beforeUpload" list-type="picture" :limit="1" :file-list="coverFileList">
             <el-button size="small">上传封面</el-button>
@@ -52,14 +62,16 @@ const form = reactive({
   price: 0,
   originalPrice: 0,
   coverImage: '',
-  images: ''
+  images: '',
+  condition: ''
 })
 
 const rules = {
   title: [{ required: true, message: '请输入商品标题', trigger: 'blur' }],
   categoryId: [{ required: true, message: '请选择分类', trigger: 'change' }],
   description: [{ required: true, message: '请输入商品描述', trigger: 'blur' }],
-  price: [{ required: true, message: '请输入售价', trigger: 'blur' }]
+  price: [{ required: true, message: '请输入售价', trigger: 'blur' }],
+  condition: [{ required: true, message: '请选择成色', trigger: 'change' }]
 }
 
 const uploadUrl = '/api/file/upload'

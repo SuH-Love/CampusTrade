@@ -22,4 +22,6 @@ public class Order extends BaseEntity {
     private LocalDateTime cancelTime;
     private String cancelReason;
     private String remark;
+    private Integer deliveryMethod;
+    private String address;
 }

@@ -23,6 +23,8 @@ public interface OrderService {
 
     Result<Void> rejectRefund(Long userId, Long orderId, String reason);
 
+    Result<Void> rateOrder(Long userId, Long orderId, Integer rating, String comment);
+
     Result<OrderVO> getOrderDetail(Long userId, Long orderId);
 
     Result<PageResult<OrderVO>> listBuyerOrders(Long buyerId, String status, Integer pageNum, Integer pageSize);

@@ -17,6 +17,7 @@ import com.campustrade.mapper.GoodsMapper;
 import com.campustrade.mapper.GoodsCategoryMapper;
 import com.campustrade.mapper.GoodsFavoriteMapper;
 import com.campustrade.mapper.UserMapper;
+import com.campustrade.mapper.UserFollowMapper;
 import com.campustrade.service.GoodsService;
 import com.campustrade.service.LogService;
 import com.campustrade.service.NotificationService;
@@ -61,6 +62,9 @@ public class GoodsServiceImpl implements GoodsService {
 
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private UserFollowMapper userFollowMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -263,6 +267,13 @@ public class GoodsServiceImpl implements GoodsService {
         redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + goodsId);
         redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
         redisTemplate.delete(RedisConstant.GOODS_RECOMMEND_KEY);
+
+        List<Long> followerIds = userFollowMapper.selectFollowerIds(goods.getUserId(), 0, 1000);
+        for (Long followerId : followerIds) {
+            notificationService.sendNotification(followerId, "关注商家新品",
+                    "您关注的商家发布了新商品「" + goods.getTitle() + "」", "FOLLOW", goodsId);
+        }
+
         return Result.success();
     }
 

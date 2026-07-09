@@ -12,6 +12,16 @@
         <el-form-item label="描述" prop="description"><el-input v-model="form.description" type="textarea" :rows="4" /></el-form-item>
         <el-form-item label="售价" prop="price"><el-input-number v-model="form.price" :min="0.01" :precision="2" style="width: 100%" /></el-form-item>
         <el-form-item label="原价"><el-input-number v-model="form.originalPrice" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <el-form-item label="成色" prop="condition">
+          <el-select v-model="form.condition" placeholder="请选择成色" style="width: 100%">
+            <el-option label="九九新" value="九九新" />
+            <el-option label="九五新" value="九五新" />
+            <el-option label="九成新" value="九成新" />
+            <el-option label="八五新" value="八五新" />
+            <el-option label="八成新" value="八成新" />
+            <el-option label="七成新" value="七成新" />
+          </el-select>
+        </el-form-item>
         <el-form-item><el-button type="primary" @click="handleSubmit" :loading="submitting">保存修改</el-button></el-form-item>
       </el-form>
     </el-card>
@@ -38,14 +48,16 @@ const form = reactive({
   categoryId: undefined as number | undefined,
   description: '',
   price: 0,
-  originalPrice: 0
+  originalPrice: 0,
+  condition: ''
 })
 
 const rules = {
   title: [{ required: true, message: '请输入商品标题', trigger: 'blur' }],
   categoryId: [{ required: true, message: '请选择分类', trigger: 'change' }],
   description: [{ required: true, message: '请输入商品描述', trigger: 'blur' }],
-  price: [{ required: true, message: '请输入售价', trigger: 'blur' }]
+  price: [{ required: true, message: '请输入售价', trigger: 'blur' }],
+  condition: [{ required: true, message: '请选择成色', trigger: 'change' }]
 }
 
 const handleSubmit = async () => {
@@ -69,6 +81,7 @@ onMounted(async () => {
   form.description = goods.description
   form.price = goods.price
   form.originalPrice = goods.originalPrice
+  form.condition = goods.condition || ''
 })
 </script>
 

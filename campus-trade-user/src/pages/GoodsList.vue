@@ -36,7 +36,10 @@
               <span class="price-text">¥{{ item.price }}</span>
               <span v-if="item.originalPrice" class="original-price">¥{{ item.originalPrice }}</span>
             </div>
-            <div class="goods-meta">{{ item.viewCount }} 浏览</div>
+            <div class="goods-meta">
+              <span>{{ item.viewCount }} 浏览</span>
+              <el-tag v-if="item.condition" size="small" type="warning" style="margin-left: 6px">{{ item.condition }}</el-tag>
+            </div>
           </div>
         </div>
       </el-col>

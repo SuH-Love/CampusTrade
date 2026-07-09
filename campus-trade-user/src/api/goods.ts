@@ -14,6 +14,7 @@ export interface GoodsVO {
   originalPrice: number
   coverImage: string
   images: string
+  condition: string
   status: string
   viewCount: number
   favoriteCount: number

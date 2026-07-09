@@ -50,6 +50,9 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private SellerRatingMapper sellerRatingMapper;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<OrderVO> createOrder(Long buyerId, OrderCreateDTO dto) {
@@ -75,6 +78,8 @@ public class OrderServiceImpl implements OrderService {
         order.setTotalAmount(goods.getPrice());
         order.setStatus(OrderStatus.PENDING_PAY.getCode());
         order.setRemark(dto.getRemark());
+        order.setDeliveryMethod(dto.getDeliveryMethod());
+        order.setAddress(dto.getAddress());
         orderMapper.insert(order);
 
         OrderItem item = new OrderItem();
@@ -174,7 +179,7 @@ public class OrderServiceImpl implements OrderService {
         if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
         if (!order.getBuyerId().equals(userId)) return Result.error(ResultCode.ORDER_NOT_OWNER);
         if (!OrderStatus.SHIPPING.getCode().equals(order.getStatus())) return Result.error(ResultCode.ORDER_STATUS_ERROR);
-        order.setStatus(OrderStatus.FINISHED.getCode());
+        order.setStatus(OrderStatus.PENDING_REVIEW.getCode());
         order.setFinishTime(LocalDateTime.now());
         int rows = orderMapper.updateById(order);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
@@ -296,6 +301,27 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Void> rateOrder(Long userId, Long orderId, Integer rating, String comment) {
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
+        if (!order.getBuyerId().equals(userId)) return Result.error(ResultCode.ORDER_NOT_OWNER);
+        if (!"PENDING_REVIEW".equals(order.getStatus())) return Result.error(ResultCode.ORDER_STATUS_ERROR);
+        order.setStatus(OrderStatus.FINISHED.getCode());
+        order.setFinishTime(LocalDateTime.now());
+        int rows = orderMapper.updateById(order);
+        if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
+        SellerRating sellerRating = new SellerRating();
+        sellerRating.setOrderId(orderId);
+        sellerRating.setBuyerId(userId);
+        sellerRating.setSellerId(order.getSellerId());
+        sellerRating.setRating(rating);
+        sellerRating.setComment(comment);
+        sellerRatingMapper.insert(sellerRating);
+        return Result.success();
+    }
+
+    @Override
     public long countOrders() {
         Long count = orderMapper.selectCountAll(null);
         return count != null ? count : 0L;
@@ -319,6 +345,8 @@ public class OrderServiceImpl implements OrderService {
         vo.setCancelTime(order.getCancelTime());
         vo.setCancelReason(order.getCancelReason());
         vo.setRemark(order.getRemark());
+        vo.setDeliveryMethod(order.getDeliveryMethod());
+        vo.setAddress(order.getAddress());
         vo.setCreateTime(order.getCreateTime());
 
         User buyer = userMapper.selectById(order.getBuyerId());
@@ -356,6 +384,8 @@ public class OrderServiceImpl implements OrderService {
             vo.setCancelTime(order.getCancelTime());
             vo.setCancelReason(order.getCancelReason());
             vo.setRemark(order.getRemark());
+            vo.setDeliveryMethod(order.getDeliveryMethod());
+            vo.setAddress(order.getAddress());
             vo.setCreateTime(order.getCreateTime());
 
             User buyer = userMap.get(order.getBuyerId());

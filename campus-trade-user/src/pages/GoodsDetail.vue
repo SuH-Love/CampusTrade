@@ -16,6 +16,7 @@
           <div class="detail-status">
             <el-tag :type="statusTagType(goods.status)" effect="dark" round>{{ statusLabel(goods.status) }}</el-tag>
             <el-tag round>{{ goods.categoryName }}</el-tag>
+            <el-tag v-if="goods.condition" type="warning" round>{{ goods.condition }}</el-tag>
           </div>
           <h1 class="detail-title">{{ goods.title }}</h1>
           <div class="detail-stats">
@@ -36,13 +37,22 @@
             <el-avatar :size="44" :src="goods.userAvatar" />
             <div class="seller-info">
               <div class="seller-name">{{ goods.username }}</div>
-              <div class="seller-action">点击联系卖家</div>
+              <div class="seller-action">
+                <span>点击联系卖家</span>
+                <el-rate v-if="sellerRating > 0" :model-value="sellerRating" disabled size="small" style="margin-left: 8px; vertical-align: middle" />
+              </div>
             </div>
+            <el-button :type="isFollowed ? 'warning' : 'default'" size="small" @click.stop="handleToggleFollow" :loading="followLoading" round>
+              {{ isFollowed ? '已关注' : '关注' }}
+            </el-button>
             <el-icon style="margin-left: auto; color: var(--text-muted)"><ArrowRight /></el-icon>
           </div>
           <div class="action-bar">
             <el-button type="primary" size="large" @click="handleBuy" :loading="buying" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id" round>
               立即购买
+            </el-button>
+            <el-button size="large" @click="handleAddToCart" :loading="addingToCart" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id" round>
+              加入购物车
             </el-button>
             <el-button size="large" :type="goods.isFavorited ? 'warning' : 'default'" @click="handleFavorite" :loading="favoriting" round>
               <el-icon><Star /></el-icon> {{ goods.isFavorited ? '已收藏' : '收藏' }}
@@ -61,6 +71,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getGoodsDetail, favoriteGoods, unfavoriteGoods } from '@/api/goods'
 import { createOrder } from '@/api/order'
+import { addToCart } from '@/api/cart'
+import { toggleFollow, isFollowing } from '@/api/follow'
+import { getAverageRating } from '@/api/rating'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { GoodsVO } from '@/api/goods'
@@ -71,6 +84,12 @@ const userStore = useUserStore()
 const goods = ref<GoodsVO | null>(null)
 const buying = ref(false)
 const favoriting = ref(false)
+const addingToCart = ref(false)
+const isFollowed = ref(false)
+const followLoading = ref(false)
+const sellerRating = ref(0)
+const deliveryMethod = ref('PICKUP')
+const deliveryAddress = ref('')
 
 const imageList = computed(() => {
   if (!goods.value) return []
@@ -93,13 +112,38 @@ const statusTagType = (status: string) => {
   return map[status] || 'info'
 }
 
-const loadData = async () => { goods.value = await getGoodsDetail(Number(route.params.id)) }
+const loadData = async () => {
+  goods.value = await getGoodsDetail(Number(route.params.id))
+  if (goods.value && userStore.token && goods.value.userId !== userStore.userInfo?.id) {
+    try { isFollowed.value = await isFollowing(goods.value.userId) } catch { /* ignore */ }
+    try { sellerRating.value = await getAverageRating(goods.value.userId) } catch { /* ignore */ }
+  }
+}
 
 const handleBuy = async () => {
   if (!goods.value) return
-  await ElMessageBox.confirm(`确认购买「${goods.value.title}」？价格 ¥${goods.value.price}`, '确认购买')
-  buying.value = true
-  try { await createOrder({ goodsId: goods.value.id }); ElMessage.success('下单成功'); router.push('/order') } finally { buying.value = false }
+  try {
+    const { value: method } = await ElMessageBox({
+      title: '确认购买',
+      message: `确认购买「${goods.value.title}」？价格 ¥${goods.value.price}`,
+      showCancelButton: true,
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      beforeClose: async (action, instance, done) => { done() }
+    })
+    buying.value = true
+    const data: { goodsId: number; remark?: string; deliveryMethod?: string; deliveryAddress?: string } = { goodsId: goods.value.id }
+    if (deliveryMethod.value === 'DELIVERY') {
+      if (!deliveryAddress.value.trim()) { ElMessage.error('请输入配送地址'); buying.value = false; return }
+      data.deliveryMethod = 'DELIVERY'
+      data.deliveryAddress = deliveryAddress.value
+    } else {
+      data.deliveryMethod = 'PICKUP'
+    }
+    await createOrder(data)
+    ElMessage.success('下单成功')
+    router.push('/order')
+  } catch { /* cancel */ } finally { buying.value = false }
 }
 
 const handleFavorite = async () => {
@@ -121,6 +165,22 @@ const handleChat = () => {
 }
 
 const handleReport = () => { router.push({ path: '/report', query: { targetType: '1', targetId: String(route.params.id) } }) }
+
+const handleAddToCart = async () => {
+  if (!goods.value || !userStore.token) { ElMessage.warning('请先登录'); return }
+  addingToCart.value = true
+  try { await addToCart(goods.value.id); ElMessage.success('已加入购物车') } finally { addingToCart.value = false }
+}
+
+const handleToggleFollow = async () => {
+  if (!goods.value || !userStore.token) { ElMessage.warning('请先登录'); return }
+  followLoading.value = true
+  try {
+    await toggleFollow(goods.value.userId)
+    isFollowed.value = !isFollowed.value
+    ElMessage.success(isFollowed.value ? '已关注' : '已取消关注')
+  } finally { followLoading.value = false }
+}
 
 onMounted(loadData)
 </script>

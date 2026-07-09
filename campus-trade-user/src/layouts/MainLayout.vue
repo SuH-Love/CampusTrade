@@ -13,10 +13,16 @@
             <router-link to="/my-goods" class="nav-link" :class="{ active: route.path === '/my-goods' }">我的商品</router-link>
             <router-link to="/order" class="nav-link" :class="{ active: route.path.startsWith('/order') }">订单</router-link>
             <router-link to="/favorites" class="nav-link" :class="{ active: route.path === '/favorites' }">收藏</router-link>
+            <router-link to="/following" class="nav-link" :class="{ active: route.path === '/following' }">我的关注</router-link>
           </template>
         </nav>
         <div class="header-right">
           <template v-if="userStore.token">
+            <el-badge :value="cartCount || ''" :hidden="!cartCount" class="header-badge">
+              <router-link to="/cart" class="icon-btn" title="购物车">
+                <el-icon :size="20"><ShoppingCart /></el-icon>
+              </router-link>
+            </el-badge>
             <el-badge :is-dot="!!chatUnread" class="header-badge">
               <router-link to="/chat" class="icon-btn" title="聊天">
                 <el-icon :size="20"><ChatDotRound /></el-icon>
@@ -64,15 +70,17 @@
 </template>
 
 <script setup lang="ts">
-import { onUnmounted, watch } from 'vue'
+import { ref, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getUnreadCount as getNotifyUnread } from '@/api/notification'
+import { getCartList } from '@/api/cart'
 import { useChatWs } from '@/composables/useChatWs'
 
 const route = useRoute()
 const userStore = useUserStore()
 const { chatUnread, notifyUnread, onNotification } = useChatWs()
+const cartCount = ref(0)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
@@ -81,9 +89,15 @@ const fetchNotifyCount = async () => {
   try { const r = await getNotifyUnread(); if (typeof r === 'number') notifyUnread.value = r } catch { /* */ }
 }
 
+const fetchCartCount = async () => {
+  if (!userStore.token) return
+  try { const list = await getCartList(); cartCount.value = list ? list.length : 0 } catch { /* */ }
+}
+
 const startPolling = () => {
   fetchNotifyCount()
-  pollTimer = setInterval(fetchNotifyCount, 60000)
+  fetchCartCount()
+  pollTimer = setInterval(() => { fetchNotifyCount(); fetchCartCount() }, 60000)
 }
 
 const stopPolling = () => {
@@ -91,7 +105,7 @@ const stopPolling = () => {
 }
 
 watch(() => userStore.token, (token) => {
-  if (token) startPolling(); else { stopPolling(); notifyUnread.value = 0 }
+  if (token) startPolling(); else { stopPolling(); notifyUnread.value = 0; cartCount.value = 0 }
 }, { immediate: true })
 
 const removeNotifyHandler = onNotification(() => {

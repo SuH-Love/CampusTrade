@@ -5,7 +5,9 @@ import com.campustrade.common.Result;
 import com.campustrade.constant.MQConstant;
 import com.campustrade.constant.RedisConstant;
 import com.campustrade.entity.Notification;
+import com.campustrade.entity.NotificationPreference;
 import com.campustrade.mapper.NotificationMapper;
+import com.campustrade.mapper.NotificationPreferenceMapper;
 import com.campustrade.service.NotificationService;
 import com.campustrade.vo.NotificationVO;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,9 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Autowired
     private NotificationMapper notificationMapper;
+
+    @Autowired
+    private NotificationPreferenceMapper notificationPreferenceMapper;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -87,6 +92,8 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public void sendNotification(Long userId, String title, String content, String type, Long relatedId) {
+        NotificationPreference pref = notificationPreferenceMapper.selectByUserAndType(userId, type);
+        if (pref != null && pref.getEnabled() == 0) return;
         Notification notification = new Notification();
         notification.setUserId(userId);
         notification.setTitle(title);

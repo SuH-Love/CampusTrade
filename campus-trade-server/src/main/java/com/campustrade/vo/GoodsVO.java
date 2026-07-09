@@ -18,6 +18,7 @@ public class GoodsVO {
     private String description;
     private BigDecimal price;
     private BigDecimal originalPrice;
+    private String condition;
     private String coverImage;
     private String images;
     private String status;

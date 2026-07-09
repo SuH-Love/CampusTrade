@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.SellerRatingMapper">
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.SellerRating">
+        <id column="id" property="id"/>
+        <result column="order_id" property="orderId"/>
+        <result column="buyer_id" property="buyerId"/>
+        <result column="seller_id" property="sellerId"/>
+        <result column="rating" property="rating"/>
+        <result column="comment" property="comment"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+    </resultMap>
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM t_seller_rating WHERE id = #{id} AND deleted = 0
+    </select>
+    <select id="selectByOrderId" resultMap="BaseResultMap">
+        SELECT * FROM t_seller_rating WHERE order_id = #{orderId} AND deleted = 0
+    </select>
+    <select id="selectBySellerId" resultMap="BaseResultMap">
+        SELECT * FROM t_seller_rating WHERE seller_id = #{sellerId} AND deleted = 0
+        ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
+    </select>
+    <select id="selectCountBySellerId" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_seller_rating WHERE seller_id = #{sellerId} AND deleted = 0
+    </select>
+    <select id="selectAvgRatingBySellerId" resultType="java.lang.Double">
+        SELECT AVG(rating) FROM t_seller_rating WHERE seller_id = #{sellerId} AND deleted = 0
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_seller_rating (order_id, buyer_id, seller_id, rating, comment, create_time, update_time, deleted, version)
+        VALUES (#{orderId}, #{buyerId}, #{sellerId}, #{rating}, #{comment}, NOW(), NOW(), 0, 0)
+    </insert>
+</mapper>

@@ -45,6 +45,12 @@ public class DataInitializer implements CommandLineRunner {
         initCategories();
         createBannerTableIfNeeded();
         initBanners();
+        alterGoodsTableAddCondition();
+        alterOrderTableAddDelivery();
+        createSellerRatingTableIfNeeded();
+        createUserFollowTableIfNeeded();
+        createNotificationPreferenceTableIfNeeded();
+        createCartTableIfNeeded();
         clearPermissionCache();}
 
     private void initRoles() {
@@ -239,6 +245,94 @@ public class DataInitializer implements CommandLineRunner {
         banner.setSortOrder(sortOrder);
         banner.setStatus(status);
         bannerMapper.insert(banner);
+    }
+
+    private void alterGoodsTableAddCondition() {
+        try { jdbcTemplate.execute("ALTER TABLE t_goods ADD COLUMN condition VARCHAR(20) DEFAULT NULL COMMENT '成色' AFTER original_price"); } catch (Exception ignored) {}
+    }
+
+    private void alterOrderTableAddDelivery() {
+        try { jdbcTemplate.execute("ALTER TABLE t_order ADD COLUMN delivery_method TINYINT DEFAULT 1 COMMENT '配送方式1自取2配送' AFTER remark"); } catch (Exception ignored) {}
+        try { jdbcTemplate.execute("ALTER TABLE t_order ADD COLUMN address VARCHAR(500) DEFAULT NULL COMMENT '收货地址' AFTER delivery_method"); } catch (Exception ignored) {}
+    }
+
+    private void createSellerRatingTableIfNeeded() {
+        try {
+            jdbcTemplate.execute(
+                "CREATE TABLE IF NOT EXISTS t_seller_rating (" +
+                "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+                "order_id BIGINT NOT NULL," +
+                "buyer_id BIGINT NOT NULL," +
+                "seller_id BIGINT NOT NULL," +
+                "rating TINYINT NOT NULL," +
+                "comment VARCHAR(500) DEFAULT NULL," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "version INT DEFAULT 0," +
+                "KEY idx_order_id (order_id)," +
+                "KEY idx_seller_id (seller_id)," +
+                "UNIQUE KEY uk_order_rating (order_id)" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+        } catch (Exception e) { log.warn("Create t_seller_rating failed: {}", e.getMessage()); }
+    }
+
+    private void createUserFollowTableIfNeeded() {
+        try {
+            jdbcTemplate.execute(
+                "CREATE TABLE IF NOT EXISTS t_user_follow (" +
+                "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+                "follower_id BIGINT NOT NULL," +
+                "following_id BIGINT NOT NULL," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "version INT DEFAULT 0," +
+                "KEY idx_follower_id (follower_id)," +
+                "KEY idx_following_id (following_id)," +
+                "UNIQUE KEY uk_follow (follower_id, following_id)" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+        } catch (Exception e) { log.warn("Create t_user_follow failed: {}", e.getMessage()); }
+    }
+
+    private void createNotificationPreferenceTableIfNeeded() {
+        try {
+            jdbcTemplate.execute(
+                "CREATE TABLE IF NOT EXISTS t_notification_preference (" +
+                "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+                "user_id BIGINT NOT NULL," +
+                "notification_type VARCHAR(20) NOT NULL," +
+                "enabled TINYINT DEFAULT 1," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "version INT DEFAULT 0," +
+                "KEY idx_user_id (user_id)," +
+                "UNIQUE KEY uk_user_type (user_id, notification_type)" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+        } catch (Exception e) { log.warn("Create t_notification_preference failed: {}", e.getMessage()); }
+    }
+
+    private void createCartTableIfNeeded() {
+        try {
+            jdbcTemplate.execute(
+                "CREATE TABLE IF NOT EXISTS t_cart (" +
+                "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+                "user_id BIGINT NOT NULL," +
+                "goods_id BIGINT NOT NULL," +
+                "quantity INT DEFAULT 1," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "version INT DEFAULT 0," +
+                "KEY idx_user_id (user_id)," +
+                "UNIQUE KEY uk_user_goods (user_id, goods_id)" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+        } catch (Exception e) { log.warn("Create t_cart failed: {}", e.getMessage()); }
     }
 
     private void clearPermissionCache() {

@@ -7,6 +7,16 @@
           <el-button type="primary" size="small" @click="handleMarkAllRead" :disabled="unreadCount === 0">全部已读</el-button>
         </div>
       </template>
+      <div class="preference-section">
+        <span class="preference-label">通知偏好：</span>
+        <el-checkbox-group v-model="enabledTypes" @change="handlePreferenceChange">
+          <el-checkbox label="SYSTEM">系统通知</el-checkbox>
+          <el-checkbox label="ORDER">订单通知</el-checkbox>
+          <el-checkbox label="GOODS">商品通知</el-checkbox>
+          <el-checkbox label="CHAT">聊天通知</el-checkbox>
+          <el-checkbox label="FOLLOW">关注通知</el-checkbox>
+        </el-checkbox-group>
+      </div>
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
         <el-tab-pane label="全部" name="all" />
         <el-tab-pane :label="`未读 (${unreadCount})`" name="unread" />
@@ -40,6 +50,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { listNotifications, getUnreadCount, markAsRead, markAllAsRead, deleteNotification } from '@/api/notification'
+import { getMyPreferences, setPreference } from '@/api/notificationPreference'
 import type { NotificationVO } from '@/api/notification'
 import { ElMessage } from 'element-plus'
 import { useChatWs } from '@/composables/useChatWs'
@@ -54,11 +65,14 @@ const total = ref(0)
 const unreadCount = ref(0)
 const loading = ref(false)
 
-const typeTagMap: Record<string, string> = { SYSTEM: 'danger', ORDER: 'warning', GOODS: 'success', CHAT: '' }
+const typeTagMap: Record<string, string> = { SYSTEM: 'danger', ORDER: 'warning', GOODS: 'success', CHAT: '', FOLLOW: 'primary' }
 const typeLabel = (type: string) => {
-  const map: Record<string, string> = { SYSTEM: '系统', ORDER: '订单', GOODS: '商品', CHAT: '聊天' }
+  const map: Record<string, string> = { SYSTEM: '系统', ORDER: '订单', GOODS: '商品', CHAT: '聊天', FOLLOW: '关注' }
   return map[type] || type
 }
+
+const allTypes = ['SYSTEM', 'ORDER', 'GOODS', 'CHAT', 'FOLLOW']
+const enabledTypes = ref<string[]>([...allTypes])
 
 const loadData = async () => {
   loading.value = true
@@ -108,7 +122,24 @@ const handleDelete = async (id: number) => {
   loadData()
 }
 
-onMounted(() => { loadData(); loadUnreadCount() })
+const loadPreferences = async () => {
+  try {
+    const prefs = await getMyPreferences()
+    if (prefs && prefs.length > 0) {
+      enabledTypes.value = prefs.filter(p => p.enabled === 1).map(p => p.notificationType)
+    }
+  } catch { /* ignore */ }
+}
+
+const handlePreferenceChange = async (val: string[]) => {
+  for (const type of allTypes) {
+    const enabled = val.includes(type) ? 1 : 0
+    try { await setPreference(type, enabled) } catch { /* ignore */ }
+  }
+  ElMessage.success('偏好设置已更新')
+}
+
+onMounted(() => { loadData(); loadUnreadCount(); loadPreferences() })
 </script>
 
 <style scoped lang="scss">
@@ -124,4 +155,11 @@ onMounted(() => { loadData(); loadUnreadCount() })
 .notification-title { display: flex; align-items: center; font-weight: 500; }
 .notification-content { color: #666; margin: 6px 0; font-size: 14px; }
 .notification-time { color: #999; font-size: 12px; }
+.preference-section {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px; margin-bottom: 12px;
+  background: #f8f9fa; border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
+.preference-label { font-size: 14px; font-weight: 500; color: var(--text-primary); white-space: nowrap; }
 </style>

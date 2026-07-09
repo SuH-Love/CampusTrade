@@ -68,6 +68,12 @@ public class OrderController {
         return orderService.rejectRefund(SecurityUtil.requireCurrentUserId(), id, reason);
     }
 
+    @ApiOperation("评价商家")
+    @PostMapping("/{id}/rate")
+    public Result<Void> rateOrder(@PathVariable Long id, @RequestParam Integer rating, @RequestParam(required = false) String comment) {
+        return orderService.rateOrder(SecurityUtil.requireCurrentUserId(), id, rating, comment);
+    }
+
     @ApiOperation("订单详情")
     @GetMapping("/{id}")
     public Result<OrderVO> getOrderDetail(@PathVariable Long id) {

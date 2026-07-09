@@ -20,6 +20,8 @@ export interface OrderVO {
   totalAmount: number
   status: string
   remark: string
+  deliveryMethod: string
+  deliveryAddress: string
   payTime: string | null
   shipTime: string | null
   finishTime: string | null
@@ -29,8 +31,11 @@ export interface OrderVO {
   items: OrderItemVO[]
 }
 
-export const createOrder = (data: { goodsId: number; remark?: string }) =>
+export const createOrder = (data: { goodsId: number; remark?: string; deliveryMethod?: string; deliveryAddress?: string }) =>
   request.post<never, OrderVO>('/order', data)
+
+export const rateOrder = (id: number, rating: number, comment?: string) =>
+  request.post(`/order/${id}/rate`, null, { params: { rating, comment } })
 
 export const cancelOrder = (id: number, reason?: string) =>
   request.put(`/order/${id}/cancel`, null, { params: { reason } })

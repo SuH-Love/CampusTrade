@@ -19,6 +19,8 @@
             <span style="color: #f56c6c; font-weight: bold; font-size: 18px">¥{{ order.totalAmount }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="备注">{{ order.remark || '无' }}</el-descriptions-item>
+          <el-descriptions-item label="配送方式">{{ order.deliveryMethod === 'DELIVERY' ? '配送' : '自取' }}</el-descriptions-item>
+          <el-descriptions-item v-if="order.deliveryMethod === 'DELIVERY'" label="配送地址">{{ order.deliveryAddress || '-' }}</el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ order.createTime }}</el-descriptions-item>
           <el-descriptions-item label="支付时间">{{ order.payTime || '-' }}</el-descriptions-item>
           <el-descriptions-item label="发货时间">{{ order.shipTime || '-' }}</el-descriptions-item>
@@ -51,6 +53,21 @@
           <el-button v-if="order.status === 'REFUND' && isSeller" type="success" @click="handleApproveRefund">同意退款</el-button>
           <el-button v-if="order.status === 'REFUND' && isSeller" type="warning" @click="handleRejectRefund">拒绝退款</el-button>
         </div>
+
+        <div v-if="order.status === 'PENDING_REVIEW' && isBuyer" class="rating-section">
+          <h4 style="margin: 24px 0 12px">评价卖家</h4>
+          <el-form :model="ratingForm" label-width="80px">
+            <el-form-item label="评分">
+              <el-rate v-model="ratingForm.rating" :colors="['#6366f1', '#6366f1', '#6366f1']" />
+            </el-form-item>
+            <el-form-item label="评价">
+              <el-input v-model="ratingForm.comment" type="textarea" :rows="3" placeholder="请输入评价内容（可选）" />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="handleRate" :loading="ratingLoading" :disabled="ratingForm.rating === 0">提交评价</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
       </template>
       <el-empty v-else-if="!loading" description="订单不存在" />
     </el-card>
@@ -58,9 +75,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getOrderDetail, payOrder, cancelOrder, shipOrder, finishOrder, refundOrder, approveRefund, rejectRefund } from '@/api/order'
+import { getOrderDetail, payOrder, cancelOrder, shipOrder, finishOrder, refundOrder, approveRefund, rejectRefund, rateOrder } from '@/api/order'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { OrderVO } from '@/api/order'
@@ -69,6 +86,8 @@ const route = useRoute()
 const userStore = useUserStore()
 const order = ref<OrderVO | null>(null)
 const loading = ref(false)
+const ratingForm = reactive({ rating: 0, comment: '' })
+const ratingLoading = ref(false)
 
 const isBuyer = computed(() => order.value?.buyerId === userStore.userInfo?.id)
 const isSeller = computed(() => order.value?.sellerId === userStore.userInfo?.id)
@@ -76,7 +95,7 @@ const isSeller = computed(() => order.value?.sellerId === userStore.userInfo?.id
 const statusLabel = (status: string) => {
   const map: Record<string, string> = {
     PENDING_PAY: '待支付', PAID: '已支付', SHIPPING: '已发货',
-    FINISHED: '已完成', CANCELLED: '已取消', REFUND: '退款中'
+    PENDING_REVIEW: '待评价', FINISHED: '已完成', CANCELLED: '已取消', REFUND: '退款中'
   }
   return map[status] || status
 }
@@ -84,7 +103,7 @@ const statusLabel = (status: string) => {
 const statusTagType = (status: string) => {
   const map: Record<string, string> = {
     PENDING_PAY: 'warning', PAID: 'primary', SHIPPING: '',
-    FINISHED: 'success', CANCELLED: 'info', REFUND: 'danger'
+    PENDING_REVIEW: 'warning', FINISHED: 'success', CANCELLED: 'info', REFUND: 'danger'
   }
   return map[status] || ''
 }
@@ -146,9 +165,26 @@ const handleRejectRefund = async () => {
   loadData()
 }
 
+const handleRate = async () => {
+  if (!order.value || ratingForm.rating === 0) return
+  ratingLoading.value = true
+  try {
+    await rateOrder(order.value.id, ratingForm.rating, ratingForm.comment || undefined)
+    ElMessage.success('评价成功')
+    loadData()
+  } finally { ratingLoading.value = false }
+}
+
 onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
 .order-detail-page { padding: 20px; }
+.rating-section {
+  margin-top: 24px;
+  padding: 20px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
 </style>

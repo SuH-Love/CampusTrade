@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.CartMapper">
+    <select id="selectByUserId" resultType="com.campustrade.entity.Cart">
+        SELECT * FROM t_cart WHERE user_id = #{userId} AND deleted = 0 ORDER BY create_time DESC
+    </select>
+    <select id="selectByUserAndGoods" resultType="com.campustrade.entity.Cart">
+        SELECT * FROM t_cart WHERE user_id = #{userId} AND goods_id = #{goodsId} AND deleted = 0
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_cart (user_id, goods_id, quantity, create_time, update_time, deleted, version)
+        VALUES (#{userId}, #{goodsId}, #{quantity}, NOW(), NOW(), 0, 0)
+    </insert>
+    <update id="updateQuantity">
+        UPDATE t_cart SET quantity = #{quantity}, version = version + 1 WHERE id = #{id}
+    </update>
+    <update id="deleteById">
+        UPDATE t_cart SET deleted = 1 WHERE id = #{id}
+    </update>
+    <update id="deleteByUserId">
+        UPDATE t_cart SET deleted = 1 WHERE user_id = #{userId}
+    </update>
+</mapper>

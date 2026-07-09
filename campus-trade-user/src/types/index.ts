@@ -24,6 +24,7 @@ export interface GoodsCreateParams {
   originalPrice?: number
   coverImage?: string
   images?: string
+  condition?: string
 }
 
 export interface UserUpdateParams {

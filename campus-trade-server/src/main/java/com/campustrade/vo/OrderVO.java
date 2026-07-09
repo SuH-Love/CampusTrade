@@ -23,6 +23,8 @@ public class OrderVO {
     private LocalDateTime cancelTime;
     private String cancelReason;
     private String remark;
+    private Integer deliveryMethod;
+    private String address;
     private LocalDateTime createTime;
     private List<OrderItemVO> items;
 }

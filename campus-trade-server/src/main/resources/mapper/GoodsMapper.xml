@@ -10,6 +10,7 @@
         <result column="description" property="description"/>
         <result column="price" property="price"/>
         <result column="original_price" property="originalPrice"/>
+        <result column="condition" property="condition"/>
         <result column="cover_image" property="coverImage"/>
         <result column="images" property="images"/>
         <result column="status" property="status"/>
@@ -64,8 +65,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO t_goods (user_id, category_id, title, description, price, original_price, cover_image, images, status)
-        VALUES (#{userId}, #{categoryId}, #{title}, #{description}, #{price}, #{originalPrice}, #{coverImage}, #{images}, #{status})
+        INSERT INTO t_goods (user_id, category_id, title, description, price, original_price, condition, cover_image, images, status)
+        VALUES (#{userId}, #{categoryId}, #{title}, #{description}, #{price}, #{originalPrice}, #{condition}, #{coverImage}, #{images}, #{status})
     </insert>
 
     <update id="updateById">
@@ -76,6 +77,7 @@
             <if test="description != null">description = #{description},</if>
             <if test="price != null">price = #{price},</if>
             <if test="originalPrice != null">original_price = #{originalPrice},</if>
+            <if test="condition != null">condition = #{condition},</if>
             <if test="coverImage != null">cover_image = #{coverImage},</if>
             <if test="images != null">images = #{images},</if>
             <if test="status != null">status = #{status},</if>
