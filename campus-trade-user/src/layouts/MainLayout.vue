@@ -17,12 +17,12 @@
         </nav>
         <div class="header-right">
           <template v-if="userStore.token">
-            <el-badge :is-dot="!!totalUnread" class="header-badge">
+            <el-badge :is-dot="!!chatUnread" class="header-badge">
               <router-link to="/chat" class="icon-btn" title="聊天">
                 <el-icon :size="20"><ChatDotRound /></el-icon>
               </router-link>
             </el-badge>
-            <el-badge :is-dot="!!notifyCount" class="header-badge">
+            <el-badge :is-dot="!!notifyUnread" class="header-badge">
               <router-link to="/notification" class="icon-btn" title="通知">
                 <el-icon :size="20"><Bell /></el-icon>
               </router-link>
@@ -64,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getUnreadCount as getNotifyUnread } from '@/api/notification'
@@ -72,19 +72,18 @@ import { useChatWs } from '@/composables/useChatWs'
 
 const route = useRoute()
 const userStore = useUserStore()
-const notifyCount = ref(0)
-const { totalUnread } = useChatWs()
+const { chatUnread, notifyUnread, onNotification } = useChatWs()
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
-const fetchCounts = async () => {
+const fetchNotifyCount = async () => {
   if (!userStore.token) return
-  try { const r = await getNotifyUnread(); notifyCount.value = typeof r === 'number' ? r : 0 } catch { /* */ }
+  try { const r = await getNotifyUnread(); if (typeof r === 'number') notifyUnread.value = r } catch { /* */ }
 }
 
 const startPolling = () => {
-  fetchCounts()
-  pollTimer = setInterval(fetchCounts, 30000)
+  fetchNotifyCount()
+  pollTimer = setInterval(fetchNotifyCount, 60000)
 }
 
 const stopPolling = () => {
@@ -92,8 +91,12 @@ const stopPolling = () => {
 }
 
 watch(() => userStore.token, (token) => {
-  if (token) startPolling(); else { stopPolling(); notifyCount.value = 0 }
+  if (token) startPolling(); else { stopPolling(); notifyUnread.value = 0 }
 }, { immediate: true })
+
+const removeNotifyHandler = onNotification(() => {
+  fetchNotifyCount()
+})
 
 const handleLogout = async () => {
   stopPolling()
@@ -101,7 +104,10 @@ const handleLogout = async () => {
   location.href = '/login'
 }
 
-onUnmounted(stopPolling)
+onUnmounted(() => {
+  stopPolling()
+  removeNotifyHandler()
+})
 </script>
 
 <style scoped lang="scss">

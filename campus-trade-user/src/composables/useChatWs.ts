@@ -1,31 +1,35 @@
 import { ref, computed, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { getOnlineUsers, getTotalUnreadCount } from '@/api/chat'
+import { Client, type IMessage, type StompSubscription } from '@stomp/stompjs'
+import { getTotalUnreadCount } from '@/api/chat'
 import type { ChatMessageVO } from '@/api/chat'
+import type { NotificationVO } from '@/api/notification'
 
-interface WsMessage {
-  type: string
+export interface ChatWsMessage {
+  type: 'CHAT' | 'TYPING' | 'STOP_TYPING' | 'READ'
   data?: ChatMessageVO
   userId?: number
-  online?: boolean
 }
 
-const wsRef = ref<WebSocket | null>(null)
 const connected = ref(false)
-const onlineUsers = ref<Set<number>>(new Set())
-const unreadMap = ref<Map<number, number>>(new Map())
-const totalUnread = computed(() => {
+const chatUnreadMap = ref<Map<number, number>>(new Map())
+const notifyUnread = ref(0)
+
+const chatUnread = computed(() => {
   let sum = 0
-  unreadMap.value.forEach((v, k) => { if (k > 0) sum += v })
-  if (sum === 0 && unreadMap.value.has(-1)) return unreadMap.value.get(-1) || 0
+  chatUnreadMap.value.forEach((v, k) => { if (k > 0) sum += v })
+  if (sum === 0 && chatUnreadMap.value.has(-1)) return chatUnreadMap.value.get(-1) || 0
   return sum
 })
-const messageHandlers = ref<((msg: WsMessage) => void)[]>([])
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-let heartbeatTimer: ReturnType<typeof setInterval> | null = null
-let reconnectAttempts = 0
+
+const chatHandlers = ref<((msg: ChatWsMessage) => void)[]>([])
+const notifyHandlers = ref<((msg: NotificationVO) => void)[]>([])
+
+let stompClient: Client | null = null
+let chatSub: StompSubscription | null = null
+let notifySub: StompSubscription | null = null
 let cachedUserId: number | null = null
-let connecting = false
+let reconnectAttempts = 0
 
 function parseUserIdFromToken(token: string): number | null {
   try {
@@ -52,170 +56,161 @@ function getMyId(): number | null {
 
 function getWsUrl(): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const token = useUserStore().token
-  return `${protocol}//${window.location.host}/ws/chat?token=${token}`
+  return `${protocol}//${window.location.host}/ws`
 }
 
 function connect() {
   const store = useUserStore()
-  if (!store.token || connecting) return
-  if (wsRef.value && wsRef.value.readyState === WebSocket.OPEN) return
-  if (wsRef.value && wsRef.value.readyState === WebSocket.CONNECTING) return
+  if (!store.token) return
+  if (stompClient && stompClient.active) return
 
-  connecting = true
   cachedUserId = store.userInfo?.id || parseUserIdFromToken(store.token) || null
 
-  try {
-    const ws = new WebSocket(getWsUrl())
-
-    ws.onopen = () => {
-      connecting = false
+  const client = new Client({
+    brokerURL: getWsUrl(),
+    connectHeaders: {
+      Authorization: `Bearer ${store.token}`
+    },
+    reconnectDelay: Math.min(1000 * Math.pow(2, reconnectAttempts), 30000),
+    heartbeatIncoming: 20000,
+    heartbeatOutgoing: 20000,
+    onConnect: () => {
       connected.value = true
       reconnectAttempts = 0
-      console.log('[WS] Connected, userId:', cachedUserId)
-      startHeartbeat(ws)
-      fetchOnlineUsers()
-      fetchTotalUnread()
-    }
-
-    ws.onmessage = (event) => {
-      try {
-        const msg: WsMessage = JSON.parse(event.data)
-        if (msg.type === 'CHAT' && msg.data) {
-          const chatMsg = msg.data as ChatMessageVO
-          const myId = getMyId()
-          if (myId && chatMsg.receiverId === myId) {
-            const partnerId = chatMsg.senderId
-            const m = new Map(unreadMap.value)
-            m.delete(-1)
-            m.set(partnerId, (m.get(partnerId) || 0) + 1)
-            unreadMap.value = m
-          }
-        }
-        messageHandlers.value.forEach(h => {
-          try { h(msg) } catch { /* ignore handler errors */ }
-        })
-      } catch { /* ignore parse errors */ }
-    }
-
-    ws.onclose = (event) => {
-      connecting = false
+      console.log('[STOMP] Connected, userId:', cachedUserId)
+      subscribe(client)
+      fetchInitialUnread()
+    },
+    onDisconnect: () => {
       connected.value = false
-      stopHeartbeat()
-      console.log('[WS] Disconnected, code:', event.code, 'reason:', event.reason)
-      if (event.code !== 1000) {
-        scheduleReconnect()
-      }
+      console.log('[STOMP] Disconnected')
+    },
+    onStompError: (frame) => {
+      console.error('[STOMP] Error:', frame.headers['message'], frame.body)
+      connected.value = false
+      reconnectAttempts++
+    },
+    onWebSocketClose: () => {
+      connected.value = false
     }
+  })
 
-    ws.onerror = (event) => {
-      connecting = false
-      console.error('[WS] Error:', event)
-      ws.close()
-    }
-
-    wsRef.value = ws
+  try {
+    client.activate()
+    stompClient = client
   } catch (e) {
-    connecting = false
-    console.error('[WS] Connect failed:', e)
-    scheduleReconnect()
+    console.error('[STOMP] Activate failed:', e)
   }
 }
 
+function subscribe(client: Client) {
+  chatSub = client.subscribe(`/user/queue/chat`, (message: IMessage) => {
+    try {
+      const body = JSON.parse(message.body)
+      if (body.senderId && body.receiverId) {
+        const chatMsg = body as ChatMessageVO
+        const myId = getMyId()
+        if (myId && chatMsg.receiverId === myId) {
+          const m = new Map(chatUnreadMap.value)
+          m.delete(-1)
+          m.set(chatMsg.senderId, (m.get(chatMsg.senderId) || 0) + 1)
+          chatUnreadMap.value = m
+        }
+        chatHandlers.value.forEach(h => h({ type: 'CHAT', data: chatMsg }))
+      } else if (body.type === 'TYPING' || body.type === 'STOP_TYPING' || body.type === 'READ') {
+        chatHandlers.value.forEach(h => h(body as ChatWsMessage))
+      }
+    } catch { /* ignore */ }
+  })
+
+  notifySub = client.subscribe(`/user/queue/notification`, (message: IMessage) => {
+    try {
+      const notification = JSON.parse(message.body) as NotificationVO
+      notifyUnread.value++
+      notifyHandlers.value.forEach(h => h(notification))
+    } catch { /* ignore */ }
+  })
+}
+
 function disconnect() {
-  stopHeartbeat()
-  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
-  if (wsRef.value) {
-    wsRef.value.onclose = null
-    wsRef.value.close(1000)
-    wsRef.value = null
+  if (chatSub) { chatSub.unsubscribe(); chatSub = null }
+  if (notifySub) { notifySub.unsubscribe(); notifySub = null }
+  if (stompClient) {
+    stompClient.deactivate()
+    stompClient = null
   }
   connected.value = false
   reconnectAttempts = 0
   cachedUserId = null
-  connecting = false
 }
 
-function scheduleReconnect() {
-  if (reconnectTimer) return
-  if (!useUserStore().token) return
-  const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000)
-  reconnectAttempts++
-  console.log('[WS] Reconnecting in', delay, 'ms, attempt:', reconnectAttempts)
-  reconnectTimer = setTimeout(() => {
-    reconnectTimer = null
-    connect()
-  }, delay)
-}
-
-function startHeartbeat(ws: WebSocket) {
-  stopHeartbeat()
-  heartbeatTimer = setInterval(() => {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'PING' }))
+async function fetchInitialUnread() {
+  try {
+    const chatCount = await getTotalUnreadCount()
+    if (typeof chatCount === 'number' && chatCount > 0) {
+      const m = new Map(chatUnreadMap.value)
+      m.set(-1, chatCount)
+      chatUnreadMap.value = m
     }
-  }, 30000)
-}
-
-function stopHeartbeat() {
-  if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null }
+  } catch { /* ignore */ }
 }
 
 function sendChat(receiverId: number, content: string, messageType: number = 1) {
-  if (wsRef.value && wsRef.value.readyState === WebSocket.OPEN) {
-    wsRef.value.send(JSON.stringify({ type: 'CHAT', receiverId, content, messageType }))
+  if (stompClient && stompClient.active) {
+    stompClient.publish({
+      destination: '/app/chat.send',
+      body: JSON.stringify({ receiverId, content, messageType })
+    })
     return true
   }
-  console.warn('[WS] Cannot send: not connected')
   return false
 }
 
 function sendTyping(receiverId: number) {
-  if (wsRef.value && wsRef.value.readyState === WebSocket.OPEN) {
-    wsRef.value.send(JSON.stringify({ type: 'TYPING', receiverId }))
+  if (stompClient && stompClient.active) {
+    stompClient.publish({
+      destination: '/app/chat.typing',
+      body: JSON.stringify({ receiverId })
+    })
   }
 }
 
 function sendStopTyping(receiverId: number) {
-  if (wsRef.value && wsRef.value.readyState === WebSocket.OPEN) {
-    wsRef.value.send(JSON.stringify({ type: 'STOP_TYPING', receiverId }))
+  if (stompClient && stompClient.active) {
+    stompClient.publish({
+      destination: '/app/chat.stopTyping',
+      body: JSON.stringify({ receiverId })
+    })
   }
 }
 
 function sendRead(receiverId: number) {
-  if (wsRef.value && wsRef.value.readyState === WebSocket.OPEN) {
-    wsRef.value.send(JSON.stringify({ type: 'READ', receiverId }))
+  if (stompClient && stompClient.active) {
+    stompClient.publish({
+      destination: '/app/chat.read',
+      body: JSON.stringify({ receiverId })
+    })
   }
-  const m = new Map(unreadMap.value)
+  const m = new Map(chatUnreadMap.value)
   m.delete(receiverId)
   m.delete(-1)
-  unreadMap.value = m
+  chatUnreadMap.value = m
 }
 
-function onMessage(handler: (msg: WsMessage) => void) {
-  messageHandlers.value.push(handler)
+function onChatMessage(handler: (msg: ChatWsMessage) => void) {
+  chatHandlers.value.push(handler)
   return () => {
-    const idx = messageHandlers.value.indexOf(handler)
-    if (idx > -1) messageHandlers.value.splice(idx, 1)
+    const idx = chatHandlers.value.indexOf(handler)
+    if (idx > -1) chatHandlers.value.splice(idx, 1)
   }
 }
 
-async function fetchOnlineUsers() {
-  try {
-    const ids = await getOnlineUsers()
-    if (Array.isArray(ids)) onlineUsers.value = new Set(ids)
-  } catch { /* ignore */ }
-}
-
-async function fetchTotalUnread() {
-  try {
-    const count = await getTotalUnreadCount()
-    if (typeof count === 'number' && count > 0) {
-      const m = new Map(unreadMap.value)
-      m.set(-1, count)
-      unreadMap.value = m
-    }
-  } catch { /* ignore */ }
+function onNotification(handler: (msg: NotificationVO) => void) {
+  notifyHandlers.value.push(handler)
+  return () => {
+    const idx = notifyHandlers.value.indexOf(handler)
+    if (idx > -1) notifyHandlers.value.splice(idx, 1)
+  }
 }
 
 export function useChatWs() {
@@ -231,9 +226,9 @@ export function useChatWs() {
 
   return {
     connected,
-    totalUnread,
-    unreadMap,
-    onlineUsers,
+    chatUnread,
+    chatUnreadMap,
+    notifyUnread,
     getMyId,
     connect,
     disconnect,
@@ -241,6 +236,7 @@ export function useChatWs() {
     sendTyping,
     sendStopTyping,
     sendRead,
-    onMessage
+    onChatMessage,
+    onNotification
   }
 }

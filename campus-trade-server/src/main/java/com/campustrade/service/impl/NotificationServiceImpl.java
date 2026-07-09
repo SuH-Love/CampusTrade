@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -30,6 +31,9 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     @Override
     public Result<PageResult<NotificationVO>> listNotifications(Long userId, Integer isRead, Integer pageNum, Integer pageSize) {
@@ -94,6 +98,14 @@ public class NotificationServiceImpl implements NotificationService {
 
         rabbitTemplate.convertAndSend(MQConstant.NOTIFY_EXCHANGE, MQConstant.NOTIFY_SEND_KEY, notification);
         redisTemplate.delete(RedisConstant.NOTIFY_USER_PREFIX + userId + ":unread");
+
+        try {
+            NotificationVO vo = toVO(notification);
+            messagingTemplate.convertAndSendToUser(
+                    String.valueOf(userId), "/queue/notification", vo);
+        } catch (Exception e) {
+            log.warn("STOMP push notification failed for userId={}: {}", userId, e.getMessage());
+        }
     }
 
     private NotificationVO toVO(Notification n) {

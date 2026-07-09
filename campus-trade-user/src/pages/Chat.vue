@@ -11,7 +11,7 @@
           <div v-for="contact in contacts" :key="contact.userId" class="contact-item" :class="{ active: currentTarget === contact.userId }" @click="selectContact(contact)">
             <div class="avatar-wrap">
               <el-avatar :size="44" :src="contact.avatar" />
-              <span v-if="isOnline(contact.userId)" class="online-dot"></span>
+
               <span v-if="contact.unread" class="unread-badge">{{ contact.unread > 99 ? '99+' : contact.unread }}</span>
             </div>
             <div class="contact-info">
@@ -26,8 +26,8 @@
         <template v-if="currentTarget">
           <div class="chat-header">
             <span>{{ currentContactName }}</span>
-            <span v-if="isOnline(currentTarget)" class="header-online">在线</span>
-            <span v-else class="header-offline">离线</span>
+            <el-tag v-if="connected" type="success" size="small" effect="dark">在线</el-tag>
+            <el-tag v-else type="info" size="small" effect="dark">离线</el-tag>
           </div>
           <div class="chat-messages" ref="messagesRef">
             <div v-for="msg in messages" :key="msg.id || msg._tempId" class="message-item" :class="{ self: msg.senderId === myId }">
@@ -77,11 +77,11 @@ interface DisplayMessage extends ChatMessageVO { _tempId?: string }
 
 const route = useRoute()
 const userStore = useUserStore()
-const myId = computed(() => userStore.userInfo?.id || wsGetMyId())
+const myId = computed(() => userStore.userInfo?.id || getMyId())
 
 const {
-  connected, onlineUsers, sendChat, sendTyping, sendStopTyping,
-  sendRead, onMessage, unreadMap, getMyId: wsGetMyId
+  connected, sendChat, sendTyping, sendStopTyping,
+  sendRead, onChatMessage, chatUnreadMap, getMyId
 } = useChatWs()
 
 interface ContactItem { userId: number; name: string; avatar: string; lastMessage: string; unread: number }
@@ -97,7 +97,6 @@ const typingHint = ref('')
 let lastTypingSent = false
 let tempIdCounter = 0
 
-const isOnline = (userId: number) => onlineUsers.value.has(userId)
 
 const loadContacts = async () => {
   try {
@@ -111,7 +110,7 @@ const loadContacts = async () => {
         name: isMeSender ? (c.receiverName || '用户' + c.receiverId) : (c.senderName || '用户' + c.senderId),
         avatar: isMeSender ? (c.receiverAvatar || '') : (c.senderAvatar || ''),
         lastMessage: c.content || '',
-        unread: unreadMap.value.get(partnerId) || 0
+        unread: chatUnreadMap.value.get(partnerId) || 0
       }
     })
     const unreadPromises = contacts.value.map(async (c) => {
@@ -119,10 +118,10 @@ const loadContacts = async () => {
         const count = await getUnreadCount(c.userId)
         c.unread = typeof count === 'number' ? count : 0
         if (c.unread > 0) {
-          const m = new Map(unreadMap.value)
+          const m = new Map(chatUnreadMap.value)
           m.set(c.userId, c.unread)
           m.delete(-1)
-          unreadMap.value = m
+          chatUnreadMap.value = m
         }
       } catch { /* ignore */ }
     })
@@ -232,7 +231,7 @@ const formatTime = (t: string) => {
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${time}`
 }
 
-const removeWsHandler = onMessage((msg) => {
+const removeWsHandler = onChatMessage((msg) => {
   if (msg.type === 'CHAT' && msg.data) {
     const chatMsg = msg.data as ChatMessageVO
     const currentMyId = myId.value
