@@ -41,8 +41,7 @@ public class DataInitializer implements CommandLineRunner {
         initNormalUser();
         initCategories();
         try { initBanners(); } catch (Exception e) { log.warn("Banner init skipped: {}", e.getMessage()); }
-        clearPermissionCache();
-    }
+        clearPermissionCache();}
 
     private void initRoles() {
         if (roleMapper.selectById(1L) == null) {
