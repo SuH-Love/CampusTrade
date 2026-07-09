@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -28,6 +29,8 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired
     private BannerMapper bannerMapper;
     @Autowired
+    private JdbcTemplate jdbcTemplate;
+    @Autowired
     private RedisTemplate<String, Object> redisTemplate;
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -40,7 +43,8 @@ public class DataInitializer implements CommandLineRunner {
         initAdminUser();
         initNormalUser();
         initCategories();
-        try { initBanners(); } catch (Exception e) { log.warn("Banner init skipped: {}", e.getMessage()); }
+        createBannerTableIfNeeded();
+        initBanners();
         clearPermissionCache();}
 
     private void initRoles() {
@@ -174,6 +178,32 @@ public class DataInitializer implements CommandLineRunner {
                 categoryMapper.insert(c);
             }
             log.info("Goods categories initialized");
+        }
+    }
+
+    private void createBannerTableIfNeeded() {
+        try {
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS t_banner (
+                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                    title VARCHAR(200) NOT NULL,
+                    subtitle VARCHAR(500) DEFAULT NULL,
+                    image_url VARCHAR(255) DEFAULT NULL,
+                    link_url VARCHAR(255) DEFAULT NULL,
+                    bg_color VARCHAR(500) DEFAULT NULL,
+                    sort_order INT DEFAULT 0,
+                    status TINYINT DEFAULT 1,
+                    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    deleted TINYINT DEFAULT 0,
+                    version INT DEFAULT 0,
+                    KEY idx_sort_order (sort_order),
+                    KEY idx_status (status)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                """);
+            log.info("t_banner table ready");
+        } catch (Exception e) {
+            log.warn("Create t_banner table failed: {}", e.getMessage());
         }
     }
 
