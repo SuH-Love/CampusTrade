@@ -12,11 +12,12 @@
             <div class="avatar-wrap">
               <el-avatar :size="44" :src="contact.avatar" />
               <span v-if="isOnline(contact.userId)" class="online-dot"></span>
+              <span v-if="contact.unread" class="unread-badge">{{ contact.unread > 99 ? '99+' : contact.unread }}</span>
             </div>
             <div class="contact-info">
               <div class="contact-name-row">
                 <span class="contact-name">{{ contact.name }}</span>
-                <el-badge v-if="contact.unread" :value="contact.unread" :max="99" />
+
               </div>
               <div class="contact-last">{{ contact.lastMessage }}</div>
             </div>
@@ -91,7 +92,7 @@ const inputText = ref('')
 const sending = ref(false)
 const messagesRef = ref<HTMLElement>()
 const typingHint = ref('')
-let typingTimer: ReturnType<typeof setTimeout> | null = null
+
 let lastTypingSent = false
 
 const isOnline = (userId: number) => onlineUsers.value.has(userId)
@@ -150,14 +151,10 @@ const handleTyping = () => {
     sendTyping(currentTarget.value)
     lastTypingSent = true
   }
-  if (typingTimer) clearTimeout(typingTimer)
-  typingTimer = setTimeout(() => {
-    typingHint.value = ''
-    if (lastTypingSent && !inputText.value.trim()) {
-      sendStopTyping(currentTarget.value!)
-      lastTypingSent = false
-    }
-  }, 3000)
+  if (!inputText.value.trim() && lastTypingSent) {
+    sendStopTyping(currentTarget.value)
+    lastTypingSent = false
+  }
 }
 
 const scrollToBottom = () => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight }
@@ -211,11 +208,13 @@ const removeWsHandler = onMessage((msg) => {
   } else if (msg.type === 'TYPING' && msg.userId === currentTarget.value) {
     const contact = contacts.value.find(c => c.userId === msg.userId)
     typingHint.value = `${contact?.name || '对方'} 正在输入...`
-    if (typingTimer) clearTimeout(typingTimer)
-    typingTimer = setTimeout(() => { typingHint.value = '' }, 5000)
   } else if (msg.type === 'STOP_TYPING' && msg.userId === currentTarget.value) {
     typingHint.value = ''
-    if (typingTimer) { clearTimeout(typingTimer); typingTimer = null }
+  } else if (msg.type === 'CHAT' && msg.data) {
+    const chatMsg = msg.data as ChatMessageVO
+    if (chatMsg.senderId === currentTarget.value) {
+      typingHint.value = ''
+    }
   } else if (msg.type === 'READ' && msg.userId) {
     messages.value.forEach(m => {
       if (m.senderId === myId.value && m.receiverId === msg.userId) {
@@ -241,7 +240,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   removeWsHandler()
-  if (typingTimer) clearTimeout(typingTimer)
+
 })
 </script>
 
@@ -253,6 +252,7 @@ onUnmounted(() => {
 .contact-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; transition: var(--transition); &:hover { background: var(--bg-hover); } &.active { background: var(--primary-lighter); } }
 .avatar-wrap { position: relative; flex-shrink: 0; }
 .online-dot { position: absolute; bottom: 1px; right: 1px; width: 10px; height: 10px; background: #22c55e; border: 2px solid var(--bg-card); border-radius: 50%; }
+.unread-badge { position: absolute; top: -2px; right: -6px; min-width: 18px; height: 18px; background: #f56c6c; color: #fff; font-size: 11px; font-weight: 600; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid var(--bg-card); }
 .contact-info { flex: 1; overflow: hidden; }
 .contact-name-row { display: flex; align-items: center; justify-content: space-between; }
 .contact-name { font-weight: 600; font-size: 14px; }

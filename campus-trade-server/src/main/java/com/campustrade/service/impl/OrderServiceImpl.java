@@ -11,6 +11,7 @@ import com.campustrade.enum_.GoodsStatus;
 import com.campustrade.enum_.OrderStatus;
 import com.campustrade.mapper.*;
 import com.campustrade.service.OrderService;
+import com.campustrade.service.NotificationService;
 import com.campustrade.vo.OrderItemVO;
 import com.campustrade.vo.OrderVO;
 import com.campustrade.util.SnowflakeIdUtil;
@@ -45,6 +46,9 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -91,6 +95,9 @@ public class OrderServiceImpl implements OrderService {
 
         rabbitTemplate.convertAndSend(MQConstant.ORDER_EXCHANGE, MQConstant.ORDER_CREATE_KEY, order.getId());
 
+        notificationService.sendNotification(goods.getUserId(), "新订单通知",
+                "您的商品「" + goods.getTitle() + "」有买家下单，请及时处理", "ORDER", order.getId());
+
         return Result.success(toVO(order));
     }
 
@@ -134,6 +141,10 @@ public class OrderServiceImpl implements OrderService {
         order.setPayTime(LocalDateTime.now());
         int rows = orderMapper.updateById(order);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
+
+        notificationService.sendNotification(order.getSellerId(), "订单支付通知",
+                "买家已支付订单「" + order.getOrderNo() + "」，请尽快发货", "ORDER", order.getId());
+
         return Result.success();
     }
 
@@ -149,6 +160,10 @@ public class OrderServiceImpl implements OrderService {
 
         int rows = orderMapper.updateById(order);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
+
+        notificationService.sendNotification(order.getBuyerId(), "订单发货通知",
+                "卖家已发货，订单「" + order.getOrderNo() + "」，请注意查收", "ORDER", order.getId());
+
         return Result.success();
     }
 
@@ -163,6 +178,10 @@ public class OrderServiceImpl implements OrderService {
         order.setFinishTime(LocalDateTime.now());
         int rows = orderMapper.updateById(order);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
+
+        notificationService.sendNotification(order.getSellerId(), "订单完成通知",
+                "买家已确认收货，订单「" + order.getOrderNo() + "」已完成", "ORDER", order.getId());
+
         return Result.success();
     }
 

@@ -4,16 +4,24 @@
       <template #header><h3 style="margin: 0">我的收藏</h3></template>
       <el-row :gutter="16" v-loading="loading">
         <el-col :xs="12" :sm="8" :md="6" v-for="item in goodsList" :key="item.id">
-          <el-card shadow="hover" @click="$router.push(`/goods/${item.id}`)" style="margin-bottom: 16px; cursor: pointer">
-            <img :src="item.coverImage || '/placeholder.png'" style="width: 100%; height: 160px; object-fit: cover; border-radius: 4px" />
-            <div style="padding: 8px 0">
-              <div class="title">{{ item.title }}</div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px">
-                <span style="color: #f56c6c; font-weight: bold; font-size: 18px">¥{{ item.price }}</span>
+          <div class="fav-card" :class="{ sold: item.status === 'SOLD' }">
+            <div class="fav-img-wrap" @click="item.status !== 'SOLD' && $router.push(`/goods/${item.id}`)">
+              <img :src="item.coverImage || '/placeholder.png'" class="fav-img" />
+              <div v-if="item.status === 'SOLD'" class="sold-overlay">
+                <el-tag type="info" effect="dark" size="large">已售出</el-tag>
+              </div>
+              <div v-else-if="item.status === 'OFFLINE'" class="sold-overlay">
+                <el-tag type="warning" effect="dark" size="large">已下架</el-tag>
+              </div>
+            </div>
+            <div class="fav-info">
+              <div class="fav-title">{{ item.title }}</div>
+              <div class="fav-bottom">
+                <span class="price-text">¥{{ item.price }}</span>
                 <el-button type="warning" size="small" text @click.stop="handleUnfavorite(item.id)">取消收藏</el-button>
               </div>
             </div>
-          </el-card>
+          </div>
         </el-col>
       </el-row>
       <el-empty v-if="goodsList.length === 0" description="暂无收藏" />
@@ -56,5 +64,24 @@ onMounted(loadData)
 
 <style scoped lang="scss">
 .favorites-page { padding: 20px; }
-.title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.fav-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+  transition: var(--transition);
+  &:not(.sold):hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+  &.sold { opacity: 0.75; }
+}
+.fav-img-wrap { position: relative; padding-top: 75%; background: #f1f5f9; cursor: pointer; }
+.fav-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+.sold-overlay {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+}
+.fav-info { padding: 12px; }
+.fav-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; font-size: 14px; }
+.fav-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
 </style>

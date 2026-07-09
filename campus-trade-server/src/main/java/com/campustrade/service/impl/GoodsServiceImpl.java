@@ -19,6 +19,7 @@ import com.campustrade.mapper.GoodsFavoriteMapper;
 import com.campustrade.mapper.UserMapper;
 import com.campustrade.service.GoodsService;
 import com.campustrade.service.LogService;
+import com.campustrade.service.NotificationService;
 import com.campustrade.vo.GoodsVO;
 import com.campustrade.util.IpUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +58,9 @@ public class GoodsServiceImpl implements GoodsService {
 
     @Autowired
     private LogService logService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -233,6 +237,15 @@ public class GoodsServiceImpl implements GoodsService {
         redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + goodsId);
         redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
         redisTemplate.delete(RedisConstant.GOODS_RECOMMEND_KEY);
+
+        if (GoodsStatus.APPROVED.getCode().equals(status)) {
+            notificationService.sendNotification(goods.getUserId(), "商品审核通过",
+                    "您的商品「" + goods.getTitle() + "」已通过审核，可上架出售", "GOODS", goodsId);
+        } else if (GoodsStatus.REJECTED.getCode().equals(status)) {
+            notificationService.sendNotification(goods.getUserId(), "商品审核未通过",
+                    "您的商品「" + goods.getTitle() + "」未通过审核，原因：" + (rejectReason != null ? rejectReason : "无"), "GOODS", goodsId);
+        }
+
         return Result.success();
     }
 
