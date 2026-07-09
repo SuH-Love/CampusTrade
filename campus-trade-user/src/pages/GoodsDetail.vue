@@ -159,7 +159,7 @@ const handleBuy = async () => {
       showCancelButton: true,
       confirmButtonText: '确认',
       cancelButtonText: '取消',
-      beforeClose: (action, instance, done) => {
+      beforeClose: (action: string, _instance: unknown, done: () => void) => {
         if (action === 'confirm' && deliveryMethod.value === 'DELIVERY' && !deliveryAddress.value.trim()) {
           ElMessage.error('请输入配送地址')
           return
