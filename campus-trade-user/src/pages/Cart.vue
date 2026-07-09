@@ -34,7 +34,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+
 import { getCartList, updateCartQuantity, removeFromCart, clearCart } from '@/api/cart'
 import { createOrder } from '@/api/order'
 import type { CartVO } from '@/api/cart'
