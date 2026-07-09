@@ -14,7 +14,10 @@
               <span v-if="isOnline(contact.userId)" class="online-dot"></span>
             </div>
             <div class="contact-info">
-              <div class="contact-name">{{ contact.name }}</div>
+              <div class="contact-name-row">
+                <span class="contact-name">{{ contact.name }}</span>
+                <el-badge v-if="contact.unread" :value="contact.unread" :max="99" />
+              </div>
               <div class="contact-last">{{ contact.lastMessage }}</div>
             </div>
           </div>
@@ -33,7 +36,11 @@
               <template v-if="msg.senderId === myId">
                 <div class="msg-wrap self-wrap">
                   <div class="msg-bubble self-bubble">{{ msg.content }}</div>
-                  <div class="msg-time">{{ formatTime(msg.createTime) }}</div>
+                  <div class="msg-meta">
+                    <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
+                    <span v-if="msg.isRead" class="msg-read">已读</span>
+                    <span v-else class="msg-unread">未读</span>
+                  </div>
                 </div>
               </template>
               <template v-else>
@@ -72,9 +79,9 @@ const route = useRoute()
 const userStore = useUserStore()
 const myId = computed(() => userStore.userInfo?.id)
 
-const { connected, onlineUsers, sendChat, sendTyping, onMessage, wsUnreadCount } = useChatWs()
+const { connected, onlineUsers, sendChat, sendTyping, sendStopTyping, sendRead, onMessage, wsUnreadCount } = useChatWs()
 
-interface ContactItem { userId: number; name: string; avatar: string; lastMessage: string }
+interface ContactItem { userId: number; name: string; avatar: string; lastMessage: string; unread: number }
 
 const contacts = ref<ContactItem[]>([])
 const currentTarget = ref<number | null>(null)
@@ -85,6 +92,7 @@ const sending = ref(false)
 const messagesRef = ref<HTMLElement>()
 const typingHint = ref('')
 let typingTimer: ReturnType<typeof setTimeout> | null = null
+let lastTypingSent = false
 
 const isOnline = (userId: number) => onlineUsers.value.has(userId)
 
@@ -94,7 +102,7 @@ const loadContacts = async () => {
     const list: ContactVO[] = Array.isArray(res) ? res : ((res as { list?: ContactVO[] }).list || [])
     contacts.value = list.map((c) => {
       const isMeSender = c.senderId === myId.value
-      return { userId: isMeSender ? c.receiverId : c.senderId, name: isMeSender ? (c.receiverName || '用户' + c.receiverId) : (c.senderName || '用户' + c.senderId), avatar: isMeSender ? (c.receiverAvatar || '') : (c.senderAvatar || ''), lastMessage: c.content || '' }
+      return { userId: isMeSender ? c.receiverId : c.senderId, name: isMeSender ? (c.receiverName || '用户' + c.receiverId) : (c.senderName || '用户' + c.senderId), avatar: isMeSender ? (c.receiverAvatar || '') : (c.senderAvatar || ''), lastMessage: c.content || '', unread: 0 }
     })
   } catch { contacts.value = [] }
 }
@@ -102,8 +110,9 @@ const loadContacts = async () => {
 const selectContact = async (contact: ContactItem) => {
   currentTarget.value = contact.userId
   currentContactName.value = contact.name
+  contact.unread = 0
   await loadMessages()
-  try { await markAsRead(contact.userId) } catch { /* ignore */ }
+  sendRead(contact.userId)
   wsUnreadCount.value = 0
 }
 
@@ -125,8 +134,11 @@ const handleSend = async () => {
     if (!sent) {
       const { sendMessage } = await import('@/api/chat')
       await sendMessage({ receiverId: currentTarget.value, content })
+      await loadMessages()
     }
     inputText.value = ''
+    sendStopTyping(currentTarget.value)
+    lastTypingSent = false
   } finally {
     sending.value = false
   }
@@ -134,9 +146,18 @@ const handleSend = async () => {
 
 const handleTyping = () => {
   if (!currentTarget.value) return
-  sendTyping(currentTarget.value)
+  if (inputText.value.trim() && !lastTypingSent) {
+    sendTyping(currentTarget.value)
+    lastTypingSent = true
+  }
   if (typingTimer) clearTimeout(typingTimer)
-  typingTimer = setTimeout(() => { typingHint.value = '' }, 3000)
+  typingTimer = setTimeout(() => {
+    typingHint.value = ''
+    if (lastTypingSent && !inputText.value.trim()) {
+      sendStopTyping(currentTarget.value!)
+      lastTypingSent = false
+    }
+  }, 3000)
 }
 
 const scrollToBottom = () => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight }
@@ -156,10 +177,13 @@ const removeWsHandler = onMessage((msg) => {
   if (msg.type === 'CHAT' && msg.data) {
     const chatMsg = msg.data as ChatMessageVO
     if (currentTarget.value && (chatMsg.senderId === currentTarget.value || chatMsg.receiverId === currentTarget.value)) {
-      messages.value.push(chatMsg)
-      nextTick(scrollToBottom)
+      const exists = messages.value.some(m => m.id === chatMsg.id)
+      if (!exists) {
+        messages.value.push(chatMsg)
+        nextTick(scrollToBottom)
+      }
       if (chatMsg.senderId === currentTarget.value) {
-        markAsRead(chatMsg.senderId).catch(() => {})
+        sendRead(chatMsg.senderId)
       }
     }
     const contactIdx = contacts.value.findIndex(c =>
@@ -168,6 +192,9 @@ const removeWsHandler = onMessage((msg) => {
     if (contactIdx > -1) {
       const contact = contacts.value[contactIdx]
       contact.lastMessage = chatMsg.content
+      if (chatMsg.senderId !== myId.value && chatMsg.senderId !== currentTarget.value) {
+        contact.unread = (contact.unread || 0) + 1
+      }
       if (contactIdx > 0) {
         contacts.value.splice(contactIdx, 1)
         contacts.value.unshift(contact)
@@ -177,14 +204,24 @@ const removeWsHandler = onMessage((msg) => {
         userId: chatMsg.senderId,
         name: chatMsg.senderName || '用户',
         avatar: chatMsg.senderAvatar || '',
-        lastMessage: chatMsg.content
+        lastMessage: chatMsg.content,
+        unread: 1
       })
     }
   } else if (msg.type === 'TYPING' && msg.userId === currentTarget.value) {
     const contact = contacts.value.find(c => c.userId === msg.userId)
     typingHint.value = `${contact?.name || '对方'} 正在输入...`
     if (typingTimer) clearTimeout(typingTimer)
-    typingTimer = setTimeout(() => { typingHint.value = '' }, 3000)
+    typingTimer = setTimeout(() => { typingHint.value = '' }, 5000)
+  } else if (msg.type === 'STOP_TYPING' && msg.userId === currentTarget.value) {
+    typingHint.value = ''
+    if (typingTimer) { clearTimeout(typingTimer); typingTimer = null }
+  } else if (msg.type === 'READ' && msg.userId) {
+    messages.value.forEach(m => {
+      if (m.senderId === myId.value && m.receiverId === msg.userId) {
+        m.isRead = 1
+      }
+    })
   }
 })
 
@@ -195,7 +232,7 @@ onMounted(async () => {
     const targetName = route.query.name as string || '卖家'
     const existing = contacts.value.find(c => c.userId === targetId)
     if (existing) { selectContact(existing) } else {
-      contacts.value.unshift({ userId: targetId, name: targetName, avatar: '', lastMessage: '' })
+      contacts.value.unshift({ userId: targetId, name: targetName, avatar: '', lastMessage: '', unread: 0 })
       currentTarget.value = targetId
       currentContactName.value = targetName
     }
@@ -217,6 +254,7 @@ onUnmounted(() => {
 .avatar-wrap { position: relative; flex-shrink: 0; }
 .online-dot { position: absolute; bottom: 1px; right: 1px; width: 10px; height: 10px; background: #22c55e; border: 2px solid var(--bg-card); border-radius: 50%; }
 .contact-info { flex: 1; overflow: hidden; }
+.contact-name-row { display: flex; align-items: center; justify-content: space-between; }
 .contact-name { font-weight: 600; font-size: 14px; }
 .contact-last { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
 
@@ -231,7 +269,10 @@ onUnmounted(() => {
 .msg-wrap.self-wrap { display: flex; flex-direction: column; align-items: flex-end; }
 .msg-bubble { background: #f1f5f9; padding: 10px 16px; border-radius: 16px 16px 16px 4px; word-break: break-all; font-size: 14px; line-height: 1.6; }
 .self-bubble { background: var(--primary); color: #fff; border-radius: 16px 16px 4px 16px; }
-.msg-time { font-size: 11px; color: var(--text-muted); margin-top: 4px; padding: 0 4px; }
+.msg-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.msg-time { font-size: 11px; color: var(--text-muted); padding: 0 4px; }
+.msg-read { font-size: 11px; color: var(--primary); }
+.msg-unread { font-size: 11px; color: var(--text-muted); }
 .typing-hint { font-size: 12px; color: var(--text-muted); padding: 4px 8px; font-style: italic; }
 .chat-input { display: flex; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--border); }
 .chat-empty { display: flex; align-items: center; justify-content: center; height: 100%; }

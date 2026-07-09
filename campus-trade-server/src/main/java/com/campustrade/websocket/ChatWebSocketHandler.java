@@ -66,6 +66,19 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
                     receiverSession.sendMessage(new TextMessage(
                             objectMapper.writeValueAsString(Map.of("type", "TYPING", "userId", senderId))));
                 }
+            } else if ("STOP_TYPING".equals(type)) {
+                WebSocketSession receiverSession = ONLINE_USERS.get(wsMsg.getReceiverId());
+                if (receiverSession != null && receiverSession.isOpen()) {
+                    receiverSession.sendMessage(new TextMessage(
+                            objectMapper.writeValueAsString(Map.of("type", "STOP_TYPING", "userId", senderId))));
+                }
+            } else if ("READ".equals(type) && wsMsg.getReceiverId() != null) {
+                chatMessageMapper.markAsRead(senderId, wsMsg.getReceiverId());
+                WebSocketSession partnerSession = ONLINE_USERS.get(wsMsg.getReceiverId());
+                if (partnerSession != null && partnerSession.isOpen()) {
+                    partnerSession.sendMessage(new TextMessage(
+                            objectMapper.writeValueAsString(Map.of("type", "READ", "userId", senderId))));
+                }
             }
         } catch (Exception e) {
             log.error("WebSocket message handling error: userId={}", senderId, e);
@@ -82,18 +95,17 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         message.setReceiverId(wsMsg.getReceiverId());
         message.setContent(wsMsg.getContent().trim());
         message.setMessageType(wsMsg.getMessageType() != null ? wsMsg.getMessageType() : 1);
-        message.setIsRead(0);
+
+        boolean receiverOnline = ONLINE_USERS.containsKey(wsMsg.getReceiverId());
+        message.setIsRead(receiverOnline ? 1 : 0);
         chatMessageMapper.insert(message);
 
         ChatMessageVO vo = buildMessageVO(message);
-
         String json = objectMapper.writeValueAsString(Map.of("type", "CHAT", "data", vo));
 
         WebSocketSession receiverSession = ONLINE_USERS.get(wsMsg.getReceiverId());
         if (receiverSession != null && receiverSession.isOpen()) {
             receiverSession.sendMessage(new TextMessage(json));
-            message.setIsRead(1);
-            chatMessageMapper.updateById(message);
         }
 
         WebSocketSession senderSession = ONLINE_USERS.get(senderId);

@@ -14,7 +14,7 @@
       <el-col :xs="24" :md="12">
         <div class="detail-info">
           <div class="detail-status">
-            <el-tag type="success" effect="dark" round>在售</el-tag>
+            <el-tag :type="statusTagType(goods.status)" effect="dark" round>{{ statusLabel(goods.status) }}</el-tag>
             <el-tag round>{{ goods.categoryName }}</el-tag>
           </div>
           <h1 class="detail-title">{{ goods.title }}</h1>
@@ -82,6 +82,16 @@ const discount = computed(() => {
   if (!goods.value?.originalPrice || goods.value.originalPrice === 0) return ''
   return (goods.value.price / goods.value.originalPrice * 10).toFixed(1)
 })
+
+const statusLabel = (status: string) => {
+  const map: Record<string, string> = { DRAFT: '草稿', PENDING: '待审核', APPROVED: '审核通过', REJECTED: '已拒绝', ONLINE: '在售', OFFLINE: '已下架', SOLD: '已售出' }
+  return map[status] || status
+}
+
+const statusTagType = (status: string) => {
+  const map: Record<string, string> = { DRAFT: 'info', PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger', ONLINE: 'success', OFFLINE: 'info', SOLD: 'warning' }
+  return map[status] || 'info'
+}
 
 const loadData = async () => { goods.value = await getGoodsDetail(Number(route.params.id)) }
 

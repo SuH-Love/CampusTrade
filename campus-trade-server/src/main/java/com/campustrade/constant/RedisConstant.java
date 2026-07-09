@@ -21,8 +21,8 @@ public class RedisConstant {
     public static final long REFRESH_TTL = 604800;
     public static final long CAPTCHA_TTL = 300;
     public static final long GOODS_DETAIL_TTL = 1800;
-    public static final long GOODS_HOT_TTL = 600;
-    public static final long GOODS_RECOMMEND_TTL = 600;
+    public static final long GOODS_HOT_TTL = 120;
+    public static final long GOODS_RECOMMEND_TTL = 120;
     public static final long REPEAT_TTL = 5;
     public static final long RATE_LIMIT_TTL = 60;
     public static final long CHAT_RECENT_TTL = 3600;

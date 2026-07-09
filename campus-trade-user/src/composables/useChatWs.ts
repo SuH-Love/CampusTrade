@@ -52,6 +52,10 @@ function connect() {
           messageHandlers.value.forEach(h => h(msg))
         } else if (msg.type === 'TYPING') {
           messageHandlers.value.forEach(h => h(msg))
+        } else if (msg.type === 'STOP_TYPING') {
+          messageHandlers.value.forEach(h => h(msg))
+        } else if (msg.type === 'READ') {
+          messageHandlers.value.forEach(h => h(msg))
         }
       } catch { /* ignore parse errors */ }
     }
@@ -120,6 +124,18 @@ function sendTyping(receiverId: number) {
   }
 }
 
+function sendStopTyping(receiverId: number) {
+  if (wsRef.value && wsRef.value.readyState === WebSocket.OPEN) {
+    wsRef.value.send(JSON.stringify({ type: 'STOP_TYPING', receiverId }))
+  }
+}
+
+function sendRead(receiverId: number) {
+  if (wsRef.value && wsRef.value.readyState === WebSocket.OPEN) {
+    wsRef.value.send(JSON.stringify({ type: 'READ', receiverId }))
+  }
+}
+
 function onMessage(handler: (msg: WsMessage) => void) {
   messageHandlers.value.push(handler)
   return () => {
@@ -150,6 +166,8 @@ export function useChatWs() {
     disconnect,
     sendChat,
     sendTyping,
+    sendStopTyping,
+    sendRead,
     onMessage
   }
 }

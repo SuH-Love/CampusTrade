@@ -1,11 +1,29 @@
 <template>
   <div class="home-page">
     <section class="hero">
-      <div class="hero-inner">
-        <h1>校园二手交易平台</h1>
-        <p>安全 · 便捷 · 值得信赖的校园闲置好物流转平台</p>
-        <el-button type="primary" size="large" round @click="$router.push('/goods')">浏览商品</el-button>
-      </div>
+      <el-carousel height="260px" :interval="5000" arrow="hover" indicator-position="outside">
+        <el-carousel-item>
+          <div class="hero-slide" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%)">
+            <h1>校园二手交易平台</h1>
+            <p>安全 · 便捷 · 值得信赖的校园闲置好物流转平台</p>
+            <el-button type="primary" size="large" round @click="$router.push('/goods')">浏览商品</el-button>
+          </div>
+        </el-carousel-item>
+        <el-carousel-item>
+          <div class="hero-slide" style="background: linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%)">
+            <h1>闲置好物 低价淘</h1>
+            <p>学长学姐的优质好物，超值价格等你来</p>
+            <el-button type="primary" size="large" round @click="$router.push('/goods')">立即淘宝</el-button>
+          </div>
+        </el-carousel-item>
+        <el-carousel-item>
+          <div class="hero-slide" style="background: linear-gradient(135deg, #dc2626 0%, #f97316 50%, #fbbf24 100%)">
+            <h1>发布闲置 轻松变现</h1>
+            <p>一键发布，快速找到买家，让闲置不再闲置</p>
+            <el-button type="primary" size="large" round @click="$router.push('/goods/publish')">发布商品</el-button>
+          </div>
+        </el-carousel-item>
+      </el-carousel>
     </section>
 
     <div class="page-container">
@@ -104,18 +122,22 @@ onMounted(() => { loadHotGoods(); loadRecommendGoods(); loadCategories() })
 
 <style scoped lang="scss">
 .hero {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%);
-  padding: 60px 24px;
-  text-align: center;
-  color: #fff;
+  margin: 0 24px;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  overflow: hidden;
 }
 
-.hero-inner {
-  max-width: 600px;
-  margin: 0 auto;
+.hero-slide {
+  height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #fff;
   h1 { font-size: 32px; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.5px; }
   p { font-size: 16px; opacity: 0.9; margin-bottom: 24px; }
-  .el-button { font-size: 16px; padding: 12px 32px; }
+  .el-button { font-size: 16px; padding: 12px 32px; background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); &:hover { background: rgba(255,255,255,0.35); } }
 }
 
 .category-bar {
