@@ -133,8 +133,7 @@ const selectContact = async (contact: ContactItem) => {
   currentTarget.value = contact.userId
   currentContactName.value = contact.name
   contact.unread = 0
-  sessionStorage.setItem('chat_target', String(contact.userId))
-  sessionStorage.setItem('chat_name', contact.name)
+
   await loadMessages()
   sendRead(contact.userId)
 }
@@ -167,7 +166,7 @@ const handleSend = async () => {
     content,
     messageType: 1,
     isRead: 0,
-    createTime: new Date().toISOString() as any,
+    createTime: new Date().toISOString().replace('T', ' ').substring(0, 19) as any,
     senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
     senderAvatar: userStore.userInfo?.avatar || '',
     receiverName: currentContactName.value,
@@ -220,9 +219,19 @@ const handleTyping = () => {
 
 const scrollToBottom = () => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight }
 
-const formatTime = (t: string) => {
+const formatTime = (t: string | number | null | undefined) => {
   if (!t) return ''
-  const d = new Date(t)
+  let d: Date
+  if (typeof t === 'number') {
+    d = new Date(t)
+  } else if (typeof t === 'string' && t.includes('T')) {
+    d = new Date(t)
+  } else if (typeof t === 'string') {
+    d = new Date(t.replace(' ', 'T'))
+  } else {
+    return ''
+  }
+  if (isNaN(d.getTime())) return ''
   const now = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
   const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`
@@ -317,19 +326,7 @@ onMounted(async () => {
       sendRead(queryTarget)
     }
   } else {
-    const savedTarget = sessionStorage.getItem('chat_target')
-    const savedName = sessionStorage.getItem('chat_name')
-    if (savedTarget) {
-      const targetId = Number(savedTarget)
-      const existing = contacts.value.find(c => c.userId === targetId)
-      if (existing) {
-        await selectContact(existing)
-      } else {
-        currentTarget.value = targetId
-        currentContactName.value = savedName || '用户'
-        await loadMessages()
-      }
-    }
+    // 不自动恢复上次对话，用户需手动选择联系人
   }
 })
 
