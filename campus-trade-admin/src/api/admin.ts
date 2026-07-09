@@ -27,6 +27,12 @@ export const auditGoods = (id: number, data: { status: string; rejectReason?: st
 export const getOrderList = (params: PageQueryParams) =>
   request.get<never, PageResult<AdminOrderVO>>('/admin/order', { params })
 
+export const approveRefund = (id: number) =>
+  request.put<never, void>(`/admin/order/${id}/approve-refund`)
+
+export const rejectRefund = (id: number, reason?: string) =>
+  request.put<never, void>(`/admin/order/${id}/reject-refund`, null, { params: { reason } })
+
 export const getReportList = (params: PageQueryParams) =>
   request.get<never, PageResult<AdminReportVO>>('/admin/report', { params })
 

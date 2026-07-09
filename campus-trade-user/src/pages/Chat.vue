@@ -11,7 +11,7 @@
           <div v-for="contact in contacts" :key="contact.userId" class="contact-item" :class="{ active: currentTarget === contact.userId }" @click="selectContact(contact)">
             <div class="avatar-wrap">
               <el-avatar :size="44" :src="contact.avatar" />
-
+              <span v-if="isOnline(contact.userId)" class="online-dot"></span>
               <span v-if="contact.unread" class="unread-badge">{{ contact.unread > 99 ? '99+' : contact.unread }}</span>
             </div>
             <div class="contact-info">
@@ -26,8 +26,8 @@
         <template v-if="currentTarget">
           <div class="chat-header">
             <span>{{ currentContactName }}</span>
-            <el-tag v-if="connected" type="success" size="small" effect="dark">在线</el-tag>
-            <el-tag v-else type="info" size="small" effect="dark">离线</el-tag>
+            <span v-if="isOnline(currentTarget!)" class="header-online">在线</span>
+            <span v-else class="header-offline">离线</span>
           </div>
           <div class="chat-messages" ref="messagesRef">
             <div v-for="msg in messages" :key="msg.id || msg._tempId" class="message-item" :class="{ self: msg.senderId === myId }">
@@ -80,7 +80,7 @@ const userStore = useUserStore()
 const myId = computed(() => userStore.userInfo?.id || getMyId())
 
 const {
-  connected, sendChat, sendTyping, sendStopTyping,
+  connected, onlineUsers, sendChat, sendTyping, sendStopTyping,
   sendRead, onChatMessage, chatUnreadMap, getMyId
 } = useChatWs()
 
@@ -96,6 +96,8 @@ const messagesRef = ref<HTMLElement>()
 const typingHint = ref('')
 let lastTypingSent = false
 let tempIdCounter = 0
+
+const isOnline = (userId: number) => onlineUsers.value.has(userId)
 
 
 const loadContacts = async () => {

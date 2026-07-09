@@ -28,6 +28,12 @@
         </el-table-column>
         <el-table-column prop="remark" label="备注" show-overflow-tooltip />
         <el-table-column prop="createTime" label="创建时间" width="170" />
+        <el-table-column label="操作" width="200" fixed="right">
+          <template #default="{ row }">
+            <el-button v-if="row.status === 'REFUND'" type="success" size="small" @click="handleApproveRefund(row.id)">同意退款</el-button>
+            <el-button v-if="row.status === 'REFUND'" type="warning" size="small" @click="handleRejectRefund(row.id)">拒绝退款</el-button>
+          </template>
+        </el-table-column>
       </el-table>
       <el-empty v-if="orders.length === 0" description="暂无订单" />
       <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
@@ -37,8 +43,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getOrderList } from '@/api/admin'
+import { getOrderList, approveRefund, rejectRefund } from '@/api/admin'
 import type { AdminOrderVO, PageQueryParams } from '@/types'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const orders = ref<AdminOrderVO[]>([])
 const statusFilter = ref('')
@@ -73,6 +80,20 @@ const loadData = async () => {
 }
 
 onMounted(loadData)
+
+const handleApproveRefund = async (id: number) => {
+  await ElMessageBox.confirm('确认同意退款？', '同意退款')
+  await approveRefund(id)
+  ElMessage.success('已同意退款')
+  loadData()
+}
+
+const handleRejectRefund = async (id: number) => {
+  const { value } = await ElMessageBox.prompt('请输入拒绝原因', '拒绝退款', { inputPattern: /\S+/, inputErrorMessage: '拒绝原因不能为空' })
+  await rejectRefund(id, value)
+  ElMessage.success('已拒绝退款')
+  loadData()
+}
 </script>
 
 <style scoped lang="scss">

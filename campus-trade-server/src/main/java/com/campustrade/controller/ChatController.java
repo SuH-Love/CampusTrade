@@ -2,6 +2,7 @@ package com.campustrade.controller;
 
 import com.campustrade.common.PageResult;
 import com.campustrade.common.Result;
+import com.campustrade.config.StompEventListener;
 import com.campustrade.dto.ChatSendDTO;
 import com.campustrade.service.ChatService;
 import com.campustrade.util.SecurityUtil;
@@ -11,6 +12,9 @@ import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
+import java.util.Set;
 
 @Api(tags = "聊天接口")
 @RestController
@@ -51,6 +55,13 @@ public class ChatController {
     @PutMapping("/read/{senderId}")
     public Result<Void> markAsRead(@PathVariable Long senderId) {
         return chatService.markAsRead(SecurityUtil.requireCurrentUserId(), senderId);
+    }
+
+    @ApiOperation("在线用户列表")
+    @GetMapping("/online-users")
+    public Result<ArrayList<Long>> getOnlineUsers() {
+        Set<Long> onlineUserIds = StompEventListener.getOnlineUserIds();
+        return Result.success(new ArrayList<>(onlineUserIds));
     }
 
     @ApiOperation("总未读消息数")

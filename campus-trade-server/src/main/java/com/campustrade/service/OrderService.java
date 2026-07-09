@@ -19,6 +19,10 @@ public interface OrderService {
 
     Result<Void> refundOrder(Long userId, Long orderId, String reason);
 
+    Result<Void> approveRefund(Long userId, Long orderId);
+
+    Result<Void> rejectRefund(Long userId, Long orderId, String reason);
+
     Result<OrderVO> getOrderDetail(Long userId, Long orderId);
 
     Result<PageResult<OrderVO>> listBuyerOrders(Long buyerId, String status, Integer pageNum, Integer pageSize);

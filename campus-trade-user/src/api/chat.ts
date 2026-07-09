@@ -27,5 +27,6 @@ export const getUnreadCount = (senderId: number) => request.get<never, number>('
 
 export const markAsRead = (senderId: number) => request.put('/chat/read/' + senderId)
 
+export const getOnlineUsers = () => request.get<never, number[]>('/chat/online-users')
 
 export const getTotalUnreadCount = () => request.get<never, number>('/chat/unread-total')

@@ -17,7 +17,7 @@
       <el-row :gutter="16" v-loading="loading">
         <el-col :xs="12" :sm="8" :md="6" v-for="item in filteredGoods" :key="item.id">
           <div class="fav-card" :class="{ sold: item.status === 'SOLD' || item.status === 'OFFLINE' }">
-            <div class="fav-img-wrap" @click="item.status !== 'SOLD' && $router.push(`/goods/${item.id}`)">
+            <div class="fav-img-wrap" :class="{ 'no-click': item.status !== 'ONLINE' }" @click="item.status === 'ONLINE' && $router.push(`/goods/${item.id}`)">
               <img :src="item.coverImage || '/placeholder.png'" class="fav-img" />
               <div v-if="item.status === 'SOLD'" class="sold-overlay">
                 <el-tag type="info" effect="dark" size="large">已售出</el-tag>
@@ -106,7 +106,7 @@ onMounted(loadData)
   &:not(.sold):hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
   &.sold { opacity: 0.75; }
 }
-.fav-img-wrap { position: relative; padding-top: 75%; background: #f1f5f9; cursor: pointer; }
+.fav-img-wrap { position: relative; padding-top: 75%; background: #f1f5f9; cursor: pointer; &.no-click { cursor: not-allowed; } }
 .fav-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
 .sold-overlay {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;

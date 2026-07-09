@@ -42,6 +42,9 @@ import { ref, onMounted } from 'vue'
 import { listNotifications, getUnreadCount, markAsRead, markAllAsRead, deleteNotification } from '@/api/notification'
 import type { NotificationVO } from '@/api/notification'
 import { ElMessage } from 'element-plus'
+import { useChatWs } from '@/composables/useChatWs'
+
+const { notifyUnread } = useChatWs()
 
 const activeTab = ref('all')
 const notifications = ref<NotificationVO[]>([])
@@ -70,7 +73,11 @@ const loadData = async () => {
 }
 
 const loadUnreadCount = async () => {
-  try { unreadCount.value = await getUnreadCount() } catch { /* ignore */ }
+  try {
+    const count = await getUnreadCount()
+    unreadCount.value = count
+    notifyUnread.value = count
+  } catch { /* ignore */ }
 }
 
 const handleTabChange = () => {

@@ -1,19 +1,21 @@
 import { ref, computed, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { Client, type IMessage, type StompSubscription } from '@stomp/stompjs'
-import { getTotalUnreadCount } from '@/api/chat'
+import { getTotalUnreadCount, getOnlineUsers } from '@/api/chat'
 import type { ChatMessageVO } from '@/api/chat'
 import type { NotificationVO } from '@/api/notification'
 
 export interface ChatWsMessage {
-  type: 'CHAT' | 'TYPING' | 'STOP_TYPING' | 'READ'
+  type: 'CHAT' | 'TYPING' | 'STOP_TYPING' | 'READ' | 'ONLINE_STATUS'
   data?: ChatMessageVO
   userId?: number
+  online?: boolean
 }
 
 const connected = ref(false)
 const chatUnreadMap = ref<Map<number, number>>(new Map())
 const notifyUnread = ref(0)
+const onlineUsers = ref<Set<number>>(new Set())
 
 const chatUnread = computed(() => {
   let sum = 0
@@ -28,6 +30,7 @@ const notifyHandlers = ref<((msg: NotificationVO) => void)[]>([])
 let stompClient: Client | null = null
 let chatSub: StompSubscription | null = null
 let notifySub: StompSubscription | null = null
+let onlineSub: StompSubscription | null = null
 let cachedUserId: number | null = null
 let reconnectAttempts = 0
 
@@ -80,6 +83,7 @@ function connect() {
       console.log('[STOMP] Connected, userId:', cachedUserId)
       subscribe(client)
       fetchInitialUnread()
+      fetchOnlineUsers()
     },
     onDisconnect: () => {
       connected.value = false
@@ -130,11 +134,24 @@ function subscribe(client: Client) {
       notifyHandlers.value.forEach(h => h(notification))
     } catch { /* ignore */ }
   })
+
+  onlineSub = client.subscribe(`/topic/online`, (message: IMessage) => {
+    try {
+      const body = JSON.parse(message.body)
+      if (body.type === 'ONLINE_STATUS' && body.userId != null) {
+        const s = new Set(onlineUsers.value)
+        if (body.online) s.add(body.userId); else s.delete(body.userId)
+        onlineUsers.value = s
+        chatHandlers.value.forEach(h => h(body as ChatWsMessage))
+      }
+    } catch { /* ignore */ }
+  })
 }
 
 function disconnect() {
   if (chatSub) { chatSub.unsubscribe(); chatSub = null }
   if (notifySub) { notifySub.unsubscribe(); notifySub = null }
+  if (onlineSub) { onlineSub.unsubscribe(); onlineSub = null }
   if (stompClient) {
     stompClient.deactivate()
     stompClient = null
@@ -152,6 +169,13 @@ async function fetchInitialUnread() {
       m.set(-1, chatCount)
       chatUnreadMap.value = m
     }
+  } catch { /* ignore */ }
+}
+
+async function fetchOnlineUsers() {
+  try {
+    const ids = await getOnlineUsers()
+    if (Array.isArray(ids)) onlineUsers.value = new Set(ids)
   } catch { /* ignore */ }
 }
 
@@ -229,6 +253,7 @@ export function useChatWs() {
     chatUnread,
     chatUnreadMap,
     notifyUnread,
+    onlineUsers,
     getMyId,
     connect,
     disconnect,

@@ -306,12 +306,16 @@ public class GoodsServiceImpl implements GoodsService {
     }
 
     @Override
-    public Result<PageResult<GoodsVO>> listFavoriteGoods(Long userId, Integer pageNum, Integer pageSize) {
+    public Result<PageResult<GoodsVO>> listFavoriteGoods(Long userId, Integer pageNum, Integer pageSize, String status) {
         int offset = (pageNum - 1) * pageSize;
         List<Long> goodsIds = favoriteMapper.selectGoodsIdsByUserId(userId, offset, pageSize);
         Long total = favoriteMapper.selectCountByUserId(userId);
         if (goodsIds.isEmpty()) return Result.success(new PageResult<>(List.of(), 0L));
         List<Goods> goodsList = goodsMapper.selectByIds(goodsIds);
+        if (status != null && !status.isEmpty()) {
+            goodsList = goodsList.stream().filter(g -> status.equals(g.getStatus())).collect(Collectors.toList());
+            total = (long) goodsList.size();
+        }
         List<GoodsVO> vos = toVOList(goodsList);
         vos.forEach(v -> v.setIsFavorited(true));
         return Result.success(new PageResult<>(vos, total));

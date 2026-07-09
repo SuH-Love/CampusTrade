@@ -56,6 +56,18 @@ public class OrderController {
         return orderService.refundOrder(SecurityUtil.requireCurrentUserId(), id, reason);
     }
 
+    @ApiOperation("同意退款")
+    @PutMapping("/{id}/approve-refund")
+    public Result<Void> approveRefund(@PathVariable Long id) {
+        return orderService.approveRefund(SecurityUtil.requireCurrentUserId(), id);
+    }
+
+    @ApiOperation("拒绝退款")
+    @PutMapping("/{id}/reject-refund")
+    public Result<Void> rejectRefund(@PathVariable Long id, @RequestParam(required = false) String reason) {
+        return orderService.rejectRefund(SecurityUtil.requireCurrentUserId(), id, reason);
+    }
+
     @ApiOperation("订单详情")
     @GetMapping("/{id}")
     public Result<OrderVO> getOrderDetail(@PathVariable Long id) {

@@ -48,6 +48,8 @@
           <el-button v-if="order.status === 'PAID' && isSeller" type="primary" @click="handleShip">发货</el-button>
           <el-button v-if="order.status === 'SHIPPING' && isBuyer" type="success" @click="handleFinish">确认收货</el-button>
           <el-button v-if="(order.status === 'PAID' || order.status === 'SHIPPING') && isBuyer" type="danger" @click="handleRefund">申请退款</el-button>
+          <el-button v-if="order.status === 'REFUND' && isSeller" type="success" @click="handleApproveRefund">同意退款</el-button>
+          <el-button v-if="order.status === 'REFUND' && isSeller" type="warning" @click="handleRejectRefund">拒绝退款</el-button>
         </div>
       </template>
       <el-empty v-else-if="!loading" description="订单不存在" />
@@ -58,7 +60,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getOrderDetail, payOrder, cancelOrder, shipOrder, finishOrder, refundOrder } from '@/api/order'
+import { getOrderDetail, payOrder, cancelOrder, shipOrder, finishOrder, refundOrder, approveRefund, rejectRefund } from '@/api/order'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { OrderVO } from '@/api/order'
@@ -127,6 +129,20 @@ const handleRefund = async () => {
   const { value } = await ElMessageBox.prompt('请输入退款原因', '申请退款', { inputPattern: /\S+/, inputErrorMessage: '退款原因不能为空' })
   await refundOrder(order.value!.id, value)
   ElMessage.success('已申请退款')
+  loadData()
+}
+
+const handleApproveRefund = async () => {
+  await ElMessageBox.confirm('确认同意退款？', '同意退款')
+  await approveRefund(order.value!.id)
+  ElMessage.success('已同意退款')
+  loadData()
+}
+
+const handleRejectRefund = async () => {
+  const { value } = await ElMessageBox.prompt('请输入拒绝原因', '拒绝退款', { inputPattern: /\S+/, inputErrorMessage: '拒绝原因不能为空' })
+  await rejectRefund(order.value!.id, value)
+  ElMessage.success('已拒绝退款')
   loadData()
 }
 

@@ -44,6 +44,12 @@ export const finishOrder = (id: number) => request.put(`/order/${id}/finish`)
 export const refundOrder = (id: number, reason?: string) =>
   request.put(`/order/${id}/refund`, null, { params: { reason } })
 
+export const approveRefund = (id: number) =>
+  request.put(`/order/${id}/approve-refund`)
+
+export const rejectRefund = (id: number, reason?: string) =>
+  request.put(`/order/${id}/reject-refund`, null, { params: { reason } })
+
 export const getOrderDetail = (id: number) => request.get<never, OrderVO>(`/order/${id}`)
 
 export const getBuyerOrders = (params: OrderQueryParams) => request.get<never, PageResult<OrderVO>>('/order/buyer', { params })

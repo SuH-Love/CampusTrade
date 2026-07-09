@@ -35,7 +35,7 @@ public interface GoodsService {
 
     Result<Void> unfavoriteGoods(Long userId, Long goodsId);
 
-    Result<PageResult<GoodsVO>> listFavoriteGoods(Long userId, Integer pageNum, Integer pageSize);
+    Result<PageResult<GoodsVO>> listFavoriteGoods(Long userId, Integer pageNum, Integer pageSize, String status);
 
     Result<PageResult<GoodsVO>> listGoodsByAdmin(GoodsQueryDTO dto);
 

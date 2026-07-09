@@ -44,6 +44,8 @@
             <el-button v-if="row.status === 'PAID' && activeTab === 'seller'" type="primary" size="small" @click="handleShip(row.id)">发货</el-button>
             <el-button v-if="row.status === 'SHIPPING' && activeTab === 'buyer'" type="success" size="small" @click="handleFinish(row.id)">确认收货</el-button>
             <el-button v-if="(row.status === 'PAID' || row.status === 'SHIPPING') && activeTab === 'buyer'" type="danger" size="small" @click="handleRefund(row.id)">退款</el-button>
+            <el-button v-if="row.status === 'REFUND' && activeTab === 'seller'" type="success" size="small" @click="handleApproveRefund(row.id)">同意退款</el-button>
+            <el-button v-if="row.status === 'REFUND' && activeTab === 'seller'" type="warning" size="small" @click="handleRejectRefund(row.id)">拒绝退款</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -55,7 +57,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { getBuyerOrders, getSellerOrders, payOrder, cancelOrder, shipOrder, finishOrder, refundOrder } from '@/api/order'
+import { getBuyerOrders, getSellerOrders, payOrder, cancelOrder, shipOrder, finishOrder, refundOrder, approveRefund, rejectRefund } from '@/api/order'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { OrderVO } from '@/api/order'
 import type { OrderQueryParams } from '@/types'
@@ -156,6 +158,20 @@ const handleRefund = async (id: number) => {
   const { value } = await ElMessageBox.prompt('请输入退款原因', '申请退款', { inputPattern: /\S+/, inputErrorMessage: '退款原因不能为空' })
   await refundOrder(id, value)
   ElMessage.success('已申请退款')
+  loadData()
+}
+
+const handleApproveRefund = async (id: number) => {
+  await ElMessageBox.confirm('确认同意退款？退款后商品将重新上架', '同意退款')
+  await approveRefund(id)
+  ElMessage.success('已同意退款')
+  loadData()
+}
+
+const handleRejectRefund = async (id: number) => {
+  const { value } = await ElMessageBox.prompt('请输入拒绝原因', '拒绝退款', { inputPattern: /\S+/, inputErrorMessage: '拒绝原因不能为空' })
+  await rejectRefund(id, value)
+  ElMessage.success('已拒绝退款')
   loadData()
 }
 

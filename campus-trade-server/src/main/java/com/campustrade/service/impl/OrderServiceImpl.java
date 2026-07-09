@@ -197,6 +197,60 @@ public class OrderServiceImpl implements OrderService {
         order.setCancelReason(reason);
         int rows = orderMapper.updateById(order);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
+
+        notificationService.sendNotification(order.getSellerId(), "退款申请",
+                "买家申请订单「" + order.getOrderNo() + "」退款，原因：" + (reason != null ? reason : "无"), "ORDER", order.getId());
+
+        return Result.success();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Void> approveRefund(Long userId, Long orderId) {
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
+        if (!order.getSellerId().equals(userId)) return Result.error(ResultCode.ORDER_NOT_OWNER);
+        if (!OrderStatus.REFUND.getCode().equals(order.getStatus()))
+            return Result.error(ResultCode.ORDER_STATUS_ERROR);
+        order.setStatus(OrderStatus.CANCELLED.getCode());
+        order.setCancelTime(LocalDateTime.now());
+        int rows = orderMapper.updateById(order);
+        if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
+
+        List<OrderItem> items = orderItemMapper.selectByOrderId(orderId);
+        for (OrderItem item : items) {
+            Goods goods = goodsMapper.selectById(item.getGoodsId());
+            if (goods != null && GoodsStatus.SOLD.getCode().equals(goods.getStatus())) {
+                goods.setStatus(GoodsStatus.ONLINE.getCode());
+                goodsMapper.updateById(goods);
+                redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + item.getGoodsId());
+                redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
+                redisTemplate.delete(RedisConstant.GOODS_RECOMMEND_KEY);
+            }
+        }
+
+        notificationService.sendNotification(order.getBuyerId(), "退款成功",
+                "卖家已同意订单「" + order.getOrderNo() + "」的退款申请", "ORDER", order.getId());
+
+        return Result.success();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Void> rejectRefund(Long userId, Long orderId, String reason) {
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
+        if (!order.getSellerId().equals(userId)) return Result.error(ResultCode.ORDER_NOT_OWNER);
+        if (!OrderStatus.REFUND.getCode().equals(order.getStatus()))
+            return Result.error(ResultCode.ORDER_STATUS_ERROR);
+        order.setStatus(OrderStatus.PAID.getCode());
+        order.setCancelReason(reason);
+        int rows = orderMapper.updateById(order);
+        if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
+
+        notificationService.sendNotification(order.getBuyerId(), "退款被拒绝",
+                "卖家拒绝了订单「" + order.getOrderNo() + "」的退款申请，原因：" + (reason != null ? reason : "无"), "ORDER", order.getId());
+
         return Result.success();
     }
 
