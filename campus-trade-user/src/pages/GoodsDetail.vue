@@ -123,13 +123,12 @@ const loadData = async () => {
 const handleBuy = async () => {
   if (!goods.value) return
   try {
-    const { value: method } = await ElMessageBox({
+    await ElMessageBox({
       title: '确认购买',
       message: `确认购买「${goods.value.title}」？价格 ¥${goods.value.price}`,
       showCancelButton: true,
       confirmButtonText: '确认',
-      cancelButtonText: '取消',
-      beforeClose: async (action, instance, done) => { done() }
+      cancelButtonText: '取消'
     })
     buying.value = true
     const data: { goodsId: number; remark?: string; deliveryMethod?: string; deliveryAddress?: string } = { goodsId: goods.value.id }

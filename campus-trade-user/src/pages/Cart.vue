@@ -40,7 +40,7 @@ import { createOrder } from '@/api/order'
 import type { CartVO } from '@/api/cart'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-const router = useRouter()
+
 const cartList = ref<CartVO[]>([])
 const loading = ref(false)
 
