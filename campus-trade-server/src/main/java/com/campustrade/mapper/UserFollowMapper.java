@@ -15,4 +15,5 @@ public interface UserFollowMapper {
     Long selectFollowerCount(@Param("followingId") Long followingId);
     int insert(UserFollow follow);
     int deleteByFollowerAndFollowing(@Param("followerId") Long followerId, @Param("followingId") Long followingId);
+    int restoreByFollowerAndFollowing(@Param("followerId") Long followerId, @Param("followingId") Long followingId);
 }

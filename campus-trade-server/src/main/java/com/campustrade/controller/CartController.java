@@ -59,7 +59,11 @@ public class CartController {
             cart.setUserId(userId);
             cart.setGoodsId(goodsId);
             cart.setQuantity(1);
-            cartMapper.insert(cart);
+            try {
+                cartMapper.insert(cart);
+            } catch (Exception e) {
+                cartMapper.restoreByUserAndGoods(userId, goodsId);
+            }
         }
         return Result.success();
     }

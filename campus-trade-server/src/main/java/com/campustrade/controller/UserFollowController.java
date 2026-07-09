@@ -36,7 +36,11 @@ public class UserFollowController {
             UserFollow follow = new UserFollow();
             follow.setFollowerId(myId);
             follow.setFollowingId(userId);
-            userFollowMapper.insert(follow);
+            try {
+                userFollowMapper.insert(follow);
+            } catch (Exception e) {
+                userFollowMapper.restoreByFollowerAndFollowing(myId, userId);
+            }
         }
         return Result.success();
     }

@@ -290,8 +290,7 @@ public class DataInitializer implements CommandLineRunner {
                 "deleted TINYINT DEFAULT 0," +
                 "version INT DEFAULT 0," +
                 "KEY idx_follower_id (follower_id)," +
-                "KEY idx_following_id (following_id)," +
-                "UNIQUE KEY uk_follow (follower_id, following_id)" +
+                "KEY idx_following_id (following_id)" +
                 ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
             );
         } catch (Exception e) { log.warn("Create t_user_follow failed: {}", e.getMessage()); }
@@ -328,8 +327,7 @@ public class DataInitializer implements CommandLineRunner {
                 "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
                 "deleted TINYINT DEFAULT 0," +
                 "version INT DEFAULT 0," +
-                "KEY idx_user_id (user_id)," +
-                "UNIQUE KEY uk_user_goods (user_id, goods_id)" +
+                "KEY idx_user_id (user_id)" +
                 ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
             );
         } catch (Exception e) { log.warn("Create t_cart failed: {}", e.getMessage()); }

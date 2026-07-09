@@ -1,10 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.campustrade.mapper.CartMapper">
-    <select id="selectByUserId" resultType="com.campustrade.entity.Cart">
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.Cart">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="goods_id" property="goodsId"/>
+        <result column="quantity" property="quantity"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+    </resultMap>
+    <select id="selectByUserId" resultMap="BaseResultMap">
         SELECT * FROM t_cart WHERE user_id = #{userId} AND deleted = 0 ORDER BY create_time DESC
     </select>
-    <select id="selectByUserAndGoods" resultType="com.campustrade.entity.Cart">
+    <select id="selectByUserAndGoods" resultMap="BaseResultMap">
         SELECT * FROM t_cart WHERE user_id = #{userId} AND goods_id = #{goodsId} AND deleted = 0
     </select>
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
@@ -19,5 +29,8 @@
     </update>
     <update id="deleteByUserId">
         UPDATE t_cart SET deleted = 1 WHERE user_id = #{userId}
+    </update>
+    <update id="restoreByUserAndGoods">
+        UPDATE t_cart SET deleted = 0, quantity = 1, version = version + 1 WHERE user_id = #{userId} AND goods_id = #{goodsId}
     </update>
 </mapper>

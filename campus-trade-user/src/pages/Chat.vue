@@ -15,7 +15,7 @@
               <span v-if="contact.unread" class="unread-badge">{{ contact.unread > 99 ? '99+' : contact.unread }}</span>
             </div>
             <div class="contact-info">
-              <div class="contact-name">{{ contact.name }}</div>
+              <div class="contact-name" @click.stop="$router.push(`/profile/${contact.userId}`)" style="cursor: pointer">{{ contact.name }}</div>
               <div class="contact-last">{{ contact.lastMessage }}</div>
             </div>
           </div>

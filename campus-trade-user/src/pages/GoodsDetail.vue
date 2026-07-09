@@ -33,19 +33,19 @@
             <h3>商品描述</h3>
             <p>{{ goods.description || '暂无描述' }}</p>
           </div>
-          <div class="seller-card" @click="handleChat" v-if="userStore.token && goods.userId !== userStore.userInfo?.id">
-            <el-avatar :size="44" :src="goods.userAvatar" />
-            <div class="seller-info">
+          <div class="seller-card" v-if="userStore.token && goods.userId !== userStore.userInfo?.id">
+            <el-avatar :size="44" :src="goods.userAvatar" @click="$router.push(`/profile/${goods.userId}`)" style="cursor: pointer" />
+            <div class="seller-info" @click="$router.push(`/profile/${goods.userId}`)" style="cursor: pointer">
               <div class="seller-name">{{ goods.username }}</div>
               <div class="seller-action">
-                <span>点击联系卖家</span>
+                <span>查看主页</span>
                 <el-rate v-if="sellerRating > 0" :model-value="sellerRating" disabled size="small" style="margin-left: 8px; vertical-align: middle" />
               </div>
             </div>
+            <el-button size="small" @click.stop="handleChat" round>聊天</el-button>
             <el-button :type="isFollowed ? 'warning' : 'default'" size="small" @click.stop="handleToggleFollow" :loading="followLoading" round>
               {{ isFollowed ? '已关注' : '关注' }}
             </el-button>
-            <el-icon style="margin-left: auto; color: var(--text-muted)"><ArrowRight /></el-icon>
           </div>
           <div class="action-bar">
             <el-button type="primary" size="large" @click="handleBuy" :loading="buying" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id" round>

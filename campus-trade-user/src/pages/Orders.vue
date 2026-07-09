@@ -6,6 +6,16 @@
           <h3 style="margin: 0">我的订单</h3>
           <div class="filter-bar">
             <el-input v-model="searchKeyword" placeholder="搜索订单号" clearable style="width: 200px" @keyup.enter="handleSearch" @clear="handleSearch" />
+            <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch" style="width: 140px">
+              <el-option label="全部" value="" />
+              <el-option label="待支付" value="PENDING_PAY" />
+              <el-option label="待发货" value="PAID" />
+              <el-option label="待收货" value="SHIPPING" />
+              <el-option label="待评价" value="PENDING_REVIEW" />
+              <el-option label="已完成" value="FINISHED" />
+              <el-option label="已取消" value="CANCELLED" />
+              <el-option label="退款售后" value="REFUND" />
+            </el-select>
           </div>
         </div>
       </template>
@@ -13,18 +23,7 @@
         <el-tab-pane label="我买到的" name="buyer" />
         <el-tab-pane label="我卖出的" name="seller" />
       </el-tabs>
-      <div class="status-tabs">
-        <el-select v-model="statusFilter" @change="handleSearch" placeholder="订单状态" clearable style="width: 160px">
-          <el-option label="全部" value="" />
-          <el-option label="待支付" value="PENDING_PAY" />
-          <el-option label="待发货" value="PAID" />
-          <el-option label="待收货" value="SHIPPING" />
-          <el-option label="待评价" value="PENDING_REVIEW" />
-          <el-option label="已完成" value="FINISHED" />
-          <el-option label="已取消" value="CANCELLED" />
-          <el-option label="退款售后" value="REFUND" />
-        </el-select>
-      </div>
+
       <el-table :data="filteredOrders" stripe style="width: 100%" v-loading="loading">
         <el-table-column prop="orderNo" label="订单号" width="200" />
         <el-table-column :label="activeTab === 'buyer' ? '卖家' : '买家'" width="120">
