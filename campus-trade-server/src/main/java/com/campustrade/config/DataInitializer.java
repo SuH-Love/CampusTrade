@@ -32,7 +32,6 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        fixUserRoleDeletedNull();
         initRoles();
         initPermissions();
         initRolePermissions();
@@ -40,17 +39,6 @@ public class DataInitializer implements CommandLineRunner {
         initNormalUser();
         initCategories();
         clearPermissionCache();
-    }
-
-    private void fixUserRoleDeletedNull() {
-        try {
-            int fixed = 0;
-            var ur = userRoleMapper.selectByRoleIdAndPermissionId(1L, 1L);
-            if (ur == null) {
-                // t_user_role or t_role_permission has NULL deleted, need to fix
-                // This is a one-time fix for existing data
-            }
-        } catch (Exception ignored) {}
     }
 
     private void initRoles() {
