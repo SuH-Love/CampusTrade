@@ -203,10 +203,18 @@ public class DataInitializer implements CommandLineRunner {
                 "KEY idx_status (status)" +
                 ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
             );
+            alterBannerTableAddColumn("button_text", "VARCHAR(50) DEFAULT NULL");
+            alterBannerTableAddColumn("button_color", "VARCHAR(50) DEFAULT NULL");
             log.info("t_banner table ready");
         } catch (Exception e) {
             log.warn("Create t_banner table failed: {}", e.getMessage());
         }
+    }
+
+    private void alterBannerTableAddColumn(String column, String definition) {
+        try {
+            jdbcTemplate.execute("ALTER TABLE t_banner ADD COLUMN " + column + " " + definition);
+        } catch (Exception ignored) {}
     }
 
     private void initBanners() {
