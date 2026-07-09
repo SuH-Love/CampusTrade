@@ -70,7 +70,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getRecentContacts, getHistory, markAsRead } from '@/api/chat'
+import { getRecentContacts, getHistory } from '@/api/chat'
 import { useChatWs } from '@/composables/useChatWs'
 import type { ChatMessageVO } from '@/api/chat'
 import type { ContactVO } from '@/types'
