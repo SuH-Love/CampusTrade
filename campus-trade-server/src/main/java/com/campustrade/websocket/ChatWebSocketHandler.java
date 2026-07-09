@@ -15,7 +15,9 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -172,5 +174,9 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     public static int getOnlineCount() {
         return ONLINE_USERS.size();
+    }
+
+    public static Set<Long> getOnlineUserIds() {
+        return new HashSet<>(ONLINE_USERS.keySet());
     }
 }

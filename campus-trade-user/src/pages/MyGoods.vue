@@ -51,12 +51,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getGoodsList, submitAudit, onlineGoods, offlineGoods, deleteGoods } from '@/api/goods'
-import { useUserStore } from '@/stores/user'
+import { getMyGoods, submitAudit, onlineGoods, offlineGoods, deleteGoods } from '@/api/goods'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { GoodsVO } from '@/api/goods'
 
-const userStore = useUserStore()
 const goodsList = ref<GoodsVO[]>([])
 const pageNum = ref(1)
 const pageSize = ref(10)
@@ -82,7 +80,7 @@ const statusTip = (status: string) => {
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await getGoodsList({ pageNum: pageNum.value, pageSize: pageSize.value, userId: userStore.userInfo?.id })
+    const res = await getMyGoods({ pageNum: pageNum.value, pageSize: pageSize.value })
     goodsList.value = res.list || []
     total.value = res.total || 0
   } finally {

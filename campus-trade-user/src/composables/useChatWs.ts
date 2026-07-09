@@ -1,5 +1,6 @@
 import { ref, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
+import { getOnlineUsers } from '@/api/chat'
 import type { ChatMessageVO } from '@/api/chat'
 
 interface WsMessage {
@@ -35,6 +36,7 @@ function connect() {
       connected.value = true
       reconnectAttempts = 0
       startHeartbeat(ws)
+      fetchOnlineUsers()
     }
 
     ws.onmessage = (event) => {
@@ -124,6 +126,13 @@ function onMessage(handler: (msg: WsMessage) => void) {
     const idx = messageHandlers.value.indexOf(handler)
     if (idx > -1) messageHandlers.value.splice(idx, 1)
   }
+}
+
+async function fetchOnlineUsers() {
+  try {
+    const ids = await getOnlineUsers()
+    if (Array.isArray(ids)) onlineUsers.value = new Set(ids)
+  } catch { /* ignore */ }
 }
 
 export function useChatWs() {

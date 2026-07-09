@@ -122,6 +122,11 @@ public class GoodsServiceImpl implements GoodsService {
             } else {
                 vo.setIsFavorited(false);
             }
+            Goods fresh = goodsMapper.selectById(goodsId);
+            if (fresh != null) {
+                vo.setViewCount(fresh.getViewCount());
+                vo.setFavoriteCount(fresh.getFavoriteCount());
+            }
             return Result.success(vo);
         }
 
@@ -138,8 +143,8 @@ public class GoodsServiceImpl implements GoodsService {
                     }
 
                     goodsMapper.incrementViewCount(goodsId);
-                    goods.setViewCount(goods.getViewCount() + 1);
-                    GoodsVO vo = toVO(goods);
+                    Goods updated = goodsMapper.selectById(goodsId);
+                    GoodsVO vo = toVO(updated != null ? updated : goods);
 
                     if (currentUserId != null) {
                         GoodsFavorite fav = favoriteMapper.selectByUserAndGoods(currentUserId, goodsId);
@@ -274,6 +279,7 @@ public class GoodsServiceImpl implements GoodsService {
         fav.setGoodsId(goodsId);
         favoriteMapper.insert(fav);
         goodsMapper.incrementFavoriteCount(goodsId);
+        redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + goodsId);
         return Result.success();
     }
 
@@ -282,6 +288,7 @@ public class GoodsServiceImpl implements GoodsService {
     public Result<Void> unfavoriteGoods(Long userId, Long goodsId) {
         favoriteMapper.deleteByUserAndGoods(userId, goodsId);
         goodsMapper.decrementFavoriteCount(goodsId);
+        redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + goodsId);
         return Result.success();
     }
 

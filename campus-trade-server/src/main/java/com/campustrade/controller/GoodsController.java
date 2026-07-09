@@ -101,4 +101,18 @@ public class GoodsController {
             @RequestParam(defaultValue = "10") Integer pageSize) {
         return goodsService.listFavoriteGoods(SecurityUtil.requireCurrentUserId(), pageNum, pageSize);
     }
+
+    @ApiOperation("我的商品")
+    @GetMapping("/mine")
+    public Result<PageResult<GoodsVO>> listMyGoods(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) String status) {
+        GoodsQueryDTO dto = new GoodsQueryDTO();
+        dto.setPageNum(pageNum);
+        dto.setPageSize(pageSize);
+        dto.setUserId(SecurityUtil.requireCurrentUserId());
+        dto.setStatus(status);
+        return goodsService.listGoods(dto);
+    }
 }

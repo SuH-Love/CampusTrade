@@ -1,9 +1,7 @@
 -- CampusTrade 数据库初始化脚本
 -- 数据库：campus_trade
 -- 字符集：utf8mb4
-
-SET GLOBAL time_zone = '+08:00';
-SET SESSION time_zone = '+08:00';
+-- 时区由docker-compose MySQL命令 --default-time-zone='+08:00' 统一管理
 
 CREATE DATABASE IF NOT EXISTS campus_trade DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 

@@ -46,3 +46,6 @@ export const favoriteGoods = (id: number) => request.post(`/goods/${id}/favorite
 export const unfavoriteGoods = (id: number) => request.delete(`/goods/${id}/favorite`)
 
 export const getFavoriteList = (params: GoodsQueryParams) => request.get<never, PageResult<GoodsVO>>('/goods/favorites', { params })
+
+export const getMyGoods = (params: { pageNum: number; pageSize: number; status?: string }) =>
+  request.get<never, PageResult<GoodsVO>>('/goods/mine', { params })

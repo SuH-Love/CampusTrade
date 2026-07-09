@@ -26,3 +26,5 @@ export const getRecentContacts = () => request.get<never, ContactVO[]>('/chat/re
 export const getUnreadCount = (senderId: number) => request.get<never, number>('/chat/unread/' + senderId)
 
 export const markAsRead = (senderId: number) => request.put('/chat/read/' + senderId)
+
+export const getOnlineUsers = () => request.get<never, number[]>('/chat/online-users')
