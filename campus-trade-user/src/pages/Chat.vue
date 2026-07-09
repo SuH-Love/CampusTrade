@@ -30,7 +30,7 @@
             <span v-else class="header-offline">离线</span>
           </div>
           <div class="chat-messages" ref="messagesRef">
-            <div v-for="msg in messages" :key="msg.id" class="message-item" :class="{ self: msg.senderId === myId }">
+            <div v-for="msg in messages" :key="msg.id || msg._tempId" class="message-item" :class="{ self: msg.senderId === myId }">
               <template v-if="msg.senderId === myId">
                 <div class="msg-wrap self-wrap">
                   <div class="msg-bubble self-bubble">{{ msg.content }}</div>
@@ -73,23 +73,26 @@ import { useChatWs } from '@/composables/useChatWs'
 import type { ChatMessageVO } from '@/api/chat'
 import type { ContactVO } from '@/types'
 
+interface DisplayMessage extends ChatMessageVO { _tempId?: string }
+
 const route = useRoute()
 const userStore = useUserStore()
 const myId = computed(() => userStore.userInfo?.id)
 
-const { connected, onlineUsers, sendChat, sendTyping, sendStopTyping, sendRead, onMessage, unreadMap } = useChatWs()
+const { connected, onlineUsers, sendChat, sendTyping, sendStopTyping, sendRead, onMessage, unreadMap, getMyId } = useChatWs()
 
 interface ContactItem { userId: number; name: string; avatar: string; lastMessage: string; unread: number }
 
 const contacts = ref<ContactItem[]>([])
 const currentTarget = ref<number | null>(null)
 const currentContactName = ref('')
-const messages = ref<ChatMessageVO[]>([])
+const messages = ref<DisplayMessage[]>([])
 const inputText = ref('')
 const sending = ref(false)
 const messagesRef = ref<HTMLElement>()
 const typingHint = ref('')
 let lastTypingSent = false
+let tempIdCounter = 0
 
 const isOnline = (userId: number) => onlineUsers.value.has(userId)
 
@@ -123,7 +126,7 @@ const loadMessages = async () => {
   if (!currentTarget.value) return
   try {
     const res = await getHistory(currentTarget.value)
-    messages.value = res.list || res || []
+    messages.value = (res.list || res || []) as DisplayMessage[]
     await nextTick(); scrollToBottom()
   } catch { messages.value = [] }
 }
@@ -131,19 +134,50 @@ const loadMessages = async () => {
 const handleSend = async () => {
   if (!inputText.value.trim() || !currentTarget.value) return
   const content = inputText.value.trim()
+  const targetId = currentTarget.value
+  const id = myId.value || getMyId()
   sending.value = true
+
+  const tempMsg: DisplayMessage = {
+    id: 0,
+    _tempId: `temp_${++tempIdCounter}`,
+    senderId: id || 0,
+    receiverId: targetId,
+    content,
+    messageType: 1,
+    isRead: 0,
+    createTime: new Date().toISOString() as any,
+    senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
+    senderAvatar: userStore.userInfo?.avatar || '',
+    receiverName: currentContactName.value,
+    receiverAvatar: ''
+  }
+  messages.value.push(tempMsg)
+  nextTick(scrollToBottom)
+
   try {
-    const sent = sendChat(currentTarget.value, content)
+    const sent = sendChat(targetId, content)
     if (!sent) {
       const { sendMessage } = await import('@/api/chat')
-      await sendMessage({ receiverId: currentTarget.value, content })
-      await loadMessages()
+      await sendMessage({ receiverId: targetId, content })
     }
     inputText.value = ''
-    sendStopTyping(currentTarget.value)
+    sendStopTyping(targetId)
     lastTypingSent = false
+    updateContactLastMessage(targetId, content)
   } finally {
     sending.value = false
+  }
+}
+
+const updateContactLastMessage = (partnerId: number, content: string) => {
+  const idx = contacts.value.findIndex(c => c.userId === partnerId)
+  if (idx > -1) {
+    contacts.value[idx].lastMessage = content
+    if (idx > 0) {
+      const contact = contacts.value.splice(idx, 1)[0]
+      contacts.value.unshift(contact)
+    }
   }
 }
 
@@ -172,42 +206,51 @@ const formatTime = (t: string) => {
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${time}`
 }
 
-const findOrCreateContact = (partnerId: number, name: string, avatar: string, content: string, unread = 0) => {
-  const idx = contacts.value.findIndex(c => c.userId === partnerId)
-  if (idx > -1) {
-    const contact = contacts.value[idx]
-    contact.lastMessage = content
-    contact.unread = unread
-    if (idx > 0) {
-      contacts.value.splice(idx, 1)
-      contacts.value.unshift(contact)
-    }
-  } else {
-    contacts.value.unshift({ userId: partnerId, name, avatar, lastMessage: content, unread })
-  }
-}
-
 const removeWsHandler = onMessage((msg) => {
   if (msg.type === 'CHAT' && msg.data) {
     const chatMsg = msg.data as ChatMessageVO
-    const partnerId = chatMsg.senderId === myId.value ? chatMsg.receiverId : chatMsg.senderId
-    const partnerName = chatMsg.senderId === myId.value ? (chatMsg.receiverName || '用户') : (chatMsg.senderName || '用户')
-    const partnerAvatar = chatMsg.senderId === myId.value ? (chatMsg.receiverAvatar || '') : (chatMsg.senderAvatar || '')
+    const currentMyId = myId.value || getMyId()
+    const partnerId = chatMsg.senderId === currentMyId ? chatMsg.receiverId : chatMsg.senderId
+    const partnerName = chatMsg.senderId === currentMyId ? (chatMsg.receiverName || '用户') : (chatMsg.senderName || '用户')
+    const partnerAvatar = chatMsg.senderId === currentMyId ? (chatMsg.receiverAvatar || '') : (chatMsg.senderAvatar || '')
 
     if (currentTarget.value === partnerId) {
-      const exists = messages.value.some(m => m.id === chatMsg.id)
-      if (!exists) {
-        messages.value.push(chatMsg)
-        nextTick(scrollToBottom)
+      const hasTemp = messages.value.some(m => m._tempId && m.senderId === chatMsg.senderId && m.content === chatMsg.content)
+      if (hasTemp) {
+        messages.value = messages.value.map(m =>
+          (m._tempId && m.senderId === chatMsg.senderId && m.content === chatMsg.content)
+            ? { ...chatMsg } as DisplayMessage
+            : m
+        )
+      } else {
+        const exists = messages.value.some(m => m.id === chatMsg.id && m.id !== 0)
+        if (!exists) {
+          messages.value.push(chatMsg as DisplayMessage)
+        }
       }
-      if (chatMsg.senderId !== myId.value) {
+      nextTick(scrollToBottom)
+
+      if (chatMsg.senderId !== currentMyId) {
         sendRead(partnerId)
       }
-      findOrCreateContact(partnerId, partnerName, partnerAvatar, chatMsg.content, 0)
+      updateContactLastMessage(partnerId, chatMsg.content)
+      const c = contacts.value.find(c => c.userId === partnerId)
+      if (c) c.unread = 0
     } else {
-      const isFromOther = chatMsg.senderId !== myId.value
-      findOrCreateContact(partnerId, partnerName, partnerAvatar, chatMsg.content, isFromOther ? 1 : 0)
+      const isFromOther = chatMsg.senderId !== currentMyId
+      const idx = contacts.value.findIndex(c => c.userId === partnerId)
+      if (idx > -1) {
+        contacts.value[idx].lastMessage = chatMsg.content
+        if (isFromOther) contacts.value[idx].unread = (contacts.value[idx].unread || 0) + 1
+        if (idx > 0) {
+          const contact = contacts.value.splice(idx, 1)[0]
+          contacts.value.unshift(contact)
+        }
+      } else if (isFromOther) {
+        contacts.value.unshift({ userId: partnerId, name: partnerName, avatar: partnerAvatar, lastMessage: chatMsg.content, unread: 1 })
+      }
     }
+
     if (chatMsg.senderId === currentTarget.value) {
       typingHint.value = ''
     }

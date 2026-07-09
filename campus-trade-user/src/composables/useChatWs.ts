@@ -23,6 +23,30 @@ const messageHandlers = ref<((msg: WsMessage) => void)[]>([])
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null
 let reconnectAttempts = 0
+let cachedUserId: number | null = null
+
+function parseUserIdFromToken(token: string): number | null {
+  try {
+    const payload = token.split('.')[1]
+    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
+    return decoded.userId || decoded.sub || null
+  } catch {
+    return null
+  }
+}
+
+function getMyId(): number | null {
+  if (cachedUserId) return cachedUserId
+  const store = useUserStore()
+  if (store.userInfo?.id) {
+    cachedUserId = store.userInfo.id
+    return cachedUserId
+  }
+  if (store.token) {
+    cachedUserId = parseUserIdFromToken(store.token)
+  }
+  return cachedUserId
+}
 
 function getWsUrl(): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -31,8 +55,10 @@ function getWsUrl(): string {
 }
 
 function connect() {
-  const token = useUserStore().token
-  if (!token || (wsRef.value && wsRef.value.readyState === WebSocket.OPEN)) return
+  const store = useUserStore()
+  if (!store.token || (wsRef.value && wsRef.value.readyState === WebSocket.OPEN)) return
+
+  cachedUserId = store.userInfo?.id || parseUserIdFromToken(store.token) || null
 
   try {
     const ws = new WebSocket(getWsUrl())
@@ -49,8 +75,8 @@ function connect() {
         const msg: WsMessage = JSON.parse(event.data)
         if (msg.type === 'CHAT' && msg.data) {
           const chatMsg = msg.data as ChatMessageVO
-          const myId = useUserStore().userInfo?.id
-          if (chatMsg.receiverId === myId) {
+          const myId = getMyId()
+          if (myId && chatMsg.receiverId === myId) {
             const partnerId = chatMsg.senderId
             const m = new Map(unreadMap.value)
             m.set(partnerId, (m.get(partnerId) || 0) + 1)
@@ -92,6 +118,7 @@ function disconnect() {
   }
   connected.value = false
   reconnectAttempts = 0
+  cachedUserId = null
 }
 
 function scheduleReconnect() {
@@ -169,11 +196,16 @@ export function useChatWs() {
     if (token) connect(); else disconnect()
   }, { immediate: true })
 
+  watch(() => userStore.userInfo?.id, (id) => {
+    if (id && !cachedUserId) cachedUserId = id
+  })
+
   return {
     connected,
     totalUnread,
     unreadMap,
     onlineUsers,
+    getMyId,
     connect,
     disconnect,
     sendChat,
