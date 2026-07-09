@@ -7,24 +7,11 @@
         <span class="logo-text" v-if="!isCollapse">CampusTrade</span>
       </div>
       <el-menu :default-active="activeMenu" router :collapse="isCollapse" class="sidebar-menu">
-        <el-menu-item index="/">
-          <el-icon><DataAnalysis /></el-icon><span>仪表盘</span>
-        </el-menu-item>
-        <el-menu-item index="/user">
-          <el-icon><User /></el-icon><span>用户管理</span>
-        </el-menu-item>
-        <el-menu-item index="/goods">
-          <el-icon><Goods /></el-icon><span>商品审核</span>
-        </el-menu-item>
-        <el-menu-item index="/order">
-          <el-icon><List /></el-icon><span>订单管理</span>
-        </el-menu-item>
-        <el-menu-item index="/report">
-          <el-icon><Warning /></el-icon><span>举报审核</span>
-        </el-menu-item>
-        <el-menu-item index="/log">
-          <el-icon><Document /></el-icon><span>日志中心</span>
-        </el-menu-item>
+        <template v-for="item in menuItems" :key="item.path">
+          <el-menu-item :index="item.path">
+            <el-icon><component :is="item.icon" /></el-icon><span>{{ item.title }}</span>
+          </el-menu-item>
+        </template>
       </el-menu>
     </el-aside>
     <el-container>
@@ -39,7 +26,8 @@
           <el-dropdown>
             <div class="admin-info">
               <el-avatar :size="32" style="background: var(--admin-primary)">{{ adminStore.username?.[0]?.toUpperCase() || 'A' }}</el-avatar>
-              <span>{{ adminStore.username || '管理员' }}</span>
+              <span>{{ adminStore.nickname || adminStore.username || '管理员' }}</span>
+              <el-tag v-if="adminStore.isSuperAdmin" size="small" type="danger" style="margin-left: 4px">超管</el-tag>
             </div>
             <template #dropdown>
               <el-dropdown-menu>
@@ -64,6 +52,26 @@ const router = useRouter()
 const adminStore = useAdminStore()
 const activeMenu = computed(() => route.path)
 const isCollapse = ref(false)
+
+interface MenuItem {
+  path: string
+  title: string
+  icon: string
+  permission: string
+}
+
+const allMenus: MenuItem[] = [
+  { path: '/', title: '仪表盘', icon: 'DataAnalysis', permission: '' },
+  { path: '/user', title: '用户管理', icon: 'User', permission: 'user:manage' },
+  { path: '/goods', title: '商品审核', icon: 'Goods', permission: 'goods:audit' },
+  { path: '/order', title: '订单管理', icon: 'List', permission: 'goods:manage' },
+  { path: '/report', title: '举报审核', icon: 'Warning', permission: 'report:manage' },
+  { path: '/log', title: '日志中心', icon: 'Document', permission: 'log:manage' }
+]
+
+const menuItems = computed(() =>
+  allMenus.filter(m => !m.permission || adminStore.hasPermission(m.permission))
+)
 
 const handleLogout = () => {
   adminStore.logout()

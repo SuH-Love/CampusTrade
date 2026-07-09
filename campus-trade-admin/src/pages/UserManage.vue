@@ -26,8 +26,8 @@
         <el-table-column prop="createTime" label="注册时间" width="170" />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
-            <el-button v-if="row.status === 1" type="danger" size="small" @click="handleBan(row.id)">封禁</el-button>
-            <el-button v-else type="success" size="small" @click="handleUnban(row.id)">解封</el-button>
+            <el-button v-if="row.status === 1" v-permission="'user:ban'" type="danger" size="small" @click="handleBan(row.id)">封禁</el-button>
+            <el-button v-else v-permission="'user:ban'" type="success" size="small" @click="handleUnban(row.id)">解封</el-button>
           </template>
         </el-table-column>
         <template #empty><el-empty description="暂无用户" :image-size="60" /></template>

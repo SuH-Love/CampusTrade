@@ -32,8 +32,8 @@
         <el-table-column prop="createTime" label="举报时间" width="170" />
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button v-if="row.status === 'PENDING' || row.status === 'PROCESSING'" type="success" size="small" @click="handleResolve(row.id)">处理</el-button>
-            <el-button v-if="row.status === 'PENDING' || row.status === 'PROCESSING'" type="warning" size="small" @click="handleDismiss(row.id)">驳回</el-button>
+            <el-button v-if="row.status === 'PENDING' || row.status === 'PROCESSING'" v-permission="'report:review'" type="success" size="small" @click="handleResolve(row.id)">处理</el-button>
+            <el-button v-if="row.status === 'PENDING' || row.status === 'PROCESSING'" v-permission="'report:review'" type="warning" size="small" @click="handleDismiss(row.id)">驳回</el-button>
           </template>
         </el-table-column>
       </el-table>

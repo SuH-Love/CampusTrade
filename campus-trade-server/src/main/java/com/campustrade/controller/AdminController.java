@@ -15,6 +15,13 @@ import com.campustrade.vo.OperationLogVO;
 import com.campustrade.vo.SecurityLogVO;
 import com.campustrade.vo.OrderVO;
 import com.campustrade.vo.ReportVO;
+import com.campustrade.vo.AdminInfoVO;
+import com.campustrade.mapper.RoleMapper;
+import com.campustrade.mapper.PermissionMapper;
+import com.campustrade.entity.User;
+import com.campustrade.entity.Role;
+import com.campustrade.mapper.UserMapper;
+import com.campustrade.util.SecurityUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +30,9 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Api(tags = "管理员接口")
 @RestController
@@ -45,6 +54,35 @@ public class AdminController {
 
     @Autowired
     private ReportService reportService;
+
+    @Autowired
+    private UserMapper userMapper;
+
+    @Autowired
+    private RoleMapper roleMapper;
+
+    @Autowired
+    private PermissionMapper permissionMapper;
+
+    @ApiOperation("获取当前管理员信息")
+    @GetMapping("/info")
+    public Result<AdminInfoVO> getAdminInfo() {
+        Long userId = SecurityUtil.requireCurrentUserId();
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            return Result.error(404, "用户不存在");
+        }
+        AdminInfoVO vo = new AdminInfoVO();
+        vo.setId(user.getId());
+        vo.setUsername(user.getUsername());
+        vo.setNickname(user.getNickname());
+        vo.setAvatar(user.getAvatar());
+        List<Role> roles = roleMapper.selectByUserId(userId);
+        vo.setRoles(roles.stream().map(Role::getRoleCode).collect(Collectors.toList()));
+        List<String> permCodes = permissionMapper.selectPermissionCodesByUserId(userId);
+        vo.setPermissions(permCodes);
+        return Result.success(vo);
+    }
 
     @ApiOperation("仪表盘统计")
     @GetMapping("/dashboard/stats")

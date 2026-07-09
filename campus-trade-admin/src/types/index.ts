@@ -99,3 +99,12 @@ export interface DashboardStats {
   orderCount: number
   pendingAudit: number
 }
+
+export interface AdminInfoVO {
+  id: number
+  username: string
+  nickname: string
+  avatar: string
+  roles: string[]
+  permissions: string[]
+}

@@ -1,10 +1,13 @@
 import request from '@/utils/request'
-import type { PageResult, PageQueryParams, AdminUserVO, AdminGoodsVO, AdminOrderVO, AdminReportVO, OperationLogVO, SecurityLogVO, AdminLoginResult, DashboardStats } from '@/types'
+import type { PageResult, PageQueryParams, AdminUserVO, AdminGoodsVO, AdminOrderVO, AdminReportVO, OperationLogVO, SecurityLogVO, AdminLoginResult, DashboardStats, AdminInfoVO } from '@/types'
 
 export type { DashboardStats } from '@/types'
 
 export const adminLogin = (data: { username: string; password: string }) =>
   request.post<never, AdminLoginResult>('/auth/login', data)
+
+export const getAdminInfo = () =>
+  request.get<never, AdminInfoVO>('/admin/info')
 
 export const getUserList = (params: PageQueryParams) =>
   request.get<never, PageResult<AdminUserVO>>('/admin/user', { params })

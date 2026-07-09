@@ -37,8 +37,8 @@
         <el-table-column prop="createTime" label="提交时间" width="170" />
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button v-if="row.status === 'PENDING'" type="success" size="small" @click="handleAudit(row.id, 'APPROVED')">通过</el-button>
-            <el-button v-if="row.status === 'PENDING'" type="danger" size="small" @click="handleReject(row.id)">拒绝</el-button>
+            <el-button v-if="row.status === 'PENDING'" v-permission="'goods:audit'" type="success" size="small" @click="handleAudit(row.id, 'APPROVED')">通过</el-button>
+            <el-button v-if="row.status === 'PENDING'" v-permission="'goods:audit'" type="danger" size="small" @click="handleReject(row.id)">拒绝</el-button>
             <el-button size="small" @click="handleViewDetail(row)">查看</el-button>
           </template>
         </el-table-column>
