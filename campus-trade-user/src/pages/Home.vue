@@ -2,25 +2,19 @@
   <div class="home-page">
     <section class="hero">
       <el-carousel height="260px" :interval="5000" arrow="hover" indicator-position="outside">
-        <el-carousel-item>
+        <el-carousel-item v-for="banner in banners" :key="banner.id">
+          <div class="hero-slide" :style="{ background: banner.bgColor || 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' }">
+            <img v-if="banner.imageUrl" :src="banner.imageUrl" class="hero-bg-img" />
+            <h1>{{ banner.title }}</h1>
+            <p>{{ banner.subtitle }}</p>
+            <el-button v-if="banner.linkUrl" type="primary" size="large" round @click="$router.push(banner.linkUrl)">{{ banner.linkUrl.includes('publish') ? '发布商品' : '浏览商品' }}</el-button>
+          </div>
+        </el-carousel-item>
+        <el-carousel-item v-if="banners.length === 0">
           <div class="hero-slide" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%)">
             <h1>校园二手交易平台</h1>
             <p>安全 · 便捷 · 值得信赖的校园闲置好物流转平台</p>
             <el-button type="primary" size="large" round @click="$router.push('/goods')">浏览商品</el-button>
-          </div>
-        </el-carousel-item>
-        <el-carousel-item>
-          <div class="hero-slide" style="background: linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%)">
-            <h1>闲置好物 低价淘</h1>
-            <p>学长学姐的优质好物，超值价格等你来</p>
-            <el-button type="primary" size="large" round @click="$router.push('/goods')">立即淘宝</el-button>
-          </div>
-        </el-carousel-item>
-        <el-carousel-item>
-          <div class="hero-slide" style="background: linear-gradient(135deg, #dc2626 0%, #f97316 50%, #fbbf24 100%)">
-            <h1>发布闲置 轻松变现</h1>
-            <p>一键发布，快速找到买家，让闲置不再闲置</p>
-            <el-button type="primary" size="large" round @click="$router.push('/goods/publish')">发布商品</el-button>
           </div>
         </el-carousel-item>
       </el-carousel>
@@ -87,9 +81,12 @@
 import { ref, onMounted } from 'vue'
 import { getHotGoods, getRecommendGoods } from '@/api/goods'
 import { getCategoryList } from '@/api/category'
+import { getActiveBanners } from '@/api/banner'
 import type { GoodsVO } from '@/api/goods'
 import type { GoodsCategory } from '@/api/category'
+import type { BannerVO } from '@/api/banner'
 
+const banners = ref<BannerVO[]>([])
 const hotGoods = ref<GoodsVO[]>([])
 const recommendGoods = ref<GoodsVO[]>([])
 const categories = ref<GoodsCategory[]>([])
@@ -100,24 +97,28 @@ const toggleCategory = (id: number) => {
   loadHotGoods()
 }
 
+const loadBanners = async () => {
+  try { banners.value = await getActiveBanners() } catch { /* ignore */ }
+}
+
 const loadHotGoods = async () => {
   try {
     const res = await getHotGoods()
     let list = res.list || []
     if (selectedCategoryId.value) list = list.filter((g: GoodsVO) => g.categoryId === selectedCategoryId.value)
-    hotGoods.value = list
+    hotGoods.value = list.slice(0, 8)
   } catch { /* ignore */ }
 }
 
 const loadRecommendGoods = async () => {
-  try { const res = await getRecommendGoods(); recommendGoods.value = res.list || [] } catch { /* ignore */ }
+  try { const res = await getRecommendGoods(); recommendGoods.value = (res.list || []).slice(0, 8) } catch { /* ignore */ }
 }
 
 const loadCategories = async () => {
   try { const res = await getCategoryList(); categories.value = res || [] } catch { /* ignore */ }
 }
 
-onMounted(() => { loadHotGoods(); loadRecommendGoods(); loadCategories() })
+onMounted(() => { loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCategories() })
 </script>
 
 <style scoped lang="scss">
@@ -135,9 +136,20 @@ onMounted(() => { loadHotGoods(); loadRecommendGoods(); loadCategories() })
   justify-content: center;
   text-align: center;
   color: #fff;
-  h1 { font-size: 32px; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.5px; }
-  p { font-size: 16px; opacity: 0.9; margin-bottom: 24px; }
-  .el-button { font-size: 16px; padding: 12px 32px; background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); &:hover { background: rgba(255,255,255,0.35); } }
+  position: relative;
+  h1 { font-size: 32px; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.5px; position: relative; z-index: 1; }
+  p { font-size: 16px; opacity: 0.9; margin-bottom: 24px; position: relative; z-index: 1; }
+  .el-button { font-size: 16px; padding: 12px 32px; background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); &:hover { background: rgba(255,255,255,0.35); } position: relative; z-index: 1; }
+}
+
+.hero-bg-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.3;
 }
 
 .category-bar {

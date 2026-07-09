@@ -11,6 +11,7 @@ public class SecurityConstant {
             "/api/auth/register",
             "/api/auth/refresh",
             "/api/auth/captcha",
+            "/api/banner/active",
             "/doc.html",
             "/webjars/**",
             "/swagger-resources/**",

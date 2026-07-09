@@ -40,6 +40,12 @@ const allRoutes: RouteRecordRaw[] = [
         meta: { title: '举报审核', icon: 'Warning', permission: 'report:manage' }
       },
       {
+        path: 'banner',
+        name: 'BannerManage',
+        component: () => import('@/pages/BannerManage.vue'),
+        meta: { title: '横幅管理', icon: 'Picture', permission: '' }
+      },
+      {
         path: 'log',
         name: 'LogCenter',
         component: () => import('@/pages/LogCenter.vue'),

@@ -260,6 +260,27 @@ CREATE TABLE t_notification (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知表';
 
 -- ============================================================
+-- 横幅
+-- ============================================================
+
+CREATE TABLE t_banner (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
+    title VARCHAR(200) NOT NULL COMMENT '标题',
+    subtitle VARCHAR(500) DEFAULT NULL COMMENT '副标题',
+    image_url VARCHAR(255) DEFAULT NULL COMMENT '背景图片URL',
+    link_url VARCHAR(255) DEFAULT NULL COMMENT '点击跳转链接',
+    bg_color VARCHAR(500) DEFAULT NULL COMMENT '背景色/渐变CSS',
+    sort_order INT DEFAULT 0 COMMENT '排序(升序)',
+    status TINYINT DEFAULT 1 COMMENT '状态 0-禁用 1-启用',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除',
+    version INT DEFAULT 0 COMMENT '乐观锁版本号',
+    KEY idx_sort_order (sort_order),
+    KEY idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='横幅表';
+
+-- ============================================================
 -- 日志
 -- ============================================================
 

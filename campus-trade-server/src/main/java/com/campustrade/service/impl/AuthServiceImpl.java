@@ -107,6 +107,7 @@ public class AuthServiceImpl implements AuthService {
         user.setNickname(dto.getUsername());
         user.setPhone(dto.getPhone());
         user.setEmail(dto.getEmail());
+        user.setAvatar("/default-avatar.svg");
         user.setStatus(1);
         user.setRealVerified(0);
         userMapper.insert(user);
