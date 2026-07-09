@@ -10,6 +10,8 @@ public interface UserService {
 
     Result<UserVO> getUserInfo(Long userId);
 
+    Result<UserVO> getUserPublicInfo(Long userId);
+
     Result<UserVO> updateUserInfo(Long userId, UserUpdateDTO dto);
 
     Result<Void> updatePassword(Long userId, PasswordUpdateDTO dto);

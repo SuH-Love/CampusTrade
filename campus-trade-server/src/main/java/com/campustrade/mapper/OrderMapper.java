@@ -31,4 +31,6 @@ public interface OrderMapper {
                           @Param("offset") Integer offset, @Param("pageSize") Integer pageSize);
 
     Long selectCountAll(@Param("status") String status);
+
+    List<Order> selectTimeoutPendingPay(@Param("timeout") java.time.LocalDateTime timeout);
 }

@@ -18,7 +18,7 @@
         </nav>
         <div class="header-right">
           <template v-if="userStore.token">
-            <el-badge :value="cartCount || ''" :hidden="!cartCount" class="header-badge">
+            <el-badge :value="cartStore.cartCount || ''" :hidden="!cartStore.cartCount" class="header-badge">
               <router-link to="/cart" class="icon-btn" title="购物车">
                 <el-icon :size="20"><ShoppingCart /></el-icon>
               </router-link>
@@ -73,14 +73,14 @@
 import { ref, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useCartStore } from '@/stores/cart'
 import { getUnreadCount as getNotifyUnread } from '@/api/notification'
-import { getCartList } from '@/api/cart'
 import { useChatWs } from '@/composables/useChatWs'
 
 const route = useRoute()
 const userStore = useUserStore()
+const cartStore = useCartStore()
 const { chatUnread, notifyUnread, onNotification } = useChatWs()
-const cartCount = ref(0)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
@@ -89,15 +89,10 @@ const fetchNotifyCount = async () => {
   try { const r = await getNotifyUnread(); if (typeof r === 'number') notifyUnread.value = r } catch { /* */ }
 }
 
-const fetchCartCount = async () => {
-  if (!userStore.token) return
-  try { const list = await getCartList(); cartCount.value = list ? list.length : 0 } catch { /* */ }
-}
-
 const startPolling = () => {
   fetchNotifyCount()
-  fetchCartCount()
-  pollTimer = setInterval(() => { fetchNotifyCount(); fetchCartCount() }, 60000)
+  cartStore.fetchCartCount()
+  pollTimer = setInterval(() => { fetchNotifyCount(); cartStore.fetchCartCount() }, 60000)
 }
 
 const stopPolling = () => {
@@ -105,7 +100,7 @@ const stopPolling = () => {
 }
 
 watch(() => userStore.token, (token) => {
-  if (token) startPolling(); else { stopPolling(); notifyUnread.value = 0; cartCount.value = 0 }
+  if (token) startPolling(); else { stopPolling(); notifyUnread.value = 0; cartStore.cartCount = 0 }
 }, { immediate: true })
 
 const removeNotifyHandler = onNotification(() => {

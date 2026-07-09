@@ -51,8 +51,8 @@
             <el-button type="primary" size="large" @click="handleBuy" :loading="buying" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id" round>
               立即购买
             </el-button>
-            <el-button size="large" @click="handleAddToCart" :loading="addingToCart" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id" round>
-              加入购物车
+            <el-button size="large" :type="isInCart ? 'success' : 'default'" @click="handleAddToCart" :loading="addingToCart" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id" round>
+              {{ isInCart ? '已在购物车' : '加入购物车' }}
             </el-button>
             <el-button size="large" :type="goods.isFavorited ? 'warning' : 'default'" @click="handleFavorite" :loading="favoriting" round>
               <el-icon><Star /></el-icon> {{ goods.isFavorited ? '已收藏' : '收藏' }}
@@ -71,16 +71,19 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getGoodsDetail, favoriteGoods, unfavoriteGoods } from '@/api/goods'
 import { createOrder } from '@/api/order'
-import { addToCart } from '@/api/cart'
+import { addToCart, getCartList } from '@/api/cart'
 import { toggleFollow, isFollowing } from '@/api/follow'
 import { getAverageRating } from '@/api/rating'
 import { useUserStore } from '@/stores/user'
+import { useCartStore } from '@/stores/cart'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { h } from 'vue'
 import type { GoodsVO } from '@/api/goods'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const cartStore = useCartStore()
 const goods = ref<GoodsVO | null>(null)
 const buying = ref(false)
 const favoriting = ref(false)
@@ -88,8 +91,7 @@ const addingToCart = ref(false)
 const isFollowed = ref(false)
 const followLoading = ref(false)
 const sellerRating = ref(0)
-const deliveryMethod = ref('PICKUP')
-const deliveryAddress = ref('')
+const isInCart = ref(false)
 
 const imageList = computed(() => {
   if (!goods.value) return []
@@ -118,22 +120,56 @@ const loadData = async () => {
     try { isFollowed.value = await isFollowing(goods.value.userId) } catch { /* ignore */ }
     try { sellerRating.value = await getAverageRating(goods.value.userId) } catch { /* ignore */ }
   }
+  if (goods.value && userStore.token) {
+    try {
+      const cartList = await getCartList()
+      isInCart.value = cartList ? cartList.some((c: any) => c.goodsId === goods.value!.id) : false
+    } catch { /* ignore */ }
+  }
 }
 
 const handleBuy = async () => {
   if (!goods.value) return
+  const deliveryMethod = ref('PICKUP')
+  const deliveryAddress = ref('')
   try {
     await ElMessageBox({
       title: '确认购买',
-      message: `确认购买「${goods.value.title}」？价格 ¥${goods.value.price}`,
+      message: () => h('div', null, [
+        h('p', { style: 'margin-bottom: 12px' }, `确认购买「${goods.value!.title}」？价格 ¥${goods.value!.price}`),
+        h('div', { style: 'margin-bottom: 12px' }, [
+          h('span', { style: 'margin-right: 12px' }, '配送方式：'),
+          h('input', {
+            type: 'radio', name: 'delivery', value: 'PICKUP', checked: deliveryMethod.value === 'PICKUP',
+            style: 'margin-right: 4px', onChange: (e: Event) => { deliveryMethod.value = (e.target as HTMLInputElement).value; deliveryAddress.value = '' }
+          }),
+          h('span', { style: 'margin-right: 16px' }, '自取'),
+          h('input', {
+            type: 'radio', name: 'delivery', value: 'DELIVERY', checked: deliveryMethod.value === 'DELIVERY',
+            style: 'margin-right: 4px', onChange: (e: Event) => { deliveryMethod.value = (e.target as HTMLInputElement).value }
+          }),
+          h('span', null, '配送')
+        ]),
+        deliveryMethod.value === 'DELIVERY' ? h('input', {
+          type: 'text', placeholder: '请输入配送地址',
+          style: 'width: 100%; padding: 8px 12px; border: 1px solid #dcdfe6; border-radius: 4px; box-sizing: border-box;',
+          onInput: (e: Event) => { deliveryAddress.value = (e.target as HTMLInputElement).value }
+        }) : null
+      ]),
       showCancelButton: true,
       confirmButtonText: '确认',
-      cancelButtonText: '取消'
+      cancelButtonText: '取消',
+      beforeClose: (action, instance, done) => {
+        if (action === 'confirm' && deliveryMethod.value === 'DELIVERY' && !deliveryAddress.value.trim()) {
+          ElMessage.error('请输入配送地址')
+          return
+        }
+        done()
+      }
     })
     buying.value = true
     const data: { goodsId: number; remark?: string; deliveryMethod?: string; deliveryAddress?: string } = { goodsId: goods.value.id }
     if (deliveryMethod.value === 'DELIVERY') {
-      if (!deliveryAddress.value.trim()) { ElMessage.error('请输入配送地址'); buying.value = false; return }
       data.deliveryMethod = 'DELIVERY'
       data.deliveryAddress = deliveryAddress.value
     } else {
@@ -168,7 +204,12 @@ const handleReport = () => { router.push({ path: '/report', query: { targetType:
 const handleAddToCart = async () => {
   if (!goods.value || !userStore.token) { ElMessage.warning('请先登录'); return }
   addingToCart.value = true
-  try { await addToCart(goods.value.id); ElMessage.success('已加入购物车') } finally { addingToCart.value = false }
+  try {
+    await addToCart(goods.value.id)
+    isInCart.value = true
+    cartStore.fetchCartCount()
+    ElMessage.success('已加入购物车')
+  } finally { addingToCart.value = false }
 }
 
 const handleToggleFollow = async () => {

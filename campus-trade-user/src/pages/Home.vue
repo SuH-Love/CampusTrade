@@ -3,7 +3,7 @@
     <section class="hero">
       <el-carousel height="260px" :interval="5000" arrow="hover" indicator-position="outside">
         <el-carousel-item v-for="banner in banners" :key="banner.id">
-          <div class="hero-slide" :style="{ background: banner.bgColor || 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' }">
+          <div class="hero-slide" :style="{ background: banner.imageUrl ? 'transparent' : (banner.bgColor || 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)') }">
             <img v-if="banner.imageUrl" :src="banner.imageUrl" class="hero-bg-img" />
             <h1 v-if="banner.title">{{ banner.title }}</h1>
             <p v-if="banner.subtitle">{{ banner.subtitle }}</p>
@@ -159,7 +159,7 @@ onMounted(() => { loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCateg
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.3;
+  opacity: 1;
 }
 
 .category-bar {

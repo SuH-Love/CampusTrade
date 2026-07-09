@@ -39,6 +39,9 @@ import { getCartList, updateCartQuantity, removeFromCart, clearCart } from '@/ap
 import { createOrder } from '@/api/order'
 import type { CartVO } from '@/api/cart'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useCartStore } from '@/stores/cart'
+
+const cartStore = useCartStore()
 
 
 const cartList = ref<CartVO[]>([])
@@ -59,6 +62,7 @@ const handleRemove = async (id: number) => {
   await ElMessageBox.confirm('确认从购物车移除？', '移除确认')
   await removeFromCart(id)
   ElMessage.success('已移除')
+  cartStore.fetchCartCount()
   loadData()
 }
 
@@ -66,6 +70,7 @@ const handleClearCart = async () => {
   await ElMessageBox.confirm('确认清空购物车？', '清空确认')
   await clearCart()
   ElMessage.success('已清空')
+  cartStore.fetchCartCount()
   loadData()
 }
 
@@ -73,7 +78,9 @@ const handleCheckout = async (item: CartVO) => {
   await ElMessageBox.confirm(`确认购买「${item.title}」？价格 ¥${item.price}`, '确认购买')
   try {
     await createOrder({ goodsId: item.goodsId })
+    await removeFromCart(item.id)
     ElMessage.success('下单成功')
+    cartStore.fetchCartCount()
     loadData()
   } catch { /* ignore */ }
 }
@@ -82,9 +89,13 @@ const handleBatchCheckout = async () => {
   const onlineItems = cartList.value.filter(item => item.status === 'ONLINE')
   if (onlineItems.length === 0) { ElMessage.warning('没有可结算的商品'); return }
   for (const item of onlineItems) {
-    try { await createOrder({ goodsId: item.goodsId }) } catch { /* continue */ }
+    try {
+      await createOrder({ goodsId: item.goodsId })
+      await removeFromCart(item.id)
+    } catch { /* continue */ }
   }
   ElMessage.success('批量下单成功')
+  cartStore.fetchCartCount()
   loadData()
 }
 

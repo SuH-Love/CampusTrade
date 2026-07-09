@@ -27,6 +27,12 @@ public class UserController {
         return userService.getUserInfo(SecurityUtil.requireCurrentUserId());
     }
 
+    @ApiOperation("获取用户公开信息")
+    @GetMapping("/{id}")
+    public Result<UserVO> getUserPublicInfo(@PathVariable Long id) {
+        return userService.getUserPublicInfo(id);
+    }
+
     @ApiOperation("修改个人信息")
     @PutMapping("/info")
     public Result<UserVO> updateUserInfo(@Validated @RequestBody UserUpdateDTO dto) {

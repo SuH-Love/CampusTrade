@@ -26,3 +26,5 @@ export const realNameVerify = (realName: string, studentId: string) =>
   request.post('/user/verify', null, { params: { realName, studentId } })
 
 export const uploadAvatar = (fileUrl: string) => request.post('/user/avatar', null, { params: { fileUrl } })
+
+export const getUserPublicInfo = (id: number) => request.get<never, UserVO>(`/user/${id}`)

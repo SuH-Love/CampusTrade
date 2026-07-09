@@ -14,14 +14,16 @@
         <el-tab-pane label="我卖出的" name="seller" />
       </el-tabs>
       <div class="status-tabs">
-        <el-radio-group v-model="statusFilter" @change="handleSearch" size="default">
-          <el-radio-button label="">全部</el-radio-button>
-          <el-radio-button label="PENDING_PAY">待支付</el-radio-button>
-          <el-radio-button label="PAID">待发货</el-radio-button>
-          <el-radio-button label="SHIPPING">待收货</el-radio-button>
-          <el-radio-button label="PENDING_REVIEW">待评价</el-radio-button>
-          <el-radio-button label="REFUND">退款售后</el-radio-button>
-        </el-radio-group>
+        <el-select v-model="statusFilter" @change="handleSearch" placeholder="订单状态" clearable style="width: 160px">
+          <el-option label="全部" value="" />
+          <el-option label="待支付" value="PENDING_PAY" />
+          <el-option label="待发货" value="PAID" />
+          <el-option label="待收货" value="SHIPPING" />
+          <el-option label="待评价" value="PENDING_REVIEW" />
+          <el-option label="已完成" value="FINISHED" />
+          <el-option label="已取消" value="CANCELLED" />
+          <el-option label="退款售后" value="REFUND" />
+        </el-select>
       </div>
       <el-table :data="filteredOrders" stripe style="width: 100%" v-loading="loading">
         <el-table-column prop="orderNo" label="订单号" width="200" />

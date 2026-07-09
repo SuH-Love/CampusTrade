@@ -37,6 +37,21 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public Result<UserVO> getUserPublicInfo(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            return Result.error(ResultCode.NOT_FOUND);
+        }
+        UserVO vo = new UserVO();
+        vo.setId(user.getId());
+        vo.setUsername(user.getUsername());
+        vo.setNickname(user.getNickname());
+        vo.setAvatar(user.getAvatar());
+        vo.setRealVerified(user.getRealVerified());
+        return Result.success(vo);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<UserVO> updateUserInfo(Long userId, UserUpdateDTO dto) {
         User user = userMapper.selectById(userId);
