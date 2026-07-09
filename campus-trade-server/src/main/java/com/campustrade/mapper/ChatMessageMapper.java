@@ -23,4 +23,6 @@ public interface ChatMessageMapper {
     int insertBatch(@Param("messages") List<ChatMessage> messages);
 
     int updateById(ChatMessage message);
+
+    Long selectTotalUnreadCount(@Param("receiverId") Long receiverId);
 }

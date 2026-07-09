@@ -16,4 +16,6 @@ public interface ChatService {
     Result<Long> getUnreadCount(Long userId, Long senderId);
 
     Result<Void> markAsRead(Long userId, Long senderId);
+
+    Result<Long> getTotalUnreadCount(Long userId);
 }

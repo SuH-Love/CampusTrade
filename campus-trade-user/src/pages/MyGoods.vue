@@ -7,7 +7,19 @@
           <el-button type="success" @click="$router.push('/goods/publish')">发布商品</el-button>
         </div>
       </template>
-      <el-table :data="goodsList" stripe v-loading="loading">
+      <div class="filter-bar">
+        <el-input v-model="searchKeyword" placeholder="搜索商品标题" clearable style="width: 200px" @keyup.enter="handleSearch" @clear="handleSearch" />
+        <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch" style="width: 140px">
+          <el-option label="草稿" value="DRAFT" />
+          <el-option label="待审核" value="PENDING" />
+          <el-option label="审核通过" value="APPROVED" />
+          <el-option label="已拒绝" value="REJECTED" />
+          <el-option label="已上架" value="ONLINE" />
+          <el-option label="已下架" value="OFFLINE" />
+          <el-option label="已售出" value="SOLD" />
+        </el-select>
+      </div>
+      <el-table :data="filteredGoods" stripe v-loading="loading">
         <el-table-column label="商品" min-width="250">
           <template #default="{ row }">
             <div style="display: flex; align-items: center; gap: 12px">
@@ -43,14 +55,14 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-empty v-if="goodsList.length === 0" description="暂无发布的商品" />
+      <el-empty v-if="filteredGoods.length === 0 && !loading" description="暂无发布的商品" />
       <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getMyGoods, submitAudit, onlineGoods, offlineGoods, deleteGoods } from '@/api/goods'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { GoodsVO } from '@/api/goods'
@@ -61,6 +73,8 @@ const pageSize = ref(10)
 const total = ref(0)
 const loading = ref(false)
 const actionLoading = ref<number | null>(null)
+const searchKeyword = ref('')
+const statusFilter = ref('')
 
 const statusLabel = (status: string) => {
   const map: Record<string, string> = { DRAFT: '草稿', PENDING: '待审核', APPROVED: '审核通过', REJECTED: '已拒绝', ONLINE: '已上架', OFFLINE: '已下架', SOLD: '已售出' }
@@ -77,15 +91,31 @@ const statusTip = (status: string) => {
   return map[status] || ''
 }
 
+const filteredGoods = computed(() => {
+  let list = goodsList.value
+  if (searchKeyword.value) {
+    const kw = searchKeyword.value.toLowerCase()
+    list = list.filter(g => g.title.toLowerCase().includes(kw))
+  }
+  return list
+})
+
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await getMyGoods({ pageNum: pageNum.value, pageSize: pageSize.value })
+    const params: { pageNum: number; pageSize: number; status?: string } = { pageNum: pageNum.value, pageSize: pageSize.value }
+    if (statusFilter.value) params.status = statusFilter.value
+    const res = await getMyGoods(params)
     goodsList.value = res.list || []
     total.value = res.total || 0
   } finally {
     loading.value = false
   }
+}
+
+const handleSearch = () => {
+  pageNum.value = 1
+  loadData()
 }
 
 const handleSubmitAudit = async (id: number) => {
@@ -116,4 +146,5 @@ onMounted(loadData)
 
 <style scoped lang="scss">
 .my-goods-page { padding: 20px; }
+.filter-bar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
 </style>

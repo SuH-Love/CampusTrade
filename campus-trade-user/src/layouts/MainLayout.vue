@@ -17,7 +17,7 @@
         </nav>
         <div class="header-right">
           <template v-if="userStore.token">
-            <el-badge :is-dot="!!totalUnread" class="header-badge">
+            <el-badge :value="totalUnread || undefined" :hidden="!totalUnread" :max="99" class="header-badge">
               <router-link to="/chat" class="icon-btn" title="聊天">
                 <el-icon :size="20"><ChatDotRound /></el-icon>
               </router-link>

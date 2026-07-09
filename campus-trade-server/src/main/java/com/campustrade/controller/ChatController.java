@@ -64,4 +64,10 @@ public class ChatController {
         Set<Long> onlineUserIds = ChatWebSocketHandler.getOnlineUserIds();
         return Result.success(onlineUserIds.stream().collect(Collectors.toList()));
     }
+
+    @ApiOperation("总未读消息数")
+    @GetMapping("/unread-total")
+    public Result<Long> getTotalUnreadCount() {
+        return chatService.getTotalUnreadCount(SecurityUtil.requireCurrentUserId());
+    }
 }

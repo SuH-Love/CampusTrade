@@ -1,10 +1,22 @@
 <template>
   <div class="favorites-page">
     <el-card>
-      <template #header><h3 style="margin: 0">我的收藏</h3></template>
+      <template #header>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px">
+          <h3 style="margin: 0">我的收藏</h3>
+          <div class="filter-bar">
+            <el-input v-model="searchKeyword" placeholder="搜索商品标题" clearable style="width: 200px" @keyup.enter="handleSearch" @clear="handleSearch" />
+            <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch" style="width: 140px">
+              <el-option label="在售" value="ONLINE" />
+              <el-option label="已下架" value="OFFLINE" />
+              <el-option label="已售出" value="SOLD" />
+            </el-select>
+          </div>
+        </div>
+      </template>
       <el-row :gutter="16" v-loading="loading">
-        <el-col :xs="12" :sm="8" :md="6" v-for="item in goodsList" :key="item.id">
-          <div class="fav-card" :class="{ sold: item.status === 'SOLD' }">
+        <el-col :xs="12" :sm="8" :md="6" v-for="item in filteredGoods" :key="item.id">
+          <div class="fav-card" :class="{ sold: item.status === 'SOLD' || item.status === 'OFFLINE' }">
             <div class="fav-img-wrap" @click="item.status !== 'SOLD' && $router.push(`/goods/${item.id}`)">
               <img :src="item.coverImage || '/placeholder.png'" class="fav-img" />
               <div v-if="item.status === 'SOLD'" class="sold-overlay">
@@ -24,33 +36,52 @@
           </div>
         </el-col>
       </el-row>
-      <el-empty v-if="goodsList.length === 0" description="暂无收藏" />
+      <el-empty v-if="filteredGoods.length === 0 && !loading" description="暂无收藏" />
       <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getFavoriteList, unfavoriteGoods } from '@/api/goods'
 import { ElMessage } from 'element-plus'
 import type { GoodsVO } from '@/api/goods'
+import type { GoodsQueryParams } from '@/types'
 
 const goodsList = ref<GoodsVO[]>([])
 const pageNum = ref(1)
 const pageSize = ref(12)
 const total = ref(0)
 const loading = ref(false)
+const searchKeyword = ref('')
+const statusFilter = ref('')
+
+const filteredGoods = computed(() => {
+  let list = goodsList.value
+  if (searchKeyword.value) {
+    const kw = searchKeyword.value.toLowerCase()
+    list = list.filter(g => g.title.toLowerCase().includes(kw))
+  }
+  return list
+})
 
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await getFavoriteList({ pageNum: pageNum.value, pageSize: pageSize.value })
+    const params: GoodsQueryParams = { pageNum: pageNum.value, pageSize: pageSize.value }
+    if (statusFilter.value) params.status = statusFilter.value
+    const res = await getFavoriteList(params)
     goodsList.value = res.list || []
     total.value = res.total || 0
   } finally {
     loading.value = false
   }
+}
+
+const handleSearch = () => {
+  pageNum.value = 1
+  loadData()
 }
 
 const handleUnfavorite = async (id: number) => {
@@ -64,6 +95,7 @@ onMounted(loadData)
 
 <style scoped lang="scss">
 .favorites-page { padding: 20px; }
+.filter-bar { display: flex; gap: 12px; align-items: center; }
 .fav-card {
   background: var(--bg-card);
   border-radius: var(--radius-md);

@@ -1,6 +1,6 @@
 import { ref, computed, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
-import { getOnlineUsers } from '@/api/chat'
+import { getOnlineUsers, getTotalUnreadCount } from '@/api/chat'
 import type { ChatMessageVO } from '@/api/chat'
 
 interface WsMessage {
@@ -16,7 +16,8 @@ const onlineUsers = ref<Set<number>>(new Set())
 const unreadMap = ref<Map<number, number>>(new Map())
 const totalUnread = computed(() => {
   let sum = 0
-  unreadMap.value.forEach(v => { sum += v })
+  unreadMap.value.forEach((v, k) => { if (k !== -1) sum += v })
+  if (sum === 0 && unreadMap.value.has(-1)) return unreadMap.value.get(-1) || 0
   return sum
 })
 const messageHandlers = ref<((msg: WsMessage) => void)[]>([])
@@ -68,6 +69,7 @@ function connect() {
       reconnectAttempts = 0
       startHeartbeat(ws)
       fetchOnlineUsers()
+      fetchTotalUnread()
     }
 
     ws.onmessage = (event) => {
@@ -182,12 +184,23 @@ function onMessage(handler: (msg: WsMessage) => void) {
   }
 }
 
-async function fetchOnlineUsers() {
-  try {
-    const ids = await getOnlineUsers()
-    if (Array.isArray(ids)) onlineUsers.value = new Set(ids)
-  } catch { /* ignore */ }
-}
+  async function fetchOnlineUsers() {
+    try {
+      const ids = await getOnlineUsers()
+      if (Array.isArray(ids)) onlineUsers.value = new Set(ids)
+    } catch { /* ignore */ }
+  }
+
+  async function fetchTotalUnread() {
+    try {
+      const count = await getTotalUnreadCount()
+      if (typeof count === 'number' && count > 0 && unreadMap.value.size === 0) {
+        const m = new Map(unreadMap.value)
+        m.set(-1, count)
+        unreadMap.value = m
+      }
+    } catch { /* ignore */ }
+  }
 
 export function useChatWs() {
   const userStore = useUserStore()

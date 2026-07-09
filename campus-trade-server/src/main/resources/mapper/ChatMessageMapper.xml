@@ -57,4 +57,9 @@
     <update id="updateById">
         UPDATE t_chat_message SET is_read = #{isRead}, update_time = NOW() WHERE id = #{id} AND deleted = 0
     </update>
+
+    <select id="selectTotalUnreadCount" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_chat_message
+        WHERE receiver_id = #{receiverId} AND is_read = 0 AND deleted = 0
+    </select>
 </mapper>

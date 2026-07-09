@@ -74,6 +74,12 @@ public class ChatServiceImpl implements ChatService {
         return Result.success();
     }
 
+    @Override
+    public Result<Long> getTotalUnreadCount(Long userId) {
+        Long count = chatMessageMapper.selectTotalUnreadCount(userId);
+        return Result.success(count);
+    }
+
     private ChatMessageVO toVO(ChatMessage msg) {
         ChatMessageVO vo = new ChatMessageVO();
         vo.setId(msg.getId());
