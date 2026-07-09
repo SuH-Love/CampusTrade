@@ -40,7 +40,7 @@ public class DataInitializer implements CommandLineRunner {
         initAdminUser();
         initNormalUser();
         initCategories();
-        initBanners();
+        try { initBanners(); } catch (Exception e) { log.warn("Banner init skipped: {}", e.getMessage()); }
         clearPermissionCache();
     }
 
