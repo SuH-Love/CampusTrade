@@ -103,17 +103,18 @@ onMounted(loadData)
   border: 1px solid var(--border);
   margin-bottom: 16px;
   transition: var(--transition);
-  &:not(.sold):hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+  &:not(.sold):hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); border-color: var(--primary-lighter); }
   &.sold { opacity: 0.75; }
 }
-.fav-img-wrap { position: relative; padding-top: 75%; background: #f1f5f9; cursor: pointer; &.no-click { cursor: not-allowed; } }
+.fav-img-wrap { position: relative; padding-top: 75%; background: linear-gradient(135deg, #f1f5f9, #e2e8f0); cursor: pointer; &.no-click { cursor: not-allowed; } }
 .fav-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
 .sold-overlay {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(2px);
   display: flex; align-items: center; justify-content: center;
 }
-.fav-info { padding: 12px; }
-.fav-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; font-size: 14px; }
-.fav-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.fav-info { padding: 14px 14px 16px; }
+.fav-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 14px; }
+.fav-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
 </style>

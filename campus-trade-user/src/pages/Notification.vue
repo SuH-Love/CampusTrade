@@ -146,20 +146,23 @@ onMounted(() => { loadData(); loadUnreadCount(); loadPreferences() })
 .notification-page { padding: 20px; }
 .notification-list { max-height: 600px; overflow-y: auto; }
 .notification-item {
-  display: flex; align-items: flex-start; gap: 10px; padding: 16px; border-bottom: 1px solid #f0f0f0; cursor: pointer;
-  &:hover { background: #fafafa; }
-  &.unread { background: #f0f7ff; }
+  display: flex; align-items: flex-start; gap: 10px; padding: 16px; border-bottom: 1px solid var(--border-light); cursor: pointer;
+  transition: var(--transition-fast);
+  &:hover { background: var(--bg-hover); border-radius: var(--radius-sm); }
+  &.unread { background: var(--primary-lighter); border-radius: var(--radius-sm); }
 }
-.notification-dot { width: 8px; height: 8px; border-radius: 50%; background: #f56c6c; margin-top: 6px; flex-shrink: 0; }
+.notification-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); margin-top: 6px; flex-shrink: 0; }
 .notification-body { flex: 1; }
-.notification-title { display: flex; align-items: center; font-weight: 500; }
-.notification-content { color: #666; margin: 6px 0; font-size: 14px; }
-.notification-time { color: #999; font-size: 12px; }
+.notification-title { display: flex; align-items: center; font-weight: 600; }
+.notification-content { color: var(--text-secondary); margin: 6px 0; font-size: 14px; line-height: 1.6; }
+.notification-time { color: var(--text-muted); font-size: 12px; }
 .preference-section {
   display: flex; align-items: center; gap: 8px;
-  padding: 12px 16px; margin-bottom: 12px;
-  background: #f8f9fa; border-radius: 8px;
-  border: 1px solid #f0f0f0;
+  padding: 14px 18px; margin-bottom: 14px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
 }
-.preference-label { font-size: 14px; font-weight: 500; color: var(--text-primary); white-space: nowrap; }
+.preference-label { font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
 </style>

@@ -184,5 +184,5 @@ onMounted(loadData)
 <style scoped lang="scss">
 .orders-page { padding: 20px; }
 .filter-bar { display: flex; gap: 12px; align-items: center; }
-.status-tabs { margin-bottom: 16px; }
+
 </style>

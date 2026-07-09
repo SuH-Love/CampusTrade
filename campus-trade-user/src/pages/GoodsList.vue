@@ -90,10 +90,12 @@ onMounted(() => { loadData(); loadCategories() })
 
 <style scoped lang="scss">
 .search-bar {
-  background: var(--bg-card);
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
   padding: 20px 24px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
 }
 
 .goods-card {
@@ -103,15 +105,15 @@ onMounted(() => { loadData(); loadCategories() })
   transition: var(--transition);
   border: 1px solid var(--border);
   margin-bottom: 16px;
-  &:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+  &:hover { transform: translateY(-6px); box-shadow: var(--shadow-lg); border-color: var(--primary-lighter); }
 }
 
-.goods-img-wrap { position: relative; padding-top: 75%; overflow: hidden; background: #f1f5f9; }
-.goods-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; .goods-card:hover & { transform: scale(1.05); } }
-.goods-category-tag { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.5); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; }
-.goods-info { padding: 12px; }
-.goods-title { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goods-img-wrap { position: relative; padding-top: 75%; overflow: hidden; background: linear-gradient(135deg, #f1f5f9, #e2e8f0); }
+.goods-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); .goods-card:hover & { transform: scale(1.08); } }
+.goods-category-tag { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); color: #fff; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 10px; }
+.goods-info { padding: 14px 14px 16px; }
+.goods-title { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .goods-price-row { display: flex; align-items: baseline; gap: 8px; margin-top: 8px; }
 .original-price { font-size: 12px; color: var(--text-muted); text-decoration: line-through; }
-.goods-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.goods-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
 </style>

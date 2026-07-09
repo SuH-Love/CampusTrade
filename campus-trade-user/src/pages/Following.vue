@@ -65,10 +65,11 @@ onMounted(loadData)
 .following-list { max-height: 600px; overflow-y: auto; }
 .following-item {
   display: flex; align-items: center; gap: 12px;
-  padding: 16px; border-bottom: 1px solid #f0f0f0;
+  padding: 16px; border-bottom: 1px solid var(--border-light);
   &:last-child { border-bottom: none; }
-  &:hover { background: #fafafa; }
+  &:hover { background: var(--bg-hover); border-radius: var(--radius-sm); }
+  transition: var(--transition-fast);
 }
 .following-info { flex: 1; cursor: pointer; }
-.following-name { font-weight: 500; font-size: 15px; }
+.following-name { font-weight: 600; font-size: 15px; }
 </style>

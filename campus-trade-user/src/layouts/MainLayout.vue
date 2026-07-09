@@ -3,17 +3,31 @@
     <el-header class="header">
       <div class="header-inner">
         <div class="logo" @click="$router.push('/')">
-          <div class="logo-icon">C</div>
+          <div class="logo-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          </div>
           <span class="logo-text">CampusTrade</span>
         </div>
         <nav class="nav-links">
-          <router-link to="/" class="nav-link" :class="{ active: route.path === '/' }">首页</router-link>
-          <router-link to="/goods" class="nav-link" :class="{ active: route.path.startsWith('/goods') }">商品</router-link>
+          <router-link to="/" class="nav-link" :class="{ active: route.path === '/' }">
+            <el-icon :size="16"><HomeFilled /></el-icon><span>首页</span>
+          </router-link>
+          <router-link to="/goods" class="nav-link" :class="{ active: route.path.startsWith('/goods') }">
+            <el-icon :size="16"><Goods /></el-icon><span>商品</span>
+          </router-link>
           <template v-if="userStore.token">
-            <router-link to="/my-goods" class="nav-link" :class="{ active: route.path === '/my-goods' }">我的商品</router-link>
-            <router-link to="/order" class="nav-link" :class="{ active: route.path.startsWith('/order') }">订单</router-link>
-            <router-link to="/favorites" class="nav-link" :class="{ active: route.path === '/favorites' }">收藏</router-link>
-            <router-link to="/following" class="nav-link" :class="{ active: route.path === '/following' }">我的关注</router-link>
+            <router-link to="/my-goods" class="nav-link" :class="{ active: route.path === '/my-goods' }">
+              <el-icon :size="16"><Box /></el-icon><span>我的商品</span>
+            </router-link>
+            <router-link to="/order" class="nav-link" :class="{ active: route.path.startsWith('/order') }">
+              <el-icon :size="16"><List /></el-icon><span>订单</span>
+            </router-link>
+            <router-link to="/favorites" class="nav-link" :class="{ active: route.path === '/favorites' }">
+              <el-icon :size="16"><Star /></el-icon><span>收藏</span>
+            </router-link>
+            <router-link to="/following" class="nav-link" :class="{ active: route.path === '/following' }">
+              <el-icon :size="16"><UserFilled /></el-icon><span>关注</span>
+            </router-link>
           </template>
         </nav>
         <div class="header-right">
@@ -35,8 +49,9 @@
             </el-badge>
             <el-dropdown>
               <div class="user-info">
-                <el-avatar :size="32" :src="userStore.userInfo?.avatar" />
+                <el-avatar :size="34" :src="userStore.userInfo?.avatar || '/default-avatar.svg'" />
                 <span class="user-name">{{ userStore.userInfo?.nickname || userStore.userInfo?.username }}</span>
+                <el-icon :size="14"><ArrowDown /></el-icon>
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
@@ -64,7 +79,20 @@
       <router-view :key="route.fullPath" />
     </el-main>
     <el-footer class="footer">
-      <span>CampusTrade 校园二手交易平台</span>
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <div class="footer-logo">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          </div>
+          <span>CampusTrade</span>
+        </div>
+        <div class="footer-links">
+          <router-link to="/goods">商品市场</router-link>
+          <router-link to="/goods/publish">发布商品</router-link>
+          <router-link to="/about">关于我们</router-link>
+        </div>
+        <div class="footer-copy">&copy; 2026 CampusTrade 校园二手交易平台 · 安全 · 便捷 · 值得信赖</div>
+      </div>
     </el-footer>
   </el-container>
 </template>
@@ -123,14 +151,15 @@ onUnmounted(() => {
 .main-layout { min-height: 100vh; display: flex; flex-direction: column; }
 
 .header {
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border);
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
   padding: 0;
-  height: 60px;
+  height: 64px;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.04);
 }
 
 .header-inner {
@@ -139,7 +168,7 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   align-items: center;
-  padding: 0 24px;
+  padding: 0 28px;
   gap: 8px;
 }
 
@@ -148,57 +177,67 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  margin-right: 24px;
+  margin-right: 28px;
   flex-shrink: 0;
+  transition: var(--transition);
+  &:hover { transform: scale(1.02); }
 }
 
 .logo-icon {
-  width: 34px;
-  height: 34px;
-  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  width: 36px;
+  height: 36px;
+  background: var(--primary-gradient);
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-weight: 800;
-  font-size: 17px;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 }
 
 .logo-text {
   font-size: 19px;
-  font-weight: 700;
-  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  font-weight: 800;
+  background: var(--primary-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   white-space: nowrap;
+  letter-spacing: -0.3px;
 }
 
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   flex: 1;
 }
 
 .nav-link {
-  padding: 6px 16px;
-  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
   text-decoration: none;
-  transition: var(--transition);
+  transition: var(--transition-fast);
   white-space: nowrap;
   &:hover { color: var(--primary); background: var(--primary-lighter); }
-  &.active { color: var(--primary); background: var(--primary-lighter); font-weight: 600; }
+  &.active {
+    color: var(--primary);
+    background: var(--primary-lighter);
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.15);
+  }
 }
 
 .header-right {
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
@@ -208,13 +247,13 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-lg);
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
   text-decoration: none;
-  transition: var(--transition);
-  &:hover { color: var(--primary); background: var(--primary-lighter); }
+  transition: var(--transition-fast);
+  &:hover { color: var(--primary); background: var(--primary-lighter); transform: translateY(-1px); }
 }
 
 .user-info {
@@ -222,15 +261,15 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  padding: 4px 12px 4px 4px;
+  padding: 4px 14px 4px 4px;
   border-radius: var(--radius-xl);
-  transition: var(--transition);
-  &:hover { background: var(--bg-hover); }
+  transition: var(--transition-fast);
+  &:hover { background: var(--primary-lighter); }
 }
 
 .user-name {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-primary);
   max-width: 80px;
   overflow: hidden;
@@ -245,13 +284,56 @@ onUnmounted(() => {
 }
 
 .footer {
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 13px;
   background: var(--bg-card);
   border-top: 1px solid var(--border);
-  height: 48px;
-  line-height: 48px;
+  height: auto;
   padding: 0;
+}
+
+.footer-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 28px 28px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.footer-logo {
+  width: 28px;
+  height: 28px;
+  background: var(--primary-gradient);
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.footer-links {
+  display: flex;
+  gap: 24px;
+  a {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    &:hover { color: var(--primary); }
+  }
+}
+
+.footer-copy {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
 }
 </style>

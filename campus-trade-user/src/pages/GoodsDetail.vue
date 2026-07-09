@@ -21,7 +21,7 @@
           <h1 class="detail-title">{{ goods.title }}</h1>
           <div class="detail-stats">
             <span>{{ goods.viewCount }} 浏览</span>
-            <span>·</span>
+            <span class="stat-dot">·</span>
             <span>{{ goods.favoriteCount }} 收藏</span>
           </div>
           <div class="price-box">
@@ -34,7 +34,7 @@
             <p>{{ goods.description || '暂无描述' }}</p>
           </div>
           <div class="seller-card" v-if="userStore.token && goods.userId !== userStore.userInfo?.id">
-            <el-avatar :size="44" :src="goods.userAvatar" @click="$router.push(`/profile/${goods.userId}`)" style="cursor: pointer" />
+            <el-avatar :size="44" :src="goods.userAvatar || '/default-avatar.svg'" @click="$router.push(`/profile/${goods.userId}`)" style="cursor: pointer" />
             <div class="seller-info" @click="$router.push(`/profile/${goods.userId}`)" style="cursor: pointer">
               <div class="seller-name">{{ goods.username }}</div>
               <div class="seller-action">
@@ -227,22 +227,50 @@ onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
-.detail-gallery { border-radius: var(--radius-lg); overflow: hidden; background: #f1f5f9; }
-.gallery-img { width: 100%; height: 420px; border-radius: var(--radius-lg); &.single { display: block; } }
+.detail-gallery {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  box-shadow: var(--shadow-md);
+}
+.gallery-img {
+  width: 100%;
+  height: 420px;
+  border-radius: var(--radius-lg);
+  &.single { display: block; }
+}
 
 .detail-info { padding-top: 8px; }
-.detail-status { display: flex; gap: 8px; margin-bottom: 12px; }
-.detail-title { font-size: 24px; font-weight: 700; color: var(--text-primary); line-height: 1.4; margin-bottom: 8px; }
-.detail-stats { color: var(--text-muted); font-size: 13px; display: flex; gap: 6px; margin-bottom: 20px; }
+.detail-status { display: flex; gap: 8px; margin-bottom: 14px; }
+.detail-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.35;
+  margin-bottom: 10px;
+  letter-spacing: -0.3px;
+}
+.detail-stats {
+  color: var(--text-muted);
+  font-size: 13px;
+  display: flex;
+  gap: 6px;
+  margin-bottom: 22px;
+  font-weight: 500;
+}
+.stat-dot { opacity: 0.5; }
 
 .price-box {
   background: linear-gradient(135deg, #fef2f2, #fff7ed);
   border-radius: var(--radius-md);
   padding: 20px 24px;
-  display: flex; align-items: baseline; gap: 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
   margin-bottom: 24px;
+  border: 1px solid #fecaca;
 }
-.price-current { font-size: 36px; font-weight: 800; color: var(--danger); }
+.price-current { font-size: 36px; font-weight: 800; color: var(--danger); letter-spacing: -0.5px; }
 .price-original { font-size: 16px; color: var(--text-muted); text-decoration: line-through; }
 
 .detail-desc {
@@ -252,14 +280,24 @@ onMounted(loadData)
 }
 
 .seller-card {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 16px; border-radius: var(--radius-md);
-  border: 1px solid var(--border); cursor: pointer;
-  transition: var(--transition); margin-bottom: 24px;
-  &:hover { background: var(--bg-hover); border-color: var(--primary-lighter); }
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-glass);
+  backdrop-filter: blur(8px);
+  transition: var(--transition);
+  margin-bottom: 24px;
+  &:hover { background: var(--primary-lighter); border-color: var(--primary-light); }
 }
 .seller-name { font-weight: 600; font-size: 15px; }
-.seller-action { font-size: 12px; color: var(--primary); margin-top: 2px; }
+.seller-action { font-size: 12px; color: var(--primary); margin-top: 2px; display: flex; align-items: center; }
 
-.action-bar { display: flex; gap: 12px; flex-wrap: wrap; }
+.action-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 </style>

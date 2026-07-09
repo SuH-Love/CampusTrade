@@ -182,9 +182,10 @@ onMounted(loadData)
 .order-detail-page { padding: 20px; }
 .rating-section {
   margin-top: 24px;
-  padding: 20px;
-  background: #fafafa;
-  border-radius: 8px;
-  border: 1px solid #f0f0f0;
+  padding: 24px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
 }
 </style>
