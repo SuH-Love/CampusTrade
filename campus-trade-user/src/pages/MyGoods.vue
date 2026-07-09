@@ -23,7 +23,7 @@
         <el-table-column label="商品" min-width="250">
           <template #default="{ row }">
             <div style="display: flex; align-items: center; gap: 12px">
-              <el-image :src="row.coverImage || '/placeholder.png'" style="width: 60px; height: 60px; border-radius: 4px; flex-shrink: 0" fit="cover" />
+              <el-image :src="row.coverImage || '/default-cover.svg'" style="width: 60px; height: 60px; border-radius: 4px; flex-shrink: 0" fit="cover" />
               <div>
                 <div style="font-weight: 500">{{ row.title }}</div>
                 <div style="color: #999; font-size: 12px">{{ row.categoryName }}</div>

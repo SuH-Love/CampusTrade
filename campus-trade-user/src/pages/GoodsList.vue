@@ -27,7 +27,7 @@
       <el-col :xs="12" :sm="8" :md="6" v-for="item in goodsList" :key="item.id">
         <div class="goods-card" @click="$router.push(`/goods/${item.id}`)">
           <div class="goods-img-wrap">
-            <img :src="item.coverImage || '/placeholder.png'" class="goods-img" />
+            <img :src="item.coverImage || '/default-cover.svg'" class="goods-img" />
             <span class="goods-category-tag">{{ item.categoryName || getCategoryName(item.categoryId) }}</span>
           </div>
           <div class="goods-info">

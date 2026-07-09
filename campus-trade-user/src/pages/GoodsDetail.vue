@@ -8,7 +8,7 @@
               <el-image :src="img" fit="cover" class="gallery-img" />
             </el-carousel-item>
           </el-carousel>
-          <el-image v-else :src="goods.coverImage || '/placeholder.png'" fit="cover" class="gallery-img single" />
+          <el-image v-else :src="goods.coverImage || '/default-cover.svg'" fit="cover" class="gallery-img single" />
         </div>
       </el-col>
       <el-col :xs="24" :md="12">

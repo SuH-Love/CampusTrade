@@ -36,7 +36,7 @@
           <el-col :xs="12" :sm="8" :md="6" v-for="item in hotGoods" :key="item.id">
             <div class="goods-card" @click="$router.push(`/goods/${item.id}`)">
               <div class="goods-img-wrap">
-                <img :src="item.coverImage || '/placeholder.png'" class="goods-img" />
+                <img :src="item.coverImage || '/default-cover.svg'" class="goods-img" />
                 <span class="goods-category-tag">{{ item.categoryName }}</span>
               </div>
               <div class="goods-info">
@@ -58,7 +58,7 @@
           <el-col :xs="12" :sm="8" :md="6" v-for="item in recommendGoods" :key="item.id">
             <div class="goods-card" @click="$router.push(`/goods/${item.id}`)">
               <div class="goods-img-wrap">
-                <img :src="item.coverImage || '/placeholder.png'" class="goods-img" />
+                <img :src="item.coverImage || '/default-cover.svg'" class="goods-img" />
                 <span class="goods-category-tag">{{ item.categoryName }}</span>
               </div>
               <div class="goods-info">
@@ -99,8 +99,12 @@ const toggleCategory = (id: number) => {
 
 const bannerButtonStyle = (banner: BannerVO) => {
   const color = banner.buttonColor || 'rgba(255,255,255,0.2)'
-  const borderColor = banner.buttonColor ? banner.buttonColor : 'rgba(255,255,255,0.4)'
-  return { background: color, borderColor, color: '#fff' }
+  const isGradient = color.includes('gradient')
+  return {
+    background: color,
+    borderColor: isGradient ? 'transparent' : color,
+    color: '#fff'
+  }
 }
 
 const loadBanners = async () => {

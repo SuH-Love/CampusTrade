@@ -61,7 +61,7 @@
           <el-input v-model="form.buttonText" placeholder="按钮显示文字, 留空则不显示按钮" />
         </el-form-item>
         <el-form-item label="按钮颜色">
-          <el-color-picker v-model="form.buttonColor" show-alpha />
+          <el-input v-model="form.buttonColor" placeholder="支持渐变, 如 linear-gradient(135deg, #6366f1, #a78bfa)" />
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="form.sortOrder" :min="0" :max="999" />

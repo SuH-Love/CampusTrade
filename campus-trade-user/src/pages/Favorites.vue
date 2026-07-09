@@ -18,7 +18,7 @@
         <el-col :xs="12" :sm="8" :md="6" v-for="item in filteredGoods" :key="item.id">
           <div class="fav-card" :class="{ sold: item.status === 'SOLD' || item.status === 'OFFLINE' }">
             <div class="fav-img-wrap" :class="{ 'no-click': item.status !== 'ONLINE' }" @click="item.status === 'ONLINE' && $router.push(`/goods/${item.id}`)">
-              <img :src="item.coverImage || '/placeholder.png'" class="fav-img" />
+              <img :src="item.coverImage || '/default-cover.svg'" class="fav-img" />
               <div v-if="item.status === 'SOLD'" class="sold-overlay">
                 <el-tag type="info" effect="dark" size="large">已售出</el-tag>
               </div>
