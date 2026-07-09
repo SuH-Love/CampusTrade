@@ -40,6 +40,7 @@
               <div class="seller-action">
                 <span>查看主页</span>
                 <el-rate v-if="sellerRating > 0" :model-value="sellerRating" disabled size="small" style="margin-left: 8px; vertical-align: middle" />
+                <span v-else style="margin-left: 8px; font-size: 12px; color: var(--text-muted)">暂无评价</span>
               </div>
             </div>
             <el-button size="small" @click.stop="handleChat" round>聊天</el-button>

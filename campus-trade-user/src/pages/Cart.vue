@@ -40,6 +40,7 @@ import { createOrder } from '@/api/order'
 import type { CartVO } from '@/api/cart'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCartStore } from '@/stores/cart'
+import { h } from 'vue'
 
 const cartStore = useCartStore()
 
@@ -74,29 +75,81 @@ const handleClearCart = async () => {
   loadData()
 }
 
+const showDeliveryDialog = (title: string, price: number): Promise<{ deliveryMethod: string; deliveryAddress: string }> => {
+  const deliveryMethod = ref('PICKUP')
+  const deliveryAddress = ref('')
+  return new Promise((resolve, reject) => {
+    ElMessageBox({
+      title,
+      message: () => h('div', null, [
+        h('p', { style: 'margin-bottom: 12px' }, `价格 ¥${price}`),
+        h('div', { style: 'margin-bottom: 12px' }, [
+          h('span', { style: 'margin-right: 12px' }, '配送方式：'),
+          h('input', {
+            type: 'radio', name: 'delivery', value: 'PICKUP', checked: deliveryMethod.value === 'PICKUP',
+            style: 'margin-right: 4px', onChange: (e: Event) => { deliveryMethod.value = (e.target as HTMLInputElement).value; deliveryAddress.value = '' }
+          }),
+          h('span', { style: 'margin-right: 16px' }, '自取'),
+          h('input', {
+            type: 'radio', name: 'delivery', value: 'DELIVERY', checked: deliveryMethod.value === 'DELIVERY',
+            style: 'margin-right: 4px', onChange: (e: Event) => { deliveryMethod.value = (e.target as HTMLInputElement).value }
+          }),
+          h('span', null, '配送')
+        ]),
+        deliveryMethod.value === 'DELIVERY' ? h('input', {
+          type: 'text', placeholder: '请输入配送地址',
+          style: 'width: 100%; padding: 8px 12px; border: 1px solid #dcdfe6; border-radius: 4px; box-sizing: border-box;',
+          onInput: (e: Event) => { deliveryAddress.value = (e.target as HTMLInputElement).value }
+        }) : null
+      ]),
+      showCancelButton: true,
+      confirmButtonText: '确认下单',
+      cancelButtonText: '取消',
+      beforeClose: (action: string, _instance: unknown, done: () => void) => {
+        if (action === 'confirm' && deliveryMethod.value === 'DELIVERY' && !deliveryAddress.value.trim()) {
+          ElMessage.error('请输入配送地址')
+          return
+        }
+        done()
+      }
+    }).then(() => {
+      resolve({ deliveryMethod: deliveryMethod.value, deliveryAddress: deliveryAddress.value })
+    }).catch(() => {
+      reject(new Error('cancel'))
+    })
+  })
+}
+
 const handleCheckout = async (item: CartVO) => {
-  await ElMessageBox.confirm(`确认购买「${item.title}」？价格 ¥${item.price}`, '确认购买')
   try {
-    await createOrder({ goodsId: item.goodsId })
+    const { deliveryMethod, deliveryAddress } = await showDeliveryDialog(`确认购买「${item.title}」`, item.price)
+    const data: { goodsId: number; deliveryMethod: string; deliveryAddress?: string } = { goodsId: item.goodsId, deliveryMethod }
+    if (deliveryMethod === 'DELIVERY') data.deliveryAddress = deliveryAddress
+    await createOrder(data)
     await removeFromCart(item.id)
     ElMessage.success('下单成功')
     cartStore.fetchCartCount()
     loadData()
-  } catch { /* ignore */ }
+  } catch { /* cancel */ }
 }
 
 const handleBatchCheckout = async () => {
   const onlineItems = cartList.value.filter(item => item.status === 'ONLINE')
   if (onlineItems.length === 0) { ElMessage.warning('没有可结算的商品'); return }
-  for (const item of onlineItems) {
-    try {
-      await createOrder({ goodsId: item.goodsId })
-      await removeFromCart(item.id)
-    } catch { /* continue */ }
-  }
-  ElMessage.success('批量下单成功')
-  cartStore.fetchCartCount()
-  loadData()
+  try {
+    const { deliveryMethod, deliveryAddress } = await showDeliveryDialog('批量结算', Number(totalPrice.value))
+    for (const item of onlineItems) {
+      try {
+        const data: { goodsId: number; deliveryMethod: string; deliveryAddress?: string } = { goodsId: item.goodsId, deliveryMethod }
+        if (deliveryMethod === 'DELIVERY') data.deliveryAddress = deliveryAddress
+        await createOrder(data)
+        await removeFromCart(item.id)
+      } catch { /* continue */ }
+    }
+    ElMessage.success('批量下单成功')
+    cartStore.fetchCartCount()
+    loadData()
+  } catch { /* cancel */ }
 }
 
 onMounted(loadData)

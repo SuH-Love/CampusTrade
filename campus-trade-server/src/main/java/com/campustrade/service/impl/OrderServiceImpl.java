@@ -78,8 +78,8 @@ public class OrderServiceImpl implements OrderService {
         order.setTotalAmount(goods.getPrice());
         order.setStatus(OrderStatus.PENDING_PAY.getCode());
         order.setRemark(dto.getRemark());
-        order.setDeliveryMethod(dto.getDeliveryMethod());
-        order.setAddress(dto.getAddress());
+        order.setDeliveryMethod("DELIVERY".equals(dto.getDeliveryMethod()) ? 1 : 0);
+        order.setAddress(dto.getDeliveryAddress());
         orderMapper.insert(order);
 
         OrderItem item = new OrderItem();

@@ -25,6 +25,10 @@
                   <span>·</span>
                   <el-rate :model-value="avgRating" disabled size="small" style="vertical-align: middle" />
                 </template>
+                <template v-else>
+                  <span>·</span>
+                  <span style="font-size: 12px; color: var(--text-muted)">暂无评价</span>
+                </template>
               </div>
               <el-button v-if="userStore.token" :type="isFollowed ? 'warning' : 'default'" @click="handleToggleFollow" :loading="followLoading" round style="margin-top: 8px">
                 {{ isFollowed ? '已关注' : '关注' }}

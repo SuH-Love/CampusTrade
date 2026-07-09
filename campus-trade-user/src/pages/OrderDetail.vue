@@ -19,8 +19,8 @@
             <span style="color: #f56c6c; font-weight: bold; font-size: 18px">¥{{ order.totalAmount }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="备注">{{ order.remark || '无' }}</el-descriptions-item>
-          <el-descriptions-item label="配送方式">{{ order.deliveryMethod === 'DELIVERY' ? '配送' : '自取' }}</el-descriptions-item>
-          <el-descriptions-item v-if="order.deliveryMethod === 'DELIVERY'" label="配送地址">{{ order.deliveryAddress || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="配送方式">{{ order.deliveryMethod === 1 || order.deliveryMethod === 'DELIVERY' ? '配送' : '自取' }}</el-descriptions-item>
+          <el-descriptions-item v-if="order.deliveryMethod === 1 || order.deliveryMethod === 'DELIVERY'" label="配送地址">{{ order.deliveryAddress || order.address || '-' }}</el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ order.createTime }}</el-descriptions-item>
           <el-descriptions-item label="支付时间">{{ order.payTime || '-' }}</el-descriptions-item>
           <el-descriptions-item label="发货时间">{{ order.shipTime || '-' }}</el-descriptions-item>

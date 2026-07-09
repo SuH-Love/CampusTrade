@@ -11,6 +11,6 @@ public class OrderCreateDTO {
     private Long goodsId;
 
     private String remark;
-    private Integer deliveryMethod;
-    private String address;
+    private String deliveryMethod;
+    private String deliveryAddress;
 }

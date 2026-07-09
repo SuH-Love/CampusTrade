@@ -6,12 +6,12 @@
       </template>
       <el-empty v-if="followingList.length === 0 && !loading" description="暂无关注" />
       <div v-else class="following-list" v-loading="loading">
-        <div v-for="item in followingList" :key="item.userId" class="following-item">
-          <el-avatar :size="48" :src="item.avatar" />
-          <div class="following-info">
+        <div v-for="item in followingList" :key="item.id" class="following-item">
+          <el-avatar :size="48" :src="item.avatar || '/default-avatar.svg'" @click="$router.push(`/profile/${item.id}`)" style="cursor: pointer" />
+          <div class="following-info" @click="$router.push(`/profile/${item.id}`)" style="cursor: pointer">
             <div class="following-name">{{ item.nickname || item.username }}</div>
           </div>
-          <el-button type="warning" size="small" @click="handleUnfollow(item.userId)" :loading="unfollowing === item.userId" round>取消关注</el-button>
+          <el-button type="warning" size="small" @click="handleUnfollow(item.id)" :loading="unfollowing === item.id" round>取消关注</el-button>
         </div>
       </div>
       <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
@@ -25,7 +25,7 @@ import { getFollowingList, toggleFollow } from '@/api/follow'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 interface FollowingUser {
-  userId: number
+  id: number
   username: string
   nickname: string
   avatar: string
@@ -69,6 +69,6 @@ onMounted(loadData)
   &:last-child { border-bottom: none; }
   &:hover { background: #fafafa; }
 }
-.following-info { flex: 1; }
+.following-info { flex: 1; cursor: pointer; }
 .following-name { font-weight: 500; font-size: 15px; }
 </style>

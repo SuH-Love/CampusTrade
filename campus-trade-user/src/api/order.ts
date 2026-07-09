@@ -20,8 +20,9 @@ export interface OrderVO {
   totalAmount: number
   status: string
   remark: string
-  deliveryMethod: string
-  deliveryAddress: string
+  deliveryMethod: number | string
+  address: string | null
+  deliveryAddress: string | null
   payTime: string | null
   shipTime: string | null
   finishTime: string | null
