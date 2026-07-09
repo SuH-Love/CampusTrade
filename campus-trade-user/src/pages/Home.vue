@@ -7,7 +7,7 @@
             <img v-if="banner.imageUrl" :src="banner.imageUrl" class="hero-bg-img" />
             <h1>{{ banner.title }}</h1>
             <p>{{ banner.subtitle }}</p>
-            <el-button v-if="banner.linkUrl" type="primary" size="large" round @click="$router.push(banner.linkUrl)">{{ banner.linkUrl.includes('publish') ? '发布商品' : '浏览商品' }}</el-button>
+            <el-button v-if="banner.linkUrl" type="primary" size="large" round @click="$router.push(banner.linkUrl)">{{ banner.buttonText || '了解更多' }}</el-button>
           </div>
         </el-carousel-item>
         <el-carousel-item v-if="banners.length === 0">

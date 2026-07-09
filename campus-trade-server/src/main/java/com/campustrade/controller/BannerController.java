@@ -39,14 +39,14 @@ public class BannerController {
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<BannerVO> createBanner(@RequestBody BannerCreateRequest req) {
-        return bannerService.createBanner(req.title, req.subtitle, req.imageUrl, req.linkUrl, req.bgColor, req.sortOrder, req.status);
+        return bannerService.createBanner(req.title, req.subtitle, req.imageUrl, req.linkUrl, req.bgColor, req.buttonText, req.sortOrder, req.status);
     }
 
     @ApiOperation("修改横幅")
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<BannerVO> updateBanner(@PathVariable Long id, @RequestBody BannerCreateRequest req) {
-        return bannerService.updateBanner(id, req.title, req.subtitle, req.imageUrl, req.linkUrl, req.bgColor, req.sortOrder, req.status);
+        return bannerService.updateBanner(id, req.title, req.subtitle, req.imageUrl, req.linkUrl, req.bgColor, req.buttonText, req.sortOrder, req.status);
     }
 
     @ApiOperation("删除横幅")
@@ -70,6 +70,7 @@ public class BannerController {
         private String imageUrl;
         private String linkUrl;
         private String bgColor;
+        private String buttonText;
         private Integer sortOrder;
         private Integer status;
     }

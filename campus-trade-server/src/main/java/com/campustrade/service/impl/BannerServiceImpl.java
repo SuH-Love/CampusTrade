@@ -37,13 +37,14 @@ public class BannerServiceImpl implements BannerService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<BannerVO> createBanner(String title, String subtitle, String imageUrl, String linkUrl, String bgColor, Integer sortOrder, Integer status) {
+    public Result<BannerVO> createBanner(String title, String subtitle, String imageUrl, String linkUrl, String bgColor, String buttonText, Integer sortOrder, Integer status) {
         Banner banner = new Banner();
         banner.setTitle(title);
         banner.setSubtitle(subtitle);
         banner.setImageUrl(imageUrl);
         banner.setLinkUrl(linkUrl);
         banner.setBgColor(bgColor);
+        banner.setButtonText(buttonText);
         banner.setSortOrder(sortOrder != null ? sortOrder : 0);
         banner.setStatus(status != null ? status : 1);
         bannerMapper.insert(banner);
@@ -52,7 +53,7 @@ public class BannerServiceImpl implements BannerService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<BannerVO> updateBanner(Long id, String title, String subtitle, String imageUrl, String linkUrl, String bgColor, Integer sortOrder, Integer status) {
+    public Result<BannerVO> updateBanner(Long id, String title, String subtitle, String imageUrl, String linkUrl, String bgColor, String buttonText, Integer sortOrder, Integer status) {
         Banner banner = bannerMapper.selectById(id);
         if (banner == null) return Result.error(404, "横幅不存在");
         if (title != null) banner.setTitle(title);
@@ -60,6 +61,7 @@ public class BannerServiceImpl implements BannerService {
         if (imageUrl != null) banner.setImageUrl(imageUrl);
         if (linkUrl != null) banner.setLinkUrl(linkUrl);
         if (bgColor != null) banner.setBgColor(bgColor);
+        if (buttonText != null) banner.setButtonText(buttonText);
         if (sortOrder != null) banner.setSortOrder(sortOrder);
         if (status != null) banner.setStatus(status);
         bannerMapper.updateById(banner);
@@ -91,6 +93,7 @@ public class BannerServiceImpl implements BannerService {
         vo.setImageUrl(banner.getImageUrl());
         vo.setLinkUrl(banner.getLinkUrl());
         vo.setBgColor(banner.getBgColor());
+        vo.setButtonText(banner.getButtonText());
         vo.setSortOrder(banner.getSortOrder());
         vo.setStatus(banner.getStatus());
         vo.setCreateTime(banner.getCreateTime() != null ? banner.getCreateTime().toString() : null);

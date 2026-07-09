@@ -191,6 +191,7 @@ public class DataInitializer implements CommandLineRunner {
                 "image_url VARCHAR(255) DEFAULT NULL," +
                 "link_url VARCHAR(255) DEFAULT NULL," +
                 "bg_color VARCHAR(500) DEFAULT NULL," +
+                "button_text VARCHAR(50) DEFAULT NULL," +
                 "sort_order INT DEFAULT 0," +
                 "status TINYINT DEFAULT 1," +
                 "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
@@ -210,20 +211,21 @@ public class DataInitializer implements CommandLineRunner {
     private void initBanners() {
         Long count = bannerMapper.selectCount();
         if (count == null || count == 0) {
-            insertBanner("校园二手交易平台", "安全 · 便捷 · 值得信赖的校园闲置好物流转平台", null, "/goods", "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%)", 1, 1);
-            insertBanner("闲置好物 低价淘", "学长学姐的优质好物，超值价格等你来", null, "/goods", "linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%)", 2, 1);
-            insertBanner("发布闲置 轻松变现", "一键发布，快速找到买家，让闲置不再闲置", null, "/goods/publish", "linear-gradient(135deg, #dc2626 0%, #f97316 50%, #fbbf24 100%)", 3, 1);
+            insertBanner("校园二手交易平台", "安全 · 便捷 · 值得信赖的校园闲置好物流转平台", null, "/goods", "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%)", "浏览商品", 1, 1);
+            insertBanner("闲置好物 低价淘", "学长学姐的优质好物，超值价格等你来", null, "/goods", "linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%)", "立即淘宝", 2, 1);
+            insertBanner("发布闲置 轻松变现", "一键发布，快速找到买家，让闲置不再闲置", null, "/goods/publish", "linear-gradient(135deg, #dc2626 0%, #f97316 50%, #fbbf24 100%)", "发布商品", 3, 1);
             log.info("Default banners initialized");
         }
     }
 
-    private void insertBanner(String title, String subtitle, String imageUrl, String linkUrl, String bgColor, int sortOrder, int status) {
+    private void insertBanner(String title, String subtitle, String imageUrl, String linkUrl, String bgColor, String buttonText, int sortOrder, int status) {
         Banner banner = new Banner();
         banner.setTitle(title);
         banner.setSubtitle(subtitle);
         banner.setImageUrl(imageUrl);
         banner.setLinkUrl(linkUrl);
         banner.setBgColor(bgColor);
+        banner.setButtonText(buttonText);
         banner.setSortOrder(sortOrder);
         banner.setStatus(status);
         bannerMapper.insert(banner);
