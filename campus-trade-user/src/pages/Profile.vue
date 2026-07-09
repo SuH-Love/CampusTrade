@@ -4,73 +4,132 @@
       <el-col :span="8">
         <el-card class="profile-card">
           <div class="avatar-section">
-            <el-upload
-              action="/api/file/upload"
-              :headers="uploadHeaders"
-              :show-file-list="false"
-              :on-success="handleAvatarSuccess"
-              :before-upload="beforeAvatarUpload"
-              accept="image/jpeg,image/png,image/gif,image/webp"
-            >
-              <el-avatar :size="100" :src="userStore.userInfo?.avatar" class="avatar-clickable" />
-              <div class="avatar-overlay">更换头像</div>
-            </el-upload>
-            <h3>{{ userStore.userInfo?.nickname || userStore.userInfo?.username }}</h3>
-            <el-tag v-if="userStore.userInfo?.realVerified === 1" type="success">已认证</el-tag>
-            <el-tag v-else type="info">未认证</el-tag>
+            <template v-if="isSelf">
+              <el-upload action="/api/file/upload" :headers="uploadHeaders" :show-file-list="false" :on-success="handleAvatarSuccess" :before-upload="beforeAvatarUpload" accept="image/jpeg,image/png,image/gif,image/webp">
+                <el-avatar :size="100" :src="userStore.userInfo?.avatar" class="avatar-clickable" />
+                <div class="avatar-overlay">更换头像</div>
+              </el-upload>
+            </template>
+            <el-avatar v-else :size="100" :src="profileUser?.avatar || '/default-avatar.svg'" />
+            <h3>{{ isSelf ? (userStore.userInfo?.nickname || userStore.userInfo?.username) : (profileUser?.nickname || profileUser?.username) }}</h3>
+            <template v-if="isSelf">
+              <el-tag v-if="userStore.userInfo?.realVerified === 1" type="success">已认证</el-tag>
+              <el-tag v-else type="info">未认证</el-tag>
+            </template>
+            <template v-else>
+              <div class="profile-stats">
+                <span>{{ followCounts.following }} 关注</span>
+                <span>·</span>
+                <span>{{ followCounts.followers }} 粉丝</span>
+                <template v-if="avgRating > 0">
+                  <span>·</span>
+                  <el-rate :model-value="avgRating" disabled size="small" style="vertical-align: middle" />
+                </template>
+              </div>
+              <el-button v-if="userStore.token" :type="isFollowed ? 'warning' : 'default'" @click="handleToggleFollow" :loading="followLoading" round style="margin-top: 8px">
+                {{ isFollowed ? '已关注' : '关注' }}
+              </el-button>
+            </template>
           </div>
           <el-descriptions :column="1" border style="margin-top: 20px">
-            <el-descriptions-item label="用户名">{{ userStore.userInfo?.username }}</el-descriptions-item>
-            <el-descriptions-item label="手机号">{{ userStore.userInfo?.phone || '未绑定' }}</el-descriptions-item>
-            <el-descriptions-item label="邮箱">{{ userStore.userInfo?.email || '未绑定' }}</el-descriptions-item>
-            <el-descriptions-item label="学号">{{ userStore.userInfo?.studentId || '未填写' }}</el-descriptions-item>
-            <el-descriptions-item label="注册时间">{{ userStore.userInfo?.createTime }}</el-descriptions-item>
+            <template v-if="isSelf">
+              <el-descriptions-item label="用户名">{{ userStore.userInfo?.username }}</el-descriptions-item>
+              <el-descriptions-item label="手机号">{{ userStore.userInfo?.phone || '未绑定' }}</el-descriptions-item>
+              <el-descriptions-item label="邮箱">{{ userStore.userInfo?.email || '未绑定' }}</el-descriptions-item>
+              <el-descriptions-item label="学号">{{ userStore.userInfo?.studentId || '未填写' }}</el-descriptions-item>
+              <el-descriptions-item label="注册时间">{{ userStore.userInfo?.createTime }}</el-descriptions-item>
+            </template>
+            <template v-else>
+              <el-descriptions-item label="用户名">{{ profileUser?.username }}</el-descriptions-item>
+              <el-descriptions-item label="注册时间">{{ profileUser?.createTime }}</el-descriptions-item>
+            </template>
           </el-descriptions>
         </el-card>
       </el-col>
       <el-col :span="16">
-        <el-card>
-          <el-tabs v-model="activeTab">
-            <el-tab-pane label="编辑资料" name="info">
-              <el-form :model="infoForm" :rules="infoRules" ref="infoFormRef" label-width="80px" style="max-width: 500px">
-                <el-form-item label="昵称" prop="nickname"><el-input v-model="infoForm.nickname" placeholder="请输入昵称" /></el-form-item>
-                <el-form-item label="手机号" prop="phone"><el-input v-model="infoForm.phone" placeholder="请输入手机号" /></el-form-item>
-                <el-form-item label="邮箱" prop="email"><el-input v-model="infoForm.email" placeholder="请输入邮箱" /></el-form-item>
-                <el-form-item><el-button type="primary" @click="handleUpdateInfo" :loading="infoLoading">保存</el-button></el-form-item>
-              </el-form>
-            </el-tab-pane>
-            <el-tab-pane label="修改密码" name="password">
-              <el-form :model="pwdForm" :rules="pwdRules" ref="pwdFormRef" label-width="100px" style="max-width: 500px">
-                <el-form-item label="当前密码" prop="oldPassword"><el-input v-model="pwdForm.oldPassword" type="password" show-password placeholder="请输入当前密码" /></el-form-item>
-                <el-form-item label="新密码" prop="newPassword"><el-input v-model="pwdForm.newPassword" type="password" show-password placeholder="8-20位密码" /></el-form-item>
-                <el-form-item label="确认新密码" prop="confirmPassword"><el-input v-model="pwdForm.confirmPassword" type="password" show-password placeholder="再次输入新密码" /></el-form-item>
-                <el-form-item><el-button type="primary" @click="handleUpdatePwd" :loading="pwdLoading">修改密码</el-button></el-form-item>
-              </el-form>
-            </el-tab-pane>
-            <el-tab-pane label="实名认证" name="verify" v-if="userStore.userInfo?.realVerified !== 1">
-              <el-form :model="verifyForm" :rules="verifyRules" ref="verifyFormRef" label-width="80px" style="max-width: 500px">
-                <el-form-item label="真实姓名" prop="realName"><el-input v-model="verifyForm.realName" placeholder="请输入真实姓名" /></el-form-item>
-                <el-form-item label="学号" prop="studentId"><el-input v-model="verifyForm.studentId" placeholder="请输入学号" /></el-form-item>
-                <el-form-item><el-button type="primary" @click="handleVerify" :loading="verifyLoading">提交认证</el-button></el-form-item>
-              </el-form>
-            </el-tab-pane>
-          </el-tabs>
-        </el-card>
+        <template v-if="isSelf">
+          <el-card>
+            <el-tabs v-model="activeTab">
+              <el-tab-pane label="编辑资料" name="info">
+                <el-form :model="infoForm" :rules="infoRules" ref="infoFormRef" label-width="80px" style="max-width: 500px">
+                  <el-form-item label="昵称" prop="nickname"><el-input v-model="infoForm.nickname" placeholder="请输入昵称" /></el-form-item>
+                  <el-form-item label="手机号" prop="phone"><el-input v-model="infoForm.phone" placeholder="请输入手机号" /></el-form-item>
+                  <el-form-item label="邮箱" prop="email"><el-input v-model="infoForm.email" placeholder="请输入邮箱" /></el-form-item>
+                  <el-form-item><el-button type="primary" @click="handleUpdateInfo" :loading="infoLoading">保存</el-button></el-form-item>
+                </el-form>
+              </el-tab-pane>
+              <el-tab-pane label="修改密码" name="password">
+                <el-form :model="pwdForm" :rules="pwdRules" ref="pwdFormRef" label-width="100px" style="max-width: 500px">
+                  <el-form-item label="当前密码" prop="oldPassword"><el-input v-model="pwdForm.oldPassword" type="password" show-password placeholder="请输入当前密码" /></el-form-item>
+                  <el-form-item label="新密码" prop="newPassword"><el-input v-model="pwdForm.newPassword" type="password" show-password placeholder="8-20位密码" /></el-form-item>
+                  <el-form-item label="确认新密码" prop="confirmPassword"><el-input v-model="pwdForm.confirmPassword" type="password" show-password placeholder="再次输入新密码" /></el-form-item>
+                  <el-form-item><el-button type="primary" @click="handleUpdatePwd" :loading="pwdLoading">修改密码</el-button></el-form-item>
+                </el-form>
+              </el-tab-pane>
+              <el-tab-pane label="实名认证" name="verify" v-if="userStore.userInfo?.realVerified !== 1">
+                <el-form :model="verifyForm" :rules="verifyRules" ref="verifyFormRef" label-width="80px" style="max-width: 500px">
+                  <el-form-item label="真实姓名" prop="realName"><el-input v-model="verifyForm.realName" placeholder="请输入真实姓名" /></el-form-item>
+                  <el-form-item label="学号" prop="studentId"><el-input v-model="verifyForm.studentId" placeholder="请输入学号" /></el-form-item>
+                  <el-form-item><el-button type="primary" @click="handleVerify" :loading="verifyLoading">提交认证</el-button></el-form-item>
+                </el-form>
+              </el-tab-pane>
+            </el-tabs>
+          </el-card>
+        </template>
+        <template v-else>
+          <el-card>
+            <h3 style="margin: 0 0 16px">在售商品</h3>
+            <el-row :gutter="16">
+              <el-col :xs="12" :sm="8" :md="6" v-for="item in goodsList" :key="item.id">
+                <div class="goods-card" @click="$router.push(`/goods/${item.id}`)">
+                  <div class="goods-img-wrap">
+                    <img :src="item.coverImage || '/default-cover.svg'" class="goods-img" />
+                    <span class="goods-category-tag">{{ item.categoryName }}</span>
+                  </div>
+                  <div class="goods-info">
+                    <div class="goods-title">{{ item.title }}</div>
+                    <div class="goods-bottom">
+                      <span class="price-text">¥{{ item.price }}</span>
+                      <span class="goods-views">{{ item.viewCount }} 浏览</span>
+                    </div>
+                  </div>
+                </div>
+              </el-col>
+            </el-row>
+            <el-empty v-if="goodsList.length === 0 && !goodsLoading" description="暂无在售商品" />
+          </el-card>
+        </template>
       </el-col>
     </el-row>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { updateUserInfo, updatePassword, realNameVerify, uploadAvatar } from '@/api/user'
-
+import { updateUserInfo, updatePassword, realNameVerify, uploadAvatar, getUserPublicInfo } from '@/api/user'
+import { getGoodsList } from '@/api/goods'
+import { getFollowCounts, toggleFollow, isFollowing } from '@/api/follow'
+import { getAverageRating } from '@/api/rating'
 import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
+import type { UserVO } from '@/api/user'
+import type { GoodsVO } from '@/api/goods'
 
+const route = useRoute()
 const userStore = useUserStore()
 const activeTab = ref('info')
+
+const isSelf = computed(() => !route.params.id || Number(route.params.id) === userStore.userInfo?.id)
+
+const profileUser = ref<UserVO | null>(null)
+const followCounts = ref<{ following: number; followers: number }>({ following: 0, followers: 0 })
+const avgRating = ref(0)
+const isFollowed = ref(false)
+const followLoading = ref(false)
+const goodsList = ref<GoodsVO[]>([])
+const goodsLoading = ref(false)
 
 const uploadHeaders = computed(() => ({
   Authorization: userStore.token ? `Bearer ${userStore.token}` : ''
@@ -143,13 +202,32 @@ const verifyRules = {
   studentId: [{ required: true, message: '请输入学号', trigger: 'blur' }]
 }
 
-onMounted(() => {
-  if (userStore.userInfo) {
-    infoForm.nickname = userStore.userInfo.nickname || ''
-    infoForm.phone = userStore.userInfo.phone || ''
-    infoForm.email = userStore.userInfo.email || ''
+const loadOtherUser = async () => {
+  const userId = Number(route.params.id)
+  if (!userId) return
+  try { profileUser.value = await getUserPublicInfo(userId) } catch { /* ignore */ }
+  try { followCounts.value = await getFollowCounts(userId) } catch { /* ignore */ }
+  try { avgRating.value = await getAverageRating(userId) } catch { /* ignore */ }
+  if (userStore.token && !isSelf.value) {
+    try { isFollowed.value = await isFollowing(userId) } catch { /* ignore */ }
   }
-})
+  goodsLoading.value = true
+  try {
+    const res = await getGoodsList({ pageNum: 1, pageSize: 50, userId, status: 'ONLINE' })
+    goodsList.value = res.list || []
+  } catch { /* ignore */ } finally { goodsLoading.value = false }
+}
+
+const handleToggleFollow = async () => {
+  if (!userStore.token) { ElMessage.warning('请先登录'); return }
+  followLoading.value = true
+  try {
+    await toggleFollow(Number(route.params.id))
+    isFollowed.value = !isFollowed.value
+    followCounts.value.followers += isFollowed.value ? 1 : -1
+    ElMessage.success(isFollowed.value ? '已关注' : '已取消关注')
+  } finally { followLoading.value = false }
+}
 
 const handleUpdateInfo = async () => {
   if (!infoFormRef.value) return
@@ -159,9 +237,7 @@ const handleUpdateInfo = async () => {
     await updateUserInfo(infoForm)
     await userStore.fetchUserInfo()
     ElMessage.success('更新成功')
-  } finally {
-    infoLoading.value = false
-  }
+  } finally { infoLoading.value = false }
 }
 
 const handleUpdatePwd = async () => {
@@ -174,9 +250,7 @@ const handleUpdatePwd = async () => {
     pwdForm.oldPassword = ''
     pwdForm.newPassword = ''
     pwdForm.confirmPassword = ''
-  } finally {
-    pwdLoading.value = false
-  }
+  } finally { pwdLoading.value = false }
 }
 
 const handleVerify = async () => {
@@ -187,10 +261,21 @@ const handleVerify = async () => {
     await realNameVerify(verifyForm.realName, verifyForm.studentId)
     await userStore.fetchUserInfo()
     ElMessage.success('认证申请已提交')
-  } finally {
-    verifyLoading.value = false
-  }
+  } finally { verifyLoading.value = false }
 }
+
+watch(() => route.params.id, () => {
+  if (route.params.id && !isSelf.value) loadOtherUser()
+})
+
+onMounted(() => {
+  if (userStore.userInfo) {
+    infoForm.nickname = userStore.userInfo.nickname || ''
+    infoForm.phone = userStore.userInfo.phone || ''
+    infoForm.email = userStore.userInfo.email || ''
+  }
+  if (route.params.id && !isSelf.value) loadOtherUser()
+})
 </script>
 
 <style scoped lang="scss">
@@ -209,4 +294,19 @@ const handleVerify = async () => {
   opacity: 0; transition: opacity 0.3s; cursor: pointer; pointer-events: none;
 }
 .avatar-section:hover .avatar-overlay { opacity: 1; }
+.profile-stats { color: var(--text-secondary); font-size: 14px; display: flex; align-items: center; gap: 6px; }
+
+.goods-card {
+  background: var(--bg-card); border-radius: var(--radius-md); overflow: hidden; cursor: pointer;
+  transition: var(--transition); border: 1px solid var(--border); margin-bottom: 16px;
+  &:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+}
+.goods-img-wrap { position: relative; padding-top: 75%; overflow: hidden; background: #f1f5f9; }
+.goods-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; .goods-card:hover & { transform: scale(1.05); } }
+.goods-category-tag { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.5); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+.goods-info { padding: 12px; }
+.goods-title { font-size: 14px; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goods-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.price-text { color: #f56c6c; font-weight: 700; font-size: 16px; }
+.goods-views { font-size: 12px; color: var(--text-muted); }
 </style>
