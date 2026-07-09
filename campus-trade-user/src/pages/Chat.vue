@@ -65,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getRecentContacts, getHistory, getUnreadCount } from '@/api/chat'
@@ -77,9 +77,12 @@ interface DisplayMessage extends ChatMessageVO { _tempId?: string }
 
 const route = useRoute()
 const userStore = useUserStore()
-const myId = computed(() => userStore.userInfo?.id)
+const myId = computed(() => userStore.userInfo?.id || wsGetMyId())
 
-const { connected, onlineUsers, sendChat, sendTyping, sendStopTyping, sendRead, onMessage, unreadMap, getMyId } = useChatWs()
+const {
+  connected, onlineUsers, sendChat, sendTyping, sendStopTyping,
+  sendRead, onMessage, unreadMap, getMyId: wsGetMyId
+} = useChatWs()
 
 interface ContactItem { userId: number; name: string; avatar: string; lastMessage: string; unread: number }
 
@@ -115,6 +118,12 @@ const loadContacts = async () => {
       try {
         const count = await getUnreadCount(c.userId)
         c.unread = typeof count === 'number' ? count : 0
+        if (c.unread > 0) {
+          const m = new Map(unreadMap.value)
+          m.set(c.userId, c.unread)
+          m.delete(-1)
+          unreadMap.value = m
+        }
       } catch { /* ignore */ }
     })
     await Promise.all(unreadPromises)
@@ -125,6 +134,8 @@ const selectContact = async (contact: ContactItem) => {
   currentTarget.value = contact.userId
   currentContactName.value = contact.name
   contact.unread = 0
+  sessionStorage.setItem('chat_target', String(contact.userId))
+  sessionStorage.setItem('chat_name', contact.name)
   await loadMessages()
   sendRead(contact.userId)
 }
@@ -132,17 +143,21 @@ const selectContact = async (contact: ContactItem) => {
 const loadMessages = async () => {
   if (!currentTarget.value) return
   try {
-    const res = await getHistory(currentTarget.value)
-    messages.value = (res.list || res || []) as DisplayMessage[]
-    await nextTick(); scrollToBottom()
-  } catch { messages.value = [] }
+    const res = await getHistory(currentTarget.value, 1, 200)
+    const list = res.list || res || []
+    messages.value = (Array.isArray(list) ? list : []) as DisplayMessage[]
+    await nextTick()
+    scrollToBottom()
+  } catch {
+    messages.value = []
+  }
 }
 
 const handleSend = async () => {
   if (!inputText.value.trim() || !currentTarget.value) return
   const content = inputText.value.trim()
   const targetId = currentTarget.value
-  const id = myId.value || getMyId()
+  const id = myId.value
   sending.value = true
 
   const tempMsg: DisplayMessage = {
@@ -160,6 +175,7 @@ const handleSend = async () => {
     receiverAvatar: ''
   }
   messages.value.push(tempMsg)
+  inputText.value = ''
   nextTick(scrollToBottom)
 
   try {
@@ -167,8 +183,11 @@ const handleSend = async () => {
     if (!sent) {
       const { sendMessage } = await import('@/api/chat')
       await sendMessage({ receiverId: targetId, content })
+      const idx = messages.value.findIndex(m => m._tempId === tempMsg._tempId)
+      if (idx > -1) {
+        await loadMessages()
+      }
     }
-    inputText.value = ''
     sendStopTyping(targetId)
     lastTypingSent = false
     updateContactLastMessage(targetId, content)
@@ -216,7 +235,7 @@ const formatTime = (t: string) => {
 const removeWsHandler = onMessage((msg) => {
   if (msg.type === 'CHAT' && msg.data) {
     const chatMsg = msg.data as ChatMessageVO
-    const currentMyId = myId.value || getMyId()
+    const currentMyId = myId.value
     const isFromMe = chatMsg.senderId === currentMyId
     const partnerId = isFromMe ? chatMsg.receiverId : chatMsg.senderId
     const partnerName = isFromMe ? (chatMsg.receiverName || '用户') : (chatMsg.senderName || '用户')
@@ -274,16 +293,43 @@ const removeWsHandler = onMessage((msg) => {
   }
 })
 
+watch(connected, (val) => {
+  if (val && currentTarget.value && messages.value.length === 0) {
+    loadMessages()
+  }
+})
+
 onMounted(async () => {
   await loadContacts()
-  if (route.query.targetUserId) {
-    const targetId = Number(route.query.targetUserId)
-    const targetName = route.query.name as string || '卖家'
-    const existing = contacts.value.find(c => c.userId === targetId)
-    if (existing) { selectContact(existing) } else {
-      contacts.value.unshift({ userId: targetId, name: targetName, avatar: '', lastMessage: '', unread: 0 })
-      currentTarget.value = targetId
-      currentContactName.value = targetName
+
+  const queryTarget = route.query.targetUserId ? Number(route.query.targetUserId) : null
+  const queryName = route.query.name as string || '卖家'
+
+  if (queryTarget) {
+    const existing = contacts.value.find(c => c.userId === queryTarget)
+    if (existing) {
+      await selectContact(existing)
+    } else {
+      const newContact: ContactItem = { userId: queryTarget, name: queryName, avatar: '', lastMessage: '', unread: 0 }
+      contacts.value.unshift(newContact)
+      currentTarget.value = queryTarget
+      currentContactName.value = queryName
+      await loadMessages()
+      sendRead(queryTarget)
+    }
+  } else {
+    const savedTarget = sessionStorage.getItem('chat_target')
+    const savedName = sessionStorage.getItem('chat_name')
+    if (savedTarget) {
+      const targetId = Number(savedTarget)
+      const existing = contacts.value.find(c => c.userId === targetId)
+      if (existing) {
+        await selectContact(existing)
+      } else {
+        currentTarget.value = targetId
+        currentContactName.value = savedName || '用户'
+        await loadMessages()
+      }
     }
   }
 })

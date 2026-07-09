@@ -17,12 +17,12 @@
         </nav>
         <div class="header-right">
           <template v-if="userStore.token">
-            <el-badge :value="totalUnread || undefined" :hidden="!totalUnread" :max="99" class="header-badge">
+            <el-badge :is-dot="!!totalUnread" class="header-badge">
               <router-link to="/chat" class="icon-btn" title="聊天">
                 <el-icon :size="20"><ChatDotRound /></el-icon>
               </router-link>
             </el-badge>
-            <el-badge :value="notifyCount || undefined" :hidden="!notifyCount" :max="99" class="header-badge">
+            <el-badge :is-dot="!!notifyCount" class="header-badge">
               <router-link to="/notification" class="icon-btn" title="通知">
                 <el-icon :size="20"><Bell /></el-icon>
               </router-link>
@@ -64,7 +64,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getUnreadCount as getNotifyUnread } from '@/api/notification'
@@ -75,17 +75,33 @@ const userStore = useUserStore()
 const notifyCount = ref(0)
 const { totalUnread } = useChatWs()
 
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
 const fetchCounts = async () => {
   if (!userStore.token) return
   try { const r = await getNotifyUnread(); notifyCount.value = typeof r === 'number' ? r : 0 } catch { /* */ }
 }
 
+const startPolling = () => {
+  fetchCounts()
+  pollTimer = setInterval(fetchCounts, 30000)
+}
+
+const stopPolling = () => {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+}
+
+watch(() => userStore.token, (token) => {
+  if (token) startPolling(); else { stopPolling(); notifyCount.value = 0 }
+}, { immediate: true })
+
 const handleLogout = async () => {
+  stopPolling()
   await userStore.logout()
   location.href = '/login'
 }
 
-onMounted(fetchCounts)
+onUnmounted(stopPolling)
 </script>
 
 <style scoped lang="scss">

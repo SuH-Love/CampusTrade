@@ -16,7 +16,7 @@ const onlineUsers = ref<Set<number>>(new Set())
 const unreadMap = ref<Map<number, number>>(new Map())
 const totalUnread = computed(() => {
   let sum = 0
-  unreadMap.value.forEach((v, k) => { if (k !== -1) sum += v })
+  unreadMap.value.forEach((v, k) => { if (k > 0) sum += v })
   if (sum === 0 && unreadMap.value.has(-1)) return unreadMap.value.get(-1) || 0
   return sum
 })
@@ -25,6 +25,7 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null
 let reconnectAttempts = 0
 let cachedUserId: number | null = null
+let connecting = false
 
 function parseUserIdFromToken(token: string): number | null {
   try {
@@ -57,16 +58,21 @@ function getWsUrl(): string {
 
 function connect() {
   const store = useUserStore()
-  if (!store.token || (wsRef.value && wsRef.value.readyState === WebSocket.OPEN)) return
+  if (!store.token || connecting) return
+  if (wsRef.value && wsRef.value.readyState === WebSocket.OPEN) return
+  if (wsRef.value && wsRef.value.readyState === WebSocket.CONNECTING) return
 
+  connecting = true
   cachedUserId = store.userInfo?.id || parseUserIdFromToken(store.token) || null
 
   try {
     const ws = new WebSocket(getWsUrl())
 
     ws.onopen = () => {
+      connecting = false
       connected.value = true
       reconnectAttempts = 0
+      console.log('[WS] Connected, userId:', cachedUserId)
       startHeartbeat(ws)
       fetchOnlineUsers()
       fetchTotalUnread()
@@ -81,33 +87,39 @@ function connect() {
           if (myId && chatMsg.receiverId === myId) {
             const partnerId = chatMsg.senderId
             const m = new Map(unreadMap.value)
+            m.delete(-1)
             m.set(partnerId, (m.get(partnerId) || 0) + 1)
             unreadMap.value = m
           }
-          messageHandlers.value.forEach(h => h(msg))
-        } else if (msg.type === 'ONLINE_STATUS' && msg.userId != null) {
-          const s = new Set(onlineUsers.value)
-          if (msg.online) s.add(msg.userId); else s.delete(msg.userId)
-          onlineUsers.value = s
-          messageHandlers.value.forEach(h => h(msg))
-        } else if (msg.type === 'TYPING' || msg.type === 'STOP_TYPING' || msg.type === 'READ') {
-          messageHandlers.value.forEach(h => h(msg))
         }
+        messageHandlers.value.forEach(h => {
+          try { h(msg) } catch { /* ignore handler errors */ }
+        })
       } catch { /* ignore parse errors */ }
     }
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      connecting = false
       connected.value = false
       stopHeartbeat()
-      scheduleReconnect()
+      console.log('[WS] Disconnected, code:', event.code, 'reason:', event.reason)
+      if (event.code !== 1000) {
+        scheduleReconnect()
+      }
     }
 
-    ws.onerror = () => {
+    ws.onerror = (event) => {
+      connecting = false
+      console.error('[WS] Error:', event)
       ws.close()
     }
 
     wsRef.value = ws
-  } catch { scheduleReconnect() }
+  } catch (e) {
+    connecting = false
+    console.error('[WS] Connect failed:', e)
+    scheduleReconnect()
+  }
 }
 
 function disconnect() {
@@ -115,12 +127,13 @@ function disconnect() {
   if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
   if (wsRef.value) {
     wsRef.value.onclose = null
-    wsRef.value.close()
+    wsRef.value.close(1000)
     wsRef.value = null
   }
   connected.value = false
   reconnectAttempts = 0
   cachedUserId = null
+  connecting = false
 }
 
 function scheduleReconnect() {
@@ -128,6 +141,7 @@ function scheduleReconnect() {
   if (!useUserStore().token) return
   const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000)
   reconnectAttempts++
+  console.log('[WS] Reconnecting in', delay, 'ms, attempt:', reconnectAttempts)
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null
     connect()
@@ -152,6 +166,7 @@ function sendChat(receiverId: number, content: string, messageType: number = 1) 
     wsRef.value.send(JSON.stringify({ type: 'CHAT', receiverId, content, messageType }))
     return true
   }
+  console.warn('[WS] Cannot send: not connected')
   return false
 }
 
@@ -173,6 +188,7 @@ function sendRead(receiverId: number) {
   }
   const m = new Map(unreadMap.value)
   m.delete(receiverId)
+  m.delete(-1)
   unreadMap.value = m
 }
 
@@ -184,23 +200,23 @@ function onMessage(handler: (msg: WsMessage) => void) {
   }
 }
 
-  async function fetchOnlineUsers() {
-    try {
-      const ids = await getOnlineUsers()
-      if (Array.isArray(ids)) onlineUsers.value = new Set(ids)
-    } catch { /* ignore */ }
-  }
+async function fetchOnlineUsers() {
+  try {
+    const ids = await getOnlineUsers()
+    if (Array.isArray(ids)) onlineUsers.value = new Set(ids)
+  } catch { /* ignore */ }
+}
 
-  async function fetchTotalUnread() {
-    try {
-      const count = await getTotalUnreadCount()
-      if (typeof count === 'number' && count > 0 && unreadMap.value.size === 0) {
-        const m = new Map(unreadMap.value)
-        m.set(-1, count)
-        unreadMap.value = m
-      }
-    } catch { /* ignore */ }
-  }
+async function fetchTotalUnread() {
+  try {
+    const count = await getTotalUnreadCount()
+    if (typeof count === 'number' && count > 0) {
+      const m = new Map(unreadMap.value)
+      m.set(-1, count)
+      unreadMap.value = m
+    }
+  } catch { /* ignore */ }
+}
 
 export function useChatWs() {
   const userStore = useUserStore()
