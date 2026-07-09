@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { getOnlineUsers } from '@/api/chat'
 import type { ChatMessageVO } from '@/api/chat'
@@ -12,8 +12,13 @@ interface WsMessage {
 
 const wsRef = ref<WebSocket | null>(null)
 const connected = ref(false)
-const wsUnreadCount = ref(0)
 const onlineUsers = ref<Set<number>>(new Set())
+const unreadMap = ref<Map<number, number>>(new Map())
+const totalUnread = computed(() => {
+  let sum = 0
+  unreadMap.value.forEach(v => { sum += v })
+  return sum
+})
 const messageHandlers = ref<((msg: WsMessage) => void)[]>([])
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null
@@ -43,18 +48,21 @@ function connect() {
       try {
         const msg: WsMessage = JSON.parse(event.data)
         if (msg.type === 'CHAT' && msg.data) {
-          wsUnreadCount.value++
+          const chatMsg = msg.data as ChatMessageVO
+          const myId = useUserStore().userInfo?.id
+          if (chatMsg.receiverId === myId) {
+            const partnerId = chatMsg.senderId
+            const m = new Map(unreadMap.value)
+            m.set(partnerId, (m.get(partnerId) || 0) + 1)
+            unreadMap.value = m
+          }
           messageHandlers.value.forEach(h => h(msg))
         } else if (msg.type === 'ONLINE_STATUS' && msg.userId != null) {
           const s = new Set(onlineUsers.value)
           if (msg.online) s.add(msg.userId); else s.delete(msg.userId)
           onlineUsers.value = s
           messageHandlers.value.forEach(h => h(msg))
-        } else if (msg.type === 'TYPING') {
-          messageHandlers.value.forEach(h => h(msg))
-        } else if (msg.type === 'STOP_TYPING') {
-          messageHandlers.value.forEach(h => h(msg))
-        } else if (msg.type === 'READ') {
+        } else if (msg.type === 'TYPING' || msg.type === 'STOP_TYPING' || msg.type === 'READ') {
           messageHandlers.value.forEach(h => h(msg))
         }
       } catch { /* ignore parse errors */ }
@@ -134,6 +142,9 @@ function sendRead(receiverId: number) {
   if (wsRef.value && wsRef.value.readyState === WebSocket.OPEN) {
     wsRef.value.send(JSON.stringify({ type: 'READ', receiverId }))
   }
+  const m = new Map(unreadMap.value)
+  m.delete(receiverId)
+  unreadMap.value = m
 }
 
 function onMessage(handler: (msg: WsMessage) => void) {
@@ -160,7 +171,8 @@ export function useChatWs() {
 
   return {
     connected,
-    wsUnreadCount,
+    totalUnread,
+    unreadMap,
     onlineUsers,
     connect,
     disconnect,

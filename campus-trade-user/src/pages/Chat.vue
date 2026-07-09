@@ -15,10 +15,7 @@
               <span v-if="contact.unread" class="unread-badge">{{ contact.unread > 99 ? '99+' : contact.unread }}</span>
             </div>
             <div class="contact-info">
-              <div class="contact-name-row">
-                <span class="contact-name">{{ contact.name }}</span>
-
-              </div>
+              <div class="contact-name">{{ contact.name }}</div>
               <div class="contact-last">{{ contact.lastMessage }}</div>
             </div>
           </div>
@@ -80,7 +77,7 @@ const route = useRoute()
 const userStore = useUserStore()
 const myId = computed(() => userStore.userInfo?.id)
 
-const { connected, onlineUsers, sendChat, sendTyping, sendStopTyping, sendRead, onMessage, wsUnreadCount } = useChatWs()
+const { connected, onlineUsers, sendChat, sendTyping, sendStopTyping, sendRead, onMessage, unreadMap } = useChatWs()
 
 interface ContactItem { userId: number; name: string; avatar: string; lastMessage: string; unread: number }
 
@@ -92,7 +89,6 @@ const inputText = ref('')
 const sending = ref(false)
 const messagesRef = ref<HTMLElement>()
 const typingHint = ref('')
-
 let lastTypingSent = false
 
 const isOnline = (userId: number) => onlineUsers.value.has(userId)
@@ -103,7 +99,14 @@ const loadContacts = async () => {
     const list: ContactVO[] = Array.isArray(res) ? res : ((res as { list?: ContactVO[] }).list || [])
     contacts.value = list.map((c) => {
       const isMeSender = c.senderId === myId.value
-      return { userId: isMeSender ? c.receiverId : c.senderId, name: isMeSender ? (c.receiverName || '用户' + c.receiverId) : (c.senderName || '用户' + c.senderId), avatar: isMeSender ? (c.receiverAvatar || '') : (c.senderAvatar || ''), lastMessage: c.content || '', unread: 0 }
+      const partnerId = isMeSender ? c.receiverId : c.senderId
+      return {
+        userId: partnerId,
+        name: isMeSender ? (c.receiverName || '用户' + c.receiverId) : (c.senderName || '用户' + c.senderId),
+        avatar: isMeSender ? (c.receiverAvatar || '') : (c.senderAvatar || ''),
+        lastMessage: c.content || '',
+        unread: unreadMap.value.get(partnerId) || 0
+      }
     })
   } catch { contacts.value = [] }
 }
@@ -114,7 +117,6 @@ const selectContact = async (contact: ContactItem) => {
   contact.unread = 0
   await loadMessages()
   sendRead(contact.userId)
-  wsUnreadCount.value = 0
 }
 
 const loadMessages = async () => {
@@ -170,51 +172,50 @@ const formatTime = (t: string) => {
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${time}`
 }
 
+const findOrCreateContact = (partnerId: number, name: string, avatar: string, content: string, unread = 0) => {
+  const idx = contacts.value.findIndex(c => c.userId === partnerId)
+  if (idx > -1) {
+    const contact = contacts.value[idx]
+    contact.lastMessage = content
+    contact.unread = unread
+    if (idx > 0) {
+      contacts.value.splice(idx, 1)
+      contacts.value.unshift(contact)
+    }
+  } else {
+    contacts.value.unshift({ userId: partnerId, name, avatar, lastMessage: content, unread })
+  }
+}
+
 const removeWsHandler = onMessage((msg) => {
   if (msg.type === 'CHAT' && msg.data) {
     const chatMsg = msg.data as ChatMessageVO
-    if (currentTarget.value && (chatMsg.senderId === currentTarget.value || chatMsg.receiverId === currentTarget.value)) {
+    const partnerId = chatMsg.senderId === myId.value ? chatMsg.receiverId : chatMsg.senderId
+    const partnerName = chatMsg.senderId === myId.value ? (chatMsg.receiverName || '用户') : (chatMsg.senderName || '用户')
+    const partnerAvatar = chatMsg.senderId === myId.value ? (chatMsg.receiverAvatar || '') : (chatMsg.senderAvatar || '')
+
+    if (currentTarget.value === partnerId) {
       const exists = messages.value.some(m => m.id === chatMsg.id)
       if (!exists) {
         messages.value.push(chatMsg)
         nextTick(scrollToBottom)
       }
-      if (chatMsg.senderId === currentTarget.value) {
-        sendRead(chatMsg.senderId)
+      if (chatMsg.senderId !== myId.value) {
+        sendRead(partnerId)
       }
+      findOrCreateContact(partnerId, partnerName, partnerAvatar, chatMsg.content, 0)
+    } else {
+      const isFromOther = chatMsg.senderId !== myId.value
+      findOrCreateContact(partnerId, partnerName, partnerAvatar, chatMsg.content, isFromOther ? 1 : 0)
     }
-    const contactIdx = contacts.value.findIndex(c =>
-      c.userId === chatMsg.senderId || c.userId === chatMsg.receiverId
-    )
-    if (contactIdx > -1) {
-      const contact = contacts.value[contactIdx]
-      contact.lastMessage = chatMsg.content
-      if (chatMsg.senderId !== myId.value && chatMsg.senderId !== currentTarget.value) {
-        contact.unread = (contact.unread || 0) + 1
-      }
-      if (contactIdx > 0) {
-        contacts.value.splice(contactIdx, 1)
-        contacts.value.unshift(contact)
-      }
-    } else if (chatMsg.senderId !== myId.value) {
-      contacts.value.unshift({
-        userId: chatMsg.senderId,
-        name: chatMsg.senderName || '用户',
-        avatar: chatMsg.senderAvatar || '',
-        lastMessage: chatMsg.content,
-        unread: 1
-      })
+    if (chatMsg.senderId === currentTarget.value) {
+      typingHint.value = ''
     }
   } else if (msg.type === 'TYPING' && msg.userId === currentTarget.value) {
     const contact = contacts.value.find(c => c.userId === msg.userId)
     typingHint.value = `${contact?.name || '对方'} 正在输入...`
   } else if (msg.type === 'STOP_TYPING' && msg.userId === currentTarget.value) {
     typingHint.value = ''
-  } else if (msg.type === 'CHAT' && msg.data) {
-    const chatMsg = msg.data as ChatMessageVO
-    if (chatMsg.senderId === currentTarget.value) {
-      typingHint.value = ''
-    }
   } else if (msg.type === 'READ' && msg.userId) {
     messages.value.forEach(m => {
       if (m.senderId === myId.value && m.receiverId === msg.userId) {
@@ -240,7 +241,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   removeWsHandler()
-
 })
 </script>
 
@@ -254,7 +254,6 @@ onUnmounted(() => {
 .online-dot { position: absolute; bottom: 1px; right: 1px; width: 10px; height: 10px; background: #22c55e; border: 2px solid var(--bg-card); border-radius: 50%; }
 .unread-badge { position: absolute; top: -2px; right: -6px; min-width: 18px; height: 18px; background: #f56c6c; color: #fff; font-size: 11px; font-weight: 600; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid var(--bg-card); }
 .contact-info { flex: 1; overflow: hidden; }
-.contact-name-row { display: flex; align-items: center; justify-content: space-between; }
 .contact-name { font-weight: 600; font-size: 14px; }
 .contact-last { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
 

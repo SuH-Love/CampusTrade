@@ -95,9 +95,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         message.setReceiverId(wsMsg.getReceiverId());
         message.setContent(wsMsg.getContent().trim());
         message.setMessageType(wsMsg.getMessageType() != null ? wsMsg.getMessageType() : 1);
-
-        boolean receiverOnline = ONLINE_USERS.containsKey(wsMsg.getReceiverId());
-        message.setIsRead(receiverOnline ? 1 : 0);
+        message.setIsRead(0);
         chatMessageMapper.insert(message);
 
         ChatMessageVO vo = buildMessageVO(message);
