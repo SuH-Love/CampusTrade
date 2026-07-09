@@ -183,24 +183,24 @@ public class DataInitializer implements CommandLineRunner {
 
     private void createBannerTableIfNeeded() {
         try {
-            jdbcTemplate.execute("""
-                CREATE TABLE IF NOT EXISTS t_banner (
-                    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-                    title VARCHAR(200) NOT NULL,
-                    subtitle VARCHAR(500) DEFAULT NULL,
-                    image_url VARCHAR(255) DEFAULT NULL,
-                    link_url VARCHAR(255) DEFAULT NULL,
-                    bg_color VARCHAR(500) DEFAULT NULL,
-                    sort_order INT DEFAULT 0,
-                    status TINYINT DEFAULT 1,
-                    create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    deleted TINYINT DEFAULT 0,
-                    version INT DEFAULT 0,
-                    KEY idx_sort_order (sort_order),
-                    KEY idx_status (status)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-                """);
+            jdbcTemplate.execute(
+                "CREATE TABLE IF NOT EXISTS t_banner (" +
+                "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+                "title VARCHAR(200) NOT NULL," +
+                "subtitle VARCHAR(500) DEFAULT NULL," +
+                "image_url VARCHAR(255) DEFAULT NULL," +
+                "link_url VARCHAR(255) DEFAULT NULL," +
+                "bg_color VARCHAR(500) DEFAULT NULL," +
+                "sort_order INT DEFAULT 0," +
+                "status TINYINT DEFAULT 1," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "version INT DEFAULT 0," +
+                "KEY idx_sort_order (sort_order)," +
+                "KEY idx_status (status)" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
             log.info("t_banner table ready");
         } catch (Exception e) {
             log.warn("Create t_banner table failed: {}", e.getMessage());
