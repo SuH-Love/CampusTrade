@@ -12,6 +12,7 @@ public class BannerVO {
     private String linkUrl;
     private String bgColor;
     private String buttonText;
+    private String buttonColor;
     private Integer sortOrder;
     private Integer status;
     private String createTime;

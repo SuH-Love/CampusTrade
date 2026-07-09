@@ -58,7 +58,10 @@
           <el-input v-model="form.linkUrl" placeholder="点击跳转路径, 如 /goods" />
         </el-form-item>
         <el-form-item label="按钮文字">
-          <el-input v-model="form.buttonText" placeholder="按钮显示文字, 如 浏览商品" />
+          <el-input v-model="form.buttonText" placeholder="按钮显示文字, 留空则不显示按钮" />
+        </el-form-item>
+        <el-form-item label="按钮颜色">
+          <el-color-picker v-model="form.buttonColor" show-alpha />
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="form.sortOrder" :min="0" :max="999" />
@@ -89,6 +92,7 @@ interface BannerVO {
   linkUrl: string
   bgColor: string
   buttonText: string
+  buttonColor: string
   sortOrder: number
   status: number
   createTime: string
@@ -104,7 +108,7 @@ const loading = ref(false)
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const editingId = ref<number | null>(null)
-const form = ref({ title: '', subtitle: '', imageUrl: '', linkUrl: '', bgColor: '', buttonText: '', sortOrder: 0, status: 1 })
+const form = ref({ title: '', subtitle: '', imageUrl: '', linkUrl: '', bgColor: '', buttonText: '', buttonColor: '', sortOrder: 0, status: 1 })
 
 const loadData = async () => {
   loading.value = true
@@ -117,13 +121,13 @@ const loadData = async () => {
 
 const handleAdd = () => {
   editingId.value = null
-  form.value = { title: '', subtitle: '', imageUrl: '', linkUrl: '', bgColor: '', buttonText: '', sortOrder: 0, status: 1 }
+  form.value = { title: '', subtitle: '', imageUrl: '', linkUrl: '', bgColor: '', buttonText: '', buttonColor: '', sortOrder: 0, status: 1 }
   dialogVisible.value = true
 }
 
 const handleEdit = (row: BannerVO) => {
   editingId.value = row.id
-  form.value = { title: row.title, subtitle: row.subtitle, imageUrl: row.imageUrl, linkUrl: row.linkUrl, bgColor: row.bgColor, buttonText: row.buttonText, sortOrder: row.sortOrder, status: row.status }
+  form.value = { title: row.title, subtitle: row.subtitle, imageUrl: row.imageUrl, linkUrl: row.linkUrl, bgColor: row.bgColor, buttonText: row.buttonText, buttonColor: row.buttonColor, sortOrder: row.sortOrder, status: row.status }
   dialogVisible.value = true
 }
 

@@ -271,6 +271,7 @@ CREATE TABLE t_banner (
     link_url VARCHAR(255) DEFAULT NULL COMMENT '点击跳转链接',
     bg_color VARCHAR(500) DEFAULT NULL COMMENT '背景色/渐变CSS',
     button_text VARCHAR(50) DEFAULT NULL COMMENT '按钮文字',
+    button_color VARCHAR(50) DEFAULT NULL COMMENT '按钮颜色',
     sort_order INT DEFAULT 0 COMMENT '排序(升序)',
     status TINYINT DEFAULT 1 COMMENT '状态 0-禁用 1-启用',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

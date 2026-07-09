@@ -10,6 +10,7 @@
         <result column="link_url" property="linkUrl"/>
         <result column="bg_color" property="bgColor"/>
         <result column="button_text" property="buttonText"/>
+        <result column="button_color" property="buttonColor"/>
         <result column="sort_order" property="sortOrder"/>
         <result column="status" property="status"/>
         <result column="create_time" property="createTime"/>
@@ -38,8 +39,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO t_banner (title, subtitle, image_url, link_url, bg_color, button_text, sort_order, status, create_time, update_time, deleted, version)
-        VALUES (#{title}, #{subtitle}, #{imageUrl}, #{linkUrl}, #{bgColor}, #{buttonText}, #{sortOrder}, #{status}, NOW(), NOW(), 0, 0)
+        INSERT INTO t_banner (title, subtitle, image_url, link_url, bg_color, button_text, button_color, sort_order, status, create_time, update_time, deleted, version)
+        VALUES (#{title}, #{subtitle}, #{imageUrl}, #{linkUrl}, #{bgColor}, #{buttonText}, #{buttonColor}, #{sortOrder}, #{status}, NOW(), NOW(), 0, 0)
     </insert>
 
     <update id="updateById">
@@ -51,6 +52,7 @@
             <if test="linkUrl != null">link_url = #{linkUrl},</if>
             <if test="bgColor != null">bg_color = #{bgColor},</if>
             <if test="buttonText != null">button_text = #{buttonText},</if>
+            <if test="buttonColor != null">button_color = #{buttonColor},</if>
             <if test="sortOrder != null">sort_order = #{sortOrder},</if>
             <if test="status != null">status = #{status},</if>
             version = version + 1

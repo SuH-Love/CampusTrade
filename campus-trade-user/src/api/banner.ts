@@ -8,6 +8,7 @@ export interface BannerVO {
   linkUrl: string
   bgColor: string
   buttonText: string
+  buttonColor: string
   sortOrder: number
   status: number
   createTime: string

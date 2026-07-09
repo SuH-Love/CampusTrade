@@ -5,9 +5,9 @@
         <el-carousel-item v-for="banner in banners" :key="banner.id">
           <div class="hero-slide" :style="{ background: banner.bgColor || 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' }">
             <img v-if="banner.imageUrl" :src="banner.imageUrl" class="hero-bg-img" />
-            <h1>{{ banner.title }}</h1>
-            <p>{{ banner.subtitle }}</p>
-            <el-button v-if="banner.linkUrl" type="primary" size="large" round @click="$router.push(banner.linkUrl)">{{ banner.buttonText || '了解更多' }}</el-button>
+            <h1 v-if="banner.title">{{ banner.title }}</h1>
+            <p v-if="banner.subtitle">{{ banner.subtitle }}</p>
+            <el-button v-if="banner.buttonText && banner.linkUrl" size="large" round :style="bannerButtonStyle(banner)" @click="$router.push(banner.linkUrl)">{{ banner.buttonText }}</el-button>
           </div>
         </el-carousel-item>
         <el-carousel-item v-if="banners.length === 0">
@@ -95,6 +95,12 @@ const selectedCategoryId = ref<number | undefined>(undefined)
 const toggleCategory = (id: number) => {
   selectedCategoryId.value = selectedCategoryId.value === id ? undefined : id
   loadHotGoods()
+}
+
+const bannerButtonStyle = (banner: BannerVO) => {
+  const color = banner.buttonColor || 'rgba(255,255,255,0.2)'
+  const borderColor = banner.buttonColor ? banner.buttonColor : 'rgba(255,255,255,0.4)'
+  return { background: color, borderColor, color: '#fff' }
 }
 
 const loadBanners = async () => {

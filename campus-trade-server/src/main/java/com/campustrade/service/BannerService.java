@@ -12,9 +12,9 @@ public interface BannerService {
 
     Result<PageResult<BannerVO>> listAllBanners(Integer pageNum, Integer pageSize);
 
-    Result<BannerVO> createBanner(String title, String subtitle, String imageUrl, String linkUrl, String bgColor, String buttonText, Integer sortOrder, Integer status);
+    Result<BannerVO> createBanner(String title, String subtitle, String imageUrl, String linkUrl, String bgColor, String buttonText, String buttonColor, Integer sortOrder, Integer status);
 
-    Result<BannerVO> updateBanner(Long id, String title, String subtitle, String imageUrl, String linkUrl, String bgColor, String buttonText, Integer sortOrder, Integer status);
+    Result<BannerVO> updateBanner(Long id, String title, String subtitle, String imageUrl, String linkUrl, String bgColor, String buttonText, String buttonColor, Integer sortOrder, Integer status);
 
     Result<Void> deleteBanner(Long id);
 
