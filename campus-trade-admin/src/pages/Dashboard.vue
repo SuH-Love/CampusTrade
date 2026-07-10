@@ -156,31 +156,31 @@ const initOrderChart = () => {
 
 const loadStats = async () => {
   try {
-    const res = await getDashboardStats() as Record<string, unknown>
-    stats.value[0].value = (res.userCount as number) || 0
-    stats.value[1].value = (res.todayActive as number) || 0
-    stats.value[2].value = (res.todayNewUsers as number) || 0
-    stats.value[3].value = (res.goodsCount as number) || 0
-    stats.value[4].value = (res.orderCount as number) || 0
-    stats.value[5].value = (res.todayOrders as number) || 0
-    todoItems.value[0].count = (res.pendingAudit as number) || 0
+    const res = await getDashboardStats()
+    stats.value[0].value = res.userCount || 0
+    stats.value[1].value = res.todayActive || 0
+    stats.value[2].value = res.todayNewUsers || 0
+    stats.value[3].value = res.goodsCount || 0
+    stats.value[4].value = res.orderCount || 0
+    stats.value[5].value = res.todayOrders || 0
+    todoItems.value[0].count = res.pendingAudit || 0
     if (res.goodsStatusMap) {
       const nameMap: Record<string, string> = { ONLINE: '在售', OFFLINE: '已下架', SOLD: '已售出', PENDING: '待审核', DRAFT: '草稿', REJECTED: '已拒绝' }
-      goodsStatusData.value = Object.entries(res.goodsStatusMap as Record<string, number>)
+      goodsStatusData.value = Object.entries(res.goodsStatusMap)
         .filter(([, v]) => v > 0)
         .map(([k, v]) => ({ name: nameMap[k] || k, value: v }))
     } else {
-      goodsStatusData.value = [{ name: '在售', value: 0 }, { name: '待审核', value: (res.pendingAudit as number) || 0 }]
+      goodsStatusData.value = [{ name: '在售', value: 0 }, { name: '待审核', value: res.pendingAudit || 0 }]
     }
     if (res.orderStatusMap) {
       const nameMap: Record<string, string> = { PENDING_PAY: '待支付', PAID: '已支付', SHIPPING: '已发货', PENDING_REVIEW: '待评价', FINISHED: '已完成', CANCELLED: '已取消', REFUND: '退款中' }
-      orderStatusData.value = Object.entries(res.orderStatusMap as Record<string, number>)
+      orderStatusData.value = Object.entries(res.orderStatusMap)
         .filter(([, v]) => v > 0)
         .map(([k, v]) => ({ name: nameMap[k] || k, value: v }))
       const refundEntry = orderStatusData.value.find(d => d.name === '退款中')
       todoItems.value[2].count = refundEntry ? refundEntry.value : 0
     } else {
-      orderStatusData.value = [{ name: '订单', value: (res.orderCount as number) || 0 }]
+      orderStatusData.value = [{ name: '订单', value: res.orderCount || 0 }]
     }
     await nextTick()
     initGoodsChart()
