@@ -15,6 +15,7 @@
           <el-checkbox label="GOODS">商品通知</el-checkbox>
           <el-checkbox label="CHAT">聊天通知</el-checkbox>
           <el-checkbox label="FOLLOW">关注通知</el-checkbox>
+          <el-checkbox label="REPORT">举报通知</el-checkbox>
         </el-checkbox-group>
       </div>
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
@@ -65,13 +66,13 @@ const total = ref(0)
 const unreadCount = ref(0)
 const loading = ref(false)
 
-const typeTagMap: Record<string, string> = { SYSTEM: 'danger', ORDER: 'warning', GOODS: 'success', CHAT: '', FOLLOW: 'primary' }
+const typeTagMap: Record<string, string> = { SYSTEM: 'danger', ORDER: 'warning', GOODS: 'success', CHAT: '', FOLLOW: 'primary', REPORT: 'warning' }
 const typeLabel = (type: string) => {
-  const map: Record<string, string> = { SYSTEM: '系统', ORDER: '订单', GOODS: '商品', CHAT: '聊天', FOLLOW: '关注' }
+  const map: Record<string, string> = { SYSTEM: '系统', ORDER: '订单', GOODS: '商品', CHAT: '聊天', FOLLOW: '关注', REPORT: '举报' }
   return map[type] || type
 }
 
-const allTypes = ['SYSTEM', 'ORDER', 'GOODS', 'CHAT', 'FOLLOW']
+const allTypes = ['SYSTEM', 'ORDER', 'GOODS', 'CHAT', 'FOLLOW', 'REPORT']
 const enabledTypes = ref<string[]>([...allTypes])
 
 const loadData = async () => {

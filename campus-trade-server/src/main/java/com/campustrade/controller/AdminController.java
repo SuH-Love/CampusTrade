@@ -19,6 +19,8 @@ import com.campustrade.vo.ReportVO;
 import com.campustrade.vo.AdminInfoVO;
 import com.campustrade.mapper.RoleMapper;
 import com.campustrade.mapper.PermissionMapper;
+import com.campustrade.mapper.GoodsMapper;
+import com.campustrade.mapper.OrderMapper;
 import com.campustrade.entity.User;
 import com.campustrade.entity.Role;
 import com.campustrade.mapper.UserMapper;
@@ -69,6 +71,12 @@ public class AdminController {
     private PermissionMapper permissionMapper;
 
     @Autowired
+    private GoodsMapper goodsMapper;
+
+    @Autowired
+    private OrderMapper orderMapper;
+
+    @Autowired
 
     private NotificationService notificationService;
 
@@ -100,6 +108,20 @@ public class AdminController {
         stats.put("goodsCount", goodsService.countGoods());
         stats.put("orderCount", orderService.countOrders());
         stats.put("pendingAudit", goodsService.countPendingAudit());
+        Map<String, Long> goodsStatusMap = new HashMap<>();
+        String[] goodsStatuses = {"ONLINE", "OFFLINE", "SOLD", "PENDING", "DRAFT", "REJECTED"};
+        for (String s : goodsStatuses) {
+            Long count = goodsMapper.selectCountByStatus(s);
+            if (count != null && count > 0) goodsStatusMap.put(s, count);
+        }
+        stats.put("goodsStatusMap", goodsStatusMap);
+        Map<String, Long> orderStatusMap = new HashMap<>();
+        String[] orderStatuses = {"PENDING_PAY", "PAID", "SHIPPING", "PENDING_REVIEW", "FINISHED", "CANCELLED", "REFUND"};
+        for (String s : orderStatuses) {
+            Long count = orderMapper.selectCountByStatus(s);
+            if (count != null && count > 0) orderStatusMap.put(s, count);
+        }
+        stats.put("orderStatusMap", orderStatusMap);
         return Result.success(stats);
     }
 

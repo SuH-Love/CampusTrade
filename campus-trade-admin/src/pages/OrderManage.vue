@@ -27,11 +27,23 @@
             <el-tag :type="statusTagMap[row.status] || 'info'" effect="dark" round>{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="deliveryMethod" label="配送" min-width="80">
+        <el-table-column label="配送" min-width="80">
           <template #default="{ row }">
-            <span v-if="row.deliveryMethod === 'DELIVERY'">配送</span>
-            <span v-else-if="row.deliveryMethod === 'PICKUP'">自取</span>
-            <span v-else>-</span>
+            <el-tag v-if="row.deliveryMethod === 1" size="small" type="primary">配送</el-tag>
+            <el-tag v-else-if="row.deliveryMethod === 0 || row.deliveryMethod === 2" size="small" type="success">自取</el-tag>
+            <span v-else style="color: #c0c4cc">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="address" label="配送地址" min-width="150" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.address">{{ row.address }}</span>
+            <span v-else style="color: #c0c4cc">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="cancelReason" label="取消原因" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.cancelReason" style="color: #f56c6c">{{ row.cancelReason }}</span>
+            <span v-else style="color: #c0c4cc">-</span>
           </template>
         </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip>

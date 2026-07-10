@@ -56,6 +56,12 @@
           </template>
         </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="cancelReason" label="取消原因" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.cancelReason" style="color: #f56c6c">{{ row.cancelReason }}</span>
+            <span v-else style="color: #c0c4cc">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="160" />
         <el-table-column label="操作" min-width="260" fixed="right">
           <template #default="{ row }">

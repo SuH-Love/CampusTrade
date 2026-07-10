@@ -66,7 +66,8 @@ const moduleLabel = (module: string) => {
     StompChat: '聊天', FileUpload: '文件上传', Admin: '管理',
     UserFollow: '关注', DeliveryAddress: '收货地址', Cart: '购物车',
     SellerRating: '商家评价', NotificationPreference: '通知偏好',
-    Banner: '横幅'
+    Banner: '横幅', OrderItem: '订单项', GoodsFavorite: '商品收藏',
+    OperationLog: '操作日志', SecurityLog: '安全日志'
   }
   return map[module] || module
 }
@@ -104,7 +105,11 @@ const operationLabel = (op: string) => {
     unbanUser: '解封用户', auditGoods: '审核商品', listOrders: '订单列表',
     listReports: '举报列表', resolveReport: '处理举报', dismissReport: '驳回举报',
     listOperationLogs: '操作日志', listSecurityLogs: '安全日志',
-    订单创建: '订单创建'
+    订单创建: '订单创建', getAverageRating: '查询商家评分',
+    isFollowing: '查询关注状态', getFollowCounts: '查询关注数',
+    getStats: '查询用户统计', getUserPublicInfo: '查看用户公开信息',
+    getActiveBanners: '获取活跃横幅', getCategoryList: '获取分类列表',
+    orderTimeout: '订单超时取消', orderTimeoutCheck: '订单超时检查'
   }
   return map[op] || op
 }

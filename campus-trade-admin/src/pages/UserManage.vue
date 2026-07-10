@@ -51,8 +51,9 @@
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="注册时间" min-width="150" />
-        <el-table-column label="操作" min-width="120" fixed="right">
+        <el-table-column label="操作" min-width="160" fixed="right">
           <template #default="{ row }">
+            <el-button size="small" @click="handleViewDetail(row)">详情</el-button>
             <el-button v-if="row.status === 1" v-permission="'user:ban'" type="danger" size="small" @click="handleBan(row.id)">封禁</el-button>
             <el-button v-else v-permission="'user:ban'" type="success" size="small" @click="handleUnban(row.id)">解封</el-button>
           </template>
@@ -61,6 +62,25 @@
       </el-table>
       <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
     </el-card>
+
+    <el-dialog v-model="detailVisible" title="用户详情" width="600px">
+      <el-descriptions :column="2" border v-if="currentUser">
+        <el-descriptions-item label="ID">{{ currentUser.id }}</el-descriptions-item>
+        <el-descriptions-item label="用户名">{{ currentUser.username }}</el-descriptions-item>
+        <el-descriptions-item label="昵称">{{ currentUser.nickname || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="手机号">{{ currentUser.phone || '未绑定' }}</el-descriptions-item>
+        <el-descriptions-item label="邮箱">{{ currentUser.email || '未绑定' }}</el-descriptions-item>
+        <el-descriptions-item label="真实姓名">{{ currentUser.realName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="学号">{{ currentUser.studentId || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="认证">
+          <el-tag :type="currentUser.realVerified === 1 ? 'success' : 'info'" size="small">{{ currentUser.realVerified === 1 ? '已认证' : '未认证' }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="currentUser.status === 1 ? 'success' : 'danger'" size="small">{{ currentUser.status === 1 ? '正常' : '禁用' }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="注册时间" :span="2">{{ currentUser.createTime }}</el-descriptions-item>
+      </el-descriptions>
+    </el-dialog>
   </div>
 </template>
 
@@ -76,6 +96,8 @@ const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const loading = ref(false)
+const detailVisible = ref(false)
+const currentUser = ref<AdminUserVO | null>(null)
 
 const loadData = async () => {
   loading.value = true
@@ -93,6 +115,11 @@ const loadData = async () => {
 const handleSearch = () => {
   pageNum.value = 1
   loadData()
+}
+
+const handleViewDetail = (row: AdminUserVO) => {
+  currentUser.value = row
+  detailVisible.value = true
 }
 
 const handleBan = async (id: number) => {

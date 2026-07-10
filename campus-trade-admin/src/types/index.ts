@@ -99,6 +99,8 @@ export interface DashboardStats {
   goodsCount: number
   orderCount: number
   pendingAudit: number
+  goodsStatusMap?: Record<string, number>
+  orderStatusMap?: Record<string, number>
 }
 
 export interface AdminInfoVO {

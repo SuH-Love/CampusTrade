@@ -86,6 +86,10 @@
         <if test="status != null and status != ''">AND status = #{status}</if>
     </select>
 
+    <select id="selectCountByStatus" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_order WHERE deleted = 0 AND status = #{status}
+    </select>
+
     <select id="selectTimeoutPendingPay" resultMap="BaseResultMap">
         SELECT * FROM t_order WHERE status = 'PENDING_PAY' AND deleted = 0 AND create_time &lt; #{timeout}
     </select>

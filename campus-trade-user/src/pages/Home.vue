@@ -42,9 +42,11 @@
             <div class="goods-card" @click="$router.push(`/goods/${item.id}`)">
               <div class="goods-img-wrap">
                 <img :src="item.coverImage || '/default-cover.svg'" class="goods-img" />
-                <span class="goods-category-tag">{{ item.categoryName }}</span>
-                <span v-if="item.condition" class="goods-condition-tag">{{ item.condition }}</span>
-                <span v-if="item.originalPrice && item.originalPrice > item.price" class="goods-discount-tag">折扣</span>
+                <div class="goods-tags">
+                  <span class="goods-category-tag">{{ item.categoryName }}</span>
+                  <span v-if="item.condition" class="goods-condition-tag">{{ item.condition }}</span>
+                  <span v-if="item.originalPrice && item.originalPrice > item.price" class="goods-discount-tag">折扣</span>
+                </div>
                 <el-avatar v-if="item.userAvatar" :size="28" :src="item.userAvatar" class="goods-seller-avatar" />
               </div>
               <div class="goods-info">
@@ -70,9 +72,11 @@
             <div class="goods-card" @click="$router.push(`/goods/${item.id}`)">
               <div class="goods-img-wrap">
                 <img :src="item.coverImage || '/default-cover.svg'" class="goods-img" />
-                <span class="goods-category-tag">{{ item.categoryName }}</span>
-                <span v-if="item.condition" class="goods-condition-tag">{{ item.condition }}</span>
-                <span v-if="item.originalPrice && item.originalPrice > item.price" class="goods-discount-tag">折扣</span>
+                <div class="goods-tags">
+                  <span class="goods-category-tag">{{ item.categoryName }}</span>
+                  <span v-if="item.condition" class="goods-condition-tag">{{ item.condition }}</span>
+                  <span v-if="item.originalPrice && item.originalPrice > item.price" class="goods-discount-tag">折扣</span>
+                </div>
                 <el-avatar v-if="item.userAvatar" :size="28" :src="item.userAvatar" class="goods-seller-avatar" />
               </div>
               <div class="goods-info">
@@ -256,10 +260,17 @@ onMounted(() => { loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCateg
   .goods-card:hover & { transform: scale(1.08); }
 }
 
-.goods-category-tag {
+.goods-tags {
   position: absolute;
   top: 10px;
   left: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  z-index: 2;
+}
+
+.goods-category-tag {
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(8px);
   color: #fff;
@@ -271,9 +282,6 @@ onMounted(() => { loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCateg
 }
 
 .goods-condition-tag {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
   background: rgba(234, 179, 8, 0.85);
   backdrop-filter: blur(6px);
   color: #fff;
@@ -284,9 +292,6 @@ onMounted(() => { loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCateg
 }
 
 .goods-discount-tag {
-  position: absolute;
-  top: 10px;
-  right: 10px;
   background: rgba(239, 68, 68, 0.85);
   backdrop-filter: blur(6px);
   color: #fff;

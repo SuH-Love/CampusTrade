@@ -19,8 +19,10 @@
           <div class="fav-card" :class="{ sold: item.status === 'SOLD' || item.status === 'OFFLINE' }">
             <div class="fav-img-wrap" :class="{ 'no-click': item.status !== 'ONLINE' }" @click="item.status === 'ONLINE' && $router.push(`/goods/${item.id}`)">
               <img :src="item.coverImage || '/default-cover.svg'" class="fav-img" />
-              <span v-if="item.condition" class="fav-condition-tag">{{ item.condition }}</span>
-              <span v-if="item.originalPrice && item.originalPrice > item.price" class="fav-discount-tag">折扣</span>
+              <div class="fav-tags">
+                <span v-if="item.condition" class="fav-condition-tag">{{ item.condition }}</span>
+                <span v-if="item.originalPrice && item.originalPrice > item.price" class="fav-discount-tag">折扣</span>
+              </div>
               <div v-if="item.status === 'SOLD'" class="sold-overlay">
                 <el-tag type="info" effect="dark" size="large">已售出</el-tag>
               </div>
@@ -119,14 +121,16 @@ onMounted(loadData)
 }
 .fav-img-wrap { position: relative; padding-top: 75%; background: linear-gradient(135deg, #f1f5f9, #e2e8f0); cursor: pointer; overflow: hidden; &.no-click { cursor: not-allowed; } }
 .fav-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); .fav-card:not(.sold):hover & { transform: scale(1.08); } }
+.fav-tags {
+  position: absolute; top: 8px; left: 8px;
+  display: flex; flex-wrap: wrap; gap: 4px; z-index: 2;
+}
 .fav-condition-tag {
-  position: absolute; bottom: 8px; left: 8px;
   background: rgba(234, 179, 8, 0.85); backdrop-filter: blur(6px);
   color: #fff; font-size: 11px; font-weight: 600;
   padding: 2px 8px; border-radius: 8px;
 }
 .fav-discount-tag {
-  position: absolute; top: 8px; right: 8px;
   background: rgba(239, 68, 68, 0.85); backdrop-filter: blur(6px);
   color: #fff; font-size: 11px; font-weight: 600;
   padding: 2px 8px; border-radius: 8px;

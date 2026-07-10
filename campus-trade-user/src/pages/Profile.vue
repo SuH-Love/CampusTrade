@@ -13,8 +13,17 @@
             <el-avatar v-else :size="100" :src="profileUser?.avatar || '/default-avatar.svg'" />
             <h3 class="profile-name">{{ isSelf ? (userStore.userInfo?.nickname || userStore.userInfo?.username) : (profileUser?.nickname || profileUser?.username) }}</h3>
             <template v-if="isSelf">
-              <el-tag v-if="userStore.userInfo?.realVerified === 1" type="success" effect="dark" round>已认证</el-tag>
-              <el-tag v-else type="info" effect="plain" round>未认证</el-tag>
+            <el-tag v-if="userStore.userInfo?.realVerified === 1" type="success" effect="dark" round>已认证</el-tag>
+            <el-tag v-else type="info" effect="plain" round>未认证</el-tag>
+            <div class="profile-stats">
+              <span>{{ selfFollowCounts.following }} 关注</span>
+              <span>·</span>
+              <span>{{ selfFollowCounts.followers }} 粉丝</span>
+              <template v-if="selfAvgRating > 0">
+                <span>·</span>
+                <el-rate :model-value="selfAvgRating" disabled size="small" style="vertical-align: middle" />
+              </template>
+            </div>
             </template>
             <template v-else>
               <div class="profile-stats">
@@ -66,17 +75,17 @@
             <div class="stat-card" @click="$router.push('/order?tab=buyer')">
               <div class="stat-icon" style="background: linear-gradient(135deg, #f59e0b, #fbbf24)">🛒</div>
               <div class="stat-value">{{ stats.buyerOrders }}</div>
-              <div class="stat-label">买家订单</div>
+              <div class="stat-label">我的订单</div>
             </div>
             <div class="stat-card" @click="$router.push('/order?tab=seller')">
               <div class="stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #a78bfa)">💰</div>
               <div class="stat-value">{{ stats.sellerOrders }}</div>
-              <div class="stat-label">卖家订单</div>
+              <div class="stat-label">出售商品</div>
             </div>
             <div class="stat-card" @click="$router.push('/order?tab=buyer&status=FINISHED')">
               <div class="stat-icon" style="background: linear-gradient(135deg, #06b6d4, #22d3ee)">✅</div>
               <div class="stat-value">{{ stats.finishedOrders }}</div>
-              <div class="stat-label">已完成</div>
+              <div class="stat-label">完成购物</div>
             </div>
             <div class="stat-card" @click="$router.push('/address')">
               <div class="stat-icon" style="background: linear-gradient(135deg, #ec4899, #f472b6)">📍</div>
@@ -166,6 +175,8 @@ const followLoading = ref(false)
 const goodsList = ref<GoodsVO[]>([])
 const goodsLoading = ref(false)
 const stats = ref<UserStatsVO>({ publishedGoods: 0, onlineGoods: 0, buyerOrders: 0, sellerOrders: 0, finishedOrders: 0 })
+const selfFollowCounts = ref<{ following: number; followers: number }>({ following: 0, followers: 0 })
+const selfAvgRating = ref(0)
 
 const uploadHeaders = computed(() => ({
   Authorization: userStore.token ? `Bearer ${userStore.token}` : ''
@@ -312,6 +323,10 @@ onMounted(() => {
   }
   if (isSelf.value && userStore.token) {
     getUserStats().then(s => { stats.value = s }).catch((e) => { console.error(e) })
+    if (userStore.userInfo?.id) {
+      getFollowCounts(userStore.userInfo.id).then(c => { selfFollowCounts.value = c }).catch((e) => { console.error(e) })
+      getAverageRating(userStore.userInfo.id).then(r => { selfAvgRating.value = r }).catch((e) => { console.error(e) })
+    }
   }
   if (route.params.id && !isSelf.value) loadOtherUser()
 })

@@ -26,11 +26,11 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
 import { ElMessage } from 'element-plus'
-import type { FormInstance } from 'element-plus'
+
 
 const router = useRouter()
 const adminStore = useAdminStore()
-const formRef = ref<FormInstance>()
+const formRef = ref<{ validate: () => Promise<void> }>()
 const loading = ref(false)
 
 const form = reactive({ username: '', password: '' })

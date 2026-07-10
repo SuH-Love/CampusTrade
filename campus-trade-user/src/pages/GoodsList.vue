@@ -29,9 +29,11 @@
         <div class="goods-card" @click="$router.push(`/goods/${item.id}`)">
           <div class="goods-img-wrap">
             <img :src="item.coverImage || '/default-cover.svg'" class="goods-img" />
-            <span class="goods-category-tag">{{ item.categoryName || getCategoryName(item.categoryId) }}</span>
-            <span v-if="item.condition" class="goods-condition-tag">{{ item.condition }}</span>
-            <span v-if="item.originalPrice && item.originalPrice > item.price" class="goods-discount-tag">折扣</span>
+            <div class="goods-tags">
+              <span class="goods-category-tag">{{ item.categoryName || getCategoryName(item.categoryId) }}</span>
+              <span v-if="item.condition" class="goods-condition-tag">{{ item.condition }}</span>
+              <span v-if="item.originalPrice && item.originalPrice > item.price" class="goods-discount-tag">折扣</span>
+            </div>
             <el-avatar v-if="item.userAvatar" :size="28" :src="item.userAvatar" class="goods-seller-avatar" />
           </div>
           <div class="goods-info">
@@ -114,18 +116,23 @@ onMounted(() => { loadData(); loadCategories() })
 
 .goods-img-wrap { position: relative; padding-top: 75%; overflow: hidden; background: linear-gradient(135deg, #f1f5f9, #e2e8f0); }
 .goods-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); .goods-card:hover & { transform: scale(1.08); } }
-.goods-category-tag { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); color: #fff; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 10px; }
+.goods-tags {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  z-index: 2;
+}
+.goods-category-tag { background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); color: #fff; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 10px; }
 .goods-condition-tag {
-  position: absolute; bottom: 10px; left: 10px;
   background: rgba(234, 179, 8, 0.85); backdrop-filter: blur(6px);
-  color: #fff; font-size: 11px; font-weight: 600;
-  padding: 3px 10px; border-radius: 10px;
+  color: #fff; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 10px;
 }
 .goods-discount-tag {
-  position: absolute; top: 10px; right: 10px;
   background: rgba(239, 68, 68, 0.85); backdrop-filter: blur(6px);
-  color: #fff; font-size: 11px; font-weight: 600;
-  padding: 3px 10px; border-radius: 10px;
+  color: #fff; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 10px;
 }
 .goods-seller-avatar {
   position: absolute; bottom: 10px; right: 10px;

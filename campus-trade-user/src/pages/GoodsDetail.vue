@@ -66,8 +66,60 @@
         </div>
       </el-col>
     </el-row>
-  </div>
-  <div v-else style="padding: 20px"><el-empty description="商品不存在" /></div>
+   </div>
+   <div v-else style="padding: 20px"><el-empty description="商品不存在" /></div>
+
+  <el-dialog v-model="buyDialogVisible" title="确认购买" width="520px" destroy-on-close>
+    <div v-if="goods">
+      <p style="margin-bottom: 12px">确认购买「{{ goods.title }}」？单价 ¥{{ goods.price }}</p>
+      <div style="margin-bottom: 12px">
+        <span style="margin-right: 12px">购买数量：</span>
+        <el-input-number v-model="buyQuantity" :min="1" :max="goods.stock || 1" size="small" />
+        <span style="margin-left: 8px; color: #94a3b8; font-size: 13px">（库存 {{ goods.stock || 1 }} 件）</span>
+      </div>
+      <div style="margin-bottom: 12px">
+        <span style="margin-right: 12px">配送方式：</span>
+        <el-radio-group v-model="buyDeliveryMethod">
+          <el-radio value="PICKUP">自取</el-radio>
+          <el-radio value="DELIVERY">配送</el-radio>
+        </el-radio-group>
+      </div>
+      <template v-if="buyDeliveryMethod === 'DELIVERY'">
+        <div v-if="buyAddressList.length > 0" style="margin-bottom: 10px">
+          <div style="font-size: 13px; color: #64748b; margin-bottom: 6px">选择已有地址：</div>
+          <div
+            v-for="addr in buyAddressList" :key="addr.id"
+            class="buy-address-item"
+            :class="{ active: buySelectedAddressId === addr.id }"
+            @click="buySelectedAddressId = addr.id"
+          >
+            <div style="font-size: 14px; font-weight: 500">{{ addr.receiverName }} {{ addr.receiverPhone }}</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 2px">{{ [addr.province, addr.city, addr.district, addr.detailAddress].filter(Boolean).join(' ') }}</div>
+          </div>
+        </div>
+        <div style="margin-bottom: 8px">
+          <el-button type="primary" size="small" link @click="buyShowAddAddr = !buyShowAddAddr">{{ buyShowAddAddr ? '收起' : '新增收货地址' }}</el-button>
+        </div>
+        <div v-if="buyShowAddAddr" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: #fafafa">
+          <el-form :model="buyAddrForm" label-width="90px" size="small">
+            <el-row :gutter="8">
+              <el-col :span="12"><el-form-item label="收货人"><el-input v-model="buyAddrForm.receiverName" placeholder="收货人" /></el-form-item></el-col>
+              <el-col :span="12"><el-form-item label="手机号"><el-input v-model="buyAddrForm.receiverPhone" placeholder="手机号" /></el-form-item></el-col>
+            </el-row>
+            <el-form-item label="省/市/区">
+              <el-cascader v-model="buyAreaValue" :options="areaOptions" :props="{ expandTrigger: 'hover' }" placeholder="请选择" style="width: 100%" teleported />
+            </el-form-item>
+            <el-form-item label="详细地址"><el-input v-model="buyAddrForm.detailAddress" placeholder="街道、楼栋、门牌号" /></el-form-item>
+            <el-form-item><el-button type="primary" @click="handleBuyAddAddress" :loading="buyAddrSaving">保存地址</el-button></el-form-item>
+          </el-form>
+        </div>
+      </template>
+    </div>
+    <template #footer>
+      <el-button @click="buyDialogVisible = false">取消</el-button>
+      <el-button type="primary" @click="handleConfirmBuy" :loading="buying">确认购买</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -82,8 +134,8 @@ import { getAddressList, addAddress, type DeliveryAddressVO } from '@/api/addres
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { h } from 'vue'
 import type { GoodsVO } from '@/api/goods'
+import areaOptions from '@/data/area'
 
 const route = useRoute()
 const router = useRouter()
@@ -97,6 +149,16 @@ const isFollowed = ref(false)
 const followLoading = ref(false)
 const sellerRating = ref(0)
 const isInCart = ref(false)
+
+const buyDialogVisible = ref(false)
+const buyQuantity = ref(1)
+const buyDeliveryMethod = ref('PICKUP')
+const buyAddressList = ref<DeliveryAddressVO[]>([])
+const buySelectedAddressId = ref<number | null>(null)
+const buyShowAddAddr = ref(false)
+const buyAddrSaving = ref(false)
+const buyAreaValue = ref<string[]>([])
+const buyAddrForm = reactive({ receiverName: '', receiverPhone: '', province: '', city: '', district: '', detailAddress: '', isDefault: 0 })
 
 const imageList = computed(() => {
   if (!goods.value) return []
@@ -135,112 +197,49 @@ const loadData = async () => {
 
 const handleBuy = async () => {
   if (!goods.value) return
-  const deliveryMethod = ref('PICKUP')
-  const selectedAddressId = ref<number | null>(null)
-  const customAddress = ref('')
-  const buyQuantity = ref(1)
-  let addressList: DeliveryAddressVO[] = []
-  try { addressList = await getAddressList() } catch { /* ignore */ }
-  const showAddAddr = ref(false)
-  const addrForm = reactive({ receiverName: '', receiverPhone: '', province: '', city: '', district: '', detailAddress: '', isDefault: 0 })
+  buyQuantity.value = 1
+  buyDeliveryMethod.value = 'PICKUP'
+  buySelectedAddressId.value = null
+  buyShowAddAddr.value = false
+  buyAreaValue.value = []
+  buyAddrForm.receiverName = ''; buyAddrForm.receiverPhone = ''; buyAddrForm.province = ''; buyAddrForm.city = ''; buyAddrForm.district = ''; buyAddrForm.detailAddress = ''
+  try { buyAddressList.value = await getAddressList() } catch (e) { console.error(e) }
+  buyDialogVisible.value = true
+}
+
+const handleBuyAddAddress = async () => {
+  if (!buyAddrForm.receiverName || !buyAddrForm.receiverPhone || !buyAddrForm.detailAddress) { ElMessage.error('请填写收货人、手机号和详细地址'); return }
+  if (buyAreaValue.value.length === 3) {
+    buyAddrForm.province = buyAreaValue.value[0]
+    buyAddrForm.city = buyAreaValue.value[1]
+    buyAddrForm.district = buyAreaValue.value[2]
+  }
+  buyAddrSaving.value = true
   try {
-    await ElMessageBox({
-      title: '确认购买',
-      message: () => h('div', null, [
-        h('p', { style: 'margin-bottom: 12px' }, `确认购买「${goods.value!.title}」？单价 ¥${goods.value!.price}`),
-        h('div', { style: 'margin-bottom: 12px' }, [
-          h('span', { style: 'margin-right: 12px' }, '购买数量：'),
-          h('input', {
-            type: 'number', value: buyQuantity.value, min: 1, max: goods.value!.stock || 1,
-            style: 'width: 80px; padding: 6px 8px; border: 1px solid #dcdfe6; border-radius: 4px; text-align: center;',
-            onInput: (e: Event) => {
-              const v = parseInt((e.target as HTMLInputElement).value) || 1
-              buyQuantity.value = Math.max(1, Math.min(v, goods.value!.stock || 1))
-            }
-          }),
-          h('span', { style: 'margin-left: 8px; color: #94a3b8; font-size: 13px' }, `（库存 ${goods.value!.stock || 1} 件）`)
-        ]),
-        h('div', { style: 'margin-bottom: 12px' }, [
-          h('span', { style: 'margin-right: 12px' }, '配送方式：'),
-          h('input', {
-            type: 'radio', name: 'delivery', value: 'PICKUP', checked: deliveryMethod.value === 'PICKUP',
-            style: 'margin-right: 4px', onChange: (e: Event) => { deliveryMethod.value = (e.target as HTMLInputElement).value }
-          }),
-          h('span', { style: 'margin-right: 16px' }, '自取'),
-          h('input', {
-            type: 'radio', name: 'delivery', value: 'DELIVERY', checked: deliveryMethod.value === 'DELIVERY',
-            style: 'margin-right: 4px', onChange: (e: Event) => { deliveryMethod.value = (e.target as HTMLInputElement).value }
-          }),
-          h('span', null, '配送')
-        ]),
-        deliveryMethod.value === 'DELIVERY' ? h('div', null, [
-          addressList.length > 0 ? h('div', { style: 'margin-bottom: 10px' }, [
-            h('div', { style: 'font-size: 13px; color: #64748b; margin-bottom: 6px' }, '选择已有地址：'),
-            ...addressList.map(addr =>
-              h('div', {
-                style: `padding: 8px 12px; margin-bottom: 6px; border: 1px solid ${selectedAddressId.value === addr.id ? '#6366f1' : '#e2e8f0'}; border-radius: 6px; cursor: pointer; background: ${selectedAddressId.value === addr.id ? 'rgba(99,102,241,0.06)' : '#fff'}; transition: all 0.2s`,
-                onClick: () => { selectedAddressId.value = addr.id; customAddress.value = '' }
-              }, [
-                h('div', { style: 'font-size: 14px; font-weight: 500' }, `${addr.receiverName} ${addr.receiverPhone}`),
-                h('div', { style: 'font-size: 12px; color: #64748b; margin-top: 2px' }, [addr.province, addr.city, addr.district, addr.detailAddress].filter(Boolean).join(' '))
-              ])
-            )
-          ]) : null,
-          h('div', { style: 'margin-bottom: 8px' }, [
-            h('span', { style: 'font-size: 13px; color: #64748b; margin-right: 8px' }, '没有合适地址？'),
-            h('button', {
-              style: 'color: #6366f1; font-size: 13px; background: none; border: none; cursor: pointer; text-decoration: underline; font-weight: 500',
-              onClick: () => { showAddAddr.value = true }
-            }, '新增收货地址')
-          ]),
-          showAddAddr.value ? h('div', { style: 'border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: #fafafa' }, [
-            h('div', { style: 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px' }, [
-              h('input', { placeholder: '收货人', value: addrForm.receiverName, style: 'padding: 6px 10px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px', onInput: (e: Event) => { addrForm.receiverName = (e.target as HTMLInputElement).value } }),
-              h('input', { placeholder: '手机号', value: addrForm.receiverPhone, style: 'padding: 6px 10px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px', onInput: (e: Event) => { addrForm.receiverPhone = (e.target as HTMLInputElement).value } }),
-              h('input', { placeholder: '省份', value: addrForm.province, style: 'padding: 6px 10px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px', onInput: (e: Event) => { addrForm.province = (e.target as HTMLInputElement).value } }),
-              h('input', { placeholder: '城市', value: addrForm.city, style: 'padding: 6px 10px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px', onInput: (e: Event) => { addrForm.city = (e.target as HTMLInputElement).value } }),
-              h('input', { placeholder: '区/县', value: addrForm.district, style: 'padding: 6px 10px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px', onInput: (e: Event) => { addrForm.district = (e.target as HTMLInputElement).value } })
-            ]),
-            h('input', { placeholder: '详细地址', value: addrForm.detailAddress, style: 'width: 100%; padding: 6px 10px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px; margin-top: 8px; box-sizing: border-box', onInput: (e: Event) => { addrForm.detailAddress = (e.target as HTMLInputElement).value } }),
-            h('button', {
-              style: 'margin-top: 8px; padding: 6px 16px; background: #6366f1; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500',
-              onClick: async () => {
-                if (!addrForm.receiverName || !addrForm.receiverPhone || !addrForm.detailAddress) { ElMessage.error('请填写收货人、手机号和详细地址'); return }
-                try {
-                  await addAddress(addrForm)
-                  addressList = await getAddressList()
-                  const newest = addressList[0]
-                  if (newest) selectedAddressId.value = newest.id
-                  showAddAddr.value = false
-                  addrForm.receiverName = ''; addrForm.receiverPhone = ''; addrForm.province = ''; addrForm.city = ''; addrForm.district = ''; addrForm.detailAddress = ''
-                  ElMessage.success('地址添加成功')
-                } catch { ElMessage.error('添加失败') }
-              }
-            }, '保存地址')
-          ]) : null
-        ]) : null
-      ]),
-      showCancelButton: true,
-      confirmButtonText: '确认',
-      cancelButtonText: '取消',
-      beforeClose: (action: string, _instance: unknown, done: () => void) => {
-        if (action === 'confirm' && deliveryMethod.value === 'DELIVERY' && !selectedAddressId.value && !customAddress.value.trim()) {
-          ElMessage.error('请选择或输入配送地址')
-          return
-        }
-        done()
-      }
-    })
-    buying.value = true
+    await addAddress(buyAddrForm)
+    buyAddressList.value = await getAddressList()
+    const newest = buyAddressList.value[0]
+    if (newest) buySelectedAddressId.value = newest.id
+    buyShowAddAddr.value = false
+    buyAddrForm.receiverName = ''; buyAddrForm.receiverPhone = ''; buyAddrForm.province = ''; buyAddrForm.city = ''; buyAddrForm.district = ''; buyAddrForm.detailAddress = ''
+    buyAreaValue.value = []
+    ElMessage.success('地址添加成功')
+  } catch (e) { console.error(e); ElMessage.error('添加失败') } finally { buyAddrSaving.value = false }
+}
+
+const handleConfirmBuy = async () => {
+  if (!goods.value) return
+  if (buyDeliveryMethod.value === 'DELIVERY' && !buySelectedAddressId.value) {
+    ElMessage.error('请选择配送地址')
+    return
+  }
+  buying.value = true
+  try {
     const data: { goodsId: number; quantity: number; remark?: string; deliveryMethod?: string; deliveryAddress?: string } = { goodsId: goods.value.id, quantity: buyQuantity.value }
-    if (deliveryMethod.value === 'DELIVERY') {
+    if (buyDeliveryMethod.value === 'DELIVERY') {
       data.deliveryMethod = 'DELIVERY'
-      if (selectedAddressId.value) {
-        const addr = addressList.find(a => a.id === selectedAddressId.value)
-        data.deliveryAddress = addr ? [addr.province, addr.city, addr.district, addr.detailAddress].filter(Boolean).join(' ') + ` (${addr.receiverName} ${addr.receiverPhone})` : ''
-      } else {
-        data.deliveryAddress = customAddress.value
-      }
+      const addr = buyAddressList.value.find(a => a.id === buySelectedAddressId.value)
+      data.deliveryAddress = addr ? [addr.province, addr.city, addr.district, addr.detailAddress].filter(Boolean).join(' ') + ` (${addr.receiverName} ${addr.receiverPhone})` : ''
     } else {
       data.deliveryMethod = 'PICKUP'
     }
@@ -248,8 +247,9 @@ const handleBuy = async () => {
     cartStore.fetchCartCount()
     loadData()
     ElMessage.success('下单成功')
+    buyDialogVisible.value = false
     router.push('/order')
-  } catch { /* cancel */ } finally { buying.value = false }
+  } catch (e) { console.error(e) } finally { buying.value = false }
 }
 
 const handleFavorite = async () => {
@@ -379,5 +379,13 @@ onMounted(loadData)
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.buy-address-item {
+  padding: 10px 14px; margin-bottom: 6px;
+  border: 1px solid #e2e8f0; border-radius: 8px;
+  cursor: pointer; transition: all 0.2s;
+  &:hover { border-color: #6366f1; }
+  &.active { border-color: #6366f1; background: rgba(99,102,241,0.06); }
 }
 </style>
