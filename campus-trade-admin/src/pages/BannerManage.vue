@@ -8,8 +8,8 @@
         </div>
       </template>
       <el-table :data="banners" stripe v-loading="loading">
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column label="预览" width="180">
+        <el-table-column prop="id" label="ID" min-width="50" />
+        <el-table-column label="预览" min-width="160">
           <template #default="{ row }">
             <div v-if="row.imageUrl" class="banner-preview"><img :src="row.imageUrl" /></div>
             <div v-else class="banner-preview" :style="{ background: row.bgColor }"><span class="preview-text">{{ row.title }}</span></div>
@@ -17,15 +17,15 @@
         </el-table-column>
         <el-table-column prop="title" label="标题" min-width="150" />
         <el-table-column prop="subtitle" label="副标题" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="linkUrl" label="链接" width="140" show-overflow-tooltip />
-        <el-table-column prop="sortOrder" label="排序" width="70" />
-        <el-table-column prop="status" label="状态" width="80">
+        <el-table-column prop="linkUrl" label="链接" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="sortOrder" label="排序" min-width="60" />
+        <el-table-column prop="status" label="状态" min-width="70">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="170" />
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column prop="createTime" label="创建时间" min-width="150" />
+        <el-table-column label="操作" min-width="200" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleEdit(row)">编辑</el-button>
             <el-button size="small" :type="row.status === 1 ? 'warning' : 'success'" @click="handleToggle(row)">{{ row.status === 1 ? '禁用' : '启用' }}</el-button>

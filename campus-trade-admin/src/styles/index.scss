@@ -52,4 +52,4 @@ body {
 .el-table { border-radius: var(--admin-radius) !important; overflow: hidden; }
 .el-table th.el-table__cell { background: #f8fafc !important; font-weight: 600 !important; }
 .el-tag { border-radius: 6px !important; font-weight: 500 !important; }
-.el-pagination { .el-pager li { border-radius: 8px !important; &.is-active { background: var(--admin-primary-gradient) !important; } } }
+.el-pagination { justify-content: center !important; margin-top: 16px; .el-pager li { border-radius: 8px !important; &.is-active { background: var(--admin-primary-gradient) !important; } } .btn-prev, .btn-next { background: transparent !important; &:hover { color: var(--admin-primary); } } }

@@ -10,6 +10,7 @@ import java.util.List;
 public interface CartMapper {
     List<Cart> selectByUserId(@Param("userId") Long userId);
     Cart selectByUserAndGoods(@Param("userId") Long userId, @Param("goodsId") Long goodsId);
+    Cart selectById(@Param("id") Long id);
     int insert(Cart cart);
     int updateQuantity(@Param("id") Long id, @Param("quantity") Integer quantity);
     int deleteById(@Param("id") Long id);

@@ -21,13 +21,7 @@ import com.campustrade.mapper.RoleMapper;
 import com.campustrade.mapper.PermissionMapper;
 import com.campustrade.entity.User;
 import com.campustrade.entity.Role;
-import com.campustrade.entity.Order;
-import com.campustrade.entity.OrderItem;
-import com.campustrade.entity.Goods;
 import com.campustrade.mapper.UserMapper;
-import com.campustrade.mapper.OrderMapper;
-import com.campustrade.mapper.OrderItemMapper;
-import com.campustrade.mapper.GoodsMapper;
 import com.campustrade.enum_.OrderStatus;
 import com.campustrade.enum_.GoodsStatus;
 import com.campustrade.service.NotificationService;
@@ -75,15 +69,7 @@ public class AdminController {
     private PermissionMapper permissionMapper;
 
     @Autowired
-    private OrderMapper orderMapper;
 
-    @Autowired
-    private OrderItemMapper orderItemMapper;
-
-    @Autowired
-    private GoodsMapper goodsMapper;
-
-    @Autowired
     private NotificationService notificationService;
 
     @ApiOperation("获取当前管理员信息")
@@ -163,39 +149,13 @@ public class AdminController {
     @ApiOperation("管理员同意退款")
     @PutMapping("/order/{id}/approve-refund")
     public Result<Void> approveRefund(@PathVariable Long id) {
-        Order order = orderMapper.selectById(id);
-        if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
-        order.setStatus(OrderStatus.CANCELLED.getCode());
-        order.setCancelTime(java.time.LocalDateTime.now());
-        orderMapper.updateById(order);
-        List<OrderItem> items = orderItemMapper.selectByOrderId(id);
-        for (OrderItem item : items) {
-            Goods goods = goodsMapper.selectById(item.getGoodsId());
-            if (goods != null) {
-                goods.setStatus(GoodsStatus.ONLINE.getCode());
-                goodsMapper.updateById(goods);
-            }
-        }
-        notificationService.sendNotification(order.getBuyerId(), "退款成功",
-                "管理员同意了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
-        notificationService.sendNotification(order.getSellerId(), "退款通知",
-                "管理员同意了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
-        return Result.success();
+        return orderService.adminApproveRefund(id);
     }
 
     @ApiOperation("管理员拒绝退款")
     @PutMapping("/order/{id}/reject-refund")
     public Result<Void> rejectRefund(@PathVariable Long id, @RequestParam(required = false) String reason) {
-        Order order = orderMapper.selectById(id);
-        if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
-        order.setStatus(OrderStatus.PAID.getCode());
-        order.setCancelReason(reason);
-        orderMapper.updateById(order);
-        notificationService.sendNotification(order.getBuyerId(), "退款被拒绝",
-                "管理员拒绝了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
-        notificationService.sendNotification(order.getSellerId(), "退款通知",
-                "管理员拒绝了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
-        return Result.success();
+        return orderService.adminRejectRefund(id, reason);
     }
 
     @ApiOperation("举报管理列表")

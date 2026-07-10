@@ -27,4 +27,8 @@
             (#{item.orderId}, #{item.goodsId}, #{item.goodsTitle}, #{item.goodsImage}, #{item.price}, #{item.quantity})
         </foreach>
     </insert>
+
+    <update id="updatePriceById">
+        UPDATE t_order_item SET price = #{price} WHERE id = #{id} AND deleted = 0
+    </update>
 </mapper>

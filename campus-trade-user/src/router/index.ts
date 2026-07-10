@@ -25,6 +25,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'favorites', name: 'Favorites', component: () => import('@/pages/Favorites.vue'), meta: { auth: true } },
       { path: 'following', name: 'Following', component: () => import('@/pages/Following.vue'), meta: { auth: true } },
       { path: 'cart', name: 'Cart', component: () => import('@/pages/Cart.vue'), meta: { auth: true } },
+      { path: 'address', name: 'AddressManage', component: () => import('@/pages/AddressManage.vue'), meta: { auth: true } },
       { path: 'profile/:id?', name: 'Profile', component: () => import('@/pages/Profile.vue'), meta: { auth: true } },
       { path: 'order', name: 'Orders', component: () => import('@/pages/Orders.vue'), meta: { auth: true } },
       { path: 'order/:id', name: 'OrderDetail', component: () => import('@/pages/OrderDetail.vue'), meta: { auth: true } },
@@ -33,6 +34,11 @@ const routes: RouteRecordRaw[] = [
       { path: 'report', name: 'Report', component: () => import('@/pages/Report.vue'), meta: { auth: true } },
       { path: 'my-reports', name: 'MyReports', component: () => import('@/pages/MyReports.vue'), meta: { auth: true } }
     ]
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('@/pages/NotFound.vue')
   }
 ]
 

@@ -11,6 +11,7 @@ import com.campustrade.mapper.UserMapper;
 import com.campustrade.service.UserService;
 import com.campustrade.vo.UserVO;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -136,6 +140,7 @@ public class UserServiceImpl implements UserService {
         if (user == null) return Result.error(ResultCode.NOT_FOUND);
         user.setStatus(0);
         userMapper.updateById(user);
+        redisTemplate.opsForValue().set("ban:user:" + userId, "1", 7, java.util.concurrent.TimeUnit.DAYS);
         return Result.success();
     }
 
@@ -146,6 +151,7 @@ public class UserServiceImpl implements UserService {
         if (user == null) return Result.error(ResultCode.NOT_FOUND);
         user.setStatus(1);
         userMapper.updateById(user);
+        redisTemplate.delete("ban:user:" + userId);
         return Result.success();
     }
 

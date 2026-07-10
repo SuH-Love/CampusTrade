@@ -1,5 +1,5 @@
 <template>
-  <div v-if="goods" class="goods-detail page-container">
+  <div v-if="goods" class="goods-detail">
     <el-row :gutter="32">
       <el-col :xs="24" :md="12">
         <div class="detail-gallery">
@@ -46,6 +46,7 @@
               </div>
             </div>
             <el-button size="small" @click.stop="handleChat" round>聊天</el-button>
+            <el-button size="small" type="primary" @click.stop="handleConsult" round plain>咨询商品</el-button>
             <el-button :type="isFollowed ? 'warning' : 'default'" size="small" @click.stop="handleToggleFollow" :loading="followLoading" round>
               {{ isFollowed ? '已关注' : '关注' }}
             </el-button>
@@ -66,17 +67,18 @@
       </el-col>
     </el-row>
   </div>
-  <div v-else class="page-container"><el-empty description="商品不存在" /></div>
+  <div v-else style="padding: 20px"><el-empty description="商品不存在" /></div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getGoodsDetail, favoriteGoods, unfavoriteGoods } from '@/api/goods'
 import { createOrder } from '@/api/order'
 import { addToCart, getCartList, type CartVO } from '@/api/cart'
 import { toggleFollow, isFollowing } from '@/api/follow'
 import { getAverageRating } from '@/api/rating'
+import { getAddressList, addAddress, type DeliveryAddressVO } from '@/api/address'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -134,8 +136,13 @@ const loadData = async () => {
 const handleBuy = async () => {
   if (!goods.value) return
   const deliveryMethod = ref('PICKUP')
-  const deliveryAddress = ref('')
+  const selectedAddressId = ref<number | null>(null)
+  const customAddress = ref('')
   const buyQuantity = ref(1)
+  let addressList: DeliveryAddressVO[] = []
+  try { addressList = await getAddressList() } catch { /* ignore */ }
+  const showAddAddr = ref(false)
+  const addrForm = reactive({ receiverName: '', receiverPhone: '', province: '', city: '', district: '', detailAddress: '', isDefault: 0 })
   try {
     await ElMessageBox({
       title: '确认购买',
@@ -157,7 +164,7 @@ const handleBuy = async () => {
           h('span', { style: 'margin-right: 12px' }, '配送方式：'),
           h('input', {
             type: 'radio', name: 'delivery', value: 'PICKUP', checked: deliveryMethod.value === 'PICKUP',
-            style: 'margin-right: 4px', onChange: (e: Event) => { deliveryMethod.value = (e.target as HTMLInputElement).value; deliveryAddress.value = '' }
+            style: 'margin-right: 4px', onChange: (e: Event) => { deliveryMethod.value = (e.target as HTMLInputElement).value }
           }),
           h('span', { style: 'margin-right: 16px' }, '自取'),
           h('input', {
@@ -166,18 +173,59 @@ const handleBuy = async () => {
           }),
           h('span', null, '配送')
         ]),
-        deliveryMethod.value === 'DELIVERY' ? h('input', {
-          type: 'text', placeholder: '请输入配送地址',
-          style: 'width: 100%; padding: 8px 12px; border: 1px solid #dcdfe6; border-radius: 4px; box-sizing: border-box;',
-          onInput: (e: Event) => { deliveryAddress.value = (e.target as HTMLInputElement).value }
-        }) : null
+        deliveryMethod.value === 'DELIVERY' ? h('div', null, [
+          addressList.length > 0 ? h('div', { style: 'margin-bottom: 10px' }, [
+            h('div', { style: 'font-size: 13px; color: #64748b; margin-bottom: 6px' }, '选择已有地址：'),
+            ...addressList.map(addr =>
+              h('div', {
+                style: `padding: 8px 12px; margin-bottom: 6px; border: 1px solid ${selectedAddressId.value === addr.id ? '#6366f1' : '#e2e8f0'}; border-radius: 6px; cursor: pointer; background: ${selectedAddressId.value === addr.id ? 'rgba(99,102,241,0.06)' : '#fff'}; transition: all 0.2s`,
+                onClick: () => { selectedAddressId.value = addr.id; customAddress.value = '' }
+              }, [
+                h('div', { style: 'font-size: 14px; font-weight: 500' }, `${addr.receiverName} ${addr.receiverPhone}`),
+                h('div', { style: 'font-size: 12px; color: #64748b; margin-top: 2px' }, [addr.province, addr.city, addr.district, addr.detailAddress].filter(Boolean).join(' '))
+              ])
+            )
+          ]) : null,
+          h('div', { style: 'margin-bottom: 8px' }, [
+            h('span', { style: 'font-size: 13px; color: #64748b; margin-right: 8px' }, '没有合适地址？'),
+            h('button', {
+              style: 'color: #6366f1; font-size: 13px; background: none; border: none; cursor: pointer; text-decoration: underline; font-weight: 500',
+              onClick: () => { showAddAddr.value = true }
+            }, '新增收货地址')
+          ]),
+          showAddAddr.value ? h('div', { style: 'border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: #fafafa' }, [
+            h('div', { style: 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px' }, [
+              h('input', { placeholder: '收货人', value: addrForm.receiverName, style: 'padding: 6px 10px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px', onInput: (e: Event) => { addrForm.receiverName = (e.target as HTMLInputElement).value } }),
+              h('input', { placeholder: '手机号', value: addrForm.receiverPhone, style: 'padding: 6px 10px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px', onInput: (e: Event) => { addrForm.receiverPhone = (e.target as HTMLInputElement).value } }),
+              h('input', { placeholder: '省份', value: addrForm.province, style: 'padding: 6px 10px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px', onInput: (e: Event) => { addrForm.province = (e.target as HTMLInputElement).value } }),
+              h('input', { placeholder: '城市', value: addrForm.city, style: 'padding: 6px 10px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px', onInput: (e: Event) => { addrForm.city = (e.target as HTMLInputElement).value } }),
+              h('input', { placeholder: '区/县', value: addrForm.district, style: 'padding: 6px 10px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px', onInput: (e: Event) => { addrForm.district = (e.target as HTMLInputElement).value } })
+            ]),
+            h('input', { placeholder: '详细地址', value: addrForm.detailAddress, style: 'width: 100%; padding: 6px 10px; border: 1px solid #dcdfe6; border-radius: 4px; font-size: 13px; margin-top: 8px; box-sizing: border-box', onInput: (e: Event) => { addrForm.detailAddress = (e.target as HTMLInputElement).value } }),
+            h('button', {
+              style: 'margin-top: 8px; padding: 6px 16px; background: #6366f1; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500',
+              onClick: async () => {
+                if (!addrForm.receiverName || !addrForm.receiverPhone || !addrForm.detailAddress) { ElMessage.error('请填写收货人、手机号和详细地址'); return }
+                try {
+                  await addAddress(addrForm)
+                  addressList = await getAddressList()
+                  const newest = addressList[0]
+                  if (newest) selectedAddressId.value = newest.id
+                  showAddAddr.value = false
+                  addrForm.receiverName = ''; addrForm.receiverPhone = ''; addrForm.province = ''; addrForm.city = ''; addrForm.district = ''; addrForm.detailAddress = ''
+                  ElMessage.success('地址添加成功')
+                } catch { ElMessage.error('添加失败') }
+              }
+            }, '保存地址')
+          ]) : null
+        ]) : null
       ]),
       showCancelButton: true,
       confirmButtonText: '确认',
       cancelButtonText: '取消',
       beforeClose: (action: string, _instance: unknown, done: () => void) => {
-        if (action === 'confirm' && deliveryMethod.value === 'DELIVERY' && !deliveryAddress.value.trim()) {
-          ElMessage.error('请输入配送地址')
+        if (action === 'confirm' && deliveryMethod.value === 'DELIVERY' && !selectedAddressId.value && !customAddress.value.trim()) {
+          ElMessage.error('请选择或输入配送地址')
           return
         }
         done()
@@ -187,11 +235,18 @@ const handleBuy = async () => {
     const data: { goodsId: number; quantity: number; remark?: string; deliveryMethod?: string; deliveryAddress?: string } = { goodsId: goods.value.id, quantity: buyQuantity.value }
     if (deliveryMethod.value === 'DELIVERY') {
       data.deliveryMethod = 'DELIVERY'
-      data.deliveryAddress = deliveryAddress.value
+      if (selectedAddressId.value) {
+        const addr = addressList.find(a => a.id === selectedAddressId.value)
+        data.deliveryAddress = addr ? [addr.province, addr.city, addr.district, addr.detailAddress].filter(Boolean).join(' ') + ` (${addr.receiverName} ${addr.receiverPhone})` : ''
+      } else {
+        data.deliveryAddress = customAddress.value
+      }
     } else {
       data.deliveryMethod = 'PICKUP'
     }
     await createOrder(data)
+    cartStore.fetchCartCount()
+    loadData()
     ElMessage.success('下单成功')
     router.push('/order')
   } catch { /* cancel */ } finally { buying.value = false }
@@ -213,6 +268,13 @@ const handleChat = () => {
   if (!userStore.token) { ElMessage.warning('请先登录'); return }
   if (!goods.value) return
   router.push({ path: '/chat', query: { targetUserId: String(goods.value.userId), name: goods.value.username } })
+}
+
+const handleConsult = () => {
+  if (!userStore.token) { ElMessage.warning('请先登录'); return }
+  if (!goods.value) return
+  const goodsInfo = JSON.stringify({ goodsId: goods.value.id, title: goods.value.title, price: goods.value.price })
+  router.push({ path: '/chat', query: { targetUserId: String(goods.value.userId), name: goods.value.username, consult: goodsInfo } })
 }
 
 const handleReport = () => { router.push({ path: '/report', query: { targetType: '1', targetId: String(route.params.id) } }) }
@@ -242,6 +304,9 @@ onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
+.goods-detail {
+  padding: 20px;
+}
 .detail-gallery {
   border-radius: var(--radius-lg);
   overflow: hidden;

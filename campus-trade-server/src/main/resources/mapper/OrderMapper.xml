@@ -61,6 +61,7 @@
     <update id="updateById">
         UPDATE t_order
         <set>
+            <if test="totalAmount != null">total_amount = #{totalAmount},</if>
             <if test="status != null">status = #{status},</if>
             <if test="payTime != null">pay_time = #{payTime},</if>
             <if test="shipTime != null">ship_time = #{shipTime},</if>

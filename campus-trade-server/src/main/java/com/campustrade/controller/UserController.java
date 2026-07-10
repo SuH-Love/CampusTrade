@@ -3,6 +3,8 @@ package com.campustrade.controller;
 import com.campustrade.common.Result;
 import com.campustrade.dto.PasswordUpdateDTO;
 import com.campustrade.dto.UserUpdateDTO;
+import com.campustrade.mapper.GoodsMapper;
+import com.campustrade.mapper.OrderMapper;
 import com.campustrade.service.UserService;
 import com.campustrade.util.SecurityUtil;
 import com.campustrade.vo.UserVO;
@@ -13,6 +15,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Api(tags = "用户接口")
 @RestController
 @RequestMapping("/api/user")
@@ -20,6 +25,12 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private GoodsMapper goodsMapper;
+
+    @Autowired
+    private OrderMapper orderMapper;
 
     @ApiOperation("获取个人信息")
     @GetMapping("/info")
@@ -55,5 +66,18 @@ public class UserController {
     @PostMapping("/avatar")
     public Result<String> uploadAvatar(@RequestParam String fileUrl) {
         return userService.uploadAvatar(SecurityUtil.requireCurrentUserId(), fileUrl);
+    }
+
+    @ApiOperation("用户统计")
+    @GetMapping("/stats")
+    public Result<Map<String, Object>> getUserStats() {
+        Long userId = SecurityUtil.requireCurrentUserId();
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("publishedGoods", goodsMapper.selectCount(null, null, null, null, null, userId));
+        stats.put("onlineGoods", goodsMapper.selectCount(null, null, null, null, "ONLINE", userId));
+        stats.put("buyerOrders", orderMapper.selectCountByBuyerId(userId, null));
+        stats.put("sellerOrders", orderMapper.selectCountBySellerId(userId, null));
+        stats.put("finishedOrders", orderMapper.selectCountByBuyerId(userId, "FINISHED"));
+        return Result.success(stats);
     }
 }

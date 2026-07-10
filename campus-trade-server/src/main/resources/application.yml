@@ -68,7 +68,7 @@ mybatis:
     log-impl: org.apache.ibatis.logging.log4j2.Log4j2Impl
 
 jwt:
-  secret: CampusTradeSecretKey2026ForJwtTokenGenerationAndValidation
+  secret: ${JWT_SECRET:CampusTradeSecretKey2026ForJwtTokenGenerationAndValidation}
   access-token-expiration: 7200000
   refresh-token-expiration: 604800000
 
@@ -81,6 +81,9 @@ file:
   upload:
     path: /data/uploads
     url-prefix: /uploads
+
+cors:
+  origins: http://localhost:*
 
 logging:
   config: classpath:log4j2.xml

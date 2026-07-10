@@ -25,7 +25,7 @@
       </el-carousel>
     </section>
 
-    <div class="page-container">
+    <div class="home-content">
       <section class="category-bar">
         <div
           v-for="cat in categories" :key="cat.id"
@@ -43,11 +43,17 @@
               <div class="goods-img-wrap">
                 <img :src="item.coverImage || '/default-cover.svg'" class="goods-img" />
                 <span class="goods-category-tag">{{ item.categoryName }}</span>
+                <span v-if="item.condition" class="goods-condition-tag">{{ item.condition }}</span>
+                <span v-if="item.originalPrice && item.originalPrice > item.price" class="goods-discount-tag">折扣</span>
+                <el-avatar v-if="item.userAvatar" :size="28" :src="item.userAvatar" class="goods-seller-avatar" />
               </div>
               <div class="goods-info">
                 <div class="goods-title">{{ item.title }}</div>
                 <div class="goods-bottom">
-                  <span class="price-text">¥{{ item.price }}</span>
+                  <div class="goods-price-row">
+                    <span class="price-text">¥{{ item.price }}</span>
+                    <span v-if="item.originalPrice && item.originalPrice > item.price" class="original-price">¥{{ item.originalPrice }}</span>
+                  </div>
                   <span class="goods-views">{{ item.viewCount }} 浏览</span>
                 </div>
               </div>
@@ -65,11 +71,17 @@
               <div class="goods-img-wrap">
                 <img :src="item.coverImage || '/default-cover.svg'" class="goods-img" />
                 <span class="goods-category-tag">{{ item.categoryName }}</span>
+                <span v-if="item.condition" class="goods-condition-tag">{{ item.condition }}</span>
+                <span v-if="item.originalPrice && item.originalPrice > item.price" class="goods-discount-tag">折扣</span>
+                <el-avatar v-if="item.userAvatar" :size="28" :src="item.userAvatar" class="goods-seller-avatar" />
               </div>
               <div class="goods-info">
                 <div class="goods-title">{{ item.title }}</div>
                 <div class="goods-bottom">
-                  <span class="price-text">¥{{ item.price }}</span>
+                  <div class="goods-price-row">
+                    <span class="price-text">¥{{ item.price }}</span>
+                    <span v-if="item.originalPrice && item.originalPrice > item.price" class="original-price">¥{{ item.originalPrice }}</span>
+                  </div>
                   <span class="goods-views">{{ item.viewCount }} 浏览</span>
                 </div>
               </div>
@@ -182,6 +194,17 @@ onMounted(() => { loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCateg
   opacity: 1;
 }
 
+.home-content {
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  margin: 24px 24px 0;
+  max-width: 100%;
+  padding: 24px;
+}
+
 .category-bar {
   display: flex;
   gap: 10px;
@@ -246,6 +269,40 @@ onMounted(() => { loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCateg
   letter-spacing: 0.3px;
 }
 
+.goods-condition-tag {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(234, 179, 8, 0.85);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 10px;
+}
+
+.goods-discount-tag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(239, 68, 68, 0.85);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 10px;
+}
+
+.goods-seller-avatar {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
 .goods-info { padding: 14px 14px 16px; }
 
 .goods-title {
@@ -264,5 +321,7 @@ onMounted(() => { loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCateg
   margin-top: 10px;
 }
 
+.goods-price-row { display: flex; align-items: baseline; gap: 6px; }
+.original-price { font-size: 12px; color: var(--text-muted); text-decoration: line-through; }
 .goods-views { font-size: 12px; color: var(--text-muted); font-weight: 500; }
 </style>

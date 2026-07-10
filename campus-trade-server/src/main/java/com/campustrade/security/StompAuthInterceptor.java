@@ -53,6 +53,7 @@ public class StompAuthInterceptor implements ChannelInterceptor {
                 log.info("STOMP CONNECT: userId={}, username={}", userId, username);
             } else {
                 log.warn("STOMP CONNECT rejected: invalid token");
+                throw new org.springframework.messaging.MessagingException("Unauthorized: invalid token");
             }
         }
         return message;

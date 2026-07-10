@@ -62,6 +62,9 @@
                   <el-dropdown-item @click="$router.push('/my-reports')">
                     <el-icon><Warning /></el-icon>我的举报
                   </el-dropdown-item>
+                  <el-dropdown-item @click="$router.push('/address')">
+                    <el-icon><Location /></el-icon>收货地址
+                  </el-dropdown-item>
                   <el-dropdown-item divided @click="handleLogout">
                     <el-icon><SwitchButton /></el-icon>退出登录
                   </el-dropdown-item>

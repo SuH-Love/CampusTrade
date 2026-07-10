@@ -7,8 +7,10 @@ export interface ReportVO {
   reporterName: string
   targetType: number
   targetId: number
+  targetTitle: string
   reason: string
   description: string
+  images: string
   status: string
   handleResult: string
   createTime: string

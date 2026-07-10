@@ -16,26 +16,26 @@
         </div>
       </template>
       <el-table :data="goodsList" stripe v-loading="loading">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="title" label="标题" show-overflow-tooltip />
-        <el-table-column prop="username" label="卖家" width="120" />
-        <el-table-column prop="categoryName" label="分类" width="100" />
-        <el-table-column prop="price" label="价格" width="100">
+        <el-table-column prop="id" label="ID" min-width="60" />
+        <el-table-column prop="title" label="标题" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="username" label="卖家" min-width="100" />
+        <el-table-column prop="categoryName" label="分类" min-width="80" />
+        <el-table-column prop="price" label="价格" min-width="80">
           <template #default="{ row }">¥{{ row.price }}</template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="status" label="状态" min-width="90">
           <template #default="{ row }">
             <el-tag :type="statusTagMap[row.status] || 'info'">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="rejectReason" label="拒绝原因" show-overflow-tooltip>
+        <el-table-column prop="rejectReason" label="拒绝原因" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">
             <span v-if="row.rejectReason" style="color: #f56c6c">{{ row.rejectReason }}</span>
             <span v-else style="color: #c0c4cc">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="提交时间" width="170" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column prop="createTime" label="提交时间" min-width="150" />
+        <el-table-column label="操作" min-width="180" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.status === 'PENDING'" v-permission="'goods:audit'" type="success" size="small" @click="handleAudit(row.id, 'APPROVED')">通过</el-button>
             <el-button v-if="row.status === 'PENDING'" v-permission="'goods:audit'" type="danger" size="small" @click="handleReject(row.id)">拒绝</el-button>

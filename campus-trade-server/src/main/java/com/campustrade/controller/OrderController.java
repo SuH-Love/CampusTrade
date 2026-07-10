@@ -74,6 +74,12 @@ public class OrderController {
         return orderService.rateOrder(SecurityUtil.requireCurrentUserId(), id, rating, comment);
     }
 
+    @ApiOperation("商家修改订单金额")
+    @PutMapping("/{id}/modify-price")
+    public Result<Void> modifyPrice(@PathVariable Long id, @RequestParam java.math.BigDecimal newPrice) {
+        return orderService.modifyPrice(SecurityUtil.requireCurrentUserId(), id, newPrice);
+    }
+
     @ApiOperation("订单详情")
     @GetMapping("/{id}")
     public Result<OrderVO> getOrderDetail(@PathVariable Long id) {

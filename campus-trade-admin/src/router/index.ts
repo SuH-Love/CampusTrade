@@ -52,7 +52,8 @@ const allRoutes: RouteRecordRaw[] = [
         meta: { title: '日志中心', icon: 'Document', permission: 'log:manage' }
       }
     ]
-  }
+  },
+  { path: '/:pathMatch(.*)*', redirect: '/' }
 ]
 
 const router = createRouter({ history: createWebHistory(), routes: allRoutes })

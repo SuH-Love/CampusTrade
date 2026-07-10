@@ -25,6 +25,12 @@ public interface OrderService {
 
     Result<Void> rateOrder(Long userId, Long orderId, Integer rating, String comment);
 
+    Result<Void> modifyPrice(Long sellerId, Long orderId, java.math.BigDecimal newPrice);
+
+    Result<Void> adminApproveRefund(Long orderId);
+
+    Result<Void> adminRejectRefund(Long orderId, String reason);
+
     Result<OrderVO> getOrderDetail(Long userId, Long orderId);
 
     Result<PageResult<OrderVO>> listBuyerOrders(Long buyerId, String status, Integer pageNum, Integer pageSize);

@@ -81,6 +81,8 @@ service.interceptors.response.use(
       } else {
         ElMessage.error(error.response.data?.message || '系统异常')
       }
+    } else {
+      ElMessage.error('网络异常，请检查网络连接')
     }
     return Promise.reject(error)
   }

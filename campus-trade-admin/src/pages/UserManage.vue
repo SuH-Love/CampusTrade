@@ -8,23 +8,23 @@
         </div>
       </template>
       <el-table :data="users" style="width: 100%" stripe v-loading="loading">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="username" label="用户名" width="120" />
-        <el-table-column prop="nickname" label="昵称" width="120" />
-        <el-table-column prop="phone" label="手机号" width="130" />
-        <el-table-column prop="email" label="邮箱" show-overflow-tooltip />
-        <el-table-column prop="realVerified" label="认证" width="80">
+        <el-table-column prop="id" label="ID" min-width="60" />
+        <el-table-column prop="username" label="用户名" min-width="100" />
+        <el-table-column prop="nickname" label="昵称" min-width="100" />
+        <el-table-column prop="phone" label="手机号" min-width="120" />
+        <el-table-column prop="email" label="邮箱" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="realVerified" label="认证" min-width="70">
           <template #default="{ row }">
             <el-tag :type="row.realVerified === 1 ? 'success' : 'info'" size="small">{{ row.realVerified === 1 ? '已认证' : '未认证' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="80">
+        <el-table-column prop="status" label="状态" min-width="70">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'danger'">{{ row.status === 1 ? '正常' : '禁用' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="注册时间" width="170" />
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column prop="createTime" label="注册时间" min-width="150" />
+        <el-table-column label="操作" min-width="120" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.status === 1" v-permission="'user:ban'" type="danger" size="small" @click="handleBan(row.id)">封禁</el-button>
             <el-button v-else v-permission="'user:ban'" type="success" size="small" @click="handleUnban(row.id)">解封</el-button>

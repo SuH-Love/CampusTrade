@@ -28,4 +28,8 @@ public class GoodsCreateDTO {
     private String coverImage;
 
     private String images;
+
+    private String condition;
+
+    private Integer stock;
 }

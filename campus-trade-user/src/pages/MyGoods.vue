@@ -31,23 +31,39 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="price" label="价格" width="100">
-          <template #default="{ row }"><span style="color: #f56c6c; font-weight: bold">¥{{ row.price }}</span></template>
+        <el-table-column label="价格" min-width="110">
+          <template #default="{ row }">
+            <div>
+              <span style="color: #f56c6c; font-weight: bold">¥{{ row.price }}</span>
+              <span v-if="row.originalPrice && row.originalPrice > row.price" style="color: #999; font-size: 12px; text-decoration: line-through; margin-left: 6px">¥{{ row.originalPrice }}</span>
+            </div>
+          </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="condition" label="成色" min-width="80">
+          <template #default="{ row }">
+            <el-tag v-if="row.condition" size="small" type="warning">{{ row.condition }}</el-tag>
+            <span v-else style="color: #999">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="stock" label="库存" min-width="60">
+          <template #default="{ row }">
+            <span :style="{ color: row.stock <= 3 ? '#f56c6c' : '', fontWeight: row.stock <= 3 ? 'bold' : 'normal' }">{{ row.stock }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" min-width="100">
           <template #default="{ row }">
             <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
             <div v-if="statusTip(row.status)" style="color: var(--text-muted); font-size: 12px; margin-top: 4px">{{ statusTip(row.status) }}</div>
             <div v-if="row.rejectReason" style="color: #f56c6c; font-size: 12px; margin-top: 4px">原因：{{ row.rejectReason }}</div>
           </template>
         </el-table-column>
-        <el-table-column prop="viewCount" label="浏览" width="70" />
-        <el-table-column prop="favoriteCount" label="收藏" width="70" />
-        <el-table-column prop="createTime" label="发布时间" width="170" />
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column prop="viewCount" label="浏览" min-width="60" />
+        <el-table-column prop="favoriteCount" label="收藏" min-width="60" />
+        <el-table-column prop="createTime" label="发布时间" min-width="150" />
+        <el-table-column label="操作" min-width="240" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="$router.push(`/goods/${row.id}`)">查看</el-button>
-            <el-button v-if="row.status === 'DRAFT' || row.status === 'REJECTED'" size="small" @click="$router.push(`/goods/edit/${row.id}`)">编辑</el-button>
+            <el-button v-if="row.status !== 'ONLINE' && row.status !== 'SOLD'" size="small" type="primary" @click="$router.push(`/goods/edit/${row.id}`)">编辑</el-button>
             <el-button v-if="row.status === 'DRAFT' || row.status === 'REJECTED'" type="warning" size="small" @click="handleSubmitAudit(row.id)" :loading="actionLoading === row.id">提交审核</el-button>
             <el-button v-if="row.status === 'APPROVED' || row.status === 'OFFLINE'" type="success" size="small" @click="handleOnline(row.id)" :loading="actionLoading === row.id">上架</el-button>
             <el-button v-if="row.status === 'ONLINE'" type="info" size="small" @click="handleOffline(row.id)" :loading="actionLoading === row.id">下架</el-button>
@@ -63,9 +79,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { getMyGoods, submitAudit, onlineGoods, offlineGoods, deleteGoods } from '@/api/goods'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { GoodsVO } from '@/api/goods'
+
+const route = useRoute()
 
 const goodsList = ref<GoodsVO[]>([])
 const pageNum = ref(1)
@@ -74,7 +93,7 @@ const total = ref(0)
 const loading = ref(false)
 const actionLoading = ref<number | null>(null)
 const searchKeyword = ref('')
-const statusFilter = ref('')
+const statusFilter = ref((route.query.status as string) || '')
 
 const statusLabel = (status: string) => {
   const map: Record<string, string> = { DRAFT: '草稿', PENDING: '待审核', APPROVED: '审核通过', REJECTED: '已拒绝', ONLINE: '已上架', OFFLINE: '已下架', SOLD: '已售出' }
@@ -145,6 +164,15 @@ onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
-.my-goods-page { padding: 20px; }
+.my-goods-page {
+  padding: 20px;
+  background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%);
+  min-height: calc(100vh - 60px);
+  :deep(.el-card) {
+    border-radius: 16px;
+    border: 1px solid rgba(99, 102, 241, 0.08);
+    box-shadow: 0 4px 24px rgba(99, 102, 241, 0.06);
+  }
+}
 .filter-bar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
 </style>

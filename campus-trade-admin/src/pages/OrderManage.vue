@@ -8,6 +8,7 @@
             <el-option label="待支付" value="PENDING_PAY" />
             <el-option label="已支付" value="PAID" />
             <el-option label="已发货" value="SHIPPING" />
+            <el-option label="待评价" value="PENDING_REVIEW" />
             <el-option label="已完成" value="FINISHED" />
             <el-option label="已取消" value="CANCELLED" />
             <el-option label="退款中" value="REFUND" />
@@ -15,20 +16,20 @@
         </div>
       </template>
       <el-table :data="orders" stripe v-loading="loading">
-        <el-table-column prop="orderNo" label="订单号" width="200" />
-        <el-table-column prop="buyerName" label="买家" width="100" />
-        <el-table-column prop="sellerName" label="卖家" width="100" />
-        <el-table-column prop="totalAmount" label="金额" width="100">
+        <el-table-column prop="orderNo" label="订单号" min-width="180" />
+        <el-table-column prop="buyerName" label="买家" min-width="90" />
+        <el-table-column prop="sellerName" label="卖家" min-width="90" />
+        <el-table-column prop="totalAmount" label="金额" min-width="80">
           <template #default="{ row }"><span style="color: #f56c6c; font-weight: bold">¥{{ row.totalAmount }}</span></template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="status" label="状态" min-width="90">
           <template #default="{ row }">
             <el-tag :type="statusTagMap[row.status] || 'info'">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="remark" label="备注" show-overflow-tooltip />
-        <el-table-column prop="createTime" label="创建时间" width="170" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="createTime" label="创建时间" min-width="150" />
+        <el-table-column label="操作" min-width="180" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.status === 'REFUND'" type="success" size="small" @click="handleApproveRefund(row.id)">同意退款</el-button>
             <el-button v-if="row.status === 'REFUND'" type="warning" size="small" @click="handleRejectRefund(row.id)">拒绝退款</el-button>
@@ -56,12 +57,12 @@ const loading = ref(false)
 
 const statusTagMap: Record<string, string> = {
   PENDING_PAY: 'warning', PAID: 'primary', SHIPPING: '',
-  FINISHED: 'success', CANCELLED: 'info', REFUND: 'danger'
+  PENDING_REVIEW: 'warning', FINISHED: 'success', CANCELLED: 'info', REFUND: 'danger'
 }
 const statusLabel = (status: string) => {
   const map: Record<string, string> = {
     PENDING_PAY: '待支付', PAID: '已支付', SHIPPING: '已发货',
-    FINISHED: '已完成', CANCELLED: '已取消', REFUND: '退款中'
+    PENDING_REVIEW: '待评价', FINISHED: '已完成', CANCELLED: '已取消', REFUND: '退款中'
   }
   return map[status] || status
 }

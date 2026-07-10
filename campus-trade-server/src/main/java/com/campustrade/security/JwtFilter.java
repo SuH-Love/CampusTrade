@@ -48,6 +48,13 @@ public class JwtFilter extends OncePerRequestFilter {
             Long userId = jwtUtil.getUserIdFromToken(token);
             String username = jwtUtil.getUsernameFromToken(token);
 
+            String banKey = "ban:user:" + userId;
+            Boolean isBanned = redisTemplate.hasKey(banKey);
+            if (isBanned != null && isBanned) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             List<SimpleGrantedAuthority> grantedAuthorities = List.of();
             try {
                 @SuppressWarnings("unchecked")

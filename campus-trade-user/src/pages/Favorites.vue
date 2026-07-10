@@ -19,6 +19,7 @@
           <div class="fav-card" :class="{ sold: item.status === 'SOLD' || item.status === 'OFFLINE' }">
             <div class="fav-img-wrap" :class="{ 'no-click': item.status !== 'ONLINE' }" @click="item.status === 'ONLINE' && $router.push(`/goods/${item.id}`)">
               <img :src="item.coverImage || '/default-cover.svg'" class="fav-img" />
+              <span v-if="item.condition" class="fav-condition-tag">{{ item.condition }}</span>
               <div v-if="item.status === 'SOLD'" class="sold-overlay">
                 <el-tag type="info" effect="dark" size="large">已售出</el-tag>
               </div>
@@ -28,8 +29,14 @@
             </div>
             <div class="fav-info">
               <div class="fav-title">{{ item.title }}</div>
+              <div class="fav-meta">
+                <span class="fav-views">{{ item.viewCount }} 浏览</span>
+              </div>
               <div class="fav-bottom">
-                <span class="price-text">¥{{ item.price }}</span>
+                <div class="fav-price-row">
+                  <span class="price-text">¥{{ item.price }}</span>
+                  <span v-if="item.originalPrice && item.originalPrice > item.price" class="fav-original-price">¥{{ item.originalPrice }}</span>
+                </div>
                 <el-button type="warning" size="small" text @click.stop="handleUnfavorite(item.id)">取消收藏</el-button>
               </div>
             </div>
@@ -108,6 +115,12 @@ onMounted(loadData)
 }
 .fav-img-wrap { position: relative; padding-top: 75%; background: linear-gradient(135deg, #f1f5f9, #e2e8f0); cursor: pointer; &.no-click { cursor: not-allowed; } }
 .fav-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+.fav-condition-tag {
+  position: absolute; bottom: 8px; left: 8px;
+  background: rgba(234, 179, 8, 0.85); backdrop-filter: blur(6px);
+  color: #fff; font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 8px;
+}
 .sold-overlay {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(0,0,0,0.4);
@@ -116,5 +129,9 @@ onMounted(loadData)
 }
 .fav-info { padding: 14px 14px 16px; }
 .fav-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 14px; }
-.fav-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+.fav-meta { margin-top: 6px; }
+.fav-views { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+.fav-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.fav-price-row { display: flex; align-items: baseline; gap: 6px; }
+.fav-original-price { font-size: 12px; color: var(--text-muted); text-decoration: line-through; }
 </style>

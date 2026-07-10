@@ -53,4 +53,5 @@ export interface ContactVO {
   receiverName: string
   receiverAvatar: string
   content: string
+  messageType?: number
 }

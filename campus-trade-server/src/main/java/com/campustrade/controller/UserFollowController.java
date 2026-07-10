@@ -5,6 +5,7 @@ import com.campustrade.common.Result;
 import com.campustrade.entity.UserFollow;
 import com.campustrade.mapper.UserFollowMapper;
 import com.campustrade.mapper.UserMapper;
+import com.campustrade.mapper.GoodsMapper;
 import com.campustrade.util.SecurityUtil;
 import com.campustrade.vo.UserVO;
 import io.swagger.annotations.Api;
@@ -23,6 +24,8 @@ public class UserFollowController {
     private UserFollowMapper userFollowMapper;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private GoodsMapper goodsMapper;
 
     @ApiOperation("关注/取关用户")
     @PostMapping("/{userId}")
@@ -69,6 +72,9 @@ public class UserFollowController {
             vo.setUsername(u.getUsername());
             vo.setNickname(u.getNickname());
             vo.setAvatar(u.getAvatar());
+            vo.setFollowersCount(userFollowMapper.selectFollowerCount(u.getId()));
+            vo.setFollowingCount(userFollowMapper.selectFollowingCount(u.getId()));
+            vo.setGoodsCount(goodsMapper.selectCount(null, null, null, null, "ONLINE", u.getId()));
             return vo;
         }).collect(Collectors.toList());
         return Result.success(new PageResult<>(vos, total));

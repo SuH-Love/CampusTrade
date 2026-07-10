@@ -33,7 +33,22 @@
             <div v-for="msg in messages" :key="msg.id || msg._tempId" class="message-item" :class="{ self: msg.senderId === myId }">
               <template v-if="msg.senderId === myId">
                 <div class="msg-wrap self-wrap">
-                  <div class="msg-bubble self-bubble">{{ msg.content }}</div>
+                  <div v-if="msg.messageType === 2" class="msg-bubble self-bubble img-bubble"><el-image :src="msg.content" fit="cover" class="chat-img" :preview-src-list="[msg.content]" hide-on-click-modal /></div>
+                  <div v-else-if="msg.messageType === 3 && parseMsgType(msg.content) === 'order'" class="msg-bubble self-bubble order-bubble" @click="openOrderLink(msg.content)">
+                    <el-icon><List /></el-icon>
+                    <div class="order-card-info">
+                      <div class="order-card-title">{{ parseOrderNo(msg.content) }}</div>
+                      <div class="order-card-sub">¥{{ parseOrderAmount(msg.content) }} · {{ parseOrderStatus(msg.content) }}</div>
+                    </div>
+                  </div>
+                  <div v-else-if="msg.messageType === 3" class="msg-bubble self-bubble goods-bubble" @click="openGoodsLink(msg.content)">
+                    <el-icon><Goods /></el-icon>
+                    <div class="goods-card-info">
+                      <div class="goods-card-title">{{ parseGoodsText(msg.content) }}</div>
+                      <div class="goods-card-price" v-if="parseGoodsPrice(msg.content)">¥{{ parseGoodsPrice(msg.content) }}</div>
+                    </div>
+                  </div>
+                  <div v-else class="msg-bubble self-bubble">{{ msg.content }}</div>
                   <div class="msg-meta">
                     <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
                     <span v-if="msg.isRead" class="msg-read">已读</span>
@@ -45,7 +60,22 @@
                 <el-avatar :size="36" :src="msg.senderAvatar" />
                 <div class="msg-wrap">
                   <div class="sender-name">{{ msg.senderName }}</div>
-                  <div class="msg-bubble">{{ msg.content }}</div>
+                  <div v-if="msg.messageType === 2" class="msg-bubble img-bubble"><el-image :src="msg.content" fit="cover" class="chat-img" :preview-src-list="[msg.content]" hide-on-click-modal /></div>
+                  <div v-else-if="msg.messageType === 3 && parseMsgType(msg.content) === 'order'" class="msg-bubble order-bubble" @click="openOrderLink(msg.content)">
+                    <el-icon><List /></el-icon>
+                    <div class="order-card-info">
+                      <div class="order-card-title">{{ parseOrderNo(msg.content) }}</div>
+                      <div class="order-card-sub">¥{{ parseOrderAmount(msg.content) }} · {{ parseOrderStatus(msg.content) }}</div>
+                    </div>
+                  </div>
+                  <div v-else-if="msg.messageType === 3" class="msg-bubble goods-bubble" @click="openGoodsLink(msg.content)">
+                    <el-icon><Goods /></el-icon>
+                    <div class="goods-card-info">
+                      <div class="goods-card-title">{{ parseGoodsText(msg.content) }}</div>
+                      <div class="goods-card-price" v-if="parseGoodsPrice(msg.content)">¥{{ parseGoodsPrice(msg.content) }}</div>
+                    </div>
+                  </div>
+                  <div v-else class="msg-bubble">{{ msg.content }}</div>
                   <div class="msg-time">{{ formatTime(msg.createTime) }}</div>
                 </div>
               </template>
@@ -53,29 +83,78 @@
             <div v-if="typingHint" class="typing-hint">{{ typingHint }}</div>
             <el-empty v-if="messages.length === 0" description="暂无消息，发送第一条消息吧" :image-size="60" />
           </div>
-          <div class="chat-input">
-            <el-input v-model="inputText" placeholder="输入消息..." @keyup.enter="handleSend" @input="handleTyping" size="large" />
-            <el-button type="primary" size="large" @click="handleSend" :disabled="!inputText.trim()" :loading="sending" round>发送</el-button>
+          <div class="chat-input-area">
+            <div v-if="showPlusPanel" class="plus-panel">
+              <div class="plus-item" @click="triggerImageUpload">
+                <div class="plus-icon"><el-icon><Picture /></el-icon></div>
+                <span>图片</span>
+              </div>
+              <div class="plus-item" @click="showOrderPicker = true">
+                <div class="plus-icon"><el-icon><List /></el-icon></div>
+                <span>订单</span>
+              </div>
+              <div class="plus-item" @click="showGoodsPicker = true">
+                <div class="plus-icon"><el-icon><Goods /></el-icon></div>
+                <span>商品</span>
+              </div>
+            </div>
+            <div class="chat-input">
+              <el-button size="large" round @click="showPlusPanel = !showPlusPanel" :type="showPlusPanel ? 'primary' : 'default'"><el-icon><Plus /></el-icon></el-button>
+              <el-upload ref="uploadRef" action="" :auto-upload="false" :show-file-list="false" accept="image/jpeg,image/png,image/gif,image/webp" :on-change="handleImageSelect" style="display: none" />
+              <el-input v-model="inputText" placeholder="输入消息..." @keyup.enter="handleSend" @input="handleTyping" size="large" @focus="showPlusPanel = false" />
+              <el-button type="primary" size="large" @click="handleSend" :disabled="!inputText.trim()" :loading="sending" round>发送</el-button>
+            </div>
           </div>
         </template>
         <div v-else class="chat-empty"><el-empty description="选择联系人开始聊天" /></div>
       </el-main>
     </el-container>
+
+    <el-dialog v-model="showGoodsPicker" title="选择商品" width="480px" destroy-on-close @open="loadPickerGoods">
+      <div v-loading="goodsPickerLoading" class="picker-list">
+        <div v-for="g in pickerGoodsList" :key="g.id" class="picker-item" @click="confirmSendGoods(g)">
+          <el-image :src="g.coverImage || '/default-cover.svg'" style="width: 48px; height: 48px; border-radius: 6px; flex-shrink: 0" fit="cover" />
+          <div class="picker-item-info">
+            <div class="picker-item-title">{{ g.title }}</div>
+            <div class="picker-item-price">¥{{ g.price }}</div>
+          </div>
+        </div>
+        <el-empty v-if="!goodsPickerLoading && pickerGoodsList.length === 0" description="该商家暂无在售商品" :image-size="50" />
+      </div>
+    </el-dialog>
+
+    <el-dialog v-model="showOrderPicker" title="选择订单" width="480px" destroy-on-close @open="loadPickerOrders">
+      <div v-loading="orderPickerLoading" class="picker-list">
+        <div v-for="o in pickerOrderList" :key="o.id" class="picker-item" @click="confirmSendOrder(o)">
+          <div class="picker-item-info">
+            <div class="picker-item-title">{{ o.orderNo }}</div>
+            <div class="picker-item-sub">¥{{ o.totalAmount }} · {{ o.status }}</div>
+          </div>
+        </div>
+        <el-empty v-if="!orderPickerLoading && pickerOrderList.length === 0" description="暂无与该商家的订单" :image-size="50" />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getRecentContacts, getHistory, getUnreadCount } from '@/api/chat'
+import { uploadImage } from '@/api/file'
+import { getGoodsList, type GoodsVO } from '@/api/goods'
+import { getBuyerOrders, type OrderVO } from '@/api/order'
 import { useChatWs } from '@/composables/useChatWs'
 import type { ChatMessageVO } from '@/api/chat'
 import type { ContactVO } from '@/types'
 
+import { ElMessage } from 'element-plus'
+
 interface DisplayMessage extends ChatMessageVO { _tempId?: string }
 
 const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 const myId = computed(() => userStore.userInfo?.id || getMyId())
 
@@ -94,8 +173,28 @@ const inputText = ref('')
 const sending = ref(false)
 const messagesRef = ref<HTMLElement>()
 const typingHint = ref('')
+const showPlusPanel = ref(false)
+const showGoodsPicker = ref(false)
+const showOrderPicker = ref(false)
+const goodsPickerLoading = ref(false)
+const orderPickerLoading = ref(false)
+const pickerGoodsList = ref<GoodsVO[]>([])
+const pickerOrderList = ref<OrderVO[]>([])
+const uploadRef = ref<{ $el: HTMLElement }>()
 let lastTypingSent = false
 let tempIdCounter = 0
+
+const formatLastMessage = (content: string, messageType?: number) => {
+  if (messageType === 2) return '[图片]'
+  if (messageType === 3) {
+    try {
+      const d = JSON.parse(content)
+      if (d.type === 'order') return `[订单] ${d.orderNo || ''}`
+      return `[商品] ${d.title || ''}`
+    } catch { return '[卡片]' }
+  }
+  return content || ''
+}
 
 const isOnline = (userId: number) => onlineUsers.value.has(userId)
 
@@ -111,7 +210,7 @@ const loadContacts = async () => {
         userId: partnerId,
         name: isMeSender ? (c.receiverName || '用户' + c.receiverId) : (c.senderName || '用户' + c.senderId),
         avatar: isMeSender ? (c.receiverAvatar || '') : (c.senderAvatar || ''),
-        lastMessage: c.content || '',
+        lastMessage: formatLastMessage(c.content, c.messageType),
         unread: chatUnreadMap.value.get(partnerId) || 0
       }
     })
@@ -182,7 +281,7 @@ const handleSend = async () => {
     const sent = sendChat(targetId, content)
     if (!sent) {
       const { sendMessage } = await import('@/api/chat')
-      await sendMessage({ receiverId: targetId, content })
+      await sendMessage({ receiverId: targetId, content, messageType: 1 })
       const idx = messages.value.findIndex(m => m._tempId === tempMsg._tempId)
       if (idx > -1) {
         await loadMessages()
@@ -190,16 +289,16 @@ const handleSend = async () => {
     }
     sendStopTyping(targetId)
     lastTypingSent = false
-    updateContactLastMessage(targetId, content)
+    updateContactLastMessage(targetId, content, 1)
   } finally {
     sending.value = false
   }
 }
 
-const updateContactLastMessage = (partnerId: number, content: string) => {
+const updateContactLastMessage = (partnerId: number, content: string, messageType?: number) => {
   const idx = contacts.value.findIndex(c => c.userId === partnerId)
   if (idx > -1) {
-    contacts.value[idx].lastMessage = content
+    contacts.value[idx].lastMessage = formatLastMessage(content, messageType)
     if (idx > 0) {
       const contact = contacts.value.splice(idx, 1)[0]
       contacts.value.unshift(contact)
@@ -219,7 +318,161 @@ const handleTyping = () => {
   }
 }
 
-const scrollToBottom = () => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight }
+const triggerImageUpload = () => {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/jpeg,image/png,image/gif,image/webp'
+  input.onchange = async (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0]
+    if (file) {
+      const fakeEvent = { raw: file }
+      await handleImageSelect(fakeEvent)
+    }
+  }
+  input.click()
+  showPlusPanel.value = false
+}
+
+const handleImageSelect = async (uploadFile: { raw?: File }) => {
+  if (!uploadFile.raw || !currentTarget.value) return
+  const file = uploadFile.raw
+  const isImage = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)
+  const isLt10M = file.size / 1024 / 1024 < 10
+  if (!isImage) { ElMessage.error('仅支持 jpg/png/gif/webp 格式'); return }
+  if (!isLt10M) { ElMessage.error('图片大小不能超过 10MB'); return }
+  try {
+    const url = await uploadImage(file)
+    const targetId = currentTarget.value
+    const tempMsg: DisplayMessage = {
+      id: 0, _tempId: `temp_${++tempIdCounter}`,
+      senderId: myId.value || 0, receiverId: targetId,
+      content: url, messageType: 2, isRead: 0,
+      createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
+      senderAvatar: userStore.userInfo?.avatar || '',
+      receiverName: currentContactName.value, receiverAvatar: ''
+    }
+    messages.value.push(tempMsg)
+    nextTick(scrollToBottom)
+    sendChat(targetId, url, 2)
+    updateContactLastMessage(targetId, url, 2)
+  } catch { ElMessage.error('图片发送失败') }
+}
+
+const parseGoodsText = (content: string) => {
+  try {
+    const data = JSON.parse(content)
+    return data.title || '查看商品'
+  } catch { return '查看商品' }
+}
+
+const parseGoodsPrice = (content: string) => {
+  try {
+    const data = JSON.parse(content)
+    return data.price || ''
+  } catch { return '' }
+}
+
+const openGoodsLink = (content: string) => {
+  try {
+    const data = JSON.parse(content)
+    if (data.goodsId) router.push(`/goods/${data.goodsId}`)
+  } catch { /* ignore */ }
+}
+
+const parseMsgType = (content: string): string => {
+  try { const d = JSON.parse(content); return d.type === 'order' ? 'order' : 'goods' } catch { return 'goods' }
+}
+
+const parseOrderNo = (content: string) => {
+  try { const d = JSON.parse(content); return d.orderNo || '查看订单' } catch { return '查看订单' }
+}
+
+const parseOrderAmount = (content: string) => {
+  try { const d = JSON.parse(content); return d.amount || '' } catch { return '' }
+}
+
+const parseOrderStatus = (content: string) => {
+  try {
+    const d = JSON.parse(content)
+    const map: Record<string, string> = { PENDING_PAY: '待支付', PAID: '已支付', SHIPPING: '已发货', PENDING_REVIEW: '待评价', FINISHED: '已完成', CANCELLED: '已取消', REFUND: '退款中' }
+    return map[d.status] || d.status || ''
+  } catch { return '' }
+}
+
+const openOrderLink = (content: string) => {
+  try {
+    const data = JSON.parse(content)
+    if (data.orderId) router.push(`/order/${data.orderId}`)
+  } catch { /* ignore */ }
+}
+
+const loadPickerOrders = async () => {
+  if (!currentTarget.value) return
+  orderPickerLoading.value = true
+  try {
+    const res = await getBuyerOrders({ pageNum: 1, pageSize: 50 })
+    const allOrders = (res.list || []) as OrderVO[]
+    pickerOrderList.value = allOrders.filter(o => o.sellerId === currentTarget.value)
+  } catch { pickerOrderList.value = [] }
+  finally { orderPickerLoading.value = false }
+}
+
+const confirmSendOrder = (order: OrderVO) => {
+  if (!currentTarget.value) return
+  showOrderPicker.value = false
+  const content = JSON.stringify({ type: 'order', orderId: order.id, orderNo: order.orderNo, amount: order.totalAmount, status: order.status })
+  sendChat(currentTarget.value, content, 3)
+  const tempMsg: DisplayMessage = {
+    id: 0, _tempId: `temp_${++tempIdCounter}`,
+    senderId: myId.value || 0, receiverId: currentTarget.value,
+    content, messageType: 3, isRead: 0,
+    createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
+    senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
+    senderAvatar: userStore.userInfo?.avatar || '',
+    receiverName: currentContactName.value, receiverAvatar: ''
+  }
+  messages.value.push(tempMsg)
+  nextTick(scrollToBottom)
+  updateContactLastMessage(currentTarget.value, content, 3)
+}
+
+const loadPickerGoods = async () => {
+  if (!currentTarget.value) return
+  goodsPickerLoading.value = true
+  try {
+    const res = await getGoodsList({ pageNum: 1, pageSize: 50, userId: currentTarget.value, status: 'ONLINE' })
+    pickerGoodsList.value = (res.list || []) as GoodsVO[]
+  } catch { pickerGoodsList.value = [] }
+  finally { goodsPickerLoading.value = false }
+}
+
+const confirmSendGoods = (g: GoodsVO) => {
+  if (!currentTarget.value) return
+  showGoodsPicker.value = false
+  const content = JSON.stringify({ goodsId: g.id, title: g.title, price: g.price, coverImage: g.coverImage })
+  sendChat(currentTarget.value, content, 3)
+  const tempMsg: DisplayMessage = {
+    id: 0, _tempId: `temp_${++tempIdCounter}`,
+    senderId: myId.value || 0, receiverId: currentTarget.value,
+    content, messageType: 3, isRead: 0,
+    createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
+    senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
+    senderAvatar: userStore.userInfo?.avatar || '',
+    receiverName: currentContactName.value, receiverAvatar: ''
+  }
+  messages.value.push(tempMsg)
+  nextTick(scrollToBottom)
+  updateContactLastMessage(currentTarget.value, content, 3)
+}
+
+
+const scrollToBottom = () => {
+  if (!messagesRef.value) return
+  messagesRef.value.scrollTop = messagesRef.value.scrollHeight
+  setTimeout(() => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight }, 100)
+  setTimeout(() => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight }, 300)
+}
 
 const formatTime = (t: string | number | null | undefined) => {
   if (!t) return ''
@@ -268,21 +521,22 @@ const removeWsHandler = onChatMessage((msg) => {
       if (!isFromMe) {
         sendRead(partnerId)
       }
-      updateContactLastMessage(partnerId, chatMsg.content)
+      updateContactLastMessage(partnerId, chatMsg.content, chatMsg.messageType)
       const c = contacts.value.find(c => c.userId === partnerId)
       if (c) c.unread = 0
     } else {
       const isFromOther = !isFromMe
+      const formattedLast = formatLastMessage(chatMsg.content, chatMsg.messageType)
       const idx = contacts.value.findIndex(c => c.userId === partnerId)
       if (idx > -1) {
-        contacts.value[idx].lastMessage = chatMsg.content
+        contacts.value[idx].lastMessage = formattedLast
         if (isFromOther) contacts.value[idx].unread = (contacts.value[idx].unread || 0) + 1
         if (idx > 0) {
           const contact = contacts.value.splice(idx, 1)[0]
           contacts.value.unshift(contact)
         }
       } else if (isFromOther) {
-        contacts.value.unshift({ userId: partnerId, name: partnerName, avatar: partnerAvatar, lastMessage: chatMsg.content, unread: 1 })
+        contacts.value.unshift({ userId: partnerId, name: partnerName, avatar: partnerAvatar, lastMessage: formattedLast, unread: 1 })
       }
     }
 
@@ -310,25 +564,55 @@ watch(connected, (val) => {
 })
 
 onMounted(async () => {
-  await loadContacts()
-
   const queryTarget = route.query.targetUserId ? Number(route.query.targetUserId) : null
   const queryName = route.query.name as string || '卖家'
+  const queryConsult = route.query.consult as string || ''
+
+  if (queryTarget) {
+    currentTarget.value = queryTarget
+    currentContactName.value = queryName
+    await nextTick()
+  }
+
+  await loadContacts()
 
   if (queryTarget) {
     const existing = contacts.value.find(c => c.userId === queryTarget)
     if (existing) {
-      await selectContact(existing)
+      currentTarget.value = queryTarget
+      currentContactName.value = existing.name
+      existing.unread = 0
     } else {
       const newContact: ContactItem = { userId: queryTarget, name: queryName, avatar: '', lastMessage: '', unread: 0 }
       contacts.value.unshift(newContact)
       currentTarget.value = queryTarget
       currentContactName.value = queryName
-      await loadMessages()
-      sendRead(queryTarget)
     }
-  } else {
-    // 不自动恢复上次对话，用户需手动选择联系人
+    await nextTick()
+    await loadMessages()
+    sendRead(queryTarget)
+
+    if (queryConsult) {
+      try {
+        JSON.parse(queryConsult)
+        const content = queryConsult
+        sendChat(queryTarget, content, 3)
+        const tempMsg: DisplayMessage = {
+          id: 0, _tempId: `temp_${++tempIdCounter}`,
+          senderId: myId.value || 0, receiverId: queryTarget,
+          content, messageType: 3, isRead: 0,
+          createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
+          senderAvatar: userStore.userInfo?.avatar || '',
+          receiverName: currentContactName.value, receiverAvatar: ''
+        }
+        messages.value.push(tempMsg)
+        await nextTick()
+        scrollToBottom()
+        updateContactLastMessage(queryTarget, content, 3)
+      } catch { /* ignore */ }
+    }
+    window.history.replaceState(null, '', '/chat')
   }
 })
 
@@ -379,11 +663,46 @@ onUnmounted(() => {
 .msg-wrap.self-wrap { display: flex; flex-direction: column; align-items: flex-end; }
 .msg-bubble { background: #f1f5f9; padding: 10px 16px; border-radius: 16px 16px 16px 4px; word-break: break-all; font-size: 14px; line-height: 1.6; }
 .self-bubble { background: var(--primary-gradient); color: #fff; border-radius: 16px 16px 4px 16px; }
+.img-bubble { padding: 4px !important; background: transparent !important; }
+.chat-img { max-width: 200px; max-height: 200px; border-radius: 12px; cursor: pointer; }
+.goods-bubble { cursor: pointer; display: flex; align-items: center; gap: 6px; &:hover { opacity: 0.85; } }
+.order-bubble { cursor: pointer; display: flex; align-items: center; gap: 6px; &:hover { opacity: 0.85; } }
+.order-card-info { flex: 1; min-width: 0; }
+.order-card-title { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.order-card-sub { font-size: 12px; opacity: 0.85; margin-top: 2px; }
 .msg-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
 .msg-time { font-size: 11px; color: var(--text-muted); padding: 0 4px; }
 .msg-read { font-size: 11px; color: var(--primary); }
 .msg-unread { font-size: 11px; color: var(--text-muted); }
 .typing-hint { font-size: 12px; color: var(--text-muted); padding: 4px 8px; font-style: italic; }
-.chat-input { display: flex; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--border); }
+.chat-input-area { border-top: 1px solid var(--border); }
+.plus-panel {
+  display: flex; gap: 16px; padding: 16px 20px; background: #fafbfc; border-bottom: 1px solid var(--border);
+}
+.plus-item {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;
+  transition: var(--transition-fast);
+  &:hover { transform: translateY(-2px); }
+}
+.plus-icon {
+  width: 48px; height: 48px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center; font-size: 22px; color: var(--primary);
+  transition: var(--transition-fast);
+  &:hover { background: var(--primary-lighter); border-color: var(--primary-light); }
+}
+.plus-item span { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+.chat-input { display: flex; gap: 10px; padding: 16px 20px; }
 .chat-empty { display: flex; align-items: center; justify-content: center; height: 100%; }
+.goods-card-info { flex: 1; min-width: 0; }
+.goods-card-title { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goods-card-price { font-size: 13px; opacity: 0.85; margin-top: 2px; }
+.picker-list { max-height: 400px; overflow-y: auto; }
+.picker-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px; cursor: pointer; border-radius: 8px; transition: var(--transition-fast);
+  &:hover { background: var(--bg-hover); }
+}
+.picker-item-info { flex: 1; min-width: 0; }
+.picker-item-title { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-item-price { font-size: 13px; color: #f56c6c; font-weight: 600; margin-top: 2px; }
+.picker-item-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 </style>

@@ -97,6 +97,7 @@ a:hover { color: var(--primary-dark); }
   justify-content: center !important;
   margin-top: 20px;
   .el-pager li { border-radius: var(--radius-sm) !important; &.is-active { background: var(--primary-gradient) !important; } }
+  .btn-prev, .btn-next { background: transparent !important; &:hover { color: var(--primary); } }
 }
 
 .el-dialog { border-radius: var(--radius-lg) !important; overflow: hidden; }

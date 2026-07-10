@@ -17,6 +17,9 @@
     <select id="selectByUserAndGoods" resultMap="BaseResultMap">
         SELECT * FROM t_cart WHERE user_id = #{userId} AND goods_id = #{goodsId} AND deleted = 0
     </select>
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM t_cart WHERE id = #{id} AND deleted = 0
+    </select>
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO t_cart (user_id, goods_id, quantity, create_time, update_time, deleted, version)
         VALUES (#{userId}, #{goodsId}, #{quantity}, NOW(), NOW(), 0, 0)

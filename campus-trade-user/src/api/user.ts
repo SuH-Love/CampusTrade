@@ -13,6 +13,9 @@ export interface UserVO {
   realVerified: number
   status: number
   createTime: string
+  followingCount?: number
+  followersCount?: number
+  goodsCount?: number
 }
 
 export const getUserInfo = () => request.get<never, UserVO>('/user/info')
@@ -28,3 +31,13 @@ export const realNameVerify = (realName: string, studentId: string) =>
 export const uploadAvatar = (fileUrl: string) => request.post('/user/avatar', null, { params: { fileUrl } })
 
 export const getUserPublicInfo = (id: number) => request.get<never, UserVO>(`/user/${id}`)
+
+export interface UserStatsVO {
+  publishedGoods: number
+  onlineGoods: number
+  buyerOrders: number
+  sellerOrders: number
+  finishedOrders: number
+}
+
+export const getUserStats = () => request.get<never, UserStatsVO>('/user/stats')

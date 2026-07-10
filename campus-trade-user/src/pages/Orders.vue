@@ -25,25 +25,44 @@
       </el-tabs>
 
       <el-table :data="filteredOrders" stripe style="width: 100%" v-loading="loading">
-        <el-table-column prop="orderNo" label="订单号" width="200" />
-        <el-table-column :label="activeTab === 'buyer' ? '卖家' : '买家'" width="120">
-          <template #default="{ row }">{{ activeTab === 'buyer' ? row.sellerName : row.buyerName }}</template>
-        </el-table-column>
-        <el-table-column prop="totalAmount" label="金额" width="100">
-          <template #default="{ row }"><span style="color: #f56c6c; font-weight: bold">¥{{ row.totalAmount }}</span></template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="orderNo" label="订单号" min-width="180" />
+        <el-table-column label="商品信息" min-width="200">
           <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+            <div v-if="row.items && row.items.length > 0" style="display: flex; align-items: center; gap: 10px">
+              <el-image v-if="row.items[0].goodsImage" :src="row.items[0].goodsImage" style="width: 44px; height: 44px; border-radius: 6px; flex-shrink: 0" fit="cover" />
+              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500">{{ row.items[0].goodsTitle }}</div>
+              <el-tag v-if="row.items.length > 1" size="small" type="info" style="flex-shrink: 0">+{{ row.items.length - 1 }}</el-tag>
+            </div>
+            <span v-else style="color: #999">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="remark" label="备注" show-overflow-tooltip />
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column :label="activeTab === 'buyer' ? '卖家' : '买家'" min-width="100">
+          <template #default="{ row }">{{ activeTab === 'buyer' ? row.sellerName : row.buyerName }}</template>
+        </el-table-column>
+        <el-table-column prop="totalAmount" label="金额" min-width="80">
+          <template #default="{ row }"><span style="color: #f56c6c; font-weight: bold">¥{{ row.totalAmount }}</span></template>
+        </el-table-column>
+        <el-table-column label="配送方式" min-width="90">
+          <template #default="{ row }">
+            <el-tag v-if="row.deliveryMethod === 'DELIVERY' || row.deliveryMethod === 1" size="small" type="primary">配送</el-tag>
+            <el-tag v-else-if="row.deliveryMethod === 'PICKUP' || row.deliveryMethod === 2" size="small" type="success">自取</el-tag>
+            <span v-else style="color: #999">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" min-width="120">
+          <template #default="{ row }">
+            <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+            <div v-if="row.status === 'PENDING_PAY' && getCountdown(row.createTime)" style="color: #f56c6c; font-size: 12px; margin-top: 4px; font-weight: 500">{{ getCountdown(row.createTime) }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="createTime" label="创建时间" min-width="160" />
+        <el-table-column label="操作" min-width="260" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="$router.push(`/order/${row.id}`)">详情</el-button>
             <el-button v-if="row.status === 'PENDING_PAY' && activeTab === 'buyer'" type="primary" size="small" @click="handlePay(row.id)">支付</el-button>
             <el-button v-if="row.status === 'PENDING_PAY' && activeTab === 'buyer'" size="small" @click="handleCancel(row.id)">取消</el-button>
+            <el-button v-if="row.status === 'PENDING_PAY' && activeTab === 'seller'" type="warning" size="small" @click="handleModifyPrice(row.id, row.totalAmount)">改价</el-button>
             <el-button v-if="row.status === 'PAID' && activeTab === 'seller'" type="primary" size="small" @click="handleShip(row.id)">发货</el-button>
             <el-button v-if="row.status === 'SHIPPING' && activeTab === 'buyer'" type="success" size="small" @click="handleFinish(row.id)">确认收货</el-button>
             <el-button v-if="(row.status === 'PAID' || row.status === 'SHIPPING') && activeTab === 'buyer'" type="danger" size="small" @click="handleRefund(row.id)">退款</el-button>
@@ -59,20 +78,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { getBuyerOrders, getSellerOrders, payOrder, cancelOrder, shipOrder, finishOrder, refundOrder, approveRefund, rejectRefund } from '@/api/order'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { getBuyerOrders, getSellerOrders, payOrder, cancelOrder, shipOrder, finishOrder, refundOrder, approveRefund, rejectRefund, modifyPrice } from '@/api/order'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { OrderVO } from '@/api/order'
 import type { OrderQueryParams } from '@/types'
 
-const activeTab = ref('buyer')
+const route = useRoute()
+const activeTab = ref((route.query.tab as string) || 'buyer')
 const orders = ref<OrderVO[]>([])
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const loading = ref(false)
 const searchKeyword = ref('')
-const statusFilter = ref('')
+const statusFilter = ref((route.query.status as string) || '')
 
 const statusLabel = (status: string) => {
   const map: Record<string, string> = {
@@ -150,6 +171,21 @@ const handleShip = async (id: number) => {
   loadData()
 }
 
+const handleModifyPrice = async (id: number, currentPrice: number) => {
+  const { value } = await ElMessageBox.prompt('请输入新的订单金额', '修改订单金额', {
+    confirmButtonText: '确认改价',
+    cancelButtonText: '取消',
+    inputValue: String(currentPrice),
+    inputPattern: /^\d+(\.\d{1,2})?$/,
+    inputErrorMessage: '请输入有效的金额（最多两位小数）'
+  })
+  const newPrice = parseFloat(value)
+  if (newPrice <= 0) { ElMessage.warning('金额必须大于0'); return }
+  await modifyPrice(id, newPrice)
+  ElMessage.success('已修改订单金额')
+  loadData()
+}
+
 const handleFinish = async (id: number) => {
   await ElMessageBox.confirm('确认已收到商品？', '收货确认')
   await finishOrder(id)
@@ -178,11 +214,40 @@ const handleRejectRefund = async (id: number) => {
   loadData()
 }
 
-onMounted(loadData)
+onMounted(() => { loadData(); countdownTimer = window.setInterval(() => {
+  const hasExpired = orders.value.some(o => o.status === 'PENDING_PAY' && isOrderExpired(o.createTime))
+  if (hasExpired) { loadData() } else { orders.value = [...orders.value] }
+}, 1000) })
+onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
+
+const ORDER_TIMEOUT_MS = 5 * 60 * 1000
+let countdownTimer: number | null = null
+
+const getCountdown = (createTime: string): string => {
+  const created = new Date(createTime.includes('T') ? createTime : createTime.replace(' ', 'T')).getTime()
+  const remaining = ORDER_TIMEOUT_MS - (Date.now() - created)
+  if (remaining <= 0) return '已超时'
+  const minutes = Math.floor(remaining / 60000)
+  const seconds = Math.floor((remaining % 60000) / 1000)
+  return `剩余 ${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
+const isOrderExpired = (createTime: string): boolean => {
+  const created = new Date(createTime.includes('T') ? createTime : createTime.replace(' ', 'T')).getTime()
+  return (Date.now() - created) >= ORDER_TIMEOUT_MS
+}
 </script>
 
 <style scoped lang="scss">
-.orders-page { padding: 20px; }
+.orders-page {
+  padding: 20px;
+  background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%);
+  min-height: calc(100vh - 60px);
+  :deep(.el-card) {
+    border-radius: 16px;
+    border: 1px solid rgba(99, 102, 241, 0.08);
+    box-shadow: 0 4px 24px rgba(99, 102, 241, 0.06);
+  }
+}
 .filter-bar { display: flex; gap: 12px; align-items: center; }
-
 </style>

@@ -25,13 +25,6 @@ public class XssFilter implements Filter {
             Pattern.compile("<img.*?on.*?=.*?>", Pattern.CASE_INSENSITIVE)
     };
 
-    private static final Pattern[] SQL_INJECTION_PATTERNS = {
-            Pattern.compile("(?i)(\\b(select|insert|update|delete|drop|truncate|exec|execute|union|create|alter|grant|revoke)\\b)",
-                    Pattern.CASE_INSENSITIVE),
-            Pattern.compile("(?i)(\\b(or|and)\\s+\\d+\\s*=\\s*\\d+\\b)"),
-            Pattern.compile("(?i)(\\b(or|and)\\s+['\"]\\w+['\"]\\s*=\\s*['\"]\\w+['\"]\\b)"),
-            Pattern.compile("(?i)(--|;|/\\*|\\*/|xp_|sp_)")
-    };
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -45,12 +38,7 @@ public class XssFilter implements Filter {
         for (Pattern pattern : XSS_PATTERNS) {
             result = pattern.matcher(result).replaceAll("");
         }
-        for (Pattern pattern : SQL_INJECTION_PATTERNS) {
-            if (pattern.matcher(result).find()) {
-                log.warn("检测到SQL注入攻击: {}", result);
-                result = pattern.matcher(result).replaceAll("");
-            }
-        }
+
         return result;
     }
 

@@ -61,3 +61,6 @@ export const getOrderDetail = (id: number) => request.get<never, OrderVO>(`/orde
 export const getBuyerOrders = (params: OrderQueryParams) => request.get<never, PageResult<OrderVO>>('/order/buyer', { params })
 
 export const getSellerOrders = (params: OrderQueryParams) => request.get<never, PageResult<OrderVO>>('/order/seller', { params })
+
+export const modifyPrice = (id: number, newPrice: number) =>
+  request.put(`/order/${id}/modify-price`, null, { params: { newPrice } })

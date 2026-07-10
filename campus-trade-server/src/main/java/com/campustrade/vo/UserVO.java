@@ -18,4 +18,7 @@ public class UserVO {
     private Integer realVerified;
     private Integer status;
     private LocalDateTime createTime;
+    private Long followingCount;
+    private Long followersCount;
+    private Long goodsCount;
 }

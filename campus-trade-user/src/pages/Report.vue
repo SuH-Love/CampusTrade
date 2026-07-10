@@ -25,6 +25,22 @@
         <el-form-item label="详细描述">
           <el-input v-model="form.description" type="textarea" :rows="4" placeholder="详细描述举报内容" />
         </el-form-item>
+        <el-form-item label="证据图片">
+          <el-upload
+            :auto-upload="false"
+            :show-file-list="false"
+            accept="image/*"
+            :on-change="handleImageChange"
+          >
+            <el-button type="primary" size="small">选择图片</el-button>
+          </el-upload>
+          <div v-if="imageList.length > 0" class="uploaded-images">
+            <div v-for="(img, idx) in imageList" :key="idx" class="image-preview-item">
+              <el-image :src="img" fit="cover" style="width: 80px; height: 80px; border-radius: 8px" :preview-src-list="imageList" :initial-index="idx" />
+              <el-button type="danger" :icon="Delete" circle size="small" class="image-delete-btn" @click="removeImage(idx)" />
+            </div>
+          </div>
+        </el-form-item>
         <el-form-item><el-button type="danger" @click="handleSubmit" :loading="loading">提交举报</el-button></el-form-item>
       </el-form>
     </el-card>
@@ -54,17 +70,22 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { createReport, listMyReports } from '@/api/report'
 import { getGoodsDetail } from '@/api/goods'
+import { uploadImage } from '@/api/file'
 import { ElMessage } from 'element-plus'
+import { Delete } from '@element-plus/icons-vue'
 import type { FormInstance } from 'element-plus'
 import type { ReportVO } from '@/api/report'
+import type { UploadFile } from 'element-plus'
 
 const route = useRoute()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 const reports = ref<ReportVO[]>([])
 const targetInfo = ref<{ name: string; detail: string } | null>(null)
+const imageList = ref<string[]>([])
+const uploadingImage = ref(false)
 
-const form = reactive({ targetType: 1, targetId: '', reason: '', description: '' })
+const form = reactive({ targetType: 1, targetId: '', reason: '', description: '', images: '' })
 const rules = {
   targetType: [{ required: true, message: '请选择举报类型', trigger: 'change' }],
   targetId: [{ required: true, message: '举报目标不能为空', trigger: 'change' }],
@@ -87,7 +108,23 @@ const loadTargetInfo = async () => {
       const goods = await getGoodsDetail(Number(form.targetId))
       targetInfo.value = { name: goods.title, detail: `¥${goods.price} · ${goods.categoryName || ''}` }
     }
-  } catch { targetInfo.value = null }
+  } catch (e) { console.error(e); targetInfo.value = null }
+}
+
+const handleImageChange = async (uploadFile: UploadFile) => {
+  if (!uploadFile.raw) return
+  uploadingImage.value = true
+  try {
+    const url = await uploadImage(uploadFile.raw)
+    imageList.value.push(url)
+    form.images = imageList.value.join(',')
+  } catch (e) { console.error(e); ElMessage.error('图片上传失败') }
+  finally { uploadingImage.value = false }
+}
+
+const removeImage = (idx: number) => {
+  imageList.value.splice(idx, 1)
+  form.images = imageList.value.join(',')
 }
 
 const handleSubmit = async () => {
@@ -95,10 +132,12 @@ const handleSubmit = async () => {
   await formRef.value.validate()
   loading.value = true
   try {
-    await createReport({ targetType: form.targetType, targetId: Number(form.targetId), reason: form.reason, description: form.description })
+    await createReport({ targetType: form.targetType, targetId: Number(form.targetId), reason: form.reason, description: form.description, images: form.images || undefined })
     ElMessage.success('举报已提交')
     form.reason = ''
     form.description = ''
+    form.images = ''
+    imageList.value = []
     loadReports()
   } finally {
     loading.value = false
@@ -109,7 +148,7 @@ const loadReports = async () => {
   try {
     const res = await listMyReports()
     reports.value = res.list || []
-  } catch { /* ignore */ }
+  } catch (e) { console.error(e) }
 }
 
 onMounted(async () => {
@@ -125,5 +164,17 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-.report-page { padding: 20px; }
+.report-page {
+  padding: 20px;
+  background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%);
+  min-height: calc(100vh - 60px);
+  :deep(.el-card) {
+    border-radius: 16px;
+    border: 1px solid rgba(99, 102, 241, 0.08);
+    box-shadow: 0 4px 24px rgba(99, 102, 241, 0.06);
+  }
+}
+.uploaded-images { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.image-preview-item { position: relative; display: inline-block; }
+.image-delete-btn { position: absolute; top: -6px; right: -6px; z-index: 1; }
 </style>

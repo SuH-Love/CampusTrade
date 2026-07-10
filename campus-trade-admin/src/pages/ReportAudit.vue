@@ -15,22 +15,22 @@
         </div>
       </template>
       <el-table :data="reports" stripe v-loading="loading">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="reporterName" label="举报人" width="100" />
-        <el-table-column prop="targetType" label="类型" width="100">
+        <el-table-column prop="id" label="ID" min-width="60" />
+        <el-table-column prop="reporterName" label="举报人" min-width="90" />
+        <el-table-column prop="targetType" label="类型" min-width="80">
           <template #default="{ row }">
             <el-tag size="small">{{ targetTypeLabel(row.targetType) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="reason" label="原因" show-overflow-tooltip />
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="reason" label="原因" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="status" label="状态" min-width="90">
           <template #default="{ row }">
             <el-tag :type="statusTagMap[row.status] || 'info'">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="handleResult" label="处理结果" show-overflow-tooltip />
-        <el-table-column prop="createTime" label="举报时间" width="170" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column prop="handleResult" label="处理结果" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="createTime" label="举报时间" min-width="150" />
+        <el-table-column label="操作" min-width="180" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.status === 'PENDING' || row.status === 'PROCESSING'" v-permission="'report:review'" type="success" size="small" @click="handleResolve(row.id)">处理</el-button>
             <el-button v-if="row.status === 'PENDING' || row.status === 'PROCESSING'" v-permission="'report:review'" type="warning" size="small" @click="handleDismiss(row.id)">驳回</el-button>

@@ -72,9 +72,10 @@ mybatis:
   type-aliases-package: com.campustrade.entity
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.log4j2.Log4j2Impl
+    log-impl: ${MYBATIS_LOG_IMPL:org.apache.ibatis.logging.log4j2.Log4j2Impl}
     default-fetch-size: 100
     default-statement-timeout: 30
+
 
 jwt:
   secret: ${JWT_SECRET:CampusTradeSecretKey2026ForJwtTokenGenerationAndValidation}
@@ -83,6 +84,7 @@ jwt:
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost,http://localhost:81,http://localhost:5173,http://localhost:5174,http://61.139.2.140,http://61.139.2.140:81}
+  origins: ${CORS_ORIGINS:http://localhost:*,http://61.139.2.140:*}
 
 file:
   upload:
@@ -98,7 +100,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: ${MANAGEMENT_ENDPOINTS_INCLUDE:health,info,metrics}
+        include: ${MANAGEMENT_ENDPOINTS_INCLUDE:health}
       base-path: /actuator
   endpoint:
     health:

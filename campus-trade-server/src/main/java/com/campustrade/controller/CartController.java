@@ -72,6 +72,9 @@ public class CartController {
     @ApiOperation("修改数量")
     @PutMapping("/{id}")
     public Result<Void> updateQuantity(@PathVariable Long id, @RequestParam Integer quantity) {
+        Long userId = SecurityUtil.requireCurrentUserId();
+        Cart cart = cartMapper.selectById(id);
+        if (cart == null || !cart.getUserId().equals(userId)) return Result.error(403, "无权限操作");
         if (quantity <= 0) cartMapper.deleteById(id);
         else cartMapper.updateQuantity(id, quantity);
         return Result.success();
@@ -80,6 +83,9 @@ public class CartController {
     @ApiOperation("移除购物车")
     @DeleteMapping("/{id}")
     public Result<Void> removeFromCart(@PathVariable Long id) {
+        Long userId = SecurityUtil.requireCurrentUserId();
+        Cart cart = cartMapper.selectById(id);
+        if (cart == null || !cart.getUserId().equals(userId)) return Result.error(403, "无权限操作");
         cartMapper.deleteById(id);
         return Result.success();
     }

@@ -32,10 +32,10 @@ public class OrderTimeoutTask {
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
 
-    @Scheduled(fixedRate = 60000)
+    @Scheduled(fixedRate = 300000)
     @Transactional(rollbackFor = Exception.class)
     public void cancelTimeoutOrders() {
-        LocalDateTime timeout = LocalDateTime.now().minusMinutes(30);
+        LocalDateTime timeout = LocalDateTime.now().minusMinutes(6);
         List<Order> orders = orderMapper.selectTimeoutPendingPay(timeout);
         for (Order order : orders) {
             order.setStatus(OrderStatus.CANCELLED.getCode());
@@ -45,8 +45,12 @@ public class OrderTimeoutTask {
             List<OrderItem> items = orderItemMapper.selectByOrderId(order.getId());
             for (OrderItem item : items) {
                 Goods goods = goodsMapper.selectById(item.getGoodsId());
-                if (goods != null && GoodsStatus.SOLD.getCode().equals(goods.getStatus())) {
-                    goods.setStatus(GoodsStatus.ONLINE.getCode());
+                if (goods != null) {
+                    int restoreQty = item.getQuantity() != null ? item.getQuantity() : 1;
+                    goods.setStock(goods.getStock() != null ? goods.getStock() + restoreQty : restoreQty);
+                    if (GoodsStatus.SOLD.getCode().equals(goods.getStatus())) {
+                        goods.setStatus(GoodsStatus.ONLINE.getCode());
+                    }
                     goodsMapper.updateById(goods);
                     redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + item.getGoodsId());
                     redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);

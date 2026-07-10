@@ -78,6 +78,8 @@ public class GoodsServiceImpl implements GoodsService {
         goods.setOriginalPrice(dto.getOriginalPrice());
         goods.setCoverImage(dto.getCoverImage());
         goods.setImages(dto.getImages());
+        goods.setCondition(dto.getCondition());
+        goods.setStock(dto.getStock() != null && dto.getStock() > 0 ? dto.getStock() : 1);
         goods.setStatus(GoodsStatus.DRAFT.getCode());
         goods.setViewCount(0);
         goods.setFavoriteCount(0);
@@ -355,12 +357,14 @@ public class GoodsServiceImpl implements GoodsService {
         vo.setDescription(goods.getDescription());
         vo.setPrice(goods.getPrice());
         vo.setOriginalPrice(goods.getOriginalPrice());
+        vo.setCondition(goods.getCondition());
         vo.setCoverImage(goods.getCoverImage());
         vo.setImages(goods.getImages());
         vo.setStatus(goods.getStatus());
         vo.setRejectReason(goods.getRejectReason());
         vo.setViewCount(goods.getViewCount());
         vo.setFavoriteCount(goods.getFavoriteCount());
+        vo.setStock(goods.getStock());
         vo.setCreateTime(goods.getCreateTime());
         return vo;
     }

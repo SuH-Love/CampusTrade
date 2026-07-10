@@ -4,6 +4,7 @@ import com.campustrade.entity.*;
 import com.campustrade.mapper.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -13,6 +14,9 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 public class DataInitializer implements CommandLineRunner {
+
+    @Value("${admin.password:admin123}")
+    private String adminPassword;
 
     @Autowired
     private UserMapper userMapper;
@@ -52,6 +56,7 @@ public class DataInitializer implements CommandLineRunner {
         createUserFollowTableIfNeeded();
         createNotificationPreferenceTableIfNeeded();
         createCartTableIfNeeded();
+        createDeliveryAddressTableIfNeeded();
         clearPermissionCache();}
 
     private void initRoles() {
@@ -135,7 +140,7 @@ public class DataInitializer implements CommandLineRunner {
         if (admin == null) {
             admin = new User();
             admin.setUsername("admin");
-            admin.setPassword(passwordEncoder.encode("admin123"));
+            admin.setPassword(passwordEncoder.encode(adminPassword));
             admin.setNickname("超级管理员");
             admin.setAvatar("/default-avatar.svg");
             admin.setStatus(1);
@@ -249,7 +254,7 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void alterGoodsTableAddCondition() {
-        try { jdbcTemplate.execute("ALTER TABLE t_goods ADD COLUMN condition VARCHAR(20) DEFAULT NULL COMMENT '成色' AFTER original_price"); } catch (Exception ignored) {}
+        try { jdbcTemplate.execute("ALTER TABLE t_goods ADD COLUMN `condition` VARCHAR(20) DEFAULT NULL COMMENT '成色' AFTER original_price"); } catch (Exception ignored) {}
         try { jdbcTemplate.execute("ALTER TABLE t_goods ADD COLUMN stock INT DEFAULT 1 COMMENT '库存' AFTER favorite_count"); } catch (Exception ignored) {}
         try { jdbcTemplate.execute("UPDATE t_goods SET stock = 1 WHERE stock IS NULL"); } catch (Exception ignored) {}
     }
@@ -339,6 +344,29 @@ public class DataInitializer implements CommandLineRunner {
                 ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
             );
         } catch (Exception e) { log.warn("Create t_cart failed: {}", e.getMessage()); }
+    }
+
+    private void createDeliveryAddressTableIfNeeded() {
+        try {
+            jdbcTemplate.execute(
+                "CREATE TABLE IF NOT EXISTS t_delivery_address (" +
+                "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+                "user_id BIGINT NOT NULL," +
+                "receiver_name VARCHAR(50) NOT NULL," +
+                "receiver_phone VARCHAR(20) NOT NULL," +
+                "province VARCHAR(50) DEFAULT NULL," +
+                "city VARCHAR(50) DEFAULT NULL," +
+                "district VARCHAR(50) DEFAULT NULL," +
+                "detail_address VARCHAR(200) NOT NULL," +
+                "is_default TINYINT DEFAULT 0," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "version INT DEFAULT 0," +
+                "KEY idx_user_id (user_id)" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+        } catch (Exception e) { log.warn("Create t_delivery_address failed: {}", e.getMessage()); }
     }
 
     private void clearPermissionCache() {

@@ -53,6 +53,9 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private SellerRatingMapper sellerRatingMapper;
 
+    @Autowired
+    private CartMapper cartMapper;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<OrderVO> createOrder(Long buyerId, OrderCreateDTO dto) {
@@ -97,27 +100,36 @@ public class OrderServiceImpl implements OrderService {
         item.setQuantity(quantity);
         orderItemMapper.insertBatch(List.of(item));
 
-        int remainingStock = stock - quantity;
-        if (remainingStock <= 0) {
-            goods.setStatus(GoodsStatus.SOLD.getCode());
-        }
-        goods.setStock(remainingStock);
-        int goodsRows = goodsMapper.updateById(goods);
-        if (goodsRows == 0) throw new RuntimeException("商品状态已变更，请刷新后重试");
+        int decRows = goodsMapper.decrementStock(goods.getId(), quantity);
+        if (decRows == 0) throw new RuntimeException("库存不足，请刷新后重试");
 
-        if (remainingStock > 0) {
-            int decRows = goodsMapper.decrementStock(goods.getId(), quantity);
-            if (decRows == 0) throw new RuntimeException("库存扣减失败，请刷新后重试");
+        Goods updatedGoods = goodsMapper.selectById(goods.getId());
+        if (updatedGoods != null && updatedGoods.getStock() != null && updatedGoods.getStock() <= 0) {
+            Goods statusUpdate = new Goods();
+            statusUpdate.setId(goods.getId());
+            statusUpdate.setStatus(GoodsStatus.SOLD.getCode());
+            statusUpdate.setVersion(updatedGoods.getVersion());
+            goodsMapper.updateById(statusUpdate);
         }
 
         redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + goods.getId());
         redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
         redisTemplate.delete(RedisConstant.GOODS_RECOMMEND_KEY);
 
+        redisTemplate.opsForValue().set(RedisConstant.ORDER_TIMEOUT_PREFIX + order.getId(), String.valueOf(order.getId()),
+                RedisConstant.ORDER_TIMEOUT_TTL, TimeUnit.SECONDS);
+
         rabbitTemplate.convertAndSend(MQConstant.ORDER_EXCHANGE, MQConstant.ORDER_CREATE_KEY, order.getId());
 
         notificationService.sendNotification(goods.getUserId(), "新订单通知",
                 "您的商品「" + goods.getTitle() + "」有买家下单，请及时处理", "ORDER", order.getId());
+
+        try {
+            Cart cartItem = cartMapper.selectByUserAndGoods(buyerId, goods.getId());
+            if (cartItem != null) {
+                cartMapper.deleteById(cartItem.getId());
+            }
+        } catch (Exception ignored) {}
 
         return Result.success(toVO(order));
     }
@@ -136,6 +148,8 @@ public class OrderServiceImpl implements OrderService {
         order.setCancelTime(LocalDateTime.now());
         int rows = orderMapper.updateById(order);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
+
+        redisTemplate.delete(RedisConstant.ORDER_TIMEOUT_PREFIX + orderId);
 
         List<OrderItem> items = orderItemMapper.selectByOrderId(orderId);
         for (OrderItem item : items) {
@@ -166,6 +180,8 @@ public class OrderServiceImpl implements OrderService {
         order.setPayTime(LocalDateTime.now());
         int rows = orderMapper.updateById(order);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
+
+        redisTemplate.delete(RedisConstant.ORDER_TIMEOUT_PREFIX + orderId);
 
         notificationService.sendNotification(order.getSellerId(), "订单支付通知",
                 "买家已支付订单「" + order.getOrderNo() + "」，请尽快发货", "ORDER", order.getId());
@@ -335,6 +351,7 @@ public class OrderServiceImpl implements OrderService {
         order.setFinishTime(LocalDateTime.now());
         int rows = orderMapper.updateById(order);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
+
         SellerRating sellerRating = new SellerRating();
         sellerRating.setOrderId(orderId);
         sellerRating.setBuyerId(userId);
@@ -346,9 +363,83 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Void> modifyPrice(Long sellerId, Long orderId, java.math.BigDecimal newPrice) {
+        if (newPrice == null || newPrice.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            return Result.error(400, "价格必须大于0");
+        }
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
+        if (!order.getSellerId().equals(sellerId)) return Result.error(ResultCode.ORDER_NOT_OWNER);
+        if (!OrderStatus.PENDING_PAY.getCode().equals(order.getStatus()))
+            return Result.error(ResultCode.ORDER_STATUS_ERROR);
+
+        java.math.BigDecimal oldPrice = order.getTotalAmount();
+        order.setTotalAmount(newPrice);
+        int rows = orderMapper.updateById(order);
+        if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
+
+        List<OrderItem> items = orderItemMapper.selectByOrderId(orderId);
+        if (!items.isEmpty()) {
+            orderItemMapper.updatePriceById(items.get(0).getId(), newPrice);
+        }
+
+        notificationService.sendNotification(order.getBuyerId(), "订单价格变更",
+                "卖家已将订单「" + order.getOrderNo() + "」金额从 ¥" + oldPrice + " 修改为 ¥" + newPrice + "，请确认后支付",
+                "ORDER", order.getId());
+
+        return Result.success();
+    }
+
+    @Override
     public long countOrders() {
         Long count = orderMapper.selectCountAll(null);
         return count != null ? count : 0L;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Void> adminApproveRefund(Long orderId) {
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
+        order.setStatus(OrderStatus.CANCELLED.getCode());
+        order.setCancelTime(LocalDateTime.now());
+        orderMapper.updateById(order);
+        List<OrderItem> items = orderItemMapper.selectByOrderId(orderId);
+        for (OrderItem item : items) {
+            Goods goods = goodsMapper.selectById(item.getGoodsId());
+            if (goods != null) {
+                int restoreQty = item.getQuantity() != null ? item.getQuantity() : 1;
+                goods.setStock(goods.getStock() != null ? goods.getStock() + restoreQty : restoreQty);
+                if (GoodsStatus.SOLD.getCode().equals(goods.getStatus())) {
+                    goods.setStatus(GoodsStatus.ONLINE.getCode());
+                }
+                goodsMapper.updateById(goods);
+                redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + item.getGoodsId());
+                redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
+                redisTemplate.delete(RedisConstant.GOODS_RECOMMEND_KEY);
+            }
+        }
+        notificationService.sendNotification(order.getBuyerId(), "退款成功",
+                "管理员同意了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
+        notificationService.sendNotification(order.getSellerId(), "退款通知",
+                "管理员同意了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
+        return Result.success();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Void> adminRejectRefund(Long orderId, String reason) {
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
+        order.setStatus(OrderStatus.PAID.getCode());
+        order.setCancelReason(reason);
+        orderMapper.updateById(order);
+        notificationService.sendNotification(order.getBuyerId(), "退款被拒绝",
+                "管理员拒绝了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
+        notificationService.sendNotification(order.getSellerId(), "退款通知",
+                "管理员拒绝了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
+        return Result.success();
     }
 
     private String generateOrderNo() {

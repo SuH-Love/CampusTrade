@@ -103,8 +103,9 @@ const handleRead = async (item: NotificationVO) => {
   if (item.isRead === 0) {
     await markAsRead(item.id)
     item.isRead = 1
-
-    loadUnreadCount()
+    const count = await getUnreadCount()
+    unreadCount.value = count
+    notifyUnread.value = count
   }
 }
 

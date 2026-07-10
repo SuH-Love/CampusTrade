@@ -16,6 +16,7 @@ public class RedisConstant {
     public static final String BLACKLIST_PREFIX = "blacklist:token:";
     public static final String PERMISSIONS_PREFIX = "permissions:user:";
     public static final String LOCK_GOODS_PREFIX = "lock:goods:";
+    public static final String ORDER_TIMEOUT_PREFIX = "order:timeout:";
 
     public static final long TOKEN_TTL = 7200;
     public static final long REFRESH_TTL = 604800;
@@ -29,4 +30,5 @@ public class RedisConstant {
     public static final long NOTIFY_UNREAD_TTL = 300;
     public static final long NULL_CACHE_TTL = 60;
     public static final long LOCK_TTL = 10;
+    public static final long ORDER_TIMEOUT_TTL = 300;
 }

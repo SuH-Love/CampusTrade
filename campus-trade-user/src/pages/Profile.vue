@@ -52,7 +52,33 @@
       </el-col>
       <el-col :span="16">
         <template v-if="isSelf">
-          <el-card>
+          <div class="stats-grid">
+            <div class="stat-card" @click="$router.push('/my-goods')">
+              <div class="stat-value">{{ stats.publishedGoods }}</div>
+              <div class="stat-label">发布商品</div>
+            </div>
+            <div class="stat-card" @click="$router.push('/my-goods?status=ONLINE')">
+              <div class="stat-value">{{ stats.onlineGoods }}</div>
+              <div class="stat-label">在售商品</div>
+            </div>
+            <div class="stat-card" @click="$router.push('/order?tab=buyer')">
+              <div class="stat-value">{{ stats.buyerOrders }}</div>
+              <div class="stat-label">买家订单</div>
+            </div>
+            <div class="stat-card" @click="$router.push('/order?tab=seller')">
+              <div class="stat-value">{{ stats.sellerOrders }}</div>
+              <div class="stat-label">卖家订单</div>
+            </div>
+            <div class="stat-card" @click="$router.push('/order?tab=buyer&status=FINISHED')">
+              <div class="stat-value">{{ stats.finishedOrders }}</div>
+              <div class="stat-label">已完成</div>
+            </div>
+            <div class="stat-card" @click="$router.push('/address')">
+              <div class="stat-value" style="font-size: 22px">📍</div>
+              <div class="stat-label">收货地址</div>
+            </div>
+          </div>
+          <el-card style="margin-top: 20px">
             <el-tabs v-model="activeTab">
               <el-tab-pane label="编辑资料" name="info">
                 <el-form :model="infoForm" :rules="infoRules" ref="infoFormRef" label-width="80px" style="max-width: 500px">
@@ -112,7 +138,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { updateUserInfo, updatePassword, realNameVerify, uploadAvatar, getUserPublicInfo } from '@/api/user'
+import { updateUserInfo, updatePassword, realNameVerify, uploadAvatar, getUserPublicInfo, getUserStats, type UserStatsVO } from '@/api/user'
 import { getGoodsList } from '@/api/goods'
 import { getFollowCounts, toggleFollow, isFollowing } from '@/api/follow'
 import { getAverageRating } from '@/api/rating'
@@ -134,6 +160,7 @@ const isFollowed = ref(false)
 const followLoading = ref(false)
 const goodsList = ref<GoodsVO[]>([])
 const goodsLoading = ref(false)
+const stats = ref<UserStatsVO>({ publishedGoods: 0, onlineGoods: 0, buyerOrders: 0, sellerOrders: 0, finishedOrders: 0 })
 
 const uploadHeaders = computed(() => ({
   Authorization: userStore.token ? `Bearer ${userStore.token}` : ''
@@ -278,12 +305,27 @@ onMounted(() => {
     infoForm.phone = userStore.userInfo.phone || ''
     infoForm.email = userStore.userInfo.email || ''
   }
+  if (isSelf.value && userStore.token) {
+    getUserStats().then(s => { stats.value = s }).catch(() => {})
+  }
   if (route.params.id && !isSelf.value) loadOtherUser()
 })
 </script>
 
 <style scoped lang="scss">
 .profile-page { padding: 20px; }
+.profile-card { text-align: center; }
+.stats-grid {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;
+}
+.stat-card {
+  background: var(--bg-card); border-radius: var(--radius-md); padding: 20px 12px;
+  border: 1px solid var(--border); text-align: center; cursor: pointer;
+  transition: var(--transition);
+  &:hover { border-color: var(--primary-light); box-shadow: var(--shadow-sm); transform: translateY(-2px); }
+}
+.stat-value { font-size: 28px; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
+.stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
 .profile-card { text-align: center; }
 .avatar-section {
   display: flex; flex-direction: column; align-items: center; gap: 12px;

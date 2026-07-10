@@ -12,6 +12,7 @@
           <el-descriptions-item label="订单号">{{ order.orderNo }}</el-descriptions-item>
           <el-descriptions-item label="状态">
             <el-tag :type="statusTagType(order.status)">{{ statusLabel(order.status) }}</el-tag>
+            <span v-if="order.status === 'PENDING_PAY' && countdownText" style="color: #f56c6c; font-size: 13px; margin-left: 8px; font-weight: 500">{{ countdownText }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="买家">{{ order.buyerName }}</el-descriptions-item>
           <el-descriptions-item label="卖家">{{ order.sellerName }}</el-descriptions-item>
@@ -39,7 +40,7 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column prop="price" label="成交价" width="120">
+          <el-table-column prop="price" label="成交价" min-width="100">
             <template #default="{ row }"><span style="color: #f56c6c; font-weight: bold">¥{{ row.price }}</span></template>
           </el-table-column>
         </el-table>
@@ -47,6 +48,7 @@
         <div style="margin-top: 24px; display: flex; gap: 12px" v-if="isBuyer || isSeller">
           <el-button v-if="order.status === 'PENDING_PAY' && isBuyer" type="primary" @click="handlePay">支付</el-button>
           <el-button v-if="order.status === 'PENDING_PAY' && isBuyer" @click="handleCancel">取消订单</el-button>
+          <el-button v-if="order.status === 'PENDING_PAY' && isSeller" type="warning" @click="handleModifyPrice">改价</el-button>
           <el-button v-if="order.status === 'PAID' && isSeller" type="primary" @click="handleShip">发货</el-button>
           <el-button v-if="order.status === 'SHIPPING' && isBuyer" type="success" @click="handleFinish">确认收货</el-button>
           <el-button v-if="(order.status === 'PAID' || order.status === 'SHIPPING') && isBuyer" type="danger" @click="handleRefund">申请退款</el-button>
@@ -75,9 +77,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getOrderDetail, payOrder, cancelOrder, shipOrder, finishOrder, refundOrder, approveRefund, rejectRefund, rateOrder } from '@/api/order'
+import { getOrderDetail, payOrder, cancelOrder, shipOrder, finishOrder, refundOrder, approveRefund, rejectRefund, rateOrder, modifyPrice } from '@/api/order'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { OrderVO } from '@/api/order'
@@ -88,6 +90,20 @@ const order = ref<OrderVO | null>(null)
 const loading = ref(false)
 const ratingForm = reactive({ rating: 0, comment: '' })
 const ratingLoading = ref(false)
+const countdownText = ref('')
+let countdownTimer: number | null = null
+
+const ORDER_TIMEOUT_MS = 5 * 60 * 1000
+
+const updateCountdown = () => {
+  if (!order.value || order.value.status !== 'PENDING_PAY') { countdownText.value = ''; return }
+  const created = new Date(order.value.createTime.includes('T') ? order.value.createTime : order.value.createTime.replace(' ', 'T')).getTime()
+  const remaining = ORDER_TIMEOUT_MS - (Date.now() - created)
+  if (remaining <= 0) { countdownText.value = '已超时'; loadData(); return }
+  const minutes = Math.floor(remaining / 60000)
+  const seconds = Math.floor((remaining % 60000) / 1000)
+  countdownText.value = `剩余 ${minutes}:${String(seconds).padStart(2, '0')}`
+}
 
 const isBuyer = computed(() => order.value?.buyerId === userStore.userInfo?.id)
 const isSeller = computed(() => order.value?.sellerId === userStore.userInfo?.id)
@@ -137,6 +153,21 @@ const handleShip = async () => {
   loadData()
 }
 
+const handleModifyPrice = async () => {
+  const { value } = await ElMessageBox.prompt('请输入新的订单金额', '修改订单金额', {
+    confirmButtonText: '确认改价',
+    cancelButtonText: '取消',
+    inputValue: String(order.value!.totalAmount),
+    inputPattern: /^\d+(\.\d{1,2})?$/,
+    inputErrorMessage: '请输入有效的金额（最多两位小数）'
+  })
+  const newPrice = parseFloat(value)
+  if (newPrice <= 0) { ElMessage.warning('金额必须大于0'); return }
+  await modifyPrice(order.value!.id, newPrice)
+  ElMessage.success('已修改订单金额')
+  loadData()
+}
+
 const handleFinish = async () => {
   await ElMessageBox.confirm('确认已收到商品？', '收货确认')
   await finishOrder(order.value!.id)
@@ -175,7 +206,8 @@ const handleRate = async () => {
   } finally { ratingLoading.value = false }
 }
 
-onMounted(loadData)
+onMounted(() => { loadData(); countdownTimer = window.setInterval(updateCountdown, 1000) })
+onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
 </script>
 
 <style scoped lang="scss">
