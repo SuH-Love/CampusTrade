@@ -23,6 +23,8 @@
             <span>{{ goods.viewCount }} 浏览</span>
             <span class="stat-dot">·</span>
             <span>{{ goods.favoriteCount }} 收藏</span>
+            <span class="stat-dot">·</span>
+            <span>库存 {{ goods.stock || 1 }} 件</span>
           </div>
           <div class="price-box">
             <span class="price-current">¥{{ goods.price }}</span>
@@ -133,11 +135,24 @@ const handleBuy = async () => {
   if (!goods.value) return
   const deliveryMethod = ref('PICKUP')
   const deliveryAddress = ref('')
+  const buyQuantity = ref(1)
   try {
     await ElMessageBox({
       title: '确认购买',
       message: () => h('div', null, [
-        h('p', { style: 'margin-bottom: 12px' }, `确认购买「${goods.value!.title}」？价格 ¥${goods.value!.price}`),
+        h('p', { style: 'margin-bottom: 12px' }, `确认购买「${goods.value!.title}」？单价 ¥${goods.value!.price}`),
+        h('div', { style: 'margin-bottom: 12px' }, [
+          h('span', { style: 'margin-right: 12px' }, '购买数量：'),
+          h('input', {
+            type: 'number', value: buyQuantity.value, min: 1, max: goods.value!.stock || 1,
+            style: 'width: 80px; padding: 6px 8px; border: 1px solid #dcdfe6; border-radius: 4px; text-align: center;',
+            onInput: (e: Event) => {
+              const v = parseInt((e.target as HTMLInputElement).value) || 1
+              buyQuantity.value = Math.max(1, Math.min(v, goods.value!.stock || 1))
+            }
+          }),
+          h('span', { style: 'margin-left: 8px; color: #94a3b8; font-size: 13px' }, `（库存 ${goods.value!.stock || 1} 件）`)
+        ]),
         h('div', { style: 'margin-bottom: 12px' }, [
           h('span', { style: 'margin-right: 12px' }, '配送方式：'),
           h('input', {
@@ -169,7 +184,7 @@ const handleBuy = async () => {
       }
     })
     buying.value = true
-    const data: { goodsId: number; remark?: string; deliveryMethod?: string; deliveryAddress?: string } = { goodsId: goods.value.id }
+    const data: { goodsId: number; quantity: number; remark?: string; deliveryMethod?: string; deliveryAddress?: string } = { goodsId: goods.value.id, quantity: buyQuantity.value }
     if (deliveryMethod.value === 'DELIVERY') {
       data.deliveryMethod = 'DELIVERY'
       data.deliveryAddress = deliveryAddress.value

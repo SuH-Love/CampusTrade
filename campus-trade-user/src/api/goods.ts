@@ -18,6 +18,7 @@ export interface GoodsVO {
   status: string
   viewCount: number
   favoriteCount: number
+  stock: number
   isFavorited: boolean
   createTime: string
 }

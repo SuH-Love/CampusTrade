@@ -40,6 +40,8 @@ public interface GoodsMapper {
 
     int decrementFavoriteCount(@Param("id") Long id);
 
+    int decrementStock(@Param("id") Long id, @Param("quantity") Integer quantity);
+
     Long selectCountAll();
 
     Long selectCountByStatus(@Param("status") String status);

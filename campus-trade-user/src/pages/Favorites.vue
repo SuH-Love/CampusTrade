@@ -37,7 +37,7 @@
         </el-col>
       </el-row>
       <el-empty v-if="filteredGoods.length === 0 && !loading" description="暂无收藏" />
-      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
+      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" />
     </el-card>
   </div>
 </template>

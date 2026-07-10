@@ -338,7 +338,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
-.chat-page { padding: 0 24px; }
+.chat-page { padding: 20px 24px; }
 .chat-sidebar {
   background: var(--bg-glass);
   backdrop-filter: blur(12px);

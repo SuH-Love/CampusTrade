@@ -17,6 +17,7 @@
         <result column="reject_reason" property="rejectReason"/>
         <result column="view_count" property="viewCount"/>
         <result column="favorite_count" property="favoriteCount"/>
+        <result column="stock" property="stock"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
         <result column="deleted" property="deleted"/>
@@ -65,8 +66,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO t_goods (user_id, category_id, title, description, price, original_price, condition, cover_image, images, status)
-        VALUES (#{userId}, #{categoryId}, #{title}, #{description}, #{price}, #{originalPrice}, #{condition}, #{coverImage}, #{images}, #{status})
+        INSERT INTO t_goods (user_id, category_id, title, description, price, original_price, condition, cover_image, images, status, stock)
+        VALUES (#{userId}, #{categoryId}, #{title}, #{description}, #{price}, #{originalPrice}, #{condition}, #{coverImage}, #{images}, #{status}, #{stock})
     </insert>
 
     <update id="updateById">
@@ -82,6 +83,7 @@
             <if test="images != null">images = #{images},</if>
             <if test="status != null">status = #{status},</if>
             <if test="rejectReason != null">reject_reason = #{rejectReason},</if>
+            <if test="stock != null">stock = #{stock},</if>
             version = version + 1
         </set>
         WHERE id = #{id} AND deleted = 0 AND version = #{version}
@@ -101,6 +103,10 @@
 
     <update id="decrementFavoriteCount">
         UPDATE t_goods SET favorite_count = favorite_count - 1 WHERE id = #{id} AND deleted = 0 AND favorite_count > 0
+    </update>
+
+    <update id="decrementStock">
+        UPDATE t_goods SET stock = stock - #{quantity}, version = version + 1 WHERE id = #{id} AND deleted = 0 AND stock >= #{quantity}
     </update>
 
     <select id="selectCountAll" resultType="java.lang.Long">

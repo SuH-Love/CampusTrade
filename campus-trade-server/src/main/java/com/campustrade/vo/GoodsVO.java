@@ -25,6 +25,7 @@ public class GoodsVO {
     private String rejectReason;
     private Integer viewCount;
     private Integer favoriteCount;
+    private Integer stock;
     private Boolean isFavorited;
     private LocalDateTime createTime;
 }

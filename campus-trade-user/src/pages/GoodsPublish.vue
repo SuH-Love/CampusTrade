@@ -14,6 +14,7 @@
         <el-form-item label="原价"><el-input-number v-model="form.originalPrice" :min="0" :precision="2" style="width: 100%" /></el-form-item>
         <el-form-item label="成色" prop="condition">
           <el-select v-model="form.condition" placeholder="请选择成色" style="width: 100%">
+            <el-option label="全新" value="全新" />
             <el-option label="九九新" value="九九新" />
             <el-option label="九五新" value="九五新" />
             <el-option label="九成新" value="九成新" />
@@ -22,6 +23,7 @@
             <el-option label="七成新" value="七成新" />
           </el-select>
         </el-form-item>
+        <el-form-item label="库存数量"><el-input-number v-model="form.stock" :min="1" :max="9999" style="width: 100%" /></el-form-item>
         <el-form-item label="封面图">
           <el-upload :action="uploadUrl" :headers="uploadHeaders" :on-success="handleCoverSuccess" :before-upload="beforeUpload" list-type="picture" :limit="1" :file-list="coverFileList">
             <el-button size="small">上传封面</el-button>
@@ -63,7 +65,8 @@ const form = reactive({
   originalPrice: 0,
   coverImage: '',
   images: '',
-  condition: ''
+  condition: '',
+  stock: 1
 })
 
 const rules = {

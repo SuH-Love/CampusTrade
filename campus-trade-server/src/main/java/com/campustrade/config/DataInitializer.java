@@ -46,6 +46,7 @@ public class DataInitializer implements CommandLineRunner {
         createBannerTableIfNeeded();
         initBanners();
         alterGoodsTableAddCondition();
+        alterOrderItemTableAddQuantity();
         alterOrderTableAddDelivery();
         createSellerRatingTableIfNeeded();
         createUserFollowTableIfNeeded();
@@ -249,6 +250,13 @@ public class DataInitializer implements CommandLineRunner {
 
     private void alterGoodsTableAddCondition() {
         try { jdbcTemplate.execute("ALTER TABLE t_goods ADD COLUMN condition VARCHAR(20) DEFAULT NULL COMMENT '成色' AFTER original_price"); } catch (Exception ignored) {}
+        try { jdbcTemplate.execute("ALTER TABLE t_goods ADD COLUMN stock INT DEFAULT 1 COMMENT '库存' AFTER favorite_count"); } catch (Exception ignored) {}
+        try { jdbcTemplate.execute("UPDATE t_goods SET stock = 1 WHERE stock IS NULL"); } catch (Exception ignored) {}
+    }
+
+    private void alterOrderItemTableAddQuantity() {
+        try { jdbcTemplate.execute("ALTER TABLE t_order_item ADD COLUMN quantity INT DEFAULT 1 COMMENT '数量' AFTER price"); } catch (Exception ignored) {}
+        try { jdbcTemplate.execute("UPDATE t_order_item SET quantity = 1 WHERE quantity IS NULL"); } catch (Exception ignored) {}
     }
 
     private void alterOrderTableAddDelivery() {

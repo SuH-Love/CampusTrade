@@ -45,9 +45,7 @@
       </el-col>
     </el-row>
     <el-empty v-if="!loading && goodsList.length === 0" description="暂无商品" />
-    <div style="text-align: center; margin-top: 24px">
-      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" />
-    </div>
+    <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" />
   </div>
 </template>
 

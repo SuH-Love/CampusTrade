@@ -42,7 +42,7 @@
           <el-button type="danger" size="small" text @click.stop="handleDelete(item.id)">删除</el-button>
         </div>
       </div>
-      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
+      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" />
     </el-card>
   </div>
 </template>

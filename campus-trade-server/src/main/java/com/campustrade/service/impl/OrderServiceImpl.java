@@ -70,12 +70,18 @@ public class OrderServiceImpl implements OrderService {
             return Result.error(ResultCode.ORDER_STATUS_ERROR);
         }
 
+        int quantity = dto.getQuantity() != null && dto.getQuantity() > 0 ? dto.getQuantity() : 1;
+        int stock = goods.getStock() != null ? goods.getStock() : 1;
+        if (quantity > stock) {
+            return Result.error(400, "库存不足，当前库存：" + stock);
+        }
+
         String orderNo = generateOrderNo();
         Order order = new Order();
         order.setOrderNo(orderNo);
         order.setBuyerId(buyerId);
         order.setSellerId(goods.getUserId());
-        order.setTotalAmount(goods.getPrice());
+        order.setTotalAmount(goods.getPrice().multiply(java.math.BigDecimal.valueOf(quantity)));
         order.setStatus(OrderStatus.PENDING_PAY.getCode());
         order.setRemark(dto.getRemark());
         order.setDeliveryMethod("DELIVERY".equals(dto.getDeliveryMethod()) ? 1 : 0);
@@ -88,11 +94,21 @@ public class OrderServiceImpl implements OrderService {
         item.setGoodsTitle(goods.getTitle());
         item.setGoodsImage(goods.getCoverImage());
         item.setPrice(goods.getPrice());
+        item.setQuantity(quantity);
         orderItemMapper.insertBatch(List.of(item));
 
-        goods.setStatus(GoodsStatus.SOLD.getCode());
+        int remainingStock = stock - quantity;
+        if (remainingStock <= 0) {
+            goods.setStatus(GoodsStatus.SOLD.getCode());
+        }
+        goods.setStock(remainingStock);
         int goodsRows = goodsMapper.updateById(goods);
         if (goodsRows == 0) throw new RuntimeException("商品状态已变更，请刷新后重试");
+
+        if (remainingStock > 0) {
+            int decRows = goodsMapper.decrementStock(goods.getId(), quantity);
+            if (decRows == 0) throw new RuntimeException("库存扣减失败，请刷新后重试");
+        }
 
         redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + goods.getId());
         redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
@@ -124,8 +140,12 @@ public class OrderServiceImpl implements OrderService {
         List<OrderItem> items = orderItemMapper.selectByOrderId(orderId);
         for (OrderItem item : items) {
             Goods goods = goodsMapper.selectById(item.getGoodsId());
-            if (goods != null && GoodsStatus.SOLD.getCode().equals(goods.getStatus())) {
-                goods.setStatus(GoodsStatus.ONLINE.getCode());
+            if (goods != null) {
+                int restoreQty = item.getQuantity() != null ? item.getQuantity() : 1;
+                goods.setStock(goods.getStock() != null ? goods.getStock() + restoreQty : restoreQty);
+                if (GoodsStatus.SOLD.getCode().equals(goods.getStatus())) {
+                    goods.setStatus(GoodsStatus.ONLINE.getCode());
+                }
                 goodsMapper.updateById(goods);
                 redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + item.getGoodsId());
                 redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
@@ -225,8 +245,12 @@ public class OrderServiceImpl implements OrderService {
         List<OrderItem> items = orderItemMapper.selectByOrderId(orderId);
         for (OrderItem item : items) {
             Goods goods = goodsMapper.selectById(item.getGoodsId());
-            if (goods != null && GoodsStatus.SOLD.getCode().equals(goods.getStatus())) {
-                goods.setStatus(GoodsStatus.ONLINE.getCode());
+            if (goods != null) {
+                int restoreQty = item.getQuantity() != null ? item.getQuantity() : 1;
+                goods.setStock(goods.getStock() != null ? goods.getStock() + restoreQty : restoreQty);
+                if (GoodsStatus.SOLD.getCode().equals(goods.getStatus())) {
+                    goods.setStatus(GoodsStatus.ONLINE.getCode());
+                }
                 goodsMapper.updateById(goods);
                 redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + item.getGoodsId());
                 redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);

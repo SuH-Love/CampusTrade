@@ -14,6 +14,7 @@
         <el-form-item label="原价"><el-input-number v-model="form.originalPrice" :min="0" :precision="2" style="width: 100%" /></el-form-item>
         <el-form-item label="成色" prop="condition">
           <el-select v-model="form.condition" placeholder="请选择成色" style="width: 100%">
+            <el-option label="全新" value="全新" />
             <el-option label="九九新" value="九九新" />
             <el-option label="九五新" value="九五新" />
             <el-option label="九成新" value="九成新" />
@@ -22,6 +23,7 @@
             <el-option label="七成新" value="七成新" />
           </el-select>
         </el-form-item>
+        <el-form-item label="库存数量"><el-input-number v-model="form.stock" :min="1" :max="9999" style="width: 100%" /></el-form-item>
         <el-form-item><el-button type="primary" @click="handleSubmit" :loading="submitting">保存修改</el-button></el-form-item>
       </el-form>
     </el-card>
@@ -49,7 +51,8 @@ const form = reactive({
   description: '',
   price: 0,
   originalPrice: 0,
-  condition: ''
+  condition: '',
+  stock: 1
 })
 
 const rules = {
@@ -82,6 +85,7 @@ onMounted(async () => {
   form.price = goods.price
   form.originalPrice = goods.originalPrice
   form.condition = goods.condition || ''
+  form.stock = goods.stock || 1
 })
 </script>
 

@@ -12,6 +12,7 @@ public class CartVO {
     private String coverImage;
     private BigDecimal price;
     private Integer quantity;
+    private Integer stock;
     private String status;
     private Long sellerId;
 }

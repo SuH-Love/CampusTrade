@@ -41,6 +41,7 @@ public class CartController {
                 vo.setPrice(goods.getPrice());
                 vo.setStatus(goods.getStatus());
                 vo.setSellerId(goods.getUserId());
+                vo.setStock(goods.getStock() != null ? goods.getStock() : 1);
             }
             return vo;
         }).collect(Collectors.toList());

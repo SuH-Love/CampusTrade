@@ -7,6 +7,7 @@ export interface CartVO {
   coverImage: string
   price: number
   quantity: number
+  stock: number
   status: string
   sellerId: number
 }

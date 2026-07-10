@@ -25,6 +25,7 @@ export interface GoodsCreateParams {
   coverImage?: string
   images?: string
   condition?: string
+  stock?: number
 }
 
 export interface UserUpdateParams {

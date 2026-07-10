@@ -32,7 +32,7 @@ export interface OrderVO {
   items: OrderItemVO[]
 }
 
-export const createOrder = (data: { goodsId: number; remark?: string; deliveryMethod?: string; deliveryAddress?: string }) =>
+export const createOrder = (data: { goodsId: number; quantity?: number; remark?: string; deliveryMethod?: string; deliveryAddress?: string }) =>
   request.post<never, OrderVO>('/order', data)
 
 export const rateOrder = (id: number, rating: number, comment?: string) =>

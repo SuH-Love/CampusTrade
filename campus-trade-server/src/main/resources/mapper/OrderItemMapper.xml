@@ -9,6 +9,7 @@
         <result column="goods_title" property="goodsTitle"/>
         <result column="goods_image" property="goodsImage"/>
         <result column="price" property="price"/>
+        <result column="quantity" property="quantity"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
         <result column="deleted" property="deleted"/>
@@ -20,10 +21,10 @@
     </select>
 
     <insert id="insertBatch">
-        INSERT INTO t_order_item (order_id, goods_id, goods_title, goods_image, price)
+        INSERT INTO t_order_item (order_id, goods_id, goods_title, goods_image, price, quantity)
         VALUES
         <foreach collection="items" item="item" separator=",">
-            (#{item.orderId}, #{item.goodsId}, #{item.goodsTitle}, #{item.goodsImage}, #{item.price})
+            (#{item.orderId}, #{item.goodsId}, #{item.goodsTitle}, #{item.goodsImage}, #{item.price}, #{item.quantity})
         </foreach>
     </insert>
 </mapper>

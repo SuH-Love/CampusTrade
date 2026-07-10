@@ -15,4 +15,5 @@ public class OrderItem extends BaseEntity {
     private String goodsTitle;
     private String goodsImage;
     private BigDecimal price;
+    private Integer quantity;
 }

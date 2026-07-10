@@ -16,16 +16,17 @@
             <el-icon :size="16"><Goods /></el-icon><span>商品</span>
           </router-link>
           <template v-if="userStore.token">
-            <router-link to="/my-goods" class="nav-link" :class="{ active: route.path === '/my-goods' }">
+            <div class="nav-divider" />
+            <router-link to="/my-goods" class="nav-link nav-link--user" :class="{ active: route.path === '/my-goods' }">
               <el-icon :size="16"><Box /></el-icon><span>我的商品</span>
             </router-link>
-            <router-link to="/order" class="nav-link" :class="{ active: route.path.startsWith('/order') }">
+            <router-link to="/order" class="nav-link nav-link--user" :class="{ active: route.path.startsWith('/order') }">
               <el-icon :size="16"><List /></el-icon><span>订单</span>
             </router-link>
-            <router-link to="/favorites" class="nav-link" :class="{ active: route.path === '/favorites' }">
+            <router-link to="/favorites" class="nav-link nav-link--user" :class="{ active: route.path === '/favorites' }">
               <el-icon :size="16"><Star /></el-icon><span>收藏</span>
             </router-link>
-            <router-link to="/following" class="nav-link" :class="{ active: route.path === '/following' }">
+            <router-link to="/following" class="nav-link nav-link--user" :class="{ active: route.path === '/following' }">
               <el-icon :size="16"><UserFilled /></el-icon><span>关注</span>
             </router-link>
           </template>
@@ -231,6 +232,17 @@ onUnmounted(() => {
     font-weight: 600;
     box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.15);
   }
+  &.nav-link--user { color: var(--text-muted); }
+  &.nav-link--user:hover { color: var(--primary); }
+  &.nav-link--user.active { color: var(--primary); }
+}
+
+.nav-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 6px;
+  flex-shrink: 0;
 }
 
 .header-right {

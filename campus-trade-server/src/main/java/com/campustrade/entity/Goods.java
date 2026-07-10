@@ -23,4 +23,5 @@ public class Goods extends BaseEntity {
     private String rejectReason;
     private Integer viewCount;
     private Integer favoriteCount;
+    private Integer stock;
 }

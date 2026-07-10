@@ -16,7 +16,7 @@
             <div class="cart-price">¥{{ item.price }}</div>
           </div>
           <div class="cart-quantity">
-            <el-input-number v-model="item.quantity" :min="1" :max="99" size="small" @change="handleUpdateQuantity(item)" />
+            <el-input-number v-model="item.quantity" :min="1" :max="item.stock || 1" size="small" @change="handleUpdateQuantity(item)" :disabled="(item.stock || 1) <= 1" />
           </div>
           <div class="cart-actions">
             <el-button type="primary" size="small" @click.stop="handleCheckout(item)" :disabled="item.status !== 'ONLINE'" round>结算</el-button>
@@ -122,8 +122,8 @@ const showDeliveryDialog = (title: string, price: number): Promise<{ deliveryMet
 
 const handleCheckout = async (item: CartVO) => {
   try {
-    const { deliveryMethod, deliveryAddress } = await showDeliveryDialog(`确认购买「${item.title}」`, item.price)
-    const data: { goodsId: number; deliveryMethod: string; deliveryAddress?: string } = { goodsId: item.goodsId, deliveryMethod }
+    const { deliveryMethod, deliveryAddress } = await showDeliveryDialog(`确认购买「${item.title}」`, item.price * item.quantity)
+    const data: { goodsId: number; quantity: number; deliveryMethod: string; deliveryAddress?: string } = { goodsId: item.goodsId, quantity: item.quantity, deliveryMethod }
     if (deliveryMethod === 'DELIVERY') data.deliveryAddress = deliveryAddress
     await createOrder(data)
     await removeFromCart(item.id)
@@ -140,7 +140,7 @@ const handleBatchCheckout = async () => {
     const { deliveryMethod, deliveryAddress } = await showDeliveryDialog('批量结算', Number(totalPrice.value))
     for (const item of onlineItems) {
       try {
-        const data: { goodsId: number; deliveryMethod: string; deliveryAddress?: string } = { goodsId: item.goodsId, deliveryMethod }
+        const data: { goodsId: number; quantity: number; deliveryMethod: string; deliveryAddress?: string } = { goodsId: item.goodsId, quantity: item.quantity, deliveryMethod }
         if (deliveryMethod === 'DELIVERY') data.deliveryAddress = deliveryAddress
         await createOrder(data)
         await removeFromCart(item.id)
