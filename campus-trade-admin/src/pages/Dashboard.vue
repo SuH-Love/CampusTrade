@@ -94,19 +94,32 @@ const orderStatusData = ref<{ name: string; value: number }[]>([])
 
 const operationLabel = (op: string) => {
   const map: Record<string, string> = {
-    register: '注册', login: '登录', logout: '退出', createGoods: '发布商品',
-    auditGoods: '审核商品', banUser: '封禁用户', unbanUser: '解封用户',
-    resolveReport: '处理举报', dismissReport: '驳回举报', createOrder: '创建订单',
-    cancelOrder: '取消订单', payOrder: '支付订单', shipOrder: '发货',
-    approveRefund: '同意退款', rejectRefund: '拒绝退款',
-    getAdminInfo: '获取管理员信息', listAllBanners: '横幅列表',
-    listCart: '购物车列表', getCartList: '购物车列表',
-    dashboardStats: '仪表盘统计', listUsers: '用户列表',
-    listOrders: '订单列表', listReports: '举报列表',
-    listOperationLogs: '操作日志', listSecurityLogs: '安全日志',
-    getUserInfo: '获取用户信息', updateUserInfo: '修改用户信息',
-    getGoodsDetail: '查看商品详情', listGoods: '查询商品列表',
-    getOrderDetail: '查看订单详情', sendMessage: '发送消息'
+    register: '注册', login: '登录', logout: '退出', refreshToken: '刷新令牌',
+    getUserInfo: '获取用户信息', getUserPublicInfo: '获取公开信息', updateUserInfo: '更新用户信息',
+    updatePassword: '修改密码', realNameVerify: '实名认证', uploadAvatar: '上传头像', getUserStats: '用户统计',
+    getAdminInfo: '获取管理员信息', dashboardStats: '仪表盘统计', banUser: '封禁用户', unbanUser: '解封用户',
+    listUsers: '用户列表', listOrders: '订单列表', listReports: '举报列表',
+    listOperationLogs: '操作日志', listSecurityLogs: '安全日志', rejectRefund: '拒绝退款',
+    createGoods: '发布商品', updateGoods: '编辑商品', deleteGoods: '删除商品', getGoodsDetail: '商品详情',
+    listGoods: '商品列表', hotGoods: '热门商品', recommendGoods: '推荐商品',
+    submitAudit: '提交审核', auditGoods: '审核商品', onlineGoods: '上架商品', offlineGoods: '下架商品',
+    favoriteGoods: '收藏商品', unfavoriteGoods: '取消收藏',
+    createOrder: '创建订单', cancelOrder: '取消订单', payOrder: '支付订单',
+    shipOrder: '发货', finishOrder: '确认收货', refundOrder: '退款',
+    approveRefund: '同意退款', modifyPrice: '修改价格', getOrderDetail: '订单详情',
+    listCart: '购物车列表', addToCart: '加入购物车', updateQuantity: '修改数量',
+    removeFromCart: '移出购物车', clearCart: '清空购物车',
+    sendMessage: '发送消息', getRecentContacts: '最近联系人', getUnreadCount: '未读消息数',
+    markAsRead: '标记已读', getOnlineUsers: '在线用户', getTotalUnreadCount: '总未读数',
+    markAllAsRead: '全部已读', deleteNotification: '删除通知',
+    getMyPreferences: '通知偏好', setPreference: '设置偏好',
+    list: '地址列表', getById: '地址详情', add: '新增地址', update: '修改地址',
+    delete: '删除地址', setDefault: '设为默认',
+    createReport: '提交举报', handleReport: '处理举报',
+    listActiveBanners: '轮播图列表', createBanner: '创建轮播图', updateBanner: '编辑轮播图',
+    deleteBanner: '删除轮播图', toggleBannerStatus: '切换轮播图状态',
+    toggleFollow: '关注/取关', isFollowing: '是否关注', getFollowCounts: '关注数',
+    getAverageRating: '卖家评分', 订单创建: '订单创建'
   }
   return map[op] || op
 }

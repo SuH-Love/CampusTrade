@@ -104,6 +104,7 @@ a:hover { color: var(--primary-dark); }
 .el-dialog { border-radius: var(--radius-lg) !important; overflow: hidden; }
 .el-descriptions { --el-descriptions-table-border: 1px solid var(--border); }
 .el-descriptions__label { font-weight: 600 !important; color: var(--text-secondary) !important; }
+.el-popper { z-index: 9999 !important; }
 
 .page-container { max-width: 1200px; margin: 0 auto; padding: 24px; }
 

@@ -168,6 +168,8 @@ public class AuthServiceImpl implements AuthService {
         redisTemplate.delete(lockKey);
         redisTemplate.delete(rateLimitKey);
 
+        logService.recordSecurityLog(buildSecurityLog(user.getId(), user.getUsername(), SecurityEventType.LOGIN_SUCCESS.getCode(), ip, "登录成功"));
+
         List<String> permissions = loadUserPermissions(user.getId());
         redisTemplate.opsForValue().set(RedisConstant.PERMISSIONS_PREFIX + user.getId(), permissions,
                 RedisConstant.TOKEN_TTL, TimeUnit.SECONDS);
