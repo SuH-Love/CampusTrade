@@ -133,7 +133,7 @@ import { getAverageRating } from '@/api/rating'
 import { getAddressList, addAddress, type DeliveryAddressVO } from '@/api/address'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import type { GoodsVO } from '@/api/goods'
 import areaOptions from '@/data/area'
 
