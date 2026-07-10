@@ -14,5 +14,7 @@ public interface SecurityLogMapper {
 
     Long selectCount(@Param("eventType") String eventType, @Param("username") String username);
 
+    Long selectCountTodayByEventType(@Param("eventType") String eventType);
+
     int insert(SecurityLog log);
 }

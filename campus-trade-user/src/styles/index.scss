@@ -88,6 +88,7 @@ a:hover { color: var(--primary-dark); }
 
 .el-table { border-radius: var(--radius-md) !important; overflow: hidden; }
 .el-table th.el-table__cell { background: #f8fafc !important; font-weight: 600 !important; color: var(--text-primary) !important; }
+.el-table tr:hover > td { background: var(--primary-lighter) !important; }
 
 .el-tag { border-radius: 6px !important; font-weight: 500 !important; }
 
@@ -101,6 +102,8 @@ a:hover { color: var(--primary-dark); }
 }
 
 .el-dialog { border-radius: var(--radius-lg) !important; overflow: hidden; }
+.el-descriptions { --el-descriptions-table-border: 1px solid var(--border); }
+.el-descriptions__label { font-weight: 600 !important; color: var(--text-secondary) !important; }
 
 .page-container { max-width: 1200px; margin: 0 auto; padding: 24px; }
 

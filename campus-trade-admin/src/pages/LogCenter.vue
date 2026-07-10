@@ -98,18 +98,19 @@ const operationLabel = (op: string) => {
     deleteAddress: '删除地址', setDefaultAddress: '设为默认地址',
     getCartList: '购物车列表', addToCart: '加入购物车', updateCartQuantity: '修改数量',
     removeFromCart: '移除购物车', clearCart: '清空购物车',
-    getPreferences: '通知偏好', updatePreferences: '更新偏好',
+    listCart: '购物车列表', getPreferences: '通知偏好', updatePreferences: '更新偏好',
     getBannerList: '横幅列表', createBanner: '创建横幅', updateBanner: '修改横幅',
     deleteBanner: '删除横幅', toggleBanner: '切换横幅状态',
+    listAllBanners: '横幅列表', getActiveBanners: '获取活跃横幅',
     dashboardStats: '仪表盘统计', listUsers: '用户列表', banUser: '封禁用户',
     unbanUser: '解封用户', auditGoods: '审核商品', listOrders: '订单列表',
     listReports: '举报列表', resolveReport: '处理举报', dismissReport: '驳回举报',
     listOperationLogs: '操作日志', listSecurityLogs: '安全日志',
-    订单创建: '订单创建', getAverageRating: '查询商家评分',
-    isFollowing: '查询关注状态', getFollowCounts: '查询关注数',
-    getStats: '查询用户统计', getUserPublicInfo: '查看用户公开信息',
-    getActiveBanners: '获取活跃横幅', getCategoryList: '获取分类列表',
-    orderTimeout: '订单超时取消', orderTimeoutCheck: '订单超时检查'
+    getAdminInfo: '获取管理员信息', getUserPublicInfo: '查看用户公开信息',
+    getAverageRating: '查询商家评分', isFollowing: '查询关注状态',
+    getFollowCounts: '查询关注数', getStats: '查询用户统计',
+    getCategoryList: '获取分类列表', orderTimeout: '订单超时取消',
+    orderTimeoutCheck: '订单超时检查', 订单创建: '订单创建'
   }
   return map[op] || op
 }
@@ -127,5 +128,10 @@ onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
-.log-center-page { padding: 20px; }
+.log-center-page {
+  padding: 20px;
+  :deep(.el-card) { border-radius: 14px; }
+  :deep(.el-tabs__item.is-active) { color: var(--admin-primary); font-weight: 600; }
+  :deep(.el-tabs__active-bar) { background: var(--admin-primary); }
+}
 </style>

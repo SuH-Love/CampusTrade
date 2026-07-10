@@ -101,6 +101,10 @@ export interface DashboardStats {
   pendingAudit: number
   goodsStatusMap?: Record<string, number>
   orderStatusMap?: Record<string, number>
+  todayActive: number
+  todayNewUsers: number
+  todayOrders: number
+  bannedUsers: number
 }
 
 export interface AdminInfoVO {

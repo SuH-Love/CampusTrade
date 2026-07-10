@@ -30,4 +30,6 @@ public interface UserMapper {
     int updateById(User user);
 
     int logicDeleteById(@Param("id") Long id);
+
+    Long selectCountToday();
 }

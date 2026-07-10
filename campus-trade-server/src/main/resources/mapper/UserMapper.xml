@@ -90,4 +90,8 @@
     <update id="logicDeleteById">
         UPDATE t_user SET deleted = 1 WHERE id = #{id}
     </update>
+
+    <select id="selectCountToday" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_user WHERE deleted = 0 AND create_time >= CURDATE()
+    </select>
 </mapper>

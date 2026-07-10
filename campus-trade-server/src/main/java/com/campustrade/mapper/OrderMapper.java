@@ -34,5 +34,7 @@ public interface OrderMapper {
 
     Long selectCountByStatus(@Param("status") String status);
 
+    Long selectCountToday();
+
     List<Order> selectTimeoutPendingPay(@Param("timeout") java.time.LocalDateTime timeout);
 }

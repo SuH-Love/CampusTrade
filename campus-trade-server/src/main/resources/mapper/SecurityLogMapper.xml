@@ -29,6 +29,10 @@
         <if test="username != null and username != ''">AND username LIKE CONCAT('%', #{username}, '%')</if>
     </select>
 
+    <select id="selectCountTodayByEventType" resultType="java.lang.Long">
+        SELECT COUNT(DISTINCT username) FROM t_security_log WHERE deleted = 0 AND event_type = #{eventType} AND create_time >= CURDATE()
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO t_security_log (user_id, username, event_type, ip, detail, trace_id)
         VALUES (#{userId}, #{username}, #{eventType}, #{ip}, #{detail}, #{traceId})

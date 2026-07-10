@@ -122,5 +122,5 @@ const handleRejectRefund = async (id: number) => {
 </script>
 
 <style scoped lang="scss">
-.order-manage-page { padding: 20px; }
+.order-manage-page { padding: 20px; :deep(.el-card) { border-radius: 14px; } }
 </style>

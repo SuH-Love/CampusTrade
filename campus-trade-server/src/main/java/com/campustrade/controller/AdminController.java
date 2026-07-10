@@ -21,6 +21,7 @@ import com.campustrade.mapper.RoleMapper;
 import com.campustrade.mapper.PermissionMapper;
 import com.campustrade.mapper.GoodsMapper;
 import com.campustrade.mapper.OrderMapper;
+import com.campustrade.mapper.SecurityLogMapper;
 import com.campustrade.entity.User;
 import com.campustrade.entity.Role;
 import com.campustrade.mapper.UserMapper;
@@ -77,6 +78,9 @@ public class AdminController {
     private OrderMapper orderMapper;
 
     @Autowired
+    private SecurityLogMapper securityLogMapper;
+
+    @Autowired
 
     private NotificationService notificationService;
 
@@ -122,6 +126,14 @@ public class AdminController {
             if (count != null && count > 0) orderStatusMap.put(s, count);
         }
         stats.put("orderStatusMap", orderStatusMap);
+        Long todayLogin = securityLogMapper.selectCountTodayByEventType("LOGIN_SUCCESS");
+        stats.put("todayActive", todayLogin != null ? todayLogin : 0L);
+        Long todayUsers = userMapper.selectCountToday();
+        stats.put("todayNewUsers", todayUsers != null ? todayUsers : 0L);
+        Long todayOrders = orderMapper.selectCountToday();
+        stats.put("todayOrders", todayOrders != null ? todayOrders : 0L);
+        Long bannedUsers = userMapper.selectCount(null, 0);
+        stats.put("bannedUsers", bannedUsers != null ? bannedUsers : 0L);
         return Result.success(stats);
     }
 
