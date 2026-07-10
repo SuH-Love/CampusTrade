@@ -58,8 +58,7 @@ a:hover { color: var(--primary-dark); }
   border: 1px solid var(--border) !important;
   box-shadow: var(--shadow-sm) !important;
   transition: var(--transition) !important;
-  backdrop-filter: blur(12px);
-  background: var(--bg-glass) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
 }
 .el-card:hover { box-shadow: var(--shadow-md) !important; }
 

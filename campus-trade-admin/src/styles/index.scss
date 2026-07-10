@@ -35,8 +35,11 @@ body {
   border-radius: var(--admin-radius) !important;
   border: 1px solid var(--admin-border) !important;
   box-shadow: var(--admin-shadow) !important;
-  backdrop-filter: blur(12px);
-  background: rgba(255, 255, 255, 0.85) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+.el-popper {
+  z-index: 9999 !important;
 }
 
 .el-button--primary {

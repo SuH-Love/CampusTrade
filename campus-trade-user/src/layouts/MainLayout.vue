@@ -155,8 +155,7 @@ onUnmounted(() => {
 .main-layout { min-height: 100vh; display: flex; flex-direction: column; }
 
 .header {
-  background: var(--bg-glass);
-  backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.95);
   border-bottom: 1px solid rgba(255, 255, 255, 0.5);
   padding: 0;
   height: 64px;

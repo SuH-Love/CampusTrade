@@ -135,8 +135,7 @@ const handleLogout = () => {
 
 .header {
   display: flex; align-items: center; justify-content: space-between;
-  background: var(--admin-header-bg);
-  backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(255, 255, 255, 0.95);
   border-bottom: 1px solid var(--admin-border);
   padding: 0 24px;
   height: 60px;
