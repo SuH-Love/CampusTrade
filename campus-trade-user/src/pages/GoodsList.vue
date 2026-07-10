@@ -36,13 +36,13 @@
           </div>
           <div class="goods-info">
             <div class="goods-title">{{ item.title }}</div>
-            <div class="goods-price-row">
-              <span class="price-text">¥{{ item.price }}</span>
-              <span v-if="item.originalPrice && item.originalPrice > item.price" class="original-price">¥{{ item.originalPrice }}</span>
-            </div>
-            <div class="goods-meta">
-              <span>{{ item.viewCount }} 浏览</span>
-              <el-tag v-if="item.condition" size="small" type="warning" style="margin-left: 6px">{{ item.condition }}</el-tag>
+            <div class="goods-desc" v-if="item.description">{{ item.description }}</div>
+            <div class="goods-bottom">
+              <div class="goods-price-row">
+                <span class="price-text">¥{{ item.price }}</span>
+                <span v-if="item.originalPrice && item.originalPrice > item.price" class="original-price">¥{{ item.originalPrice }}</span>
+              </div>
+              <span class="goods-views">{{ item.viewCount }} 浏览</span>
             </div>
           </div>
         </div>
@@ -86,7 +86,7 @@ const loadData = async () => {
   } finally { loading.value = false }
 }
 
-const loadCategories = async () => { try { categories.value = (await getCategoryList()) || [] } catch { /* ignore */ } }
+const loadCategories = async () => { try { categories.value = (await getCategoryList()) || [] } catch (e) { console.error(e) } }
 const handleSearch = () => { pageNum.value = 1; loadData() }
 onMounted(() => { loadData(); loadCategories() })
 </script>
@@ -102,10 +102,9 @@ onMounted(() => { loadData(); loadCategories() })
   padding: 24px;
 }
 
-
 .goods-card {
   background: var(--bg-card);
-  border-radius: var(--radius-md);
+  border-radius: 14px;
   overflow: hidden; cursor: pointer;
   transition: var(--transition);
   border: 1px solid var(--border);
@@ -135,7 +134,9 @@ onMounted(() => { loadData(); loadCategories() })
 }
 .goods-info { padding: 14px 14px 16px; }
 .goods-title { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.goods-price-row { display: flex; align-items: baseline; gap: 8px; margin-top: 8px; }
+.goods-desc { font-size: 12px; color: var(--text-muted); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goods-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+.goods-price-row { display: flex; align-items: baseline; gap: 8px; }
 .original-price { font-size: 12px; color: var(--text-muted); text-decoration: line-through; }
-.goods-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
+.goods-views { font-size: 12px; color: var(--text-muted); font-weight: 500; }
 </style>

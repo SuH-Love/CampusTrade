@@ -21,4 +21,7 @@ public class UserVO {
     private Long followingCount;
     private Long followersCount;
     private Long goodsCount;
+    private Long soldCount;
+    private Double avgRating;
+    private String bio;
 }

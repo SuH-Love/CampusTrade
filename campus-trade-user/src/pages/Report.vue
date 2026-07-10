@@ -1,10 +1,15 @@
 <template>
   <div class="report-page">
-    <el-card>
-      <template #header><h3>提交举报</h3></template>
+    <el-card class="report-form-card">
+      <template #header>
+        <div class="card-header">
+          <h3>提交举报</h3>
+          <span class="header-desc">我们会认真处理每一条举报</span>
+        </div>
+      </template>
       <el-form :model="form" :rules="rules" ref="formRef" label-width="80px" style="max-width: 600px">
         <el-form-item label="举报类型" prop="targetType">
-          <el-select v-model="form.targetType" placeholder="选择类型" :disabled="!!route.query.targetType" @change="handleTypeChange">
+          <el-select v-model="form.targetType" placeholder="选择类型" :disabled="!!route.query.targetType" @change="handleTypeChange" style="width: 100%">
             <el-option label="商品" :value="1" />
             <el-option label="用户" :value="2" />
             <el-option label="聊天" :value="3" />
@@ -14,16 +19,16 @@
           <el-input v-model="form.targetId" disabled placeholder="举报目标ID" />
         </el-form-item>
         <el-form-item label="目标信息" v-if="targetInfo">
-          <el-descriptions :column="1" border size="small">
-            <el-descriptions-item label="名称">{{ targetInfo.name }}</el-descriptions-item>
-            <el-descriptions-item label="详情">{{ targetInfo.detail }}</el-descriptions-item>
-          </el-descriptions>
+          <div class="target-info-card">
+            <div class="target-name">{{ targetInfo.name }}</div>
+            <div class="target-detail">{{ targetInfo.detail }}</div>
+          </div>
         </el-form-item>
         <el-form-item label="举报原因" prop="reason">
           <el-input v-model="form.reason" placeholder="简要描述原因" />
         </el-form-item>
         <el-form-item label="详细描述">
-          <el-input v-model="form.description" type="textarea" :rows="4" placeholder="详细描述举报内容" />
+          <el-input v-model="form.description" type="textarea" :rows="4" placeholder="详细描述举报内容，帮助我们更好地处理" />
         </el-form-item>
         <el-form-item label="证据图片">
           <el-upload
@@ -32,33 +37,45 @@
             accept="image/*"
             :on-change="handleImageChange"
           >
-            <el-button type="primary" size="small">选择图片</el-button>
+            <el-button type="primary" size="small" round>选择图片</el-button>
           </el-upload>
           <div v-if="imageList.length > 0" class="uploaded-images">
             <div v-for="(img, idx) in imageList" :key="idx" class="image-preview-item">
-              <el-image :src="img" fit="cover" style="width: 80px; height: 80px; border-radius: 8px" :preview-src-list="imageList" :initial-index="idx" />
+              <el-image :src="img" fit="cover" style="width: 80px; height: 80px; border-radius: 10px" :preview-src-list="imageList" :initial-index="idx" />
               <el-button type="danger" :icon="Delete" circle size="small" class="image-delete-btn" @click="removeImage(idx)" />
             </div>
           </div>
         </el-form-item>
-        <el-form-item><el-button type="danger" @click="handleSubmit" :loading="loading">提交举报</el-button></el-form-item>
+        <el-form-item><el-button type="danger" @click="handleSubmit" :loading="loading" round>提交举报</el-button></el-form-item>
       </el-form>
     </el-card>
 
-    <el-card style="margin-top: 20px">
-      <template #header><h3>我的举报</h3></template>
+    <el-card style="margin-top: 20px" class="report-list-card">
+      <template #header>
+        <div class="card-header">
+          <h3>我的举报</h3>
+          <span class="header-desc">共 {{ reports.length }} 条记录</span>
+        </div>
+      </template>
       <el-table :data="reports" stripe>
-        <el-table-column prop="targetType" label="类型" width="80">
-          <template #default="{ row }">{{ targetTypeLabel(row.targetType) }}</template>
-        </el-table-column>
-        <el-table-column prop="reason" label="原因" show-overflow-tooltip />
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="targetType" label="类型" min-width="80">
           <template #default="{ row }">
-            <el-tag :type="statusTagMap[row.status] || 'info'">{{ statusLabel(row.status) }}</el-tag>
+            <el-tag size="small" :type="row.targetType === 1 ? '' : row.targetType === 2 ? 'warning' : 'info'">{{ targetTypeLabel(row.targetType) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="handleResult" label="处理结果" show-overflow-tooltip />
-        <el-table-column prop="createTime" label="时间" width="170" />
+        <el-table-column prop="reason" label="原因" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="status" label="状态" min-width="100">
+          <template #default="{ row }">
+            <el-tag :type="statusTagMap[row.status] || 'info'" effect="dark" round>{{ statusLabel(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="handleResult" label="处理结果" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.handleResult">{{ row.handleResult }}</span>
+            <span v-else style="color: var(--text-muted)">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="createTime" label="时间" min-width="170" />
       </el-table>
       <el-empty v-if="reports.length === 0" description="暂无举报记录" />
     </el-card>
@@ -174,7 +191,21 @@ onMounted(async () => {
     box-shadow: 0 4px 24px rgba(99, 102, 241, 0.06);
   }
 }
-.uploaded-images { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.card-header {
+  display: flex; align-items: baseline; gap: 12px;
+  h3 { margin: 0; }
+}
+.header-desc { font-size: 13px; color: var(--text-muted); font-weight: 400; }
+.target-info-card {
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  width: 100%;
+}
+.target-name { font-weight: 600; font-size: 14px; }
+.target-detail { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.uploaded-images { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
 .image-preview-item { position: relative; display: inline-block; }
 .image-delete-btn { position: absolute; top: -6px; right: -6px; z-index: 1; }
 </style>

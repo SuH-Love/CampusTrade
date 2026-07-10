@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.campustrade.mapper.SellerRatingMapper;
+
 @Api(tags = "关注接口")
 @RestController
 @RequestMapping("/api/follow")
@@ -26,6 +28,8 @@ public class UserFollowController {
     private UserMapper userMapper;
     @Autowired
     private GoodsMapper goodsMapper;
+    @Autowired
+    private SellerRatingMapper sellerRatingMapper;
 
     @ApiOperation("关注/取关用户")
     @PostMapping("/{userId}")
@@ -75,6 +79,9 @@ public class UserFollowController {
             vo.setFollowersCount(userFollowMapper.selectFollowerCount(u.getId()));
             vo.setFollowingCount(userFollowMapper.selectFollowingCount(u.getId()));
             vo.setGoodsCount(goodsMapper.selectCount(null, null, null, null, "ONLINE", u.getId()));
+            vo.setSoldCount(goodsMapper.selectCountByStatusAndUserId("SOLD", u.getId()));
+            Double avg = sellerRatingMapper.selectAvgRatingBySellerId(u.getId());
+            vo.setAvgRating(avg != null ? avg : 0.0);
             return vo;
         }).collect(Collectors.toList());
         return Result.success(new PageResult<>(vos, total));

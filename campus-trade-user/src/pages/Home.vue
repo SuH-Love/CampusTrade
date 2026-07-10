@@ -125,7 +125,7 @@ const bannerButtonStyle = (banner: BannerVO) => {
 }
 
 const loadBanners = async () => {
-  try { banners.value = await getActiveBanners() } catch { /* ignore */ }
+  try { banners.value = await getActiveBanners() } catch (e) { console.error(e) }
 }
 
 const loadHotGoods = async () => {
@@ -134,15 +134,15 @@ const loadHotGoods = async () => {
     let list = res.list || []
     if (selectedCategoryId.value) list = list.filter((g: GoodsVO) => g.categoryId === selectedCategoryId.value)
     hotGoods.value = list.slice(0, 8)
-  } catch { /* ignore */ }
+  } catch (e) { console.error(e) }
 }
 
 const loadRecommendGoods = async () => {
-  try { const res = await getRecommendGoods(); recommendGoods.value = (res.list || []).slice(0, 8) } catch { /* ignore */ }
+  try { const res = await getRecommendGoods(); recommendGoods.value = (res.list || []).slice(0, 8) } catch (e) { console.error(e) }
 }
 
 const loadCategories = async () => {
-  try { const res = await getCategoryList(); categories.value = res || [] } catch { /* ignore */ }
+  try { const res = await getCategoryList(); categories.value = res || [] } catch (e) { console.error(e) }
 }
 
 onMounted(() => { loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCategories() })
@@ -197,8 +197,9 @@ onMounted(() => { loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCateg
 .home-content {
   background: var(--bg-glass);
   backdrop-filter: blur(12px);
-  border-radius: var(--radius-lg);
+  border-radius: 20px 20px 0 0;
   border: 1px solid var(--border);
+  border-bottom: none;
   box-shadow: var(--shadow-sm);
   margin: 24px 24px 0;
   max-width: 100%;
@@ -228,7 +229,7 @@ onMounted(() => { loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCateg
 
 .goods-card {
   background: var(--bg-card);
-  border-radius: var(--radius-md);
+  border-radius: 14px;
   overflow: hidden;
   cursor: pointer;
   transition: var(--transition);

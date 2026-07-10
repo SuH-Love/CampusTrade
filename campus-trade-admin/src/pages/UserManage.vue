@@ -9,18 +9,45 @@
       </template>
       <el-table :data="users" style="width: 100%" stripe v-loading="loading">
         <el-table-column prop="id" label="ID" min-width="60" />
+        <el-table-column label="头像" min-width="70">
+          <template #default="{ row }">
+            <el-avatar :size="36" :src="row.avatar || '/default-avatar.svg'" />
+          </template>
+        </el-table-column>
         <el-table-column prop="username" label="用户名" min-width="100" />
         <el-table-column prop="nickname" label="昵称" min-width="100" />
-        <el-table-column prop="phone" label="手机号" min-width="120" />
-        <el-table-column prop="email" label="邮箱" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="phone" label="手机号" min-width="120">
+          <template #default="{ row }">
+            <span v-if="row.phone">{{ row.phone }}</span>
+            <span v-else style="color: #c0c4cc">未绑定</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="email" label="邮箱" min-width="150" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.email">{{ row.email }}</span>
+            <span v-else style="color: #c0c4cc">未绑定</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="realName" label="真实姓名" min-width="90">
+          <template #default="{ row }">
+            <span v-if="row.realName">{{ row.realName }}</span>
+            <span v-else style="color: #c0c4cc">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="studentId" label="学号" min-width="100">
+          <template #default="{ row }">
+            <span v-if="row.studentId">{{ row.studentId }}</span>
+            <span v-else style="color: #c0c4cc">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="realVerified" label="认证" min-width="70">
           <template #default="{ row }">
-            <el-tag :type="row.realVerified === 1 ? 'success' : 'info'" size="small">{{ row.realVerified === 1 ? '已认证' : '未认证' }}</el-tag>
+            <el-tag :type="row.realVerified === 1 ? 'success' : 'info'" size="small" effect="dark" round>{{ row.realVerified === 1 ? '已认证' : '未认证' }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="status" label="状态" min-width="70">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'">{{ row.status === 1 ? '正常' : '禁用' }}</el-tag>
+            <el-tag :type="row.status === 1 ? 'success' : 'danger'" effect="dark" round>{{ row.status === 1 ? '正常' : '禁用' }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="注册时间" min-width="150" />

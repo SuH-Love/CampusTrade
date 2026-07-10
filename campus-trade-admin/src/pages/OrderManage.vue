@@ -19,15 +19,27 @@
         <el-table-column prop="orderNo" label="订单号" min-width="180" />
         <el-table-column prop="buyerName" label="买家" min-width="90" />
         <el-table-column prop="sellerName" label="卖家" min-width="90" />
-        <el-table-column prop="totalAmount" label="金额" min-width="80">
+        <el-table-column prop="totalAmount" label="金额" min-width="100">
           <template #default="{ row }"><span style="color: #f56c6c; font-weight: bold">¥{{ row.totalAmount }}</span></template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" min-width="90">
+        <el-table-column prop="status" label="状态" min-width="100">
           <template #default="{ row }">
-            <el-tag :type="statusTagMap[row.status] || 'info'">{{ statusLabel(row.status) }}</el-tag>
+            <el-tag :type="statusTagMap[row.status] || 'info'" effect="dark" round>{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="deliveryMethod" label="配送" min-width="80">
+          <template #default="{ row }">
+            <span v-if="row.deliveryMethod === 'DELIVERY'">配送</span>
+            <span v-else-if="row.deliveryMethod === 'PICKUP'">自取</span>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.remark">{{ row.remark }}</span>
+            <span v-else style="color: #c0c4cc">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="150" />
         <el-table-column label="操作" min-width="180" fixed="right">
           <template #default="{ row }">

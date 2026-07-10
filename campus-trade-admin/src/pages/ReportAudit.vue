@@ -19,16 +19,28 @@
         <el-table-column prop="reporterName" label="举报人" min-width="90" />
         <el-table-column prop="targetType" label="类型" min-width="80">
           <template #default="{ row }">
-            <el-tag size="small">{{ targetTypeLabel(row.targetType) }}</el-tag>
+            <el-tag size="small" :type="row.targetType === 1 ? '' : row.targetType === 2 ? 'warning' : 'info'" effect="dark" round>{{ targetTypeLabel(row.targetType) }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column prop="targetId" label="目标ID" min-width="70" />
         <el-table-column prop="reason" label="原因" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="description" label="详细描述" min-width="150" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.description">{{ row.description }}</span>
+            <span v-else style="color: #c0c4cc">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" min-width="90">
           <template #default="{ row }">
-            <el-tag :type="statusTagMap[row.status] || 'info'">{{ statusLabel(row.status) }}</el-tag>
+            <el-tag :type="statusTagMap[row.status] || 'info'" effect="dark" round>{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="handleResult" label="处理结果" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="handleResult" label="处理结果" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.handleResult">{{ row.handleResult }}</span>
+            <span v-else style="color: #c0c4cc">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="createTime" label="举报时间" min-width="150" />
         <el-table-column label="操作" min-width="180" fixed="right">
           <template #default="{ row }">

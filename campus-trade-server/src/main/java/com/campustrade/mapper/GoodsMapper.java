@@ -45,4 +45,6 @@ public interface GoodsMapper {
     Long selectCountAll();
 
     Long selectCountByStatus(@Param("status") String status);
+
+    Long selectCountByStatusAndUserId(@Param("status") String status, @Param("userId") Long userId);
 }

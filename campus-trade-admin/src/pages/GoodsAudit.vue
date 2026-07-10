@@ -17,15 +17,26 @@
       </template>
       <el-table :data="goodsList" stripe v-loading="loading">
         <el-table-column prop="id" label="ID" min-width="60" />
+        <el-table-column label="封面" min-width="80">
+          <template #default="{ row }">
+            <el-image v-if="row.coverImage" :src="row.coverImage" fit="cover" style="width: 50px; height: 50px; border-radius: 8px" :preview-src-list="[row.coverImage]" />
+            <span v-else style="color: #c0c4cc">无</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="title" label="标题" min-width="150" show-overflow-tooltip />
         <el-table-column prop="username" label="卖家" min-width="100" />
         <el-table-column prop="categoryName" label="分类" min-width="80" />
-        <el-table-column prop="price" label="价格" min-width="80">
-          <template #default="{ row }">¥{{ row.price }}</template>
+        <el-table-column prop="price" label="价格" min-width="100">
+          <template #default="{ row }">
+            <span style="color: #f56c6c; font-weight: 600">¥{{ row.price }}</span>
+            <span v-if="row.originalPrice" style="font-size: 12px; color: #c0c4cc; text-decoration: line-through; margin-left: 4px">¥{{ row.originalPrice }}</span>
+          </template>
         </el-table-column>
+        <el-table-column prop="viewCount" label="浏览" min-width="60" />
+        <el-table-column prop="favoriteCount" label="收藏" min-width="60" />
         <el-table-column prop="status" label="状态" min-width="90">
           <template #default="{ row }">
-            <el-tag :type="statusTagMap[row.status] || 'info'">{{ statusLabel(row.status) }}</el-tag>
+            <el-tag :type="statusTagMap[row.status] || 'info'" effect="dark" round>{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="rejectReason" label="拒绝原因" min-width="120" show-overflow-tooltip>
@@ -54,6 +65,8 @@
         <el-descriptions-item label="分类">{{ currentGoods.categoryName }}</el-descriptions-item>
         <el-descriptions-item label="售价">¥{{ currentGoods.price }}</el-descriptions-item>
         <el-descriptions-item label="原价">¥{{ currentGoods.originalPrice }}</el-descriptions-item>
+        <el-descriptions-item label="浏览">{{ currentGoods.viewCount }}</el-descriptions-item>
+        <el-descriptions-item label="收藏">{{ currentGoods.favoriteCount }}</el-descriptions-item>
         <el-descriptions-item label="描述" :span="2">{{ currentGoods.description }}</el-descriptions-item>
         <el-descriptions-item label="状态">{{ statusLabel(currentGoods.status) }}</el-descriptions-item>
         <el-descriptions-item label="提交时间">{{ currentGoods.createTime }}</el-descriptions-item>

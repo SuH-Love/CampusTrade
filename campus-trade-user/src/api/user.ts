@@ -16,6 +16,8 @@ export interface UserVO {
   followingCount?: number
   followersCount?: number
   goodsCount?: number
+  soldCount?: number
+  avgRating?: number
 }
 
 export const getUserInfo = () => request.get<never, UserVO>('/user/info')
