@@ -75,7 +75,7 @@ import { ElMessage } from 'element-plus'
 import { Delete } from '@element-plus/icons-vue'
 import type { FormInstance } from 'element-plus'
 import type { ReportVO } from '@/api/report'
-import type { UploadUserFile } from 'element-plus'
+
 
 const route = useRoute()
 const formRef = ref<FormInstance>()
@@ -111,7 +111,7 @@ const loadTargetInfo = async () => {
   } catch (e) { console.error(e); targetInfo.value = null }
 }
 
-const handleImageChange = async (uploadFile: UploadUserFile) => {
+const handleImageChange = async (uploadFile: { raw?: File }) => {
   if (!uploadFile.raw) return
   uploadingImage.value = true
   try {
