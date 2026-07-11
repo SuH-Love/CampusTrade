@@ -33,18 +33,18 @@
             <span v-else class="header-offline">离线</span>
           </div>
           <div class="chat-messages" ref="messagesRef">
-            <div v-for="msg in messages" :key="msg.id || msg._tempId" class="message-item" :class="{ self: msg.senderId === myId }">
+            <div v-for="msg in messages" :key="msg.id || msg._tempId" class="message-item" :class="{ self: msg.senderId === myId }" @contextmenu.prevent="onMsgContext($event, msg)">
               <template v-if="msg.senderId === myId">
                 <div class="msg-wrap self-wrap">
-                  <div v-if="msg.messageType === 2" class="msg-bubble self-bubble img-bubble" @contextmenu.prevent="onMsgContext($event, msg)"><el-image :src="msg.content" fit="cover" class="chat-img" :preview-src-list="[msg.content]" hide-on-click-modal /></div>
-                  <div v-else-if="msg.messageType === 3 && parseMsgType(msg.content) === 'order'" class="msg-bubble self-bubble order-bubble" @click="openOrderLink(msg.content)" @contextmenu.prevent="onMsgContext($event, msg)">
+                  <div v-if="msg.messageType === 2" class="msg-bubble self-bubble img-bubble"><el-image :src="msg.content" fit="cover" class="chat-img" :preview-src-list="[msg.content]" hide-on-click-modal /></div>
+                  <div v-else-if="msg.messageType === 3 && parseMsgType(msg.content) === 'order'" class="msg-bubble self-bubble order-bubble" @click="openOrderLink(msg.content)">
                     <el-icon><List /></el-icon>
                     <div class="order-card-info">
                       <div class="order-card-title">{{ parseOrderNo(msg.content) }}</div>
                       <div class="order-card-sub">¥{{ parseOrderAmount(msg.content) }} · {{ parseOrderStatus(msg.content) }}</div>
                     </div>
                   </div>
-                  <div v-else-if="msg.messageType === 3" class="msg-bubble self-bubble goods-bubble" @click="openGoodsLink(msg.content)" @contextmenu.prevent="onMsgContext($event, msg)">
+                  <div v-else-if="msg.messageType === 3" class="msg-bubble self-bubble goods-bubble" @click="openGoodsLink(msg.content)">
                     <el-icon><Goods /></el-icon>
                     <div class="goods-card-info">
                       <div class="goods-card-title">{{ parseGoodsText(msg.content) }}</div>
@@ -52,7 +52,7 @@
                     </div>
                   </div>
                   <div v-else-if="msg.messageType === 4" class="msg-bubble self-bubble recall-bubble"><el-icon style="margin-right: 4px"><RefreshLeft /></el-icon>该消息已撤回</div>
-                  <div v-else class="msg-bubble self-bubble" @contextmenu.prevent="onMsgContext($event, msg)">{{ msg.content }}</div>
+                  <div v-else class="msg-bubble self-bubble">{{ msg.content }}</div>
                   <el-button v-if="isRecallable(msg)" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn"><el-icon style="margin-right: 2px"><RefreshLeft /></el-icon>撤回</el-button>
                   <div class="msg-meta">
                     <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
@@ -65,15 +65,15 @@
                 <el-avatar :size="36" :src="msg.senderAvatar" />
                 <div class="msg-wrap">
                   <div class="sender-name">{{ msg.senderName }}</div>
-                  <div v-if="msg.messageType === 2" class="msg-bubble img-bubble" @contextmenu.prevent="onMsgContext($event, msg)"><el-image :src="msg.content" fit="cover" class="chat-img" :preview-src-list="[msg.content]" hide-on-click-modal /></div>
-                  <div v-else-if="msg.messageType === 3 && parseMsgType(msg.content) === 'order'" class="msg-bubble order-bubble" @click="openOrderLink(msg.content)" @contextmenu.prevent="onMsgContext($event, msg)">
+                  <div v-if="msg.messageType === 2" class="msg-bubble img-bubble"><el-image :src="msg.content" fit="cover" class="chat-img" :preview-src-list="[msg.content]" hide-on-click-modal /></div>
+                  <div v-else-if="msg.messageType === 3 && parseMsgType(msg.content) === 'order'" class="msg-bubble order-bubble" @click="openOrderLink(msg.content)">
                     <el-icon><List /></el-icon>
                     <div class="order-card-info">
                       <div class="order-card-title">{{ parseOrderNo(msg.content) }}</div>
                       <div class="order-card-sub">¥{{ parseOrderAmount(msg.content) }} · {{ parseOrderStatus(msg.content) }}</div>
                     </div>
                   </div>
-                  <div v-else-if="msg.messageType === 3" class="msg-bubble goods-bubble" @click="openGoodsLink(msg.content)" @contextmenu.prevent="onMsgContext($event, msg)">
+                  <div v-else-if="msg.messageType === 3" class="msg-bubble goods-bubble" @click="openGoodsLink(msg.content)">
                     <el-icon><Goods /></el-icon>
                     <div class="goods-card-info">
                       <div class="goods-card-title">{{ parseGoodsText(msg.content) }}</div>
@@ -81,7 +81,7 @@
                     </div>
                   </div>
                   <div v-else-if="msg.messageType === 4" class="msg-bubble recall-bubble"><el-icon style="margin-right: 4px"><RefreshLeft /></el-icon>该消息已撤回</div>
-                  <div v-else class="msg-bubble" @contextmenu.prevent="onMsgContext($event, msg)">{{ msg.content }}</div>
+                  <div v-else class="msg-bubble">{{ msg.content }}</div>
                   <div class="msg-time">{{ formatTime(msg.createTime) }}</div>
                 </div>
               </template>
