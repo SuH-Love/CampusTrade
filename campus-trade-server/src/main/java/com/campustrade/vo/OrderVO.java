@@ -25,6 +25,7 @@ public class OrderVO {
     private String remark;
     private Integer deliveryMethod;
     private String address;
+    private String trackingNo;
     private LocalDateTime createTime;
     private List<OrderItemVO> items;
 }

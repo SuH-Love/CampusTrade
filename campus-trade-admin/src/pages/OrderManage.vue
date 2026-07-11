@@ -55,6 +55,7 @@
         <el-table-column prop="createTime" label="创建时间" min-width="150" />
         <el-table-column label="操作" min-width="180" fixed="right">
           <template #default="{ row }">
+            <el-button size="small" @click="showDetail(row)">详情</el-button>
             <el-button v-if="row.status === 'REFUND'" type="success" size="small" @click="handleApproveRefund(row.id)">同意退款</el-button>
             <el-button v-if="row.status === 'REFUND'" type="warning" size="small" @click="handleRejectRefund(row.id)">拒绝退款</el-button>
           </template>
@@ -63,6 +64,22 @@
       <el-empty v-if="orders.length === 0" description="暂无订单" />
       <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
     </el-card>
+
+    <el-dialog v-model="detailVisible" title="订单详情" width="600px">
+      <el-descriptions :column="2" border v-if="detailOrder">
+        <el-descriptions-item label="订单号">{{ detailOrder.orderNo }}</el-descriptions-item>
+        <el-descriptions-item label="状态"><el-tag :type="statusTagMap[detailOrder.status] || 'info'" effect="dark" round>{{ statusLabel(detailOrder.status) }}</el-tag></el-descriptions-item>
+        <el-descriptions-item label="买家">{{ detailOrder.buyerName }}</el-descriptions-item>
+        <el-descriptions-item label="卖家">{{ detailOrder.sellerName }}</el-descriptions-item>
+        <el-descriptions-item label="金额"><span style="color: #f56c6c; font-weight: bold">¥{{ detailOrder.totalAmount }}</span></el-descriptions-item>
+        <el-descriptions-item label="配送">{{ detailOrder.deliveryMethod === 1 ? '配送' : '自取' }}</el-descriptions-item>
+        <el-descriptions-item label="地址" :span="2">{{ detailOrder.address || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2">{{ detailOrder.remark || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="取消原因" :span="2" v-if="detailOrder.cancelReason">{{ detailOrder.cancelReason }}</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ detailOrder.createTime }}</el-descriptions-item>
+        <el-descriptions-item label="支付时间">{{ detailOrder.payTime || '-' }}</el-descriptions-item>
+      </el-descriptions>
+    </el-dialog>
   </div>
 </template>
 
@@ -118,6 +135,13 @@ const handleRejectRefund = async (id: number) => {
   await rejectRefund(id, value)
   ElMessage.success('已拒绝退款')
   loadData()
+}
+
+const detailVisible = ref(false)
+const detailOrder = ref<AdminOrderVO | null>(null)
+const showDetail = (row: AdminOrderVO) => {
+  detailOrder.value = row
+  detailVisible.value = true
 }
 </script>
 

@@ -44,6 +44,7 @@
         <el-table-column prop="createTime" label="举报时间" min-width="150" />
         <el-table-column label="操作" min-width="180" fixed="right">
           <template #default="{ row }">
+            <el-button size="small" @click="showDetail(row)">详情</el-button>
             <el-button v-if="row.status === 'PENDING' || row.status === 'PROCESSING'" v-permission="'report:review'" type="success" size="small" @click="handleResolve(row.id)">处理</el-button>
             <el-button v-if="row.status === 'PENDING' || row.status === 'PROCESSING'" v-permission="'report:review'" type="warning" size="small" @click="handleDismiss(row.id)">驳回</el-button>
           </template>
@@ -52,6 +53,25 @@
       <el-empty v-if="reports.length === 0" description="暂无举报" />
       <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
     </el-card>
+
+    <el-dialog v-model="detailVisible" title="举报详情" width="600px">
+      <el-descriptions :column="2" border v-if="detailReport">
+        <el-descriptions-item label="举报人">{{ detailReport.reporterName }}</el-descriptions-item>
+        <el-descriptions-item label="举报类型"><el-tag size="small" effect="dark" round>{{ targetTypeLabel(detailReport.targetType) }}</el-tag></el-descriptions-item>
+        <el-descriptions-item label="目标ID">{{ detailReport.targetId }}</el-descriptions-item>
+        <el-descriptions-item label="状态"><el-tag :type="statusTagMap[detailReport.status] || 'info'" effect="dark" round>{{ statusLabel(detailReport.status) }}</el-tag></el-descriptions-item>
+        <el-descriptions-item label="举报原因" :span="2">{{ detailReport.reason }}</el-descriptions-item>
+        <el-descriptions-item label="详细描述" :span="2">{{ detailReport.description || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="处理结果" :span="2" v-if="detailReport.handleResult">{{ detailReport.handleResult }}</el-descriptions-item>
+        <el-descriptions-item label="举报时间" :span="2">{{ detailReport.createTime }}</el-descriptions-item>
+      </el-descriptions>
+      <div v-if="detailReport && detailReport.evidenceImages" style="margin-top: 16px">
+        <h4 style="margin-bottom: 8px">证据图片</h4>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+          <img v-for="(img, idx) in detailReport.evidenceImages.split(',').filter(Boolean)" :key="idx" :src="img" style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0" />
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -102,6 +122,13 @@ const handleDismiss = async (id: number) => {
   await dismissReport(id)
   ElMessage.success('已驳回')
   loadData()
+}
+
+const detailVisible = ref(false)
+const detailReport = ref<AdminReportVO | null>(null)
+const showDetail = (row: AdminReportVO) => {
+  detailReport.value = row
+  detailVisible.value = true
 }
 
 onMounted(loadData)

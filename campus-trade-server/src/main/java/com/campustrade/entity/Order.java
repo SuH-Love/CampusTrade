@@ -24,4 +24,5 @@ public class Order extends BaseEntity {
     private String remark;
     private Integer deliveryMethod;
     private String address;
+    private String trackingNo;
 }

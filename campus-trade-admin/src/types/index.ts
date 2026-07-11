@@ -64,6 +64,7 @@ export interface AdminReportVO {
   targetId: number
   reason: string
   description: string
+  evidenceImages: string
   status: string
   handleResult: string
   createTime: string

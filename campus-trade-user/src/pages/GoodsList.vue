@@ -28,7 +28,7 @@
       <el-col :xs="12" :sm="8" :md="6" v-for="item in goodsList" :key="item.id">
         <div class="goods-card" @click="$router.push(`/goods/${item.id}`)">
           <div class="goods-img-wrap">
-            <img :src="item.coverImage || '/default-cover.svg'" class="goods-img" />
+            <img :src="item.coverImage || '/default-cover.svg'" class="goods-img" loading="lazy" />
             <div class="goods-tags">
               <span class="goods-category-tag">{{ item.categoryName || getCategoryName(item.categoryId) }}</span>
               <span v-if="item.condition" class="goods-condition-tag">{{ item.condition }}</span>

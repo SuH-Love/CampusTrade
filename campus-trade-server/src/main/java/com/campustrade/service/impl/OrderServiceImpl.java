@@ -191,13 +191,16 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result<Void> shipOrder(Long userId, Long orderId) {
+    public Result<Void> shipOrder(Long userId, Long orderId, String trackingNo) {
         Order order = orderMapper.selectById(orderId);
         if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
         if (!order.getSellerId().equals(userId)) return Result.error(ResultCode.ORDER_NOT_OWNER);
         if (!OrderStatus.PAID.getCode().equals(order.getStatus())) return Result.error(ResultCode.ORDER_STATUS_ERROR);
         order.setStatus(OrderStatus.SHIPPING.getCode());
         order.setShipTime(LocalDateTime.now());
+        if (trackingNo != null && !trackingNo.trim().isEmpty()) {
+            order.setTrackingNo(trackingNo.trim());
+        }
 
         int rows = orderMapper.updateById(order);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
@@ -462,6 +465,7 @@ public class OrderServiceImpl implements OrderService {
         vo.setRemark(order.getRemark());
         vo.setDeliveryMethod(order.getDeliveryMethod());
         vo.setAddress(order.getAddress());
+        vo.setTrackingNo(order.getTrackingNo());
         vo.setCreateTime(order.getCreateTime());
 
         User buyer = userMapper.selectById(order.getBuyerId());
@@ -501,6 +505,7 @@ public class OrderServiceImpl implements OrderService {
             vo.setRemark(order.getRemark());
             vo.setDeliveryMethod(order.getDeliveryMethod());
             vo.setAddress(order.getAddress());
+            vo.setTrackingNo(order.getTrackingNo());
             vo.setCreateTime(order.getCreateTime());
 
             User buyer = userMap.get(order.getBuyerId());

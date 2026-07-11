@@ -17,6 +17,7 @@
         <result column="remark" property="remark"/>
         <result column="delivery_method" property="deliveryMethod"/>
         <result column="address" property="address"/>
+        <result column="tracking_no" property="trackingNo"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
         <result column="deleted" property="deleted"/>
@@ -70,6 +71,7 @@
             <if test="cancelReason != null">cancel_reason = #{cancelReason},</if>
             <if test="deliveryMethod != null">delivery_method = #{deliveryMethod},</if>
             <if test="address != null">address = #{address},</if>
+            <if test="trackingNo != null">tracking_no = #{trackingNo},</if>
             version = version + 1
         </set>
         WHERE id = #{id} AND deleted = 0 AND version = #{version}

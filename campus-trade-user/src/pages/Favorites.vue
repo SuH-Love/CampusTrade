@@ -18,7 +18,7 @@
         <el-col :xs="12" :sm="8" :md="6" v-for="item in filteredGoods" :key="item.id">
           <div class="fav-card" :class="{ sold: item.status === 'SOLD' || item.status === 'OFFLINE' }">
             <div class="fav-img-wrap" :class="{ 'no-click': item.status !== 'ONLINE' }" @click="item.status === 'ONLINE' && $router.push(`/goods/${item.id}`)">
-              <img :src="item.coverImage || '/default-cover.svg'" class="fav-img" />
+              <img :src="item.coverImage || '/default-cover.svg'" class="fav-img" loading="lazy" />
               <div class="fav-tags">
                 <span v-if="item.condition" class="fav-condition-tag">{{ item.condition }}</span>
                 <span v-if="item.originalPrice && item.originalPrice > item.price" class="fav-discount-tag">折扣</span>

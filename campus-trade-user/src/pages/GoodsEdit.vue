@@ -24,6 +24,25 @@
           </el-select>
         </el-form-item>
         <el-form-item label="库存数量"><el-input-number v-model="form.stock" :min="1" :max="9999" style="width: 100%" /></el-form-item>
+        <el-form-item label="封面图">
+          <el-upload :action="uploadUrl" :headers="uploadHeaders" :show-file-list="false" :on-success="handleCoverSuccess" accept="image/*">
+            <img v-if="form.coverImage" :src="form.coverImage" style="width: 120px; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0" />
+            <el-button v-else size="small">上传封面</el-button>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="商品图片">
+          <el-upload :action="uploadUrl" :headers="uploadHeaders" :show-file-list="false" :on-success="handleImageSuccess" accept="image/*" multiple>
+            <el-button size="small">添加图片</el-button>
+          </el-upload>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px">
+            <div v-for="(img, idx) in imageList" :key="idx" style="position: relative">
+              <img :src="img" style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0" />
+              <el-button type="danger" size="small" circle style="position: absolute; top: -6px; right: -6px" @click="removeImage(idx)">
+                <el-icon><Close /></el-icon>
+              </el-button>
+            </div>
+          </div>
+        </el-form-item>
         <el-form-item><el-button type="primary" @click="handleSubmit" :loading="submitting">保存修改</el-button></el-form-item>
       </el-form>
     </el-card>
@@ -31,19 +50,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getGoodsDetail, updateGoods } from '@/api/goods'
 import { getCategoryList } from '@/api/category'
 import type { GoodsCategory } from '@/api/category'
 import { ElMessage } from 'element-plus'
-import type { FormInstance } from 'element-plus'
+import { Close } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
 const router = useRouter()
-const formRef = ref<FormInstance>()
+const userStore = useUserStore()
+const formRef = ref<{ validate: () => Promise<void> } | null>(null)
 const submitting = ref(false)
 const categories = ref<GoodsCategory[]>([])
+const imageList = ref<string[]>([])
+
+const uploadUrl = '/api/file/upload'
+const uploadHeaders = computed(() => userStore.token ? { Authorization: `Bearer ${userStore.token}` } : {})
 
 const form = reactive({
   title: '',
@@ -52,8 +77,22 @@ const form = reactive({
   price: 0,
   originalPrice: 0,
   condition: '',
-  stock: 1
+  stock: 1,
+  coverImage: '',
+  images: ''
 })
+
+const handleCoverSuccess = (response: { data: string }) => {
+  if (response.data) form.coverImage = response.data
+}
+
+const handleImageSuccess = (response: { data: string }) => {
+  if (response.data) imageList.value.push(response.data)
+}
+
+const removeImage = (idx: number) => {
+  imageList.value.splice(idx, 1)
+}
 
 const rules = {
   title: [{ required: true, message: '请输入商品标题', trigger: 'blur' }],
@@ -68,7 +107,7 @@ const handleSubmit = async () => {
   await formRef.value.validate()
   submitting.value = true
   try {
-    await updateGoods(Number(route.params.id), form)
+    await updateGoods(Number(route.params.id), { ...form, images: imageList.value.join(',') })
     ElMessage.success('修改成功')
     router.push('/my-goods')
   } finally {
@@ -86,6 +125,8 @@ onMounted(async () => {
   form.originalPrice = goods.originalPrice
   form.condition = goods.condition || ''
   form.stock = goods.stock || 1
+  form.coverImage = goods.coverImage || ''
+  imageList.value = goods.images ? goods.images.split(',').filter(Boolean) : []
 })
 </script>
 

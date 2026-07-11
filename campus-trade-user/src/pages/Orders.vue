@@ -172,7 +172,13 @@ const handleCancel = async (id: number) => {
 }
 
 const handleShip = async (id: number) => {
-  await shipOrder(id)
+  const { value } = await ElMessageBox.prompt('请输入物流运单号（可选）', '确认发货', {
+    confirmButtonText: '确认发货',
+    cancelButtonText: '取消',
+    inputPlaceholder: '运单号（可留空）'
+  }).catch(() => ({ value: null }))
+  if (value === null) return
+  await shipOrder(id, value || undefined)
   ElMessage.success('已发货')
   loadData()
 }

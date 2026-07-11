@@ -13,7 +13,7 @@ public interface OrderService {
 
     Result<Void> payOrder(Long userId, Long orderId);
 
-    Result<Void> shipOrder(Long userId, Long orderId);
+    Result<Void> shipOrder(Long userId, Long orderId, String trackingNo);
 
     Result<Void> finishOrder(Long userId, Long orderId);
 

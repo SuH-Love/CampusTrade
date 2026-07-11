@@ -23,6 +23,7 @@ export interface OrderVO {
   deliveryMethod: number | string
   address: string | null
   deliveryAddress: string | null
+  trackingNo: string | null
   payTime: string | null
   shipTime: string | null
   finishTime: string | null
@@ -43,7 +44,7 @@ export const cancelOrder = (id: number, reason?: string) =>
 
 export const payOrder = (id: number) => request.put(`/order/${id}/pay`)
 
-export const shipOrder = (id: number) => request.put(`/order/${id}/ship`)
+export const shipOrder = (id: number, trackingNo?: string) => request.put(`/order/${id}/ship`, null, { params: { trackingNo } })
 
 export const finishOrder = (id: number) => request.put(`/order/${id}/finish`)
 

@@ -40,8 +40,8 @@ public class OrderController {
 
     @ApiOperation("发货")
     @PutMapping("/{id}/ship")
-    public Result<Void> shipOrder(@PathVariable Long id) {
-        return orderService.shipOrder(SecurityUtil.requireCurrentUserId(), id);
+    public Result<Void> shipOrder(@PathVariable Long id, @RequestParam(required = false) String trackingNo) {
+        return orderService.shipOrder(SecurityUtil.requireCurrentUserId(), id, trackingNo);
     }
 
     @ApiOperation("确认收货")

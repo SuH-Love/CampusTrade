@@ -25,6 +25,7 @@
           <el-descriptions-item label="创建时间">{{ order.createTime }}</el-descriptions-item>
           <el-descriptions-item label="支付时间">{{ order.payTime || '-' }}</el-descriptions-item>
           <el-descriptions-item label="发货时间">{{ order.shipTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item v-if="order.trackingNo" label="物流单号">{{ order.trackingNo }}</el-descriptions-item>
           <el-descriptions-item label="完成时间">{{ order.finishTime || '-' }}</el-descriptions-item>
           <el-descriptions-item v-if="order.cancelTime" label="取消时间">{{ order.cancelTime }}</el-descriptions-item>
           <el-descriptions-item v-if="order.cancelReason" label="取消原因">{{ order.cancelReason }}</el-descriptions-item>
@@ -148,7 +149,13 @@ const handleCancel = async () => {
 }
 
 const handleShip = async () => {
-  await shipOrder(order.value!.id)
+  const { value } = await ElMessageBox.prompt('请输入物流运单号（可选）', '确认发货', {
+    confirmButtonText: '确认发货',
+    cancelButtonText: '取消',
+    inputPlaceholder: '运单号（可留空）'
+  }).catch(() => ({ value: null }))
+  if (value === null) return
+  await shipOrder(order.value!.id, value || undefined)
   ElMessage.success('已发货')
   loadData()
 }
