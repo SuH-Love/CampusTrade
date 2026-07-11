@@ -57,8 +57,6 @@
         </div>
       </div>
 
-      <section class="category-bar">
-
       <section class="announcement-bar" v-if="announcements.length > 0">
         <el-icon style="color: var(--primary); font-size: 18px"><Bell /></el-icon>
         <div class="announcement-scroll">
@@ -67,6 +65,8 @@
           </span>
         </div>
       </section>
+
+      <section class="category-bar">
         <div
           v-for="cat in categories" :key="cat.id"
           class="category-chip"
@@ -355,21 +355,26 @@ onMounted(() => {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
-  margin-top: 24px;
+  margin-top: 20px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #faf5ff, #f5f3ff, #ede9fe);
+  border-radius: var(--radius-lg);
+  border: 1px solid #e0e7ff;
 }
 
 .category-chip {
-  padding: 7px 20px;
-  border-radius: 20px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  padding: 8px 22px;
+  border-radius: 24px;
+  background: rgba(255,255,255,0.85);
+  border: 1px solid #e2e8f0;
   font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: var(--transition);
-  &:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
-  &.active { background: var(--primary-gradient); color: #fff; border-color: transparent; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3); }
+  transition: all 0.25s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  &:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15); }
+  &.active { background: var(--primary-gradient); color: #fff; border-color: transparent; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35); transform: translateY(-2px); }
 }
 
 .goods-card {

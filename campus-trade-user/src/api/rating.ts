@@ -16,6 +16,7 @@ export interface SellerRatingVO {
   sellerId: number
   rating: number
   comment: string
+  goodsTitle: string
   createTime: string
 }
 

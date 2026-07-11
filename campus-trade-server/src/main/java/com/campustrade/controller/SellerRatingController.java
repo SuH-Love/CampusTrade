@@ -6,6 +6,8 @@ import com.campustrade.entity.SellerRating;
 import com.campustrade.entity.User;
 import com.campustrade.mapper.SellerRatingMapper;
 import com.campustrade.mapper.UserMapper;
+import com.campustrade.mapper.OrderItemMapper;
+import com.campustrade.entity.OrderItem;
 import com.campustrade.vo.SellerRatingVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -25,6 +27,8 @@ public class SellerRatingController {
     private SellerRatingMapper sellerRatingMapper;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private OrderItemMapper orderItemMapper;
 
     @ApiOperation("获取商家平均评分")
     @GetMapping("/average/{sellerId}")
@@ -56,6 +60,12 @@ public class SellerRatingController {
             if (buyer != null) {
                 vo.setBuyerName(buyer.getNickname() != null ? buyer.getNickname() : buyer.getUsername());
                 vo.setBuyerAvatar(buyer.getAvatar());
+            }
+            if (r.getOrderId() != null) {
+                List<OrderItem> items = orderItemMapper.selectByOrderId(r.getOrderId());
+                if (items != null && !items.isEmpty()) {
+                    vo.setGoodsTitle(items.get(0).getGoodsTitle());
+                }
             }
             voList.add(vo);
         }

@@ -18,8 +18,8 @@
               <div class="contact-name" @click.stop="$router.push(`/profile/${contact.userId}`)" style="cursor: pointer">{{ contact.name }}</div>
               <div class="contact-last">{{ contact.lastMessage }}</div>
             </div>
-            <el-button size="small" text type="danger" @click.stop="handleBlock(contact)" title="屏蔽" style="flex-shrink: 0">
-              <el-icon><Close /></el-icon>
+            <el-button size="small" type="danger" plain round @click.stop="handleBlock(contact)" title="屏蔽" style="flex-shrink: 0; font-size: 12px">
+              <el-icon style="margin-right: 2px"><Close /></el-icon>屏蔽
             </el-button>
           </div>
         </div>
@@ -51,8 +51,9 @@
                       <div class="goods-card-price" v-if="parseGoodsPrice(msg.content)">¥{{ parseGoodsPrice(msg.content) }}</div>
                     </div>
                   </div>
+                  <div v-else-if="msg.messageType === 4" class="msg-bubble self-bubble recall-bubble"><el-icon style="margin-right: 4px"><RefreshLeft /></el-icon>该消息已撤回</div>
                   <div v-else class="msg-bubble self-bubble">{{ msg.content }}</div>
-                  <el-button v-if="msg.messageType !== 4 && canRecall(msg)" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn">撤回</el-button>
+                  <el-button v-if="msg.messageType !== 4 && canRecall(msg)" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn"><el-icon style="margin-right: 2px"><RefreshLeft /></el-icon>撤回</el-button>
                   <div class="msg-meta">
                     <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
                     <span v-if="msg.isRead" class="msg-read">已读</span>
@@ -79,6 +80,7 @@
                       <div class="goods-card-price" v-if="parseGoodsPrice(msg.content)">¥{{ parseGoodsPrice(msg.content) }}</div>
                     </div>
                   </div>
+                  <div v-else-if="msg.messageType === 4" class="msg-bubble recall-bubble"><el-icon style="margin-right: 4px"><RefreshLeft /></el-icon>该消息已撤回</div>
                   <div v-else class="msg-bubble">{{ msg.content }}</div>
                   <div class="msg-time">{{ formatTime(msg.createTime) }}</div>
                 </div>
@@ -190,6 +192,7 @@ let lastTypingSent = false
 let tempIdCounter = 0
 
 const formatLastMessage = (content: string, messageType?: number) => {
+  if (messageType === 4) return '[消息已撤回]'
   if (messageType === 2) return '[图片]'
   if (messageType === 3) {
     try {
@@ -479,8 +482,9 @@ const scrollToBottom = () => {
   setTimeout(() => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight }, 300)
 }
 
-const canRecall = (msg: ChatMessageVO) => {
-  if (!msg.id || msg.senderId !== myId.value) return false
+const canRecall = (msg: ChatMessageVO & { _tempId?: string }) => {
+  if (msg.senderId !== myId.value) return false
+  if (!msg.id && !msg._tempId) return false
   const diff = Date.now() - new Date(msg.createTime).getTime()
   return diff < 2 * 60 * 1000
 }
@@ -557,17 +561,20 @@ const removeWsHandler = onChatMessage((msg) => {
       if (c) c.unread = 0
     } else {
       const isFromOther = !isFromMe
+      const isRecall = chatMsg.messageType === 4
       const formattedLast = formatLastMessage(chatMsg.content, chatMsg.messageType)
       const idx = contacts.value.findIndex(c => c.userId === partnerId)
       if (idx > -1) {
         contacts.value[idx].lastMessage = formattedLast
-        if (isFromOther) contacts.value[idx].unread = (contacts.value[idx].unread || 0) + 1
+        if (isFromOther && !isRecall) contacts.value[idx].unread = (contacts.value[idx].unread || 0) + 1
         if (idx > 0) {
           const contact = contacts.value.splice(idx, 1)[0]
           contacts.value.unshift(contact)
         }
-      } else if (isFromOther) {
+      } else if (isFromOther && !isRecall) {
         contacts.value.unshift({ userId: partnerId, name: partnerName, avatar: partnerAvatar, lastMessage: formattedLast, unread: 1 })
+      } else if (isFromOther && isRecall) {
+        contacts.value.unshift({ userId: partnerId, name: partnerName, avatar: partnerAvatar, lastMessage: formattedLast, unread: 0 })
       }
     }
 
@@ -694,6 +701,7 @@ onUnmounted(() => {
 .msg-wrap.self-wrap { display: flex; flex-direction: column; align-items: flex-end; }
 .msg-bubble { background: #f1f5f9; padding: 10px 16px; border-radius: 16px 16px 16px 4px; word-break: break-all; font-size: 14px; line-height: 1.6; }
 .self-bubble { background: var(--primary-gradient); color: #fff; border-radius: 16px 16px 4px 16px; }
+.recall-bubble { background: #f1f5f9 !important; color: #94a3b8 !important; font-size: 12px !important; font-style: italic; display: flex; align-items: center; border-radius: 12px !important; }
 .img-bubble { padding: 4px !important; background: transparent !important; }
 .chat-img { max-width: 200px; max-height: 200px; border-radius: 12px; cursor: pointer; }
 .goods-bubble { cursor: pointer; display: flex; align-items: center; gap: 6px; &:hover { opacity: 0.85; } }

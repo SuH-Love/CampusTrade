@@ -90,17 +90,18 @@
                </div>
              </div>
              <div class="review-list" v-if="reviewList.length > 0">
-               <div v-for="r in reviewList" :key="r.id" class="review-item">
-                 <el-avatar :size="36" :src="r.buyerAvatar || '/default-avatar.svg'" />
-                 <div class="review-body">
-                   <div class="review-header">
-                     <span class="reviewer-name">{{ r.buyerName }}</span>
-                     <el-rate :model-value="r.rating" disabled size="small" />
-                     <span class="review-time">{{ formatReviewTime(r.createTime) }}</span>
-                   </div>
-                   <div class="review-comment" v-if="r.comment">{{ r.comment }}</div>
-                 </div>
-               </div>
+                <div v-for="r in reviewList" :key="r.id" class="review-item">
+                  <el-avatar :size="36" :src="r.buyerAvatar || '/default-avatar.svg'" />
+                  <div class="review-body">
+                    <div class="review-header">
+                      <span class="reviewer-name">{{ r.buyerName }}</span>
+                      <span v-if="r.goodsTitle" class="review-goods">购买了「{{ r.goodsTitle }}」</span>
+                      <el-rate :model-value="r.rating" disabled size="small" />
+                      <span class="review-time">{{ formatReviewTime(r.createTime) }}</span>
+                    </div>
+                    <div class="review-comment" v-if="r.comment">{{ r.comment }}</div>
+                  </div>
+                </div>
                <div class="review-pagination" v-if="ratingTotal > reviewPageSize">
                  <el-pagination
                    v-model:current-page="reviewPage"
@@ -343,11 +344,31 @@ const handleReport = () => { router.push({ path: '/report', query: { targetType:
 const handleShare = () => {
   if (!goods.value) return
   const text = `【${goods.value.title}】仅需 ¥${goods.value.price}！快来看看这个校园好物 → ${window.location.href}`
-  navigator.clipboard.writeText(text).then(() => {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => {
+      ElMessage.success('分享链接已复制到剪贴板')
+    }).catch(() => {
+      fallbackCopy(text)
+    })
+  } else {
+    fallbackCopy(text)
+  }
+}
+
+const fallbackCopy = (text: string) => {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  try {
+    document.execCommand('copy')
     ElMessage.success('分享链接已复制到剪贴板')
-  }).catch(() => {
-    ElMessage.success('分享：' + window.location.href)
-  })
+  } catch {
+    ElMessage.info('请手动复制分享链接')
+  }
+  document.body.removeChild(textarea)
 }
 
 const handleAddToCart = async () => {
@@ -544,6 +565,7 @@ onMounted(loadData)
   gap: 8px;
   margin-bottom: 6px;
   .reviewer-name { font-weight: 600; font-size: 14px; }
+  .review-goods { font-size: 12px; color: var(--primary); background: var(--primary-lighter); padding: 1px 8px; border-radius: 10px; }
   .review-time { font-size: 12px; color: var(--text-muted); margin-left: auto; }
 }
 .review-comment { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }

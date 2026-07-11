@@ -14,5 +14,6 @@ public class SellerRatingVO {
     private Long sellerId;
     private Integer rating;
     private String comment;
+    private String goodsTitle;
     private LocalDateTime createTime;
 }

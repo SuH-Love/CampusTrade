@@ -67,7 +67,8 @@ const moduleLabel = (module: string) => {
     UserFollow: '关注', DeliveryAddress: '收货地址', Cart: '购物车',
     SellerRating: '商家评价', NotificationPreference: '通知偏好',
     Banner: '横幅', OrderItem: '订单项', GoodsFavorite: '商品收藏',
-    OperationLog: '操作日志', SecurityLog: '安全日志'
+    OperationLog: '操作日志', SecurityLog: '安全日志',
+    Announcement: '系统公告', UserBlacklist: '黑名单'
   }
   return map[module] || module
 }
@@ -105,7 +106,12 @@ const operationLabel = (op: string) => {
     listAll: '分类列表', deleteImage: '删除图片', uploadImage: '上传图片',
     toggleFollow: '关注/取关', isFollowing: '是否关注', getFollowCounts: '关注数',
     listFollowing: '关注列表', listFollowers: '粉丝列表',
-    getAverageRating: '卖家评分'
+    getAverageRating: '卖家评分',
+    blockUser: '屏蔽用户', unblockUser: '取消屏蔽', getBlacklist: '黑名单列表', isBlocked: '是否已屏蔽',
+    getActiveAnnouncements: '获取公告', createAnnouncement: '创建公告', updateAnnouncement: '编辑公告', deleteAnnouncement: '删除公告',
+    exportUsers: '导出用户CSV', exportOrders: '导出订单CSV',
+    recallMessage: '撤回消息', resetPassword: '重置密码',
+    createCategory: '创建分类', updateCategory: '编辑分类', deleteCategory: '删除分类'
   }
   return map[op] || op
 }
