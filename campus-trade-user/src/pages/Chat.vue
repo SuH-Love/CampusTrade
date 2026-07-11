@@ -195,9 +195,12 @@ const markRecallable = (msg: DisplayMessage) => {
   if (msg.senderId !== myId.value || msg.messageType === 4) return
   const elapsed = Date.now() - new Date(msg.createTime).getTime()
   if (elapsed >= 2 * 60 * 1000) return
-  msg.recallable = true
-  const remain = 2 * 60 * 1000 - elapsed
-  setTimeout(() => { msg.recallable = false }, remain)
+  const idx = messages.value.findIndex(m => (m.id !== 0 && m.id === msg.id) || (m._tempId && m._tempId === msg._tempId))
+  if (idx > -1) {
+    messages.value[idx].recallable = true
+    const remain = 2 * 60 * 1000 - elapsed
+    setTimeout(() => { if (messages.value[idx]) messages.value[idx].recallable = false }, remain)
+  }
 }
 
 const formatLastMessage = (content: string, messageType?: number) => {
@@ -285,6 +288,7 @@ const handleSend = async () => {
     content,
     messageType: 1,
     isRead: 0,
+    recallable: true,
     createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
     senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
     senderAvatar: userStore.userInfo?.avatar || '',
@@ -292,7 +296,6 @@ const handleSend = async () => {
     receiverAvatar: ''
   }
   messages.value.push(tempMsg)
-  markRecallable(tempMsg)
   inputText.value = ''
   nextTick(scrollToBottom)
 
@@ -365,14 +368,13 @@ const handleImageSelect = async (uploadFile: { raw?: File }) => {
     const tempMsg: DisplayMessage = {
       id: 0, _tempId: `temp_${++tempIdCounter}`,
       senderId: myId.value || 0, receiverId: targetId,
-      content: url, messageType: 2, isRead: 0,
+      content: url, messageType: 2, isRead: 0, recallable: true,
       createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
       senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
       senderAvatar: userStore.userInfo?.avatar || '',
       receiverName: currentContactName.value, receiverAvatar: ''
     }
     messages.value.push(tempMsg)
-    markRecallable(tempMsg)
     nextTick(scrollToBottom)
     sendChat(targetId, url, 2)
     updateContactLastMessage(targetId, url, 2)
@@ -446,14 +448,13 @@ const confirmSendOrder = (order: OrderVO) => {
   const tempMsg: DisplayMessage = {
     id: 0, _tempId: `temp_${++tempIdCounter}`,
     senderId: myId.value || 0, receiverId: currentTarget.value,
-    content, messageType: 3, isRead: 0,
+    content, messageType: 3, isRead: 0, recallable: true,
     createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
     senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
     senderAvatar: userStore.userInfo?.avatar || '',
     receiverName: currentContactName.value, receiverAvatar: ''
   }
   messages.value.push(tempMsg)
-  markRecallable(tempMsg)
   nextTick(scrollToBottom)
   updateContactLastMessage(currentTarget.value, content, 3)
 }
@@ -476,14 +477,13 @@ const confirmSendGoods = (g: GoodsVO) => {
   const tempMsg: DisplayMessage = {
     id: 0, _tempId: `temp_${++tempIdCounter}`,
     senderId: myId.value || 0, receiverId: currentTarget.value,
-    content, messageType: 3, isRead: 0,
+    content, messageType: 3, isRead: 0, recallable: true,
     createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
     senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
     senderAvatar: userStore.userInfo?.avatar || '',
     receiverName: currentContactName.value, receiverAvatar: ''
   }
   messages.value.push(tempMsg)
-  markRecallable(tempMsg)
   nextTick(scrollToBottom)
   updateContactLastMessage(currentTarget.value, content, 3)
 }
@@ -506,9 +506,12 @@ const handleRecall = async (msg: DisplayMessage) => {
   }
   try {
     await recallMessage(msg.id)
-    msg.content = '该消息已撤回'
-    msg.messageType = 4
-    msg.recallable = false
+    const idx = messages.value.findIndex(m => m.id === msg.id)
+    if (idx > -1) {
+      messages.value[idx].content = '该消息已撤回'
+      messages.value[idx].messageType = 4
+      messages.value[idx].recallable = false
+    }
     updateContactLastMessage(currentTarget.value || msg.receiverId, '该消息已撤回', 4)
     ElMessage.success('已撤回')
   } catch (e) { console.error(e) }
@@ -667,14 +670,13 @@ onMounted(async () => {
         const tempMsg: DisplayMessage = {
           id: 0, _tempId: `temp_${++tempIdCounter}`,
           senderId: myId.value || 0, receiverId: queryTarget,
-          content, messageType: 3, isRead: 0,
+          content, messageType: 3, isRead: 0, recallable: true,
           createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
           senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
           senderAvatar: userStore.userInfo?.avatar || '',
           receiverName: currentContactName.value, receiverAvatar: ''
         }
         messages.value.push(tempMsg)
-        markRecallable(tempMsg)
         await nextTick()
         scrollToBottom()
         updateContactLastMessage(queryTarget, content, 3)
