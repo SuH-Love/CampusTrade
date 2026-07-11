@@ -489,12 +489,18 @@ const canRecall = (msg: ChatMessageVO & { _tempId?: string }) => {
   return diff < 2 * 60 * 1000
 }
 
-const handleRecall = async (msg: ChatMessageVO) => {
-  if (!msg.id) return
+const handleRecall = async (msg: DisplayMessage) => {
+  if (!msg.id && !msg._tempId) return
+  if (!msg.id) {
+    const found = messages.value.find(m => m._tempId === msg._tempId && m.id && m.id !== 0)
+    if (found) msg = found
+    else { ElMessage.warning('消息发送中，请稍后撤回'); return }
+  }
   try {
     await recallMessage(msg.id)
     msg.content = '该消息已撤回'
     msg.messageType = 4
+    updateContactLastMessage(currentTarget.value || msg.receiverId, '该消息已撤回', 4)
     ElMessage.success('已撤回')
   } catch (e) { console.error(e) }
 }
@@ -540,25 +546,35 @@ const removeWsHandler = onChatMessage((msg) => {
     const partnerAvatar = isFromMe ? (chatMsg.receiverAvatar || '') : (chatMsg.senderAvatar || '')
 
     if (currentTarget.value === partnerId) {
-      const tempIdx = messages.value.findIndex(m =>
-        m._tempId && m.senderId === chatMsg.senderId && m.receiverId === chatMsg.receiverId && m.content === chatMsg.content
-      )
-      if (tempIdx > -1) {
-        messages.value[tempIdx] = { ...chatMsg } as DisplayMessage
-      } else {
-        const exists = messages.value.some(m => m.id !== 0 && m.id === chatMsg.id)
-        if (!exists) {
-          messages.value.push(chatMsg as DisplayMessage)
+      if (chatMsg.messageType === 4) {
+        const recallTarget = messages.value.find(m => m.id !== 0 && m.id === chatMsg.id)
+        if (recallTarget) {
+          recallTarget.content = '该消息已撤回'
+          recallTarget.messageType = 4
         }
+        updateContactLastMessage(partnerId, '该消息已撤回', 4)
+        const c = contacts.value.find(c => c.userId === partnerId)
+        if (c && !isFromMe) c.unread = Math.max(0, (c.unread || 0) - 1)
+      } else {
+        const tempIdx = messages.value.findIndex(m =>
+          m._tempId && m.senderId === chatMsg.senderId && m.receiverId === chatMsg.receiverId && m.content === chatMsg.content
+        )
+        if (tempIdx > -1) {
+          messages.value[tempIdx] = { ...chatMsg } as DisplayMessage
+        } else {
+          const exists = messages.value.some(m => m.id !== 0 && m.id === chatMsg.id)
+          if (!exists) {
+            messages.value.push(chatMsg as DisplayMessage)
+          }
+        }
+        nextTick(scrollToBottom)
+        if (!isFromMe) {
+          sendRead(partnerId)
+        }
+        updateContactLastMessage(partnerId, chatMsg.content, chatMsg.messageType)
+        const c = contacts.value.find(c => c.userId === partnerId)
+        if (c) c.unread = 0
       }
-      nextTick(scrollToBottom)
-
-      if (!isFromMe) {
-        sendRead(partnerId)
-      }
-      updateContactLastMessage(partnerId, chatMsg.content, chatMsg.messageType)
-      const c = contacts.value.find(c => c.userId === partnerId)
-      if (c) c.unread = 0
     } else {
       const isFromOther = !isFromMe
       const isRecall = chatMsg.messageType === 4

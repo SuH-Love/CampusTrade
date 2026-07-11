@@ -166,6 +166,10 @@
           </el-form>
         </div>
       </template>
+      <div style="margin-top: 12px">
+        <span style="margin-right: 12px; font-size: 14px">订单备注：</span>
+        <el-input v-model="buyRemark" placeholder="选填，如特殊要求等" size="small" style="width: 100%; margin-top: 4px" />
+      </div>
     </div>
     <template #footer>
       <el-button @click="buyDialogVisible = false">取消</el-button>
@@ -216,6 +220,7 @@ const buySelectedAddressId = ref<number | null>(null)
 const buyShowAddAddr = ref(false)
 const buyAddrSaving = ref(false)
 const buyAreaValue = ref<string[]>([])
+const buyRemark = ref('')
 const buyAddrForm = reactive({ receiverName: '', receiverPhone: '', province: '', city: '', district: '', detailAddress: '', isDefault: 0 })
 
 const imageList = computed(() => {
@@ -264,6 +269,7 @@ const handleBuy = async () => {
   buySelectedAddressId.value = null
   buyShowAddAddr.value = false
   buyAreaValue.value = []
+  buyRemark.value = ''
   buyAddrForm.receiverName = ''; buyAddrForm.receiverPhone = ''; buyAddrForm.province = ''; buyAddrForm.city = ''; buyAddrForm.district = ''; buyAddrForm.detailAddress = ''
   try { buyAddressList.value = await getAddressList() } catch (e) { console.error(e) }
   buyDialogVisible.value = true
@@ -298,6 +304,7 @@ const handleConfirmBuy = async () => {
   buying.value = true
   try {
     const data: { goodsId: number; quantity: number; remark?: string; deliveryMethod?: string; deliveryAddress?: string } = { goodsId: goods.value.id, quantity: buyQuantity.value }
+    if (buyRemark.value.trim()) data.remark = buyRemark.value.trim()
     if (buyDeliveryMethod.value === 'DELIVERY') {
       data.deliveryMethod = 'DELIVERY'
       const addr = buyAddressList.value.find(a => a.id === buySelectedAddressId.value)

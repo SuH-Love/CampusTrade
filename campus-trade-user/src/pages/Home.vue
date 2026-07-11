@@ -26,54 +26,55 @@
     </section>
 
     <div class="home-content">
-      <div class="search-section">
-        <el-input
-          v-model="searchKeyword"
-          placeholder="搜索你想要的宝贝..."
-          size="large"
-          clearable
-          prefix-icon="Search"
-          @keyup.enter="handleSearch"
-          @focus="showSearchDropdown = true"
-          @blur="hideSearchDropdown"
-          class="search-input"
-        />
-        <div class="search-dropdown" v-if="showSearchDropdown && (searchHistory.length > 0 || hotKeywords.length > 0)">
-          <div class="search-dropdown-section" v-if="searchHistory.length > 0">
-            <div class="search-dropdown-header">
-              <span>搜索历史</span>
-              <el-button link type="info" size="small" @click="clearSearchHistory">清空</el-button>
+      <div class="top-bar">
+        <div class="search-section">
+          <el-input
+            v-model="searchKeyword"
+            placeholder="搜索你想要的宝贝..."
+            size="default"
+            clearable
+            prefix-icon="Search"
+            @keyup.enter="handleSearch"
+            @focus="showSearchDropdown = true"
+            @blur="hideSearchDropdown"
+            class="search-input"
+          />
+          <div class="search-dropdown" v-if="showSearchDropdown && (searchHistory.length > 0 || hotKeywords.length > 0)">
+            <div class="search-dropdown-section" v-if="searchHistory.length > 0">
+              <div class="search-dropdown-header">
+                <span>搜索历史</span>
+                <el-button link type="info" size="small" @click="clearSearchHistory">清空</el-button>
+              </div>
+              <div class="search-tags">
+                <el-tag v-for="(kw, idx) in searchHistory" :key="idx" size="small" round effect="plain" @mousedown.prevent="searchFromHistory(kw)" style="cursor: pointer">{{ kw }}</el-tag>
+              </div>
             </div>
-            <div class="search-tags">
-              <el-tag v-for="(kw, idx) in searchHistory" :key="idx" size="small" round effect="plain" @mousedown.prevent="searchFromHistory(kw)" style="cursor: pointer">{{ kw }}</el-tag>
-            </div>
-          </div>
-          <div class="search-dropdown-section" v-if="hotKeywords.length > 0">
-            <div class="search-dropdown-header"><span>热门搜索</span></div>
-            <div class="search-tags">
-              <el-tag v-for="(kw, idx) in hotKeywords" :key="idx" size="small" round type="danger" effect="plain" @mousedown.prevent="searchFromHistory(kw)" style="cursor: pointer">{{ kw }}</el-tag>
+            <div class="search-dropdown-section" v-if="hotKeywords.length > 0">
+              <div class="search-dropdown-header"><span>智能推荐</span></div>
+              <div class="search-tags">
+                <el-tag v-for="(kw, idx) in hotKeywords" :key="idx" size="small" round type="danger" effect="plain" @mousedown.prevent="searchFromHistory(kw)" style="cursor: pointer">{{ kw }}</el-tag>
+              </div>
             </div>
           </div>
         </div>
+        <div class="category-bar">
+          <div
+            v-for="cat in categories" :key="cat.id"
+            class="category-chip"
+            :class="{ active: selectedCategoryId === cat.id }"
+            @click="toggleCategory(cat.id)"
+          >{{ cat.categoryName }}</div>
+        </div>
       </div>
 
-      <section class="announcement-bar" v-if="announcements.length > 0">
-        <el-icon style="color: var(--primary); font-size: 18px"><Bell /></el-icon>
+      <div class="announcement-bar" v-if="announcements.length > 0">
+        <el-icon style="color: var(--primary); font-size: 16px; flex-shrink: 0"><Bell /></el-icon>
         <div class="announcement-scroll">
           <span v-for="(a, idx) in announcements" :key="a.id" class="announcement-item">
             <strong>{{ a.title }}</strong>：{{ a.content }}<span v-if="idx < announcements.length - 1" class="announcement-divider">|</span>
           </span>
         </div>
-      </section>
-
-      <section class="category-bar">
-        <div
-          v-for="cat in categories" :key="cat.id"
-          class="category-chip"
-          :class="{ active: selectedCategoryId === cat.id }"
-          @click="toggleCategory(cat.id)"
-        >{{ cat.categoryName }}</div>
-      </section>
+      </div>
 
       <section style="margin-top: 32px">
         <h3 class="section-title">热门商品</h3>
@@ -158,7 +159,7 @@ const selectedCategoryId = ref<number | undefined>(undefined)
 const searchKeyword = ref('')
 const showSearchDropdown = ref(false)
 const searchHistory = ref<string[]>([])
-const hotKeywords = ref<string[]>(['教材', '手机', '自行车', '电脑', '耳机', '台灯'])
+const hotKeywords = ref<string[]>([])
 const announcements = ref<AnnouncementVO[]>([])
 
 const handleSearch = () => {
@@ -219,6 +220,18 @@ const loadHotGoods = async () => {
     let list = res.list || []
     if (selectedCategoryId.value) list = list.filter((g: GoodsVO) => g.categoryId === selectedCategoryId.value)
     hotGoods.value = list.slice(0, 8)
+    if (hotKeywords.value.length === 0) {
+      const titles = list.map((g: GoodsVO) => g.title).filter(Boolean)
+      const words: Record<string, number> = {}
+      const stopWords = new Set(['的', '了', '是', '在', '和', '与', '及', '等', '可', '用', '有', '无', '不', '很', '都', '还', '就', '要', '会', '对', '中', '为', '到', '把', '被', '让', '给', '从', '上', '下', '出', '入', '个', '只', '这', '那', '我', '你', '他', '她', '它'])
+      titles.forEach(t => {
+        t.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, ' ').split(/\s+/).forEach(w => {
+          if (w.length >= 2 && w.length <= 6 && !stopWords.has(w)) words[w] = (words[w] || 0) + 1
+        })
+      })
+      hotKeywords.value = Object.entries(words).sort((a, b) => b[1] - a[1]).slice(0, 8).map(e => e[0])
+      if (hotKeywords.value.length < 4) hotKeywords.value = [...hotKeywords.value, '教材', '手机', '电脑', '耳机', '自行车', '台灯'].slice(0, 6)
+    }
   } catch (e) { console.error(e) }
 }
 
@@ -291,19 +304,25 @@ onMounted(() => {
   box-shadow: var(--shadow-sm);
   margin: 24px 24px 0;
   max-width: 100%;
-  padding: 24px;
+  padding: 20px;
+}
+
+.top-bar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
 }
 
 .search-section {
   position: relative;
-  max-width: 600px;
-  margin: 0 auto;
+  width: 320px;
+  flex-shrink: 0;
 }
 .search-input {
   :deep(.el-input__wrapper) {
-    border-radius: 24px;
-    box-shadow: 0 2px 12px rgba(99,102,241,0.12);
-    padding: 4px 20px;
+    border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.08);
+    padding: 2px 16px;
   }
 }
 .search-dropdown {
@@ -312,32 +331,32 @@ onMounted(() => {
   left: 0;
   right: 0;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
   z-index: 100;
-  padding: 12px 16px;
+  padding: 10px 14px;
   margin-top: 4px;
 }
-.search-dropdown-section { margin-bottom: 12px; &:last-child { margin-bottom: 0; } }
+.search-dropdown-section { margin-bottom: 8px; &:last-child { margin-bottom: 0; } }
 .search-dropdown-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   font-weight: 600;
 }
-.search-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.search-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 
 .announcement-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  margin-top: 16px;
+  gap: 8px;
+  padding: 6px 14px;
+  margin-top: 12px;
   background: linear-gradient(135deg, #f5f3ff, #ede9fe);
-  border-radius: var(--radius-md);
+  border-radius: 8px;
   border: 1px solid #e0e7ff;
   overflow: hidden;
 }
@@ -345,7 +364,7 @@ onMounted(() => {
   flex: 1;
   overflow: hidden;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 .announcement-item { margin-right: 4px; }
@@ -353,28 +372,24 @@ onMounted(() => {
 
 .category-bar {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
-  margin-top: 20px;
-  padding: 16px 20px;
-  background: linear-gradient(135deg, #faf5ff, #f5f3ff, #ede9fe);
-  border-radius: var(--radius-lg);
-  border: 1px solid #e0e7ff;
+  flex: 1;
 }
 
 .category-chip {
-  padding: 8px 22px;
-  border-radius: 24px;
+  padding: 5px 16px;
+  border-radius: 20px;
   background: rgba(255,255,255,0.85);
   border: 1px solid #e2e8f0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.25s ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  &:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15); }
-  &.active { background: var(--primary-gradient); color: #fff; border-color: transparent; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35); transform: translateY(-2px); }
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  &:hover { border-color: var(--primary); color: var(--primary); }
+  &.active { background: var(--primary-gradient); color: #fff; border-color: transparent; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3); }
 }
 
 .goods-card {
