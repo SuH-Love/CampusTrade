@@ -185,7 +185,7 @@ const isFollowed = ref(false)
 const followLoading = ref(false)
 const goodsList = ref<GoodsVO[]>([])
 const goodsLoading = ref(false)
-const stats = ref<UserStatsVO>({ publishedGoods: 0, onlineGoods: 0, buyerOrders: 0, sellerOrders: 0, finishedOrders: 0 })
+const stats = ref<UserStatsVO>({ publishedGoods: 0, onlineGoods: 0, buyerOrders: 0, sellerOrders: 0, finishedOrders: 0, totalSpent: 0, totalEarned: 0 })
 const selfFollowCounts = ref<{ following: number; followers: number }>({ following: 0, followers: 0 })
 const selfAvgRating = ref(0)
 

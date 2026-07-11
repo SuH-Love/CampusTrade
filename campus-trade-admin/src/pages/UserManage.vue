@@ -90,6 +90,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getUserList, banUser, unbanUser } from '@/api/admin'
+import request from '@/utils/request'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { AdminUserVO, PageQueryParams } from '@/types'
 
@@ -140,7 +141,15 @@ const handleUnban = async (id: number) => {
 
 onMounted(loadData)
 
-const handleExportUsers = () => {
-  window.open('/api/admin/export/users', '_blank')
+const handleExportUsers = async () => {
+  try {
+    const res = await request.get('/admin/export/users', { responseType: 'blob' })
+    const url = window.URL.createObjectURL(new Blob([res], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'users.csv'
+    link.click()
+    window.URL.revokeObjectURL(url)
+  } catch (e) { console.error(e) }
 }
 </script>

@@ -89,6 +89,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getOrderList, approveRefund, rejectRefund } from '@/api/admin'
+import request from '@/utils/request'
 import type { AdminOrderVO, PageQueryParams } from '@/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -147,8 +148,16 @@ const showDetail = (row: AdminOrderVO) => {
   detailVisible.value = true
 }
 
-const handleExportOrders = () => {
-  window.open('/api/admin/export/orders', '_blank')
+const handleExportOrders = async () => {
+  try {
+    const res = await request.get('/admin/export/orders', { responseType: 'blob' })
+    const url = window.URL.createObjectURL(new Blob([res], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'orders.csv'
+    link.click()
+    window.URL.revokeObjectURL(url)
+  } catch (e) { console.error(e) }
 }
 </script>
 

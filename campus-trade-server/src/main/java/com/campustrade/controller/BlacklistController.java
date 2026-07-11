@@ -34,10 +34,14 @@ public class BlacklistController {
         if (userId.equals(blockedId)) return Result.error(400, "不能屏蔽自己");
         UserBlacklist existing = blacklistMapper.selectByUserAndBlocked(userId, blockedId);
         if (existing != null) return Result.error(400, "已屏蔽该用户");
-        UserBlacklist bl = new UserBlacklist();
-        bl.setUserId(userId);
-        bl.setBlockedId(blockedId);
-        blacklistMapper.insert(bl);
+        try {
+            UserBlacklist bl = new UserBlacklist();
+            bl.setUserId(userId);
+            bl.setBlockedId(blockedId);
+            blacklistMapper.insert(bl);
+        } catch (Exception e) {
+            blacklistMapper.restoreByUserAndBlocked(userId, blockedId);
+        }
         return Result.success();
     }
 

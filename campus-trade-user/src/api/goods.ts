@@ -21,6 +21,7 @@ export interface GoodsVO {
   stock: number
   isFavorited: boolean
   sellerRealVerified: number
+  rejectReason: string | null
   createTime: string
 }
 

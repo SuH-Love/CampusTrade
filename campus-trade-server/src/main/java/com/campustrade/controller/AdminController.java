@@ -36,9 +36,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Api(tags = "管理员接口")
@@ -235,17 +239,18 @@ public class AdminController {
 
     @ApiOperation("导出用户CSV")
     @GetMapping("/export/users")
-    public void exportUsers(javax.servlet.http.HttpServletResponse response) throws java.io.IOException {
+    public void exportUsers(HttpServletResponse response) throws IOException {
         response.setContentType("text/csv;charset=utf-8");
         response.setHeader("Content-Disposition", "attachment;filename=users.csv");
-        java.io.PrintWriter writer = response.getWriter();
+        PrintWriter writer = response.getWriter();
+        writer.write('\uFEFF');
         writer.println("ID,用户名,昵称,手机号,邮箱,状态,注册时间");
-        List<com.campustrade.entity.User> users = userMapper.selectList(null, null, 0, 10000);
-        for (com.campustrade.entity.User u : users) {
-            writer.println(u.getId() + "," + u.getUsername() + "," +
-                (u.getNickname() != null ? u.getNickname() : "") + "," +
-                (u.getPhone() != null ? u.getPhone() : "") + "," +
-                (u.getEmail() != null ? u.getEmail() : "") + "," +
+        List<User> users = userMapper.selectList(null, null, 0, 10000);
+        for (User u : users) {
+            writer.println(u.getId() + "," + csvEscape(u.getUsername()) + "," +
+                csvEscape(u.getNickname()) + "," +
+                csvEscape(u.getPhone()) + "," +
+                csvEscape(u.getEmail()) + "," +
                 (u.getStatus() != null ? u.getStatus() : "") + "," +
                 (u.getCreateTime() != null ? u.getCreateTime() : ""));
         }
@@ -254,10 +259,11 @@ public class AdminController {
 
     @ApiOperation("导出订单CSV")
     @GetMapping("/export/orders")
-    public void exportOrders(javax.servlet.http.HttpServletResponse response) throws java.io.IOException {
+    public void exportOrders(HttpServletResponse response) throws IOException {
         response.setContentType("text/csv;charset=utf-8");
         response.setHeader("Content-Disposition", "attachment;filename=orders.csv");
-        java.io.PrintWriter writer = response.getWriter();
+        PrintWriter writer = response.getWriter();
+        writer.write('\uFEFF');
         writer.println("ID,订单号,买家ID,卖家ID,金额,状态,创建时间");
         List<com.campustrade.entity.Order> orders = orderMapper.selectAll(null, 0, 10000);
         for (com.campustrade.entity.Order o : orders) {
@@ -267,5 +273,14 @@ public class AdminController {
                 (o.getCreateTime() != null ? o.getCreateTime() : ""));
         }
         writer.flush();
+    }
+
+    private String csvEscape(String value) {
+        if (value == null) return "";
+        if (value.contains(",") || value.contains("\"") || value.contains("\n") ||
+            value.startsWith("=") || value.startsWith("+") || value.startsWith("-") || value.startsWith("@")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
     }
 }

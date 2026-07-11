@@ -51,9 +51,12 @@ export interface AdminOrderVO {
   sellerName: string
   totalAmount: number
   status: string
-  deliveryMethod: string
+  deliveryMethod: number
+  address: string | null
+  cancelReason: string | null
   remark: string
   createTime: string
+  payTime: string | null
 }
 
 export interface AdminReportVO {

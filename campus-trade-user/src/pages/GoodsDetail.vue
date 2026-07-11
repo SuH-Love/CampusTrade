@@ -241,14 +241,14 @@ const statusTagType = (status: string) => {
 const loadData = async () => {
   goods.value = await getGoodsDetail(Number(route.params.id))
   if (goods.value && userStore.token && goods.value.userId !== userStore.userInfo?.id) {
-    try { isFollowed.value = await isFollowing(goods.value.userId) } catch { /* ignore */ }
-    try { sellerRating.value = await getAverageRating(goods.value.userId) } catch { /* ignore */ }
+    try { isFollowed.value = await isFollowing(goods.value.userId) } catch (e) { console.error(e) }
+    try { sellerRating.value = await getAverageRating(goods.value.userId) } catch (e) { console.error(e) }
   }
   if (goods.value && userStore.token) {
     try {
       const cartList = await getCartList()
       isInCart.value = cartList ? cartList.some((c: CartVO) => c.goodsId === goods.value!.id) : false
-    } catch { /* ignore */ }
+    } catch (e) { console.error(e) }
   }
   if (goods.value) {
     try { ratingDist.value = await getRatingDistribution(goods.value.userId) } catch (e) { console.error(e) }
@@ -322,7 +322,7 @@ const handleFavorite = async () => {
     } else {
       await favoriteGoods(goods.value.id); goods.value.isFavorited = true; goods.value.favoriteCount++; ElMessage.success('已收藏')
     }
-  } catch { /* ignore */ } finally { favoriting.value = false }
+  } catch (e) { console.error(e) } finally { favoriting.value = false }
 }
 
 const handleChat = () => {

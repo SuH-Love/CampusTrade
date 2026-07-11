@@ -12,4 +12,5 @@ public interface UserBlacklistMapper {
     List<UserBlacklist> selectByUserId(@Param("userId") Long userId);
     int insert(UserBlacklist blacklist);
     int deleteById(@Param("id") Long id);
+    int restoreByUserAndBlocked(@Param("userId") Long userId, @Param("blockedId") Long blockedId);
 }

@@ -40,6 +40,8 @@ export interface UserStatsVO {
   buyerOrders: number
   sellerOrders: number
   finishedOrders: number
+  totalSpent: number
+  totalEarned: number
 }
 
 export const getUserStats = () => request.get<never, UserStatsVO>('/user/stats')

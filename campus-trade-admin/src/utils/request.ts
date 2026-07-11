@@ -28,6 +28,7 @@ service.interceptors.request.use(
 
 service.interceptors.response.use(
   (response: AxiosResponse) => {
+    if (response.config.responseType === 'blob') return response.data
     const { code, message, data } = response.data
     if (code === 200) return data
     ElMessage.error(message || '请求失败')

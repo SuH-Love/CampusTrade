@@ -20,7 +20,10 @@
         INSERT INTO t_user_blacklist (user_id, blocked_id, create_time, update_time, deleted, version)
         VALUES (#{userId}, #{blockedId}, NOW(), NOW(), 0, 0)
     </insert>
-    <delete id="deleteById">
-        DELETE FROM t_user_blacklist WHERE id = #{id}
-    </delete>
+    <update id="deleteById">
+        UPDATE t_user_blacklist SET deleted = 1, update_time = NOW() WHERE id = #{id}
+    </update>
+    <update id="restoreByUserAndBlocked">
+        UPDATE t_user_blacklist SET deleted = 0, update_time = NOW() WHERE user_id = #{userId} AND blocked_id = #{blockedId} AND deleted = 1
+    </update>
 </mapper>

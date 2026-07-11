@@ -11,6 +11,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.util.Set;
+
 @Slf4j
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -252,13 +254,17 @@ public class DataInitializer implements CommandLineRunner {
                 "deleted TINYINT DEFAULT 0," +
                 "version INT DEFAULT 0," +
                 "KEY idx_user_id (user_id)," +
-                "KEY idx_blocked_id (blocked_id)" +
+                "KEY idx_blocked_id (blocked_id)," +
+                "UNIQUE KEY uk_user_blocked (user_id, blocked_id)" +
                 ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
             );
             log.info("t_user_blacklist table ready");
         } catch (Exception e) {
             log.warn("Create t_user_blacklist table failed: {}", e.getMessage());
         }
+        try {
+            jdbcTemplate.execute("ALTER TABLE t_user_blacklist ADD UNIQUE KEY uk_user_blocked (user_id, blocked_id)");
+        } catch (Exception ignored) {}
     }
 
     private void alterBannerTableAddColumn(String column, String definition) {
@@ -341,10 +347,14 @@ public class DataInitializer implements CommandLineRunner {
                 "deleted TINYINT DEFAULT 0," +
                 "version INT DEFAULT 0," +
                 "KEY idx_follower_id (follower_id)," +
-                "KEY idx_following_id (following_id)" +
+                "KEY idx_following_id (following_id)," +
+                "UNIQUE KEY uk_follower_following (follower_id, following_id)" +
                 ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
             );
         } catch (Exception e) { log.warn("Create t_user_follow failed: {}", e.getMessage()); }
+        try {
+            jdbcTemplate.execute("ALTER TABLE t_user_follow ADD UNIQUE KEY uk_follower_following (follower_id, following_id)");
+        } catch (Exception ignored) {}
     }
 
     private void createNotificationPreferenceTableIfNeeded() {
@@ -409,7 +419,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private void clearPermissionCache() {
         try {
-            var keys = redisTemplate.keys("permissions:*");
+            Set<String> keys = redisTemplate.keys("permissions:*");
             if (keys != null && !keys.isEmpty()) redisTemplate.delete(keys);
         } catch (Exception ignored) {}
     }

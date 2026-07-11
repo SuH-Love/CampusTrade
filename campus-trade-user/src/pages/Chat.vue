@@ -154,7 +154,7 @@ import { useChatWs } from '@/composables/useChatWs'
 import type { ChatMessageVO } from '@/api/chat'
 import type { ContactVO } from '@/types'
 
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 interface DisplayMessage extends ChatMessageVO { _tempId?: string }
 
@@ -229,7 +229,7 @@ const loadContacts = async () => {
           m.delete(-1)
           chatUnreadMap.value = m
         }
-      } catch { /* ignore */ }
+      } catch (e) { console.error(e) }
     })
     await Promise.all(unreadPromises)
   } catch { contacts.value = [] }
@@ -382,7 +382,7 @@ const openGoodsLink = (content: string) => {
   try {
     const data = JSON.parse(content)
     if (data.goodsId) router.push(`/goods/${data.goodsId}`)
-  } catch { /* ignore */ }
+  } catch (e) { console.error(e) }
 }
 
 const parseMsgType = (content: string): string => {
@@ -409,7 +409,7 @@ const openOrderLink = (content: string) => {
   try {
     const data = JSON.parse(content)
     if (data.orderId) router.push(`/order/${data.orderId}`)
-  } catch { /* ignore */ }
+  } catch (e) { console.error(e) }
 }
 
 const loadPickerOrders = async () => {
@@ -495,14 +495,14 @@ const handleRecall = async (msg: ChatMessageVO) => {
   } catch (e) { console.error(e) }
 }
 
-const handleBlock = async (contact: ContactVO) => {
+const handleBlock = async (contact: ContactItem) => {
   try {
     await ElMessageBox.confirm(`确定屏蔽「${contact.name}」？屏蔽后对方无法给你发消息`, '屏蔽用户', { type: 'warning' })
     await blockUser(contact.userId)
     ElMessage.success('已屏蔽')
     if (currentTarget.value === contact.userId) currentTarget.value = null
     loadContacts()
-  } catch { /* cancel */ }
+  } catch (e) { console.error(e) }
 }
 
 const formatTime = (t: string | number | null | undefined) => {
@@ -641,7 +641,7 @@ onMounted(async () => {
         await nextTick()
         scrollToBottom()
         updateContactLastMessage(queryTarget, content, 3)
-      } catch { /* ignore */ }
+      } catch (e) { console.error(e) }
     }
     window.history.replaceState(null, '', '/chat')
   }
