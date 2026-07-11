@@ -225,7 +225,7 @@ const contextMenu = ref<{ visible: boolean; x: number; y: number; msg: DisplayMe
 
 const onMsgContext = (e: MouseEvent, msg: DisplayMessage) => {
   if (msg.messageType === 4) return
-  const canRecall = msg.senderId === myId.value && !!msg.id && msg.id !== 0 &&
+  const canRecall = msg.senderId === myId.value && (msg.id && msg.id !== 0 || !!msg._tempId) &&
     (Date.now() - new Date(msg.createTime.replace(' ', 'T')).getTime()) < 2 * 60 * 1000
   const canCopy = msg.messageType === 1
   if (!canRecall && !canCopy) return
