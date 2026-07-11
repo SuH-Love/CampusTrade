@@ -221,6 +221,25 @@ public class DataInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.warn("Create t_banner table failed: {}", e.getMessage());
         }
+
+        try {
+            jdbcTemplate.execute(
+                "CREATE TABLE IF NOT EXISTS t_announcement (" +
+                "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+                "title VARCHAR(200) NOT NULL," +
+                "content TEXT," +
+                "status TINYINT DEFAULT 1," +
+                "sort_order INT DEFAULT 0," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "version INT DEFAULT 0" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+            log.info("t_announcement table ready");
+        } catch (Exception e) {
+            log.warn("Create t_announcement table failed: {}", e.getMessage());
+        }
     }
 
     private void alterBannerTableAddColumn(String column, String definition) {

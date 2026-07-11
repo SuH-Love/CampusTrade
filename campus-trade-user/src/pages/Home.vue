@@ -58,6 +58,15 @@
       </div>
 
       <section class="category-bar">
+
+      <section class="announcement-bar" v-if="announcements.length > 0">
+        <el-icon style="color: var(--primary); font-size: 18px"><Bell /></el-icon>
+        <div class="announcement-scroll">
+          <span v-for="(a, idx) in announcements" :key="a.id" class="announcement-item">
+            <strong>{{ a.title }}</strong>：{{ a.content }}<span v-if="idx < announcements.length - 1" class="announcement-divider">|</span>
+          </span>
+        </div>
+      </section>
         <div
           v-for="cat in categories" :key="cat.id"
           class="category-chip"
@@ -135,6 +144,7 @@ import { useRouter } from 'vue-router'
 import { getHotGoods, getRecommendGoods } from '@/api/goods'
 import { getCategoryList } from '@/api/category'
 import { getActiveBanners } from '@/api/banner'
+import { getActiveAnnouncements, type AnnouncementVO } from '@/api/announcement'
 import type { GoodsVO } from '@/api/goods'
 import type { GoodsCategory } from '@/api/category'
 import type { BannerVO } from '@/api/banner'
@@ -149,6 +159,7 @@ const searchKeyword = ref('')
 const showSearchDropdown = ref(false)
 const searchHistory = ref<string[]>([])
 const hotKeywords = ref<string[]>(['教材', '手机', '自行车', '电脑', '耳机', '台灯'])
+const announcements = ref<AnnouncementVO[]>([])
 
 const handleSearch = () => {
   const kw = searchKeyword.value.trim()
@@ -177,6 +188,10 @@ const clearSearchHistory = () => {
 
 const hideSearchDropdown = () => {
   setTimeout(() => { showSearchDropdown.value = false }, 200)
+}
+
+const loadAnnouncements = async () => {
+  try { announcements.value = await getActiveAnnouncements() || [] } catch (e) { console.error(e) }
 }
 
 const toggleCategory = (id: number) => {
@@ -218,7 +233,7 @@ const loadCategories = async () => {
 onMounted(() => {
   const saved = localStorage.getItem('searchHistory')
   if (saved) { try { searchHistory.value = JSON.parse(saved) } catch (e) { console.error(e) } }
-  loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCategories()
+  loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCategories(); loadAnnouncements()
 })
 </script>
 
@@ -314,6 +329,27 @@ onMounted(() => {
   font-weight: 600;
 }
 .search-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.announcement-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  margin-top: 16px;
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  border-radius: var(--radius-md);
+  border: 1px solid #e0e7ff;
+  overflow: hidden;
+}
+.announcement-scroll {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.announcement-item { margin-right: 4px; }
+.announcement-divider { margin: 0 8px; color: #c7d2fe; }
 
 .category-bar {
   display: flex;

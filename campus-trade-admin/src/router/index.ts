@@ -52,6 +52,12 @@ const allRoutes: RouteRecordRaw[] = [
         meta: { title: '分类管理', icon: 'Menu', permission: 'goods:audit' }
       },
       {
+        path: 'announcement',
+        name: 'AnnouncementManage',
+        component: () => import('@/pages/AnnouncementManage.vue'),
+        meta: { title: '公告管理', icon: 'Bell', permission: 'goods:audit' }
+      },
+      {
         path: 'log',
         name: 'LogCenter',
         component: () => import('@/pages/LogCenter.vue'),

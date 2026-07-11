@@ -69,4 +69,10 @@ public class ChatController {
     public Result<Long> getTotalUnreadCount() {
         return chatService.getTotalUnreadCount(SecurityUtil.requireCurrentUserId());
     }
+
+    @ApiOperation("撤回消息")
+    @PutMapping("/recall/{messageId}")
+    public Result<Void> recallMessage(@PathVariable Long messageId) {
+        return chatService.recallMessage(SecurityUtil.requireCurrentUserId(), messageId);
+    }
 }

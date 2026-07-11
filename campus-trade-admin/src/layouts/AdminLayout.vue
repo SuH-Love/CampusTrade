@@ -65,6 +65,7 @@ const allMenus: MenuItem[] = [
   { path: '/user', title: '用户管理', icon: 'User', permission: 'user:manage' },
   { path: '/goods', title: '商品审核', icon: 'Goods', permission: 'goods:audit' },
   { path: '/category', title: '分类管理', icon: 'Menu', permission: 'goods:audit' },
+  { path: '/announcement', title: '公告管理', icon: 'Bell', permission: 'goods:audit' },
   { path: '/order', title: '订单管理', icon: 'List', permission: 'goods:manage' },
   { path: '/report', title: '举报审核', icon: 'Warning', permission: 'report:manage' },
   { path: '/banner', title: '横幅管理', icon: 'Picture', permission: '' },

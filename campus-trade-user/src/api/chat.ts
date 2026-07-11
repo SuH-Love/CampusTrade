@@ -30,3 +30,5 @@ export const markAsRead = (senderId: number) => request.put('/chat/read/' + send
 export const getOnlineUsers = () => request.get<never, number[]>('/chat/online-users')
 
 export const getTotalUnreadCount = () => request.get<never, number>('/chat/unread-total')
+
+export const recallMessage = (messageId: number) => request.put(`/chat/recall/${messageId}`)

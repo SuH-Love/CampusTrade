@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.AnnouncementMapper">
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.Announcement">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="status" property="status"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+    </resultMap>
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM t_announcement WHERE id = #{id} AND deleted = 0
+    </select>
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM t_announcement WHERE deleted = 0 ORDER BY sort_order ASC, create_time DESC LIMIT #{offset}, #{pageSize}
+    </select>
+    <select id="selectCount" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_announcement WHERE deleted = 0
+    </select>
+    <select id="selectActive" resultMap="BaseResultMap">
+        SELECT * FROM t_announcement WHERE deleted = 0 AND status = 1 ORDER BY sort_order ASC, create_time DESC
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_announcement (title, content, status, sort_order, create_time, update_time, deleted, version)
+        VALUES (#{title}, #{content}, #{status}, #{sortOrder}, NOW(), NOW(), 0, 0)
+    </insert>
+    <update id="updateById">
+        UPDATE t_announcement
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="content != null">content = #{content},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="sortOrder != null">sort_order = #{sortOrder},</if>
+            version = version + 1
+        </set>
+        WHERE id = #{id} AND deleted = 0 AND version = #{version}
+    </update>
+    <update id="logicDeleteById">
+        UPDATE t_announcement SET deleted = 1 WHERE id = #{id}
+    </update>
+</mapper>

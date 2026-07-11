@@ -18,4 +18,6 @@ public interface ChatService {
     Result<Void> markAsRead(Long userId, Long senderId);
 
     Result<Long> getTotalUnreadCount(Long userId);
+
+    Result<Void> recallMessage(Long userId, Long messageId);
 }

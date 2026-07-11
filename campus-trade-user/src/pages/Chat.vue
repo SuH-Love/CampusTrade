@@ -49,6 +49,7 @@
                     </div>
                   </div>
                   <div v-else class="msg-bubble self-bubble">{{ msg.content }}</div>
+                  <el-button v-if="msg.messageType !== 4 && canRecall(msg)" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn">撤回</el-button>
                   <div class="msg-meta">
                     <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
                     <span v-if="msg.isRead" class="msg-read">已读</span>
@@ -141,7 +142,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { getRecentContacts, getHistory, getUnreadCount } from '@/api/chat'
+import { getRecentContacts, getHistory, getUnreadCount, recallMessage } from '@/api/chat'
 import { uploadImage } from '@/api/file'
 import { getGoodsList, type GoodsVO } from '@/api/goods'
 import { getBuyerOrders, type OrderVO } from '@/api/order'
@@ -472,6 +473,22 @@ const scrollToBottom = () => {
   messagesRef.value.scrollTop = messagesRef.value.scrollHeight
   setTimeout(() => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight }, 100)
   setTimeout(() => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight }, 300)
+}
+
+const canRecall = (msg: ChatMessageVO) => {
+  if (!msg.id || msg.senderId !== myId.value) return false
+  const diff = Date.now() - new Date(msg.createTime).getTime()
+  return diff < 2 * 60 * 1000
+}
+
+const handleRecall = async (msg: ChatMessageVO) => {
+  if (!msg.id) return
+  try {
+    await recallMessage(msg.id)
+    msg.content = '该消息已撤回'
+    msg.messageType = 4
+    ElMessage.success('已撤回')
+  } catch (e) { console.error(e) }
 }
 
 const formatTime = (t: string | number | null | undefined) => {
