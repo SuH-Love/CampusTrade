@@ -13,6 +13,7 @@ public class SecurityConstant {
             "/api/auth/captcha",
             "/api/banner/active",
             "/api/rating/average/**",
+            "/api/goods/hot-keywords",
             "/api/user/*",
             "/doc.html",
             "/webjars/**",

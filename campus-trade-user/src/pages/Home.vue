@@ -141,7 +141,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getHotGoods, getRecommendGoods } from '@/api/goods'
+import { getHotGoods, getRecommendGoods, getHotKeywords } from '@/api/goods'
 import { getCategoryList } from '@/api/category'
 import { getActiveBanners } from '@/api/banner'
 import { getActiveAnnouncements, type AnnouncementVO } from '@/api/announcement'
@@ -160,6 +160,10 @@ const showSearchDropdown = ref(false)
 const searchHistory = ref<string[]>([])
 const hotKeywords = ref<string[]>([])
 const announcements = ref<AnnouncementVO[]>([])
+
+const loadHotKeywords = async () => {
+  try { hotKeywords.value = await getHotKeywords() || [] } catch (e) { console.error(e) }
+}
 
 const handleSearch = () => {
   const kw = searchKeyword.value.trim()
@@ -219,18 +223,7 @@ const loadHotGoods = async () => {
     let list = res.list || []
     if (selectedCategoryId.value) list = list.filter((g: GoodsVO) => g.categoryId === selectedCategoryId.value)
     hotGoods.value = list.slice(0, 8)
-    if (hotKeywords.value.length === 0) {
-      const titles = list.map((g: GoodsVO) => g.title).filter(Boolean)
-      const words: Record<string, number> = {}
-      const stopWords = new Set(['的', '了', '是', '在', '和', '与', '及', '等', '可', '用', '有', '无', '不', '很', '都', '还', '就', '要', '会', '对', '中', '为', '到', '把', '被', '让', '给', '从', '上', '下', '出', '入', '个', '只', '这', '那', '我', '你', '他', '她', '它'])
-      titles.forEach(t => {
-        t.replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g, ' ').split(/\s+/).forEach(w => {
-          if (w.length >= 2 && w.length <= 6 && !stopWords.has(w)) words[w] = (words[w] || 0) + 1
-        })
-      })
-      hotKeywords.value = Object.entries(words).sort((a, b) => b[1] - a[1]).slice(0, 8).map(e => e[0])
-      if (hotKeywords.value.length < 4) hotKeywords.value = [...hotKeywords.value, '教材', '手机', '电脑', '耳机', '自行车', '台灯'].slice(0, 6)
-    }
+
   } catch (e) { console.error(e) }
 }
 
@@ -245,7 +238,7 @@ const loadCategories = async () => {
 onMounted(() => {
   const saved = localStorage.getItem('searchHistory')
   if (saved) { try { searchHistory.value = JSON.parse(saved) } catch (e) { console.error(e) } }
-  loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCategories(); loadAnnouncements()
+  loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCategories(); loadAnnouncements(); loadHotKeywords()
 })
 </script>
 
