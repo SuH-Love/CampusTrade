@@ -144,7 +144,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, watch, reactive } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getRecentContacts, getHistory, getUnreadCount, recallMessage } from '@/api/chat'
@@ -165,7 +165,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const myId = computed(() => userStore.userInfo?.id || getMyId())
 
-const recallableSet = reactive(new Set<string>())
+const recallableMap = ref<Record<string, boolean>>({})
 
 const addRecallable = (id: number | undefined, tempId: string | undefined, createTime: string | undefined) => {
   const key = id && id !== 0 ? String(id) : tempId || ''
@@ -173,15 +173,15 @@ const addRecallable = (id: number | undefined, tempId: string | undefined, creat
   if (!createTime) return
   const elapsed = Date.now() - new Date(createTime.replace(' ', 'T')).getTime()
   if (elapsed >= 2 * 60 * 1000) return
-  recallableSet.add(key)
+  recallableMap.value[key] = true
   const remain = 2 * 60 * 1000 - elapsed
-  setTimeout(() => recallableSet.delete(key), remain)
+  setTimeout(() => { delete recallableMap.value[key] }, remain)
 }
 
 const isRecallable = (msg: DisplayMessage) => {
   if (msg.senderId !== myId.value || msg.messageType === 4) return false
   const key = msg.id && msg.id !== 0 ? String(msg.id) : msg._tempId || ''
-  return recallableSet.has(key)
+  return !!recallableMap.value[key]
 }
 
 const {
@@ -521,7 +521,7 @@ const handleRecall = async (msg: DisplayMessage) => {
     if (idx > -1) {
       messages.value[idx].content = '该消息已撤回'
       messages.value[idx].messageType = 4
-      recallableSet.delete(String(msg.id))
+      delete recallableMap.value[String(msg.id)]
     }
     updateContactLastMessage(currentTarget.value || msg.receiverId, '该消息已撤回', 4)
     ElMessage.success('已撤回')
