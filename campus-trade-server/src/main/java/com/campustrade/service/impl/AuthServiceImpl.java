@@ -266,7 +266,7 @@ public class AuthServiceImpl implements AuthService {
         }
         User user = userMapper.selectByUsername(username.trim());
         if (user == null) {
-            return Result.error(ResultCode.USER_NOT_FOUND.getCode(), "用户不存在");
+            return Result.error(ResultCode.NOT_FOUND.getCode(), "用户不存在");
         }
         if (!phone.trim().equals(user.getPhone())) {
             return Result.error(ResultCode.PARAM_ERROR.getCode(), "手机号与注册时不匹配");
