@@ -53,7 +53,7 @@
                   </div>
                   <div v-else-if="msg.messageType === 4" class="msg-bubble self-bubble recall-bubble"><el-icon style="margin-right: 4px"><RefreshLeft /></el-icon>该消息已撤回</div>
                   <div v-else class="msg-bubble self-bubble">{{ msg.content }}</div>
-                  <el-button v-if="msg.messageType !== 4 && msg.senderId === myId && (msg.id || msg._tempId)" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn"><el-icon style="margin-right: 2px"><RefreshLeft /></el-icon>撤回</el-button>
+                  <el-button v-if="msg.recallable" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn"><el-icon style="margin-right: 2px"><RefreshLeft /></el-icon>撤回</el-button>
                   <div class="msg-meta">
                     <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
                     <span v-if="msg.isRead" class="msg-read">已读</span>
@@ -158,7 +158,7 @@ import type { ContactVO } from '@/types'
 
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-interface DisplayMessage extends ChatMessageVO { _tempId?: string }
+interface DisplayMessage extends ChatMessageVO { _tempId?: string; recallable?: boolean }
 
 const route = useRoute()
 const router = useRouter()
@@ -190,6 +190,15 @@ const pickerOrderList = ref<OrderVO[]>([])
 const uploadRef = ref<{ $el: HTMLElement }>()
 let lastTypingSent = false
 let tempIdCounter = 0
+
+const markRecallable = (msg: DisplayMessage) => {
+  if (msg.senderId !== myId.value || msg.messageType === 4) return
+  const elapsed = Date.now() - new Date(msg.createTime).getTime()
+  if (elapsed >= 2 * 60 * 1000) return
+  msg.recallable = true
+  const remain = 2 * 60 * 1000 - elapsed
+  setTimeout(() => { msg.recallable = false }, remain)
+}
 
 const formatLastMessage = (content: string, messageType?: number) => {
   if (messageType === 4) return '[消息已撤回]'
@@ -253,6 +262,7 @@ const loadMessages = async () => {
     const res = await getHistory(currentTarget.value, 1, 200)
     const list = res.list || res || []
     messages.value = (Array.isArray(list) ? list : []) as DisplayMessage[]
+    messages.value.forEach(m => markRecallable(m))
     await nextTick()
     scrollToBottom()
   } catch {
@@ -282,6 +292,7 @@ const handleSend = async () => {
     receiverAvatar: ''
   }
   messages.value.push(tempMsg)
+  markRecallable(tempMsg)
   inputText.value = ''
   nextTick(scrollToBottom)
 
@@ -361,6 +372,7 @@ const handleImageSelect = async (uploadFile: { raw?: File }) => {
       receiverName: currentContactName.value, receiverAvatar: ''
     }
     messages.value.push(tempMsg)
+    markRecallable(tempMsg)
     nextTick(scrollToBottom)
     sendChat(targetId, url, 2)
     updateContactLastMessage(targetId, url, 2)
@@ -441,6 +453,7 @@ const confirmSendOrder = (order: OrderVO) => {
     receiverName: currentContactName.value, receiverAvatar: ''
   }
   messages.value.push(tempMsg)
+  markRecallable(tempMsg)
   nextTick(scrollToBottom)
   updateContactLastMessage(currentTarget.value, content, 3)
 }
@@ -470,6 +483,7 @@ const confirmSendGoods = (g: GoodsVO) => {
     receiverName: currentContactName.value, receiverAvatar: ''
   }
   messages.value.push(tempMsg)
+  markRecallable(tempMsg)
   nextTick(scrollToBottom)
   updateContactLastMessage(currentTarget.value, content, 3)
 }
@@ -482,12 +496,6 @@ const scrollToBottom = () => {
   setTimeout(() => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight }, 300)
 }
 
-const canRecall = (msg: ChatMessageVO & { _tempId?: string }) => {
-  if (msg.senderId !== myId.value) return false
-  if (!msg.id && !msg._tempId) return false
-  const diff = Date.now() - new Date(msg.createTime).getTime()
-  return diff < 2 * 60 * 1000
-}
 
 const handleRecall = async (msg: DisplayMessage) => {
   if (!msg.id && !msg._tempId) return
@@ -500,6 +508,7 @@ const handleRecall = async (msg: DisplayMessage) => {
     await recallMessage(msg.id)
     msg.content = '该消息已撤回'
     msg.messageType = 4
+    msg.recallable = false
     updateContactLastMessage(currentTarget.value || msg.receiverId, '该消息已撤回', 4)
     ElMessage.success('已撤回')
   } catch (e) { console.error(e) }
@@ -560,11 +569,15 @@ const removeWsHandler = onChatMessage((msg) => {
           m._tempId && m.senderId === chatMsg.senderId && m.receiverId === chatMsg.receiverId && m.content === chatMsg.content
         )
         if (tempIdx > -1) {
-          messages.value[tempIdx] = { ...chatMsg } as DisplayMessage
+          const replaced = { ...chatMsg } as DisplayMessage
+          messages.value[tempIdx] = replaced
+          markRecallable(replaced)
         } else {
           const exists = messages.value.some(m => m.id !== 0 && m.id === chatMsg.id)
           if (!exists) {
-            messages.value.push(chatMsg as DisplayMessage)
+            const newMsg = chatMsg as DisplayMessage
+            messages.value.push(newMsg)
+            markRecallable(newMsg)
           }
         }
         nextTick(scrollToBottom)
@@ -661,6 +674,7 @@ onMounted(async () => {
           receiverName: currentContactName.value, receiverAvatar: ''
         }
         messages.value.push(tempMsg)
+        markRecallable(tempMsg)
         await nextTick()
         scrollToBottom()
         updateContactLastMessage(queryTarget, content, 3)
