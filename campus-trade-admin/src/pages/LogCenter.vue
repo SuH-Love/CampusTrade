@@ -107,6 +107,7 @@ const operationLabel = (op: string) => {
     toggleFollow: '关注/取关', isFollowing: '是否关注', getFollowCounts: '关注数',
     listFollowing: '关注列表', listFollowers: '粉丝列表',
     getAverageRating: '卖家评分', getRatingList: '评价列表', getRatingDistribution: '评分分布',
+    hotKeywords: '热门搜索词',
     blockUser: '屏蔽用户', unblockUser: '取消屏蔽', getBlacklist: '黑名单列表', isBlocked: '是否已屏蔽',
     getActiveAnnouncements: '获取公告', createAnnouncement: '创建公告', updateAnnouncement: '编辑公告', deleteAnnouncement: '删除公告',
     exportUsers: '导出用户CSV', exportOrders: '导出订单CSV',

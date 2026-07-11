@@ -357,7 +357,7 @@ onMounted(() => {
 .profile-card { text-align: center; }
 .profile-name { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
 .stats-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
 }
 .stat-card {
   background: var(--bg-card); border-radius: 16px; padding: 20px 14px;

@@ -91,10 +91,10 @@
              </div>
              <div class="review-list" v-if="reviewList.length > 0">
                 <div v-for="r in reviewList" :key="r.id" class="review-item">
-                  <el-avatar :size="36" :src="r.buyerAvatar || '/default-avatar.svg'" />
+                  <el-avatar :size="36" :src="r.buyerAvatar || '/default-avatar.svg'" style="cursor: pointer" @click="$router.push(`/profile/${r.buyerId}`)" />
                   <div class="review-body">
                     <div class="review-header">
-                      <span class="reviewer-name">{{ r.buyerName }}</span>
+                      <span class="reviewer-name" style="cursor: pointer" @click="$router.push(`/profile/${r.buyerId}`)">{{ r.buyerName }}</span>
                       <span v-if="r.goodsTitle" class="review-goods">购买了「{{ r.goodsTitle }}」</span>
                       <el-rate :model-value="r.rating" disabled size="small" />
                       <span class="review-time">{{ formatReviewTime(r.createTime) }}</span>

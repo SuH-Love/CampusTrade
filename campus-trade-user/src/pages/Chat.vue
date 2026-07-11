@@ -53,7 +53,7 @@
                   </div>
                   <div v-else-if="msg.messageType === 4" class="msg-bubble self-bubble recall-bubble"><el-icon style="margin-right: 4px"><RefreshLeft /></el-icon>该消息已撤回</div>
                   <div v-else class="msg-bubble self-bubble">{{ msg.content }}</div>
-                  <el-button v-if="msg.messageType !== 4 && canRecall(msg)" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn"><el-icon style="margin-right: 2px"><RefreshLeft /></el-icon>撤回</el-button>
+                  <el-button v-if="msg.messageType !== 4 && msg.senderId === myId && (msg.id || msg._tempId)" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn"><el-icon style="margin-right: 2px"><RefreshLeft /></el-icon>撤回</el-button>
                   <div class="msg-meta">
                     <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
                     <span v-if="msg.isRead" class="msg-read">已读</span>
