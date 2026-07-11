@@ -36,15 +36,15 @@
             <div v-for="msg in messages" :key="msg.id || msg._tempId" class="message-item" :class="{ self: msg.senderId === myId }">
               <template v-if="msg.senderId === myId">
                 <div class="msg-wrap self-wrap">
-                  <div v-if="msg.messageType === 2" class="msg-bubble self-bubble img-bubble"><el-image :src="msg.content" fit="cover" class="chat-img" :preview-src-list="[msg.content]" hide-on-click-modal /></div>
-                  <div v-else-if="msg.messageType === 3 && parseMsgType(msg.content) === 'order'" class="msg-bubble self-bubble order-bubble" @click="openOrderLink(msg.content)">
+                  <div v-if="msg.messageType === 2" class="msg-bubble self-bubble img-bubble" @contextmenu.prevent="onMsgContext($event, msg)"><el-image :src="msg.content" fit="cover" class="chat-img" :preview-src-list="[msg.content]" hide-on-click-modal /></div>
+                  <div v-else-if="msg.messageType === 3 && parseMsgType(msg.content) === 'order'" class="msg-bubble self-bubble order-bubble" @click="openOrderLink(msg.content)" @contextmenu.prevent="onMsgContext($event, msg)">
                     <el-icon><List /></el-icon>
                     <div class="order-card-info">
                       <div class="order-card-title">{{ parseOrderNo(msg.content) }}</div>
                       <div class="order-card-sub">¥{{ parseOrderAmount(msg.content) }} · {{ parseOrderStatus(msg.content) }}</div>
                     </div>
                   </div>
-                  <div v-else-if="msg.messageType === 3" class="msg-bubble self-bubble goods-bubble" @click="openGoodsLink(msg.content)">
+                  <div v-else-if="msg.messageType === 3" class="msg-bubble self-bubble goods-bubble" @click="openGoodsLink(msg.content)" @contextmenu.prevent="onMsgContext($event, msg)">
                     <el-icon><Goods /></el-icon>
                     <div class="goods-card-info">
                       <div class="goods-card-title">{{ parseGoodsText(msg.content) }}</div>
@@ -52,7 +52,7 @@
                     </div>
                   </div>
                   <div v-else-if="msg.messageType === 4" class="msg-bubble self-bubble recall-bubble"><el-icon style="margin-right: 4px"><RefreshLeft /></el-icon>该消息已撤回</div>
-                  <div v-else class="msg-bubble self-bubble">{{ msg.content }}</div>
+                  <div v-else class="msg-bubble self-bubble" @contextmenu.prevent="onMsgContext($event, msg)">{{ msg.content }}</div>
                   <el-button v-if="isRecallable(msg)" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn"><el-icon style="margin-right: 2px"><RefreshLeft /></el-icon>撤回</el-button>
                   <div class="msg-meta">
                     <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
@@ -65,15 +65,15 @@
                 <el-avatar :size="36" :src="msg.senderAvatar" />
                 <div class="msg-wrap">
                   <div class="sender-name">{{ msg.senderName }}</div>
-                  <div v-if="msg.messageType === 2" class="msg-bubble img-bubble"><el-image :src="msg.content" fit="cover" class="chat-img" :preview-src-list="[msg.content]" hide-on-click-modal /></div>
-                  <div v-else-if="msg.messageType === 3 && parseMsgType(msg.content) === 'order'" class="msg-bubble order-bubble" @click="openOrderLink(msg.content)">
+                  <div v-if="msg.messageType === 2" class="msg-bubble img-bubble" @contextmenu.prevent="onMsgContext($event, msg)"><el-image :src="msg.content" fit="cover" class="chat-img" :preview-src-list="[msg.content]" hide-on-click-modal /></div>
+                  <div v-else-if="msg.messageType === 3 && parseMsgType(msg.content) === 'order'" class="msg-bubble order-bubble" @click="openOrderLink(msg.content)" @contextmenu.prevent="onMsgContext($event, msg)">
                     <el-icon><List /></el-icon>
                     <div class="order-card-info">
                       <div class="order-card-title">{{ parseOrderNo(msg.content) }}</div>
                       <div class="order-card-sub">¥{{ parseOrderAmount(msg.content) }} · {{ parseOrderStatus(msg.content) }}</div>
                     </div>
                   </div>
-                  <div v-else-if="msg.messageType === 3" class="msg-bubble goods-bubble" @click="openGoodsLink(msg.content)">
+                  <div v-else-if="msg.messageType === 3" class="msg-bubble goods-bubble" @click="openGoodsLink(msg.content)" @contextmenu.prevent="onMsgContext($event, msg)">
                     <el-icon><Goods /></el-icon>
                     <div class="goods-card-info">
                       <div class="goods-card-title">{{ parseGoodsText(msg.content) }}</div>
@@ -81,7 +81,7 @@
                     </div>
                   </div>
                   <div v-else-if="msg.messageType === 4" class="msg-bubble recall-bubble"><el-icon style="margin-right: 4px"><RefreshLeft /></el-icon>该消息已撤回</div>
-                  <div v-else class="msg-bubble">{{ msg.content }}</div>
+                  <div v-else class="msg-bubble" @contextmenu.prevent="onMsgContext($event, msg)">{{ msg.content }}</div>
                   <div class="msg-time">{{ formatTime(msg.createTime) }}</div>
                 </div>
               </template>
@@ -140,6 +140,15 @@
         <el-empty v-if="!orderPickerLoading && pickerOrderList.length === 0" description="暂无与该商家的订单" :image-size="50" />
       </div>
     </el-dialog>
+  </div>
+
+  <div v-if="contextMenu.visible" class="context-menu" :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }">
+    <div v-if="contextMenu.canRecall" class="context-menu-item" @click="handleRecall(contextMenu.msg!)">
+      <el-icon style="margin-right: 6px"><RefreshLeft /></el-icon>撤回消息
+    </div>
+    <div v-if="contextMenu.canCopy" class="context-menu-item" @click="handleCopyMsg(contextMenu.msg!)">
+      <el-icon style="margin-right: 6px"><CopyDocument /></el-icon>复制内容
+    </div>
   </div>
 </template>
 
@@ -209,6 +218,28 @@ const pickerOrderList = ref<OrderVO[]>([])
 const uploadRef = ref<{ $el: HTMLElement }>()
 let lastTypingSent = false
 let tempIdCounter = 0
+
+const contextMenu = ref<{ visible: boolean; x: number; y: number; msg: DisplayMessage | null; canRecall: boolean; canCopy: boolean }>({
+  visible: false, x: 0, y: 0, msg: null, canRecall: false, canCopy: false
+})
+
+const onMsgContext = (e: MouseEvent, msg: DisplayMessage) => {
+  if (msg.messageType === 4) return
+  const canRecall = msg.senderId === myId.value && msg.id && msg.id !== 0 &&
+    (Date.now() - new Date(msg.createTime.replace(' ', 'T')).getTime()) < 2 * 60 * 1000
+  const canCopy = msg.messageType === 1
+  if (!canRecall && !canCopy) return
+  contextMenu.value = { visible: true, x: e.clientX, y: e.clientY, msg, canRecall, canCopy }
+}
+
+const handleCopyMsg = (msg: DisplayMessage) => {
+  contextMenu.value.visible = false
+  if (msg.content && navigator.clipboard) {
+    navigator.clipboard.writeText(msg.content).catch(() => {})
+  }
+}
+
+document.addEventListener('click', () => { contextMenu.value.visible = false })
 
 const formatLastMessage = (content: string, messageType?: number) => {
   if (messageType === 4) return '[消息已撤回]'
@@ -788,4 +819,15 @@ onUnmounted(() => {
 .picker-item-title { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .picker-item-price { font-size: 13px; color: #f56c6c; font-weight: 600; margin-top: 2px; }
 .picker-item-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+.context-menu {
+  position: fixed; z-index: 9999; background: #fff; border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid #e2e8f0;
+  padding: 4px 0; min-width: 140px;
+}
+.context-menu-item {
+  display: flex; align-items: center; padding: 10px 16px; cursor: pointer;
+  font-size: 13px; color: var(--text-primary); transition: background 0.15s;
+  &:hover { background: var(--primary-lighter); color: var(--primary); }
+}
 </style>
