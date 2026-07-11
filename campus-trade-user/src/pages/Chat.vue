@@ -167,11 +167,15 @@ const myId = computed(() => userStore.userInfo?.id || getMyId())
 
 const recallableSet = reactive(new Set<string>())
 
-const addRecallable = (id: number | undefined, tempId: string | undefined) => {
+const addRecallable = (id: number | undefined, tempId: string | undefined, createTime: string | undefined) => {
   const key = id && id !== 0 ? String(id) : tempId || ''
   if (!key) return
+  if (!createTime) return
+  const elapsed = Date.now() - new Date(createTime.replace(' ', 'T')).getTime()
+  if (elapsed >= 2 * 60 * 1000) return
   recallableSet.add(key)
-  setTimeout(() => recallableSet.delete(key), 2 * 60 * 1000)
+  const remain = 2 * 60 * 1000 - elapsed
+  setTimeout(() => recallableSet.delete(key), remain)
 }
 
 const isRecallable = (msg: DisplayMessage) => {
@@ -267,7 +271,7 @@ const loadMessages = async () => {
     const res = await getHistory(currentTarget.value, 1, 200)
     const list = res.list || res || []
     messages.value = (Array.isArray(list) ? list : []) as DisplayMessage[]
-    messages.value.forEach(m => addRecallable(m.id, m._tempId))
+    messages.value.forEach(m => addRecallable(m.id, m._tempId, m.createTime))
     await nextTick()
     scrollToBottom()
   } catch {
@@ -298,7 +302,7 @@ const handleSend = async () => {
     receiverAvatar: ''
   }
   messages.value.push(tempMsg)
-  addRecallable(tempMsg.id, tempMsg._tempId)
+  addRecallable(tempMsg.id, tempMsg._tempId, tempMsg.createTime)
   inputText.value = ''
   nextTick(scrollToBottom)
 
@@ -378,7 +382,7 @@ const handleImageSelect = async (uploadFile: { raw?: File }) => {
       receiverName: currentContactName.value, receiverAvatar: ''
     }
     messages.value.push(tempMsg)
-    addRecallable(tempMsg.id, tempMsg._tempId)
+    addRecallable(tempMsg.id, tempMsg._tempId, tempMsg.createTime)
     nextTick(scrollToBottom)
     sendChat(targetId, url, 2)
     updateContactLastMessage(targetId, url, 2)
@@ -459,7 +463,7 @@ const confirmSendOrder = (order: OrderVO) => {
     receiverName: currentContactName.value, receiverAvatar: ''
   }
   messages.value.push(tempMsg)
-  addRecallable(tempMsg.id, tempMsg._tempId)
+  addRecallable(tempMsg.id, tempMsg._tempId, tempMsg.createTime)
   nextTick(scrollToBottom)
   updateContactLastMessage(currentTarget.value, content, 3)
 }
@@ -489,7 +493,7 @@ const confirmSendGoods = (g: GoodsVO) => {
     receiverName: currentContactName.value, receiverAvatar: ''
   }
   messages.value.push(tempMsg)
-  addRecallable(tempMsg.id, tempMsg._tempId)
+  addRecallable(tempMsg.id, tempMsg._tempId, tempMsg.createTime)
   nextTick(scrollToBottom)
   updateContactLastMessage(currentTarget.value, content, 3)
 }
@@ -580,13 +584,13 @@ const removeWsHandler = onChatMessage((msg) => {
         if (tempIdx > -1) {
           const replaced = { ...chatMsg } as DisplayMessage
           messages.value[tempIdx] = replaced
-          addRecallable(replaced.id, replaced._tempId)
+          addRecallable(replaced.id, replaced._tempId, replaced.createTime)
         } else {
           const exists = messages.value.some(m => m.id !== 0 && m.id === chatMsg.id)
           if (!exists) {
             const newMsg = chatMsg as DisplayMessage
             messages.value.push(newMsg)
-            addRecallable(newMsg.id, newMsg._tempId)
+            addRecallable(newMsg.id, newMsg._tempId, newMsg.createTime)
           }
         }
         nextTick(scrollToBottom)
@@ -683,7 +687,7 @@ onMounted(async () => {
           receiverName: currentContactName.value, receiverAvatar: ''
         }
         messages.value.push(tempMsg)
-        addRecallable(tempMsg.id, tempMsg._tempId)
+        addRecallable(tempMsg.id, tempMsg._tempId, tempMsg.createTime)
         await nextTick()
         scrollToBottom()
         updateContactLastMessage(queryTarget, content, 3)
