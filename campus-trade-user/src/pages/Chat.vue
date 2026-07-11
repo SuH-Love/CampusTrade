@@ -229,7 +229,10 @@ const onMsgContext = (e: MouseEvent, msg: DisplayMessage) => {
     (Date.now() - new Date(msg.createTime.replace(' ', 'T')).getTime()) < 2 * 60 * 1000
   const canCopy = msg.messageType === 1
   if (!canRecall && !canCopy) return
-  contextMenu.value = { visible: true, x: e.clientX, y: e.clientY, msg, canRecall, canCopy }
+  const menuW = 160, menuH = (canRecall && canCopy) ? 88 : 44
+  const x = e.clientX + menuW > window.innerWidth ? e.clientX - menuW : e.clientX
+  const y = e.clientY + menuH > window.innerHeight ? e.clientY - menuH : e.clientY
+  contextMenu.value = { visible: true, x, y, msg, canRecall, canCopy }
 }
 
 const handleCopyMsg = (msg: DisplayMessage) => {
