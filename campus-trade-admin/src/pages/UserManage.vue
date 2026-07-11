@@ -143,7 +143,7 @@ onMounted(loadData)
 
 const handleExportUsers = async () => {
   try {
-    const res = await request.get('/admin/export/users', { responseType: 'blob' })
+    const res = await request.get('/admin/export/users', { responseType: 'blob' }) as unknown as Blob
     const url = window.URL.createObjectURL(new Blob([res], { type: 'text/csv;charset=utf-8' }))
     const link = document.createElement('a')
     link.href = url

@@ -150,7 +150,7 @@ const showDetail = (row: AdminOrderVO) => {
 
 const handleExportOrders = async () => {
   try {
-    const res = await request.get('/admin/export/orders', { responseType: 'blob' })
+    const res = await request.get('/admin/export/orders', { responseType: 'blob' }) as unknown as Blob
     const url = window.URL.createObjectURL(new Blob([res], { type: 'text/csv;charset=utf-8' }))
     const link = document.createElement('a')
     link.href = url
