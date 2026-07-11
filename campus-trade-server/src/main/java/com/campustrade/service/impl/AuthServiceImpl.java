@@ -252,4 +252,29 @@ public class AuthServiceImpl implements AuthService {
         tokenVO.setExpiresIn(jwtUtil.getAccessTokenExpiration() / 1000);
         return Result.success(tokenVO);
     }
+
+    @Override
+    public Result<Void> resetPassword(String username, String phone, String newPassword) {
+        if (username == null || username.trim().isEmpty()) {
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "用户名不能为空");
+        }
+        if (phone == null || phone.trim().isEmpty()) {
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "手机号不能为空");
+        }
+        if (newPassword == null || newPassword.length() < 6 || newPassword.length() > 20) {
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "密码长度需为6-20位");
+        }
+        User user = userMapper.selectByUsername(username.trim());
+        if (user == null) {
+            return Result.error(ResultCode.USER_NOT_FOUND.getCode(), "用户不存在");
+        }
+        if (!phone.trim().equals(user.getPhone())) {
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "手机号与注册时不匹配");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userMapper.updateById(user);
+        redisTemplate.delete(RedisConstant.TOKEN_PREFIX + user.getId());
+        redisTemplate.delete(RedisConstant.REFRESH_PREFIX + user.getId());
+        return Result.success();
+    }
 }

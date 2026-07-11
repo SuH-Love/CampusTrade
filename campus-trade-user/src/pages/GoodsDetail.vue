@@ -31,10 +31,7 @@
             <span v-if="goods.originalPrice && goods.originalPrice > goods.price" class="price-original">¥{{ goods.originalPrice }}</span>
             <el-tag v-if="goods.originalPrice > goods.price" type="danger" effect="dark" round size="small">{{ discount }}折</el-tag>
           </div>
-          <div class="detail-desc">
-            <h3>商品描述</h3>
-            <p>{{ goods.description || '暂无描述' }}</p>
-          </div>
+
           <div class="seller-card" v-if="userStore.token && goods.userId !== userStore.userInfo?.id">
             <el-avatar :size="44" :src="goods.userAvatar || '/default-avatar.svg'" @click="$router.push(`/profile/${goods.userId}`)" style="cursor: pointer" />
             <div class="seller-info" @click="$router.push(`/profile/${goods.userId}`)" style="cursor: pointer">
@@ -65,7 +62,57 @@
           </div>
         </div>
       </el-col>
-    </el-row>
+     </el-row>
+     <div class="detail-tabs" style="margin-top: 28px">
+       <el-tabs v-model="activeTab">
+         <el-tab-pane label="商品描述" name="desc">
+           <div class="desc-content">{{ goods.description || '暂无描述' }}</div>
+         </el-tab-pane>
+         <el-tab-pane name="reviews">
+           <template #label>卖家评价<el-badge v-if="ratingTotal > 0" :value="ratingTotal" type="primary" style="margin-left: 6px" /></template>
+           <div class="reviews-section">
+             <div class="rating-summary" v-if="ratingDist">
+               <div class="rating-score">
+                 <span class="score-num">{{ ratingDist.avgRating }}</span>
+                 <el-rate :model-value="ratingDist.avgRating" disabled allow-half size="large" />
+                 <span class="score-total">{{ ratingDist.totalCount }} 条评价</span>
+               </div>
+               <div class="rating-bars">
+                 <div v-for="s in [5,4,3,2,1]" :key="s" class="rating-bar-row">
+                   <span class="bar-label">{{ s }}星</span>
+                   <div class="bar-track"><div class="bar-fill" :style="{ width: getBarWidth(s) + '%' }" /></div>
+                   <span class="bar-count">{{ ratingDist.distribution[s] || 0 }}</span>
+                 </div>
+               </div>
+             </div>
+             <div class="review-list" v-if="reviewList.length > 0">
+               <div v-for="r in reviewList" :key="r.id" class="review-item">
+                 <el-avatar :size="36" :src="r.buyerAvatar || '/default-avatar.svg'" />
+                 <div class="review-body">
+                   <div class="review-header">
+                     <span class="reviewer-name">{{ r.buyerName }}</span>
+                     <el-rate :model-value="r.rating" disabled size="small" />
+                     <span class="review-time">{{ formatReviewTime(r.createTime) }}</span>
+                   </div>
+                   <div class="review-comment" v-if="r.comment">{{ r.comment }}</div>
+                 </div>
+               </div>
+               <div class="review-pagination" v-if="ratingTotal > reviewPageSize">
+                 <el-pagination
+                   v-model:current-page="reviewPage"
+                   :page-size="reviewPageSize"
+                   :total="ratingTotal"
+                   layout="prev, pager, next"
+                   small
+                   @current-change="loadReviews"
+                 />
+               </div>
+             </div>
+             <el-empty v-else description="暂无评价" :image-size="80" />
+           </div>
+         </el-tab-pane>
+       </el-tabs>
+     </div>
    </div>
    <div v-else style="padding: 20px"><el-empty description="商品不存在" /></div>
 
@@ -129,7 +176,7 @@ import { getGoodsDetail, favoriteGoods, unfavoriteGoods } from '@/api/goods'
 import { createOrder } from '@/api/order'
 import { addToCart, getCartList, type CartVO } from '@/api/cart'
 import { toggleFollow, isFollowing } from '@/api/follow'
-import { getAverageRating } from '@/api/rating'
+import { getAverageRating, getRatingList, getRatingDistribution, type SellerRatingVO, type RatingDistribution } from '@/api/rating'
 import { getAddressList, addAddress, type DeliveryAddressVO } from '@/api/address'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
@@ -149,6 +196,12 @@ const isFollowed = ref(false)
 const followLoading = ref(false)
 const sellerRating = ref(0)
 const isInCart = ref(false)
+const activeTab = ref('desc')
+const ratingDist = ref<RatingDistribution | null>(null)
+const reviewList = ref<SellerRatingVO[]>([])
+const reviewPage = ref(1)
+const reviewPageSize = 10
+const ratingTotal = ref(0)
 
 const buyDialogVisible = ref(false)
 const buyQuantity = ref(1)
@@ -192,6 +245,10 @@ const loadData = async () => {
       const cartList = await getCartList()
       isInCart.value = cartList ? cartList.some((c: CartVO) => c.goodsId === goods.value!.id) : false
     } catch { /* ignore */ }
+  }
+  if (goods.value) {
+    try { ratingDist.value = await getRatingDistribution(goods.value.userId) } catch (e) { console.error(e) }
+    loadReviews()
   }
 }
 
@@ -300,6 +357,32 @@ const handleToggleFollow = async () => {
   } finally { followLoading.value = false }
 }
 
+const loadReviews = async () => {
+  if (!goods.value) return
+  try {
+    const res = await getRatingList(goods.value.userId, { pageNum: reviewPage.value, pageSize: reviewPageSize })
+    reviewList.value = res.list
+    ratingTotal.value = res.total
+  } catch (e) { console.error(e) }
+}
+
+const getBarWidth = (star: number) => {
+  if (!ratingDist.value || ratingDist.value.totalCount === 0) return 0
+  return ((ratingDist.value.distribution[star] || 0) / ratingDist.value.totalCount) * 100
+}
+
+const formatReviewTime = (time: string) => {
+  if (!time) return ''
+  const d = new Date(time)
+  const now = new Date()
+  const diff = now.getTime() - d.getTime()
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前'
+  if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
+  if (diff < 2592000000) return Math.floor(diff / 86400000) + '天前'
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+}
+
 onMounted(loadData)
 </script>
 
@@ -388,4 +471,67 @@ onMounted(loadData)
   &:hover { border-color: #6366f1; }
   &.active { border-color: #6366f1; background: rgba(99,102,241,0.06); }
 }
+
+.detail-tabs {
+  background: rgba(255,255,255,0.95);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+.desc-content {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  padding: 8px 0;
+  white-space: pre-wrap;
+}
+.reviews-section { padding: 8px 0; }
+.rating-summary {
+  display: flex;
+  gap: 32px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  border-radius: var(--radius-md);
+  margin-bottom: 20px;
+  align-items: center;
+}
+.rating-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 120px;
+  .score-num { font-size: 42px; font-weight: 800; color: var(--primary); line-height: 1; }
+  .score-total { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+}
+.rating-bars { flex: 1; }
+.rating-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  .bar-label { font-size: 12px; color: var(--text-muted); width: 28px; text-align: right; }
+  .bar-track { flex: 1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--primary-gradient); border-radius: 4px; transition: width 0.4s ease; }
+  .bar-count { font-size: 12px; color: var(--text-muted); width: 24px; }
+}
+.review-item {
+  display: flex;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+  &:last-child { border-bottom: none; }
+}
+.review-body { flex: 1; }
+.review-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  .reviewer-name { font-weight: 600; font-size: 14px; }
+  .review-time { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+}
+.review-comment { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+.review-pagination { margin-top: 16px; display: flex; justify-content: center; }
 </style>

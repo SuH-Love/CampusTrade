@@ -26,6 +26,37 @@
     </section>
 
     <div class="home-content">
+      <div class="search-section">
+        <el-input
+          v-model="searchKeyword"
+          placeholder="搜索你想要的宝贝..."
+          size="large"
+          clearable
+          prefix-icon="Search"
+          @keyup.enter="handleSearch"
+          @focus="showSearchDropdown = true"
+          @blur="hideSearchDropdown"
+          class="search-input"
+        />
+        <div class="search-dropdown" v-if="showSearchDropdown && (searchHistory.length > 0 || hotKeywords.length > 0)">
+          <div class="search-dropdown-section" v-if="searchHistory.length > 0">
+            <div class="search-dropdown-header">
+              <span>搜索历史</span>
+              <el-button link type="info" size="small" @click="clearSearchHistory">清空</el-button>
+            </div>
+            <div class="search-tags">
+              <el-tag v-for="(kw, idx) in searchHistory" :key="idx" size="small" round effect="plain" @mousedown.prevent="searchFromHistory(kw)" style="cursor: pointer">{{ kw }}</el-tag>
+            </div>
+          </div>
+          <div class="search-dropdown-section" v-if="hotKeywords.length > 0">
+            <div class="search-dropdown-header"><span>热门搜索</span></div>
+            <div class="search-tags">
+              <el-tag v-for="(kw, idx) in hotKeywords" :key="idx" size="small" round type="danger" effect="plain" @mousedown.prevent="searchFromHistory(kw)" style="cursor: pointer">{{ kw }}</el-tag>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <section class="category-bar">
         <div
           v-for="cat in categories" :key="cat.id"
@@ -100,6 +131,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { getHotGoods, getRecommendGoods } from '@/api/goods'
 import { getCategoryList } from '@/api/category'
 import { getActiveBanners } from '@/api/banner'
@@ -107,11 +139,45 @@ import type { GoodsVO } from '@/api/goods'
 import type { GoodsCategory } from '@/api/category'
 import type { BannerVO } from '@/api/banner'
 
+const router = useRouter()
 const banners = ref<BannerVO[]>([])
 const hotGoods = ref<GoodsVO[]>([])
 const recommendGoods = ref<GoodsVO[]>([])
 const categories = ref<GoodsCategory[]>([])
 const selectedCategoryId = ref<number | undefined>(undefined)
+const searchKeyword = ref('')
+const showSearchDropdown = ref(false)
+const searchHistory = ref<string[]>([])
+const hotKeywords = ref<string[]>(['教材', '手机', '自行车', '电脑', '耳机', '台灯'])
+
+const handleSearch = () => {
+  const kw = searchKeyword.value.trim()
+  if (!kw) return
+  addSearchHistory(kw)
+  showSearchDropdown.value = false
+  router.push({ path: '/goods', query: { keyword: kw } })
+}
+
+const searchFromHistory = (kw: string) => {
+  searchKeyword.value = kw
+  handleSearch()
+}
+
+const addSearchHistory = (kw: string) => {
+  const list = searchHistory.value.filter(k => k !== kw)
+  list.unshift(kw)
+  searchHistory.value = list.slice(0, 10)
+  localStorage.setItem('searchHistory', JSON.stringify(searchHistory.value))
+}
+
+const clearSearchHistory = () => {
+  searchHistory.value = []
+  localStorage.removeItem('searchHistory')
+}
+
+const hideSearchDropdown = () => {
+  setTimeout(() => { showSearchDropdown.value = false }, 200)
+}
 
 const toggleCategory = (id: number) => {
   selectedCategoryId.value = selectedCategoryId.value === id ? undefined : id
@@ -149,7 +215,11 @@ const loadCategories = async () => {
   try { const res = await getCategoryList(); categories.value = res || [] } catch (e) { console.error(e) }
 }
 
-onMounted(() => { loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCategories() })
+onMounted(() => {
+  const saved = localStorage.getItem('searchHistory')
+  if (saved) { try { searchHistory.value = JSON.parse(saved) } catch (e) { console.error(e) } }
+  loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCategories()
+})
 </script>
 
 <style scoped lang="scss">
@@ -199,8 +269,7 @@ onMounted(() => { loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCateg
 }
 
 .home-content {
-  background: var(--bg-glass);
-  backdrop-filter: blur(12px);
+  background: rgba(255,255,255,0.95);
   border-radius: 20px 20px 0 0;
   border: 1px solid var(--border);
   border-bottom: none;
@@ -209,6 +278,42 @@ onMounted(() => { loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCateg
   max-width: 100%;
   padding: 24px;
 }
+
+.search-section {
+  position: relative;
+  max-width: 600px;
+  margin: 0 auto;
+}
+.search-input {
+  :deep(.el-input__wrapper) {
+    border-radius: 24px;
+    box-shadow: 0 2px 12px rgba(99,102,241,0.12);
+    padding: 4px 20px;
+  }
+}
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+  z-index: 100;
+  padding: 12px 16px;
+  margin-top: 4px;
+}
+.search-dropdown-section { margin-bottom: 12px; &:last-child { margin-bottom: 0; } }
+.search-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.search-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .category-bar {
   display: flex;

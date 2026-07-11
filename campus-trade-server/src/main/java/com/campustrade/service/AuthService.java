@@ -15,4 +15,6 @@ public interface AuthService {
     Result<Void> logout(Long userId);
 
     Result<TokenVO> refreshToken(RefreshTokenDTO dto);
+
+    Result<Void> resetPassword(String username, String phone, String newPassword);
 }

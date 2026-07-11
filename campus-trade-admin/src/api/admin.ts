@@ -50,3 +50,25 @@ export const getSecurityLogs = (params: PageQueryParams) =>
 
 export const getDashboardStats = () =>
   request.get<never, DashboardStats>('/admin/dashboard/stats')
+
+export interface CategoryVO {
+  id: number
+  categoryName: string
+  parentId: number
+  sortOrder: number
+  icon: string
+  status: number
+  createTime: string
+}
+
+export const getCategoryList = () =>
+  request.get<never, CategoryVO[]>('/goods-category')
+
+export const createCategory = (data: { categoryName: string; sortOrder?: number; icon?: string }) =>
+  request.post<never, void>('/goods-category', data)
+
+export const updateCategory = (id: number, data: { categoryName?: string; sortOrder?: number; icon?: string; status?: number }) =>
+  request.put<never, void>(`/goods-category/${id}`, data)
+
+export const deleteCategory = (id: number) =>
+  request.delete<never, void>(`/goods-category/${id}`)

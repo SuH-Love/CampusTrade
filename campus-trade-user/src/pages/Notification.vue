@@ -49,14 +49,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { listNotifications, getUnreadCount, markAsRead, markAllAsRead, deleteNotification } from '@/api/notification'
 import { getMyPreferences, setPreference } from '@/api/notificationPreference'
 import type { NotificationVO } from '@/api/notification'
 import { ElMessage } from 'element-plus'
 import { useChatWs } from '@/composables/useChatWs'
 
-const { notifyUnread } = useChatWs()
+const router = useRouter()
+const { notifyUnread, onNotification } = useChatWs()
 
 const activeTab = ref('all')
 const notifications = ref<NotificationVO[]>([])
@@ -108,6 +110,25 @@ const handleRead = async (item: NotificationVO) => {
     unreadCount.value = count
     notifyUnread.value = count
   }
+  navigateByNotification(item)
+}
+
+const navigateByNotification = (item: NotificationVO) => {
+  if (!item.relatedId) return
+  switch (item.notificationType) {
+    case 'ORDER':
+      router.push(`/order/${item.relatedId}`)
+      break
+    case 'GOODS':
+      router.push(`/goods/${item.relatedId}`)
+      break
+    case 'FOLLOW':
+      router.push(`/profile/${item.relatedId}`)
+      break
+    case 'REPORT':
+      router.push('/my-reports')
+      break
+  }
 }
 
 const handleMarkAllRead = async () => {
@@ -141,7 +162,13 @@ const handlePreferenceChange = async (val: string[]) => {
   ElMessage.success('偏好设置已更新')
 }
 
+const removeNotifyHandler = onNotification(() => {
+  loadData()
+  loadUnreadCount()
+})
+
 onMounted(() => { loadData(); loadUnreadCount(); loadPreferences() })
+onUnmounted(() => { removeNotifyHandler() })
 </script>
 
 <style scoped lang="scss">

@@ -51,4 +51,13 @@ public class AuthController {
         return authService.refreshToken(dto);
     }
 
+    @ApiOperation("重置密码")
+    @PostMapping("/reset-password")
+    @RateLimit
+    public Result<Void> resetPassword(@RequestParam String username,
+                                       @RequestParam String phone,
+                                       @RequestParam String newPassword) {
+        return authService.resetPassword(username, phone, newPassword);
+    }
+
 }

@@ -58,12 +58,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { getGoodsList } from '@/api/goods'
 import { getCategoryList } from '@/api/category'
 import type { GoodsVO } from '@/api/goods'
 import type { GoodsCategory } from '@/api/category'
 import type { GoodsQueryParams } from '@/types'
 
+const route = useRoute()
 const goodsList = ref<GoodsVO[]>([])
 const categories = ref<GoodsCategory[]>([])
 const keyword = ref('')
@@ -90,7 +92,11 @@ const loadData = async () => {
 
 const loadCategories = async () => { try { categories.value = (await getCategoryList()) || [] } catch (e) { console.error(e) } }
 const handleSearch = () => { pageNum.value = 1; loadData() }
-onMounted(() => { loadData(); loadCategories() })
+onMounted(() => {
+  if (route.query.keyword) keyword.value = route.query.keyword as string
+  if (route.query.categoryId) categoryId.value = Number(route.query.categoryId)
+  loadData(); loadCategories()
+})
 </script>
 
 <style scoped lang="scss">
