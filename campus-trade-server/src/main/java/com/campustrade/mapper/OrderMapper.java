@@ -37,4 +37,8 @@ public interface OrderMapper {
     Long selectCountToday();
 
     List<Order> selectTimeoutPendingPay(@Param("timeout") java.time.LocalDateTime timeout);
+
+    java.math.BigDecimal selectTotalSpentByBuyerId(@Param("buyerId") Long buyerId);
+
+    java.math.BigDecimal selectTotalEarnedBySellerId(@Param("sellerId") Long sellerId);
 }

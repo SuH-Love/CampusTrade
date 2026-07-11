@@ -18,6 +18,9 @@
               <div class="contact-name" @click.stop="$router.push(`/profile/${contact.userId}`)" style="cursor: pointer">{{ contact.name }}</div>
               <div class="contact-last">{{ contact.lastMessage }}</div>
             </div>
+            <el-button size="small" text type="danger" @click.stop="handleBlock(contact)" title="屏蔽" style="flex-shrink: 0">
+              <el-icon><Close /></el-icon>
+            </el-button>
           </div>
         </div>
         <el-empty v-if="contacts.length === 0" description="暂无会话" :image-size="60" />
@@ -143,6 +146,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getRecentContacts, getHistory, getUnreadCount, recallMessage } from '@/api/chat'
+import { blockUser } from '@/api/blacklist'
 import { uploadImage } from '@/api/file'
 import { getGoodsList, type GoodsVO } from '@/api/goods'
 import { getBuyerOrders, type OrderVO } from '@/api/order'
@@ -489,6 +493,16 @@ const handleRecall = async (msg: ChatMessageVO) => {
     msg.messageType = 4
     ElMessage.success('已撤回')
   } catch (e) { console.error(e) }
+}
+
+const handleBlock = async (contact: ContactVO) => {
+  try {
+    await ElMessageBox.confirm(`确定屏蔽「${contact.name}」？屏蔽后对方无法给你发消息`, '屏蔽用户', { type: 'warning' })
+    await blockUser(contact.userId)
+    ElMessage.success('已屏蔽')
+    if (currentTarget.value === contact.userId) currentTarget.value = null
+    loadContacts()
+  } catch { /* cancel */ }
 }
 
 const formatTime = (t: string | number | null | undefined) => {

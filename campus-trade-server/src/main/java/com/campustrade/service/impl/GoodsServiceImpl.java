@@ -156,6 +156,13 @@ public class GoodsServiceImpl implements GoodsService {
                     Goods updated = goodsMapper.selectById(goodsId);
                     GoodsVO vo = toVO(updated != null ? updated : goods);
 
+                    User seller = userMapper.selectById(goods.getUserId());
+                    if (seller != null) {
+                        vo.setUsername(seller.getNickname() != null ? seller.getNickname() : seller.getUsername());
+                        vo.setUserAvatar(seller.getAvatar());
+                        vo.setSellerRealVerified(seller.getRealVerified());
+                    }
+
                     if (currentUserId != null) {
                         GoodsFavorite fav = favoriteMapper.selectByUserAndGoods(currentUserId, goodsId);
                         vo.setIsFavorited(fav != null);
@@ -386,6 +393,7 @@ public class GoodsServiceImpl implements GoodsService {
             if (user != null) {
                 vo.setUsername(user.getNickname() != null ? user.getNickname() : user.getUsername());
                 vo.setUserAvatar(user.getAvatar());
+                vo.setSellerRealVerified(user.getRealVerified());
             }
             GoodsCategory cat = categoryMap.get(goods.getCategoryId());
             if (cat != null) vo.setCategoryName(cat.getCategoryName());

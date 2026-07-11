@@ -26,6 +26,7 @@
             </div>
             </template>
             <template v-else>
+              <el-tag v-if="profileUser?.realVerified === 1" type="success" effect="dark" round>已认证</el-tag>
               <div class="profile-stats">
                 <span>{{ followCounts.following }} 关注</span>
                 <span>·</span>
@@ -90,6 +91,16 @@
             <div class="stat-card" @click="$router.push('/address')">
               <div class="stat-icon" style="background: linear-gradient(135deg, #ec4899, #f472b6)">📍</div>
               <div class="stat-label">收货地址</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: linear-gradient(135deg, #ef4444, #f87171)">💳</div>
+              <div class="stat-value">¥{{ stats.totalSpent || 0 }}</div>
+              <div class="stat-label">累计消费</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon" style="background: linear-gradient(135deg, #22c55e, #4ade80)">💵</div>
+              <div class="stat-value">¥{{ stats.totalEarned || 0 }}</div>
+              <div class="stat-label">累计收入</div>
             </div>
           </div>
           <el-card style="margin-top: 20px" class="edit-card">

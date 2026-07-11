@@ -4,15 +4,18 @@
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center">
           <h3>订单管理</h3>
-          <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="loadData" style="width: 160px">
-            <el-option label="待支付" value="PENDING_PAY" />
-            <el-option label="已支付" value="PAID" />
-            <el-option label="已发货" value="SHIPPING" />
-            <el-option label="待评价" value="PENDING_REVIEW" />
-            <el-option label="已完成" value="FINISHED" />
-            <el-option label="已取消" value="CANCELLED" />
-            <el-option label="退款中" value="REFUND" />
-          </el-select>
+          <div style="display: flex; gap: 8px; align-items: center">
+            <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="loadData" style="width: 160px">
+              <el-option label="待支付" value="PENDING_PAY" />
+              <el-option label="已支付" value="PAID" />
+              <el-option label="已发货" value="SHIPPING" />
+              <el-option label="待评价" value="PENDING_REVIEW" />
+              <el-option label="已完成" value="FINISHED" />
+              <el-option label="已取消" value="CANCELLED" />
+              <el-option label="退款中" value="REFUND" />
+            </el-select>
+            <el-button @click="handleExportOrders">导出CSV</el-button>
+          </div>
         </div>
       </template>
       <el-table :data="orders" stripe v-loading="loading">
@@ -142,6 +145,10 @@ const detailOrder = ref<AdminOrderVO | null>(null)
 const showDetail = (row: AdminOrderVO) => {
   detailOrder.value = row
   detailVisible.value = true
+}
+
+const handleExportOrders = () => {
+  window.open('/api/admin/export/orders', '_blank')
 }
 </script>
 

@@ -35,7 +35,10 @@
           <div class="seller-card" v-if="userStore.token && goods.userId !== userStore.userInfo?.id">
             <el-avatar :size="44" :src="goods.userAvatar || '/default-avatar.svg'" @click="$router.push(`/profile/${goods.userId}`)" style="cursor: pointer" />
             <div class="seller-info" @click="$router.push(`/profile/${goods.userId}`)" style="cursor: pointer">
-              <div class="seller-name">{{ goods.username }}</div>
+              <div class="seller-name">
+                {{ goods.username }}
+                <el-tag v-if="goods.sellerRealVerified === 1" type="success" effect="dark" size="small" round style="margin-left: 6px; vertical-align: middle">已认证</el-tag>
+              </div>
               <div class="seller-action">
                 <span>查看主页</span>
                 <el-rate v-if="sellerRating > 0" :model-value="sellerRating" disabled size="small" style="margin-left: 8px; vertical-align: middle" />
@@ -59,6 +62,7 @@
               <el-icon><Star /></el-icon> {{ goods.isFavorited ? '已收藏' : '收藏' }}
             </el-button>
             <el-button size="large" @click="handleReport" v-if="userStore.token && goods.userId !== userStore.userInfo?.id" round>举报</el-button>
+            <el-button size="large" @click="handleShare" round>分享</el-button>
           </div>
         </div>
       </el-col>
@@ -335,6 +339,16 @@ const handleConsult = () => {
 }
 
 const handleReport = () => { router.push({ path: '/report', query: { targetType: '1', targetId: String(route.params.id) } }) }
+
+const handleShare = () => {
+  if (!goods.value) return
+  const text = `【${goods.value.title}】仅需 ¥${goods.value.price}！快来看看这个校园好物 → ${window.location.href}`
+  navigator.clipboard.writeText(text).then(() => {
+    ElMessage.success('分享链接已复制到剪贴板')
+  }).catch(() => {
+    ElMessage.success('分享：' + window.location.href)
+  })
+}
 
 const handleAddToCart = async () => {
   if (!goods.value || !userStore.token) { ElMessage.warning('请先登录'); return }

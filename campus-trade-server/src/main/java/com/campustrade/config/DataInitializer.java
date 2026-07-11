@@ -240,6 +240,25 @@ public class DataInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.warn("Create t_announcement table failed: {}", e.getMessage());
         }
+
+        try {
+            jdbcTemplate.execute(
+                "CREATE TABLE IF NOT EXISTS t_user_blacklist (" +
+                "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+                "user_id BIGINT NOT NULL," +
+                "blocked_id BIGINT NOT NULL," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "version INT DEFAULT 0," +
+                "KEY idx_user_id (user_id)," +
+                "KEY idx_blocked_id (blocked_id)" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+            log.info("t_user_blacklist table ready");
+        } catch (Exception e) {
+            log.warn("Create t_user_blacklist table failed: {}", e.getMessage());
+        }
     }
 
     private void alterBannerTableAddColumn(String column, String definition) {

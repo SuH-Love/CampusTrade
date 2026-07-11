@@ -27,5 +27,6 @@ public class GoodsVO {
     private Integer favoriteCount;
     private Integer stock;
     private Boolean isFavorited;
+    private Integer sellerRealVerified;
     private LocalDateTime createTime;
 }

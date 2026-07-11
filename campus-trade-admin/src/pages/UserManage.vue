@@ -4,7 +4,10 @@
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center">
           <h3 style="margin: 0">用户管理</h3>
-          <el-input v-model="searchUsername" placeholder="搜索用户名" clearable style="width: 200px" @keyup.enter="handleSearch" />
+          <div style="display: flex; gap: 8px; align-items: center">
+            <el-input v-model="searchUsername" placeholder="搜索用户名" clearable style="width: 200px" @keyup.enter="handleSearch" />
+            <el-button @click="handleExportUsers">导出CSV</el-button>
+          </div>
         </div>
       </template>
       <el-table :data="users" style="width: 100%" stripe v-loading="loading">
@@ -136,4 +139,8 @@ const handleUnban = async (id: number) => {
 }
 
 onMounted(loadData)
+
+const handleExportUsers = () => {
+  window.open('/api/admin/export/users', '_blank')
+}
 </script>

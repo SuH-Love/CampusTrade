@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.UserBlacklistMapper">
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.UserBlacklist">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="blocked_id" property="blockedId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+    </resultMap>
+    <select id="selectByUserAndBlocked" resultMap="BaseResultMap">
+        SELECT * FROM t_user_blacklist WHERE user_id = #{userId} AND blocked_id = #{blockedId} AND deleted = 0
+    </select>
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT * FROM t_user_blacklist WHERE user_id = #{userId} AND deleted = 0 ORDER BY create_time DESC
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_user_blacklist (user_id, blocked_id, create_time, update_time, deleted, version)
+        VALUES (#{userId}, #{blockedId}, NOW(), NOW(), 0, 0)
+    </insert>
+    <delete id="deleteById">
+        DELETE FROM t_user_blacklist WHERE id = #{id}
+    </delete>
+</mapper>

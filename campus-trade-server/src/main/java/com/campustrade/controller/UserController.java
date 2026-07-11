@@ -78,6 +78,8 @@ public class UserController {
         stats.put("buyerOrders", orderMapper.selectCountByBuyerId(userId, null));
         stats.put("sellerOrders", orderMapper.selectCountBySellerId(userId, null));
         stats.put("finishedOrders", orderMapper.selectCountByBuyerId(userId, "FINISHED"));
+        stats.put("totalSpent", orderMapper.selectTotalSpentByBuyerId(userId));
+        stats.put("totalEarned", orderMapper.selectTotalEarnedBySellerId(userId));
         return Result.success(stats);
     }
 }

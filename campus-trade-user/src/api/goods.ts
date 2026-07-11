@@ -20,6 +20,7 @@ export interface GoodsVO {
   favoriteCount: number
   stock: number
   isFavorited: boolean
+  sellerRealVerified: number
   createTime: string
 }
 

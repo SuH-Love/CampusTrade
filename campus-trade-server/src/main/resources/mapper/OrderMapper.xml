@@ -99,4 +99,12 @@
     <select id="selectTimeoutPendingPay" resultMap="BaseResultMap">
         SELECT * FROM t_order WHERE status = 'PENDING_PAY' AND deleted = 0 AND create_time &lt; #{timeout}
     </select>
+
+    <select id="selectTotalSpentByBuyerId" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(total_amount), 0) FROM t_order WHERE buyer_id = #{buyerId} AND deleted = 0 AND status IN ('PAID','SHIPPING','PENDING_REVIEW','FINISHED')
+    </select>
+
+    <select id="selectTotalEarnedBySellerId" resultType="java.math.BigDecimal">
+        SELECT COALESCE(SUM(total_amount), 0) FROM t_order WHERE seller_id = #{sellerId} AND deleted = 0 AND status IN ('PAID','SHIPPING','PENDING_REVIEW','FINISHED')
+    </select>
 </mapper>
