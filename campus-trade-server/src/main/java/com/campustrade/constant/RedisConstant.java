@@ -13,6 +13,7 @@ public class RedisConstant {
     public static final String NOTIFY_USER_PREFIX = "notify:user:";
     public static final String REPEAT_PREFIX = "repeat:";
     public static final String RATE_LIMIT_PREFIX = "rate_limit:";
+    public static final String LOGIN_RATE_LIMIT_PREFIX = "login_rate_limit:";
     public static final String BLACKLIST_PREFIX = "blacklist:token:";
     public static final String PERMISSIONS_PREFIX = "permissions:user:";
     public static final String LOCK_GOODS_PREFIX = "lock:goods:";

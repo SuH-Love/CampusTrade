@@ -140,7 +140,7 @@ public class AuthServiceImpl implements AuthService {
             }
         }
 
-        String rateLimitKey = RedisConstant.RATE_LIMIT_PREFIX + ip;
+        String rateLimitKey = RedisConstant.LOGIN_RATE_LIMIT_PREFIX + ip;
         Long count = redisTemplate.opsForValue().increment(rateLimitKey);
         if (count != null && count == 1) {
             redisTemplate.expire(rateLimitKey, RedisConstant.RATE_LIMIT_TTL, TimeUnit.SECONDS);

@@ -21,6 +21,6 @@ public class SecurityConstant {
             "/favicon.ico"
     };
 
-    public static final int LOGIN_RATE_LIMIT = 10;
+    public static final int LOGIN_RATE_LIMIT = 5;
     public static final int LOGIN_RATE_PERIOD = 60;
 }
