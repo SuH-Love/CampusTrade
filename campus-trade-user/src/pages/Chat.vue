@@ -53,7 +53,7 @@
                   </div>
                   <div v-else-if="msg.messageType === 4" class="msg-bubble self-bubble recall-bubble"><el-icon style="margin-right: 4px"><RefreshLeft /></el-icon>该消息已撤回</div>
                   <div v-else class="msg-bubble self-bubble">{{ msg.content }}</div>
-                  <el-button v-if="msg.recallable" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn"><el-icon style="margin-right: 2px"><RefreshLeft /></el-icon>撤回</el-button>
+                  <el-button v-if="isRecallable(msg)" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn"><el-icon style="margin-right: 2px"><RefreshLeft /></el-icon>撤回</el-button>
                   <div class="msg-meta">
                     <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
                     <span v-if="msg.isRead" class="msg-read">已读</span>
@@ -158,12 +158,27 @@ import type { ContactVO } from '@/types'
 
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-interface DisplayMessage extends ChatMessageVO { _tempId?: string; recallable?: boolean }
+interface DisplayMessage extends ChatMessageVO { _tempId?: string }
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const myId = computed(() => userStore.userInfo?.id || getMyId())
+
+const recallableSet = reactive(new Set<string>())
+
+const addRecallable = (id: number | undefined, tempId: string | undefined) => {
+  const key = id && id !== 0 ? String(id) : tempId || ''
+  if (!key) return
+  recallableSet.add(key)
+  setTimeout(() => recallableSet.delete(key), 2 * 60 * 1000)
+}
+
+const isRecallable = (msg: DisplayMessage) => {
+  if (msg.senderId !== myId.value || msg.messageType === 4) return false
+  const key = msg.id && msg.id !== 0 ? String(msg.id) : msg._tempId || ''
+  return recallableSet.has(key)
+}
 
 const {
   connected, onlineUsers, sendChat, sendTyping, sendStopTyping,
@@ -176,7 +191,6 @@ const contacts = ref<ContactItem[]>([])
 const currentTarget = ref<number | null>(null)
 const currentContactName = ref('')
 const messages = ref<DisplayMessage[]>([])
-const inputText = ref('')
 const sending = ref(false)
 const messagesRef = ref<HTMLElement>()
 const typingHint = ref('')
@@ -190,18 +204,6 @@ const pickerOrderList = ref<OrderVO[]>([])
 const uploadRef = ref<{ $el: HTMLElement }>()
 let lastTypingSent = false
 let tempIdCounter = 0
-
-const markRecallable = (msg: DisplayMessage) => {
-  if (msg.senderId !== myId.value || msg.messageType === 4) return
-  const elapsed = Date.now() - new Date(msg.createTime).getTime()
-  if (elapsed >= 2 * 60 * 1000) return
-  const idx = messages.value.findIndex(m => (m.id !== 0 && m.id === msg.id) || (m._tempId && m._tempId === msg._tempId))
-  if (idx > -1) {
-    messages.value[idx].recallable = true
-    const remain = 2 * 60 * 1000 - elapsed
-    setTimeout(() => { if (messages.value[idx]) messages.value[idx].recallable = false }, remain)
-  }
-}
 
 const formatLastMessage = (content: string, messageType?: number) => {
   if (messageType === 4) return '[消息已撤回]'
@@ -265,7 +267,7 @@ const loadMessages = async () => {
     const res = await getHistory(currentTarget.value, 1, 200)
     const list = res.list || res || []
     messages.value = (Array.isArray(list) ? list : []) as DisplayMessage[]
-    messages.value.forEach(m => markRecallable(m))
+    messages.value.forEach(m => addRecallable(m.id, m._tempId))
     await nextTick()
     scrollToBottom()
   } catch {
@@ -288,7 +290,7 @@ const handleSend = async () => {
     content,
     messageType: 1,
     isRead: 0,
-    recallable: true,
+
     createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
     senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
     senderAvatar: userStore.userInfo?.avatar || '',
@@ -296,6 +298,7 @@ const handleSend = async () => {
     receiverAvatar: ''
   }
   messages.value.push(tempMsg)
+  addRecallable(tempMsg.id, tempMsg._tempId)
   inputText.value = ''
   nextTick(scrollToBottom)
 
@@ -368,13 +371,14 @@ const handleImageSelect = async (uploadFile: { raw?: File }) => {
     const tempMsg: DisplayMessage = {
       id: 0, _tempId: `temp_${++tempIdCounter}`,
       senderId: myId.value || 0, receiverId: targetId,
-      content: url, messageType: 2, isRead: 0, recallable: true,
+      content: url, messageType: 2, isRead: 0,
       createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
       senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
       senderAvatar: userStore.userInfo?.avatar || '',
       receiverName: currentContactName.value, receiverAvatar: ''
     }
     messages.value.push(tempMsg)
+    addRecallable(tempMsg.id, tempMsg._tempId)
     nextTick(scrollToBottom)
     sendChat(targetId, url, 2)
     updateContactLastMessage(targetId, url, 2)
@@ -448,13 +452,14 @@ const confirmSendOrder = (order: OrderVO) => {
   const tempMsg: DisplayMessage = {
     id: 0, _tempId: `temp_${++tempIdCounter}`,
     senderId: myId.value || 0, receiverId: currentTarget.value,
-    content, messageType: 3, isRead: 0, recallable: true,
+    content, messageType: 3,     isRead: 0,
     createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
     senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
     senderAvatar: userStore.userInfo?.avatar || '',
     receiverName: currentContactName.value, receiverAvatar: ''
   }
   messages.value.push(tempMsg)
+  addRecallable(tempMsg.id, tempMsg._tempId)
   nextTick(scrollToBottom)
   updateContactLastMessage(currentTarget.value, content, 3)
 }
@@ -477,13 +482,14 @@ const confirmSendGoods = (g: GoodsVO) => {
   const tempMsg: DisplayMessage = {
     id: 0, _tempId: `temp_${++tempIdCounter}`,
     senderId: myId.value || 0, receiverId: currentTarget.value,
-    content, messageType: 3, isRead: 0, recallable: true,
+    content, messageType: 3,     isRead: 0,
     createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
     senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
     senderAvatar: userStore.userInfo?.avatar || '',
     receiverName: currentContactName.value, receiverAvatar: ''
   }
   messages.value.push(tempMsg)
+  addRecallable(tempMsg.id, tempMsg._tempId)
   nextTick(scrollToBottom)
   updateContactLastMessage(currentTarget.value, content, 3)
 }
@@ -510,7 +516,7 @@ const handleRecall = async (msg: DisplayMessage) => {
     if (idx > -1) {
       messages.value[idx].content = '该消息已撤回'
       messages.value[idx].messageType = 4
-      messages.value[idx].recallable = false
+      recallableSet.delete(String(msg.id))
     }
     updateContactLastMessage(currentTarget.value || msg.receiverId, '该消息已撤回', 4)
     ElMessage.success('已撤回')
@@ -574,13 +580,13 @@ const removeWsHandler = onChatMessage((msg) => {
         if (tempIdx > -1) {
           const replaced = { ...chatMsg } as DisplayMessage
           messages.value[tempIdx] = replaced
-          markRecallable(replaced)
+          addRecallable(replaced.id, replaced._tempId)
         } else {
           const exists = messages.value.some(m => m.id !== 0 && m.id === chatMsg.id)
           if (!exists) {
             const newMsg = chatMsg as DisplayMessage
             messages.value.push(newMsg)
-            markRecallable(newMsg)
+            addRecallable(newMsg.id, newMsg._tempId)
           }
         }
         nextTick(scrollToBottom)
@@ -670,13 +676,14 @@ onMounted(async () => {
         const tempMsg: DisplayMessage = {
           id: 0, _tempId: `temp_${++tempIdCounter}`,
           senderId: myId.value || 0, receiverId: queryTarget,
-          content, messageType: 3, isRead: 0, recallable: true,
+          content, messageType: 3, isRead: 0,
           createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
           senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
           senderAvatar: userStore.userInfo?.avatar || '',
           receiverName: currentContactName.value, receiverAvatar: ''
         }
         messages.value.push(tempMsg)
+        addRecallable(tempMsg.id, tempMsg._tempId)
         await nextTick()
         scrollToBottom()
         updateContactLastMessage(queryTarget, content, 3)
