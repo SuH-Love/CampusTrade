@@ -144,7 +144,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getRecentContacts, getHistory, getUnreadCount, recallMessage } from '@/api/chat'
@@ -195,6 +195,7 @@ const contacts = ref<ContactItem[]>([])
 const currentTarget = ref<number | null>(null)
 const currentContactName = ref('')
 const messages = ref<DisplayMessage[]>([])
+const inputText = ref('')
 const sending = ref(false)
 const messagesRef = ref<HTMLElement>()
 const typingHint = ref('')
