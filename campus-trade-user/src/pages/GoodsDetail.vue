@@ -336,14 +336,14 @@ const handleFavorite = async () => {
 const handleChat = () => {
   if (!userStore.token) { ElMessage.warning('请先登录'); return }
   if (!goods.value) return
-  router.push({ path: '/chat', query: { targetUserId: String(goods.value.userId), name: goods.value.username } })
+  router.push(`/chat/${goods.value.userId}`)
 }
 
 const handleConsult = () => {
   if (!userStore.token) { ElMessage.warning('请先登录'); return }
   if (!goods.value) return
   const goodsInfo = JSON.stringify({ goodsId: goods.value.id, title: goods.value.title, price: goods.value.price })
-  router.push({ path: '/chat', query: { targetUserId: String(goods.value.userId), name: goods.value.username, consult: goodsInfo } })
+  router.push({ path: `/chat/${goods.value.userId}`, query: { consult: goodsInfo } })
 }
 
 const handleReport = () => { router.push({ path: '/report', query: { targetType: '1', targetId: String(route.params.id) } }) }

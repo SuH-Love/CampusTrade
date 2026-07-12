@@ -29,11 +29,12 @@
         <template v-if="currentTarget">
           <div class="chat-header">
             <span>{{ currentContactName }}</span>
-            <span v-if="isOnline(currentTarget!)" class="header-online">在线</span>
+            <span v-if="typingHint" class="header-typing">{{ typingHint }}</span>
+            <span v-else-if="isOnline(currentTarget!)" class="header-online">在线</span>
             <span v-else class="header-offline">离线</span>
           </div>
           <div class="chat-messages" ref="messagesRef">
-            <div v-for="msg in messages" :key="msg.id || msg._tempId" class="message-item" :class="{ self: msg.senderId === myId }" @contextmenu.prevent="onMsgContext($event, msg)">
+            <div v-for="(msg, idx) in messages" :key="msg.id || msg._tempId" class="message-item" :class="{ self: msg.senderId === myId }" :data-msg-idx="idx">
               <template v-if="msg.senderId === myId">
                 <div class="msg-wrap self-wrap">
                   <div v-if="msg.messageType === 2" class="msg-bubble self-bubble img-bubble"><el-image :src="msg.content" fit="cover" class="chat-img" :preview-src-list="[msg.content]" hide-on-click-modal /></div>
@@ -53,7 +54,7 @@
                   </div>
                   <div v-else-if="msg.messageType === 4" class="msg-bubble self-bubble recall-bubble"><el-icon style="margin-right: 4px"><RefreshLeft /></el-icon>该消息已撤回</div>
                   <div v-else class="msg-bubble self-bubble">{{ msg.content }}</div>
-                  <el-button v-if="isRecallable(msg)" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn"><el-icon style="margin-right: 2px"><RefreshLeft /></el-icon>撤回</el-button>
+                  <el-button v-if="msg._recallable" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn"><el-icon style="margin-right: 2px"><RefreshLeft /></el-icon>撤回</el-button>
                   <div class="msg-meta">
                     <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
                     <span v-if="msg.isRead" class="msg-read">已读</span>
@@ -86,7 +87,7 @@
                 </div>
               </template>
             </div>
-            <div v-if="typingHint" class="typing-hint">{{ typingHint }}</div>
+
             <el-empty v-if="messages.length === 0" description="暂无消息，发送第一条消息吧" :image-size="60" />
           </div>
           <div class="chat-input-area">
@@ -142,14 +143,16 @@
     </el-dialog>
   </div>
 
-  <div v-if="contextMenu.visible" class="context-menu" :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }">
-    <div v-if="contextMenu.canRecall" class="context-menu-item" @click="handleRecall(contextMenu.msg!)">
-      <el-icon style="margin-right: 6px"><RefreshLeft /></el-icon>撤回消息
+  <Teleport to="body">
+    <div v-if="contextMenu.visible" class="context-menu" :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }">
+      <div v-if="contextMenu.canRecall" class="context-menu-item" @click="handleRecall(contextMenu.msg!)">
+        <el-icon style="margin-right: 6px"><RefreshLeft /></el-icon>撤回消息
+      </div>
+      <div v-if="contextMenu.canCopy" class="context-menu-item" @click="handleCopyMsg(contextMenu.msg!)">
+        <el-icon style="margin-right: 6px"><CopyDocument /></el-icon>复制内容
+      </div>
     </div>
-    <div v-if="contextMenu.canCopy" class="context-menu-item" @click="handleCopyMsg(contextMenu.msg!)">
-      <el-icon style="margin-right: 6px"><CopyDocument /></el-icon>复制内容
-    </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -161,36 +164,39 @@ import { blockUser } from '@/api/blacklist'
 import { uploadImage } from '@/api/file'
 import { getGoodsList, type GoodsVO } from '@/api/goods'
 import { getBuyerOrders, type OrderVO } from '@/api/order'
+import { getUserPublicInfo } from '@/api/user'
 import { useChatWs } from '@/composables/useChatWs'
 import type { ChatMessageVO } from '@/api/chat'
 import type { ContactVO } from '@/types'
 
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-interface DisplayMessage extends ChatMessageVO { _tempId?: string }
+interface DisplayMessage extends ChatMessageVO { _tempId?: string; _sentAt?: number; _recallable?: boolean }
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const myId = computed(() => userStore.userInfo?.id || getMyId())
 
-const recallableMap = ref<Record<string, boolean>>({})
-
-const addRecallable = (id: number | undefined, tempId: string | undefined, createTime: string | undefined) => {
-  const key = id && id !== 0 ? String(id) : tempId || ''
-  if (!key) return
-  if (!createTime) return
-  const elapsed = Date.now() - new Date(createTime.replace(' ', 'T')).getTime()
-  if (elapsed >= 2 * 60 * 1000) return
-  recallableMap.value[key] = true
-  const remain = 2 * 60 * 1000 - elapsed
-  setTimeout(() => { delete recallableMap.value[key] }, remain)
+const scheduleRecallExpire = (key: string) => {
+  setTimeout(() => {
+    const idx = messages.value.findIndex(m => (m._tempId && m._tempId === key) || (m.id && m.id !== 0 && String(m.id) === key))
+    if (idx > -1 && messages.value[idx]._recallable) {
+      messages.value[idx]._recallable = false
+    }
+  }, 2 * 60 * 1000)
 }
 
-const isRecallable = (msg: DisplayMessage) => {
-  if (msg.senderId !== myId.value || msg.messageType === 4) return false
-  const key = msg.id && msg.id !== 0 ? String(msg.id) : msg._tempId || ''
-  return !!recallableMap.value[key]
+const markServerRecallable = () => {
+  const t = Date.now()
+  const uid = myId.value
+  for (let i = 0; i < messages.value.length; i++) {
+    const m = messages.value[i]
+    if (m.senderId !== uid || m.messageType === 4) { m._recallable = false; continue }
+    if (m._sentAt) continue
+    const sentAt = m.createTime ? new Date(m.createTime.replace(' ', 'T')).getTime() : 0
+    m._recallable = sentAt > 0 && (t - sentAt) < 2 * 60 * 1000
+  }
 }
 
 const {
@@ -218,15 +224,23 @@ const pickerOrderList = ref<OrderVO[]>([])
 const uploadRef = ref<{ $el: HTMLElement }>()
 let lastTypingSent = false
 let tempIdCounter = 0
+let recallTimer: ReturnType<typeof setInterval> | null = null
 
 const contextMenu = ref<{ visible: boolean; x: number; y: number; msg: DisplayMessage | null; canRecall: boolean; canCopy: boolean }>({
   visible: false, x: 0, y: 0, msg: null, canRecall: false, canCopy: false
 })
 
-const onMsgContext = (e: MouseEvent, msg: DisplayMessage) => {
+const onDocContextMenu = (e: MouseEvent) => {
+  const target = e.target as HTMLElement
+  if (!target.closest('.chat-messages')) return
+  const item = target.closest('.message-item') as HTMLElement | null
+  if (!item) return
+  const idx = Number(item.dataset.msgIdx)
+  if (isNaN(idx) || idx < 0 || idx >= messages.value.length) return
+  const msg = messages.value[idx]
   if (msg.messageType === 4) return
-  const canRecall = msg.senderId === myId.value && (msg.id && msg.id !== 0 || !!msg._tempId) &&
-    (Date.now() - new Date(msg.createTime.replace(' ', 'T')).getTime()) < 2 * 60 * 1000
+  e.preventDefault()
+  const canRecall = !!msg._recallable
   const canCopy = msg.messageType === 1
   if (!canRecall && !canCopy) return
   const menuW = 160, menuH = (canRecall && canCopy) ? 88 : 44
@@ -242,7 +256,7 @@ const handleCopyMsg = (msg: DisplayMessage) => {
   }
 }
 
-document.addEventListener('click', () => { contextMenu.value.visible = false })
+const closeContextMenu = () => { contextMenu.value.visible = false }
 
 const formatLastMessage = (content: string, messageType?: number) => {
   if (messageType === 4) return '[消息已撤回]'
@@ -292,12 +306,8 @@ const loadContacts = async () => {
 }
 
 const selectContact = async (contact: ContactItem) => {
-  currentTarget.value = contact.userId
-  currentContactName.value = contact.name
   contact.unread = 0
-
-  await loadMessages()
-  sendRead(contact.userId)
+  router.replace(`/chat/${contact.userId}`)
 }
 
 const loadMessages = async () => {
@@ -306,7 +316,7 @@ const loadMessages = async () => {
     const res = await getHistory(currentTarget.value, 1, 200)
     const list = res.list || res || []
     messages.value = (Array.isArray(list) ? list : []) as DisplayMessage[]
-    messages.value.forEach(m => addRecallable(m.id, m._tempId, m.createTime))
+    markServerRecallable()
     await nextTick()
     scrollToBottom()
   } catch {
@@ -324,6 +334,8 @@ const handleSend = async () => {
   const tempMsg: DisplayMessage = {
     id: 0,
     _tempId: `temp_${++tempIdCounter}`,
+    _sentAt: Date.now(),
+    _recallable: true,
     senderId: id || 0,
     receiverId: targetId,
     content,
@@ -337,7 +349,8 @@ const handleSend = async () => {
     receiverAvatar: ''
   }
   messages.value.push(tempMsg)
-  addRecallable(tempMsg.id, tempMsg._tempId, tempMsg.createTime)
+  scheduleRecallExpire(tempMsg._tempId!)
+
   inputText.value = ''
   nextTick(scrollToBottom)
 
@@ -408,7 +421,7 @@ const handleImageSelect = async (uploadFile: { raw?: File }) => {
     const url = await uploadImage(file)
     const targetId = currentTarget.value
     const tempMsg: DisplayMessage = {
-      id: 0, _tempId: `temp_${++tempIdCounter}`,
+      id: 0, _tempId: `temp_${++tempIdCounter}`, _sentAt: Date.now(), _recallable: true,
       senderId: myId.value || 0, receiverId: targetId,
       content: url, messageType: 2, isRead: 0,
       createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
@@ -417,7 +430,7 @@ const handleImageSelect = async (uploadFile: { raw?: File }) => {
       receiverName: currentContactName.value, receiverAvatar: ''
     }
     messages.value.push(tempMsg)
-    addRecallable(tempMsg.id, tempMsg._tempId, tempMsg.createTime)
+    scheduleRecallExpire(tempMsg._tempId!)
     nextTick(scrollToBottom)
     sendChat(targetId, url, 2)
     updateContactLastMessage(targetId, url, 2)
@@ -489,16 +502,16 @@ const confirmSendOrder = (order: OrderVO) => {
   const content = JSON.stringify({ type: 'order', orderId: order.id, orderNo: order.orderNo, amount: order.totalAmount, status: order.status })
   sendChat(currentTarget.value, content, 3)
   const tempMsg: DisplayMessage = {
-    id: 0, _tempId: `temp_${++tempIdCounter}`,
+    id: 0, _tempId: `temp_${++tempIdCounter}`, _sentAt: Date.now(), _recallable: true,
     senderId: myId.value || 0, receiverId: currentTarget.value,
-    content, messageType: 3,     isRead: 0,
+    content, messageType: 3, isRead: 0,
     createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
     senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
     senderAvatar: userStore.userInfo?.avatar || '',
     receiverName: currentContactName.value, receiverAvatar: ''
   }
   messages.value.push(tempMsg)
-  addRecallable(tempMsg.id, tempMsg._tempId, tempMsg.createTime)
+  scheduleRecallExpire(tempMsg._tempId!)
   nextTick(scrollToBottom)
   updateContactLastMessage(currentTarget.value, content, 3)
 }
@@ -519,16 +532,16 @@ const confirmSendGoods = (g: GoodsVO) => {
   const content = JSON.stringify({ goodsId: g.id, title: g.title, price: g.price, coverImage: g.coverImage })
   sendChat(currentTarget.value, content, 3)
   const tempMsg: DisplayMessage = {
-    id: 0, _tempId: `temp_${++tempIdCounter}`,
+    id: 0, _tempId: `temp_${++tempIdCounter}`, _sentAt: Date.now(), _recallable: true,
     senderId: myId.value || 0, receiverId: currentTarget.value,
-    content, messageType: 3,     isRead: 0,
+    content, messageType: 3, isRead: 0,
     createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
     senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
     senderAvatar: userStore.userInfo?.avatar || '',
     receiverName: currentContactName.value, receiverAvatar: ''
   }
   messages.value.push(tempMsg)
-  addRecallable(tempMsg.id, tempMsg._tempId, tempMsg.createTime)
+  scheduleRecallExpire(tempMsg._tempId!)
   nextTick(scrollToBottom)
   updateContactLastMessage(currentTarget.value, content, 3)
 }
@@ -555,7 +568,7 @@ const handleRecall = async (msg: DisplayMessage) => {
     if (idx > -1) {
       messages.value[idx].content = '该消息已撤回'
       messages.value[idx].messageType = 4
-      delete recallableMap.value[String(msg.id)]
+      messages.value[idx]._recallable = false
     }
     updateContactLastMessage(currentTarget.value || msg.receiverId, '该消息已撤回', 4)
     ElMessage.success('已撤回')
@@ -585,10 +598,10 @@ const formatTime = (t: string | number | null | undefined) => {
     return ''
   }
   if (isNaN(d.getTime())) return ''
-  const now = new Date()
+  const today = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
   const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`
-  const isToday = d.toDateString() === now.toDateString()
+  const isToday = d.toDateString() === today.toDateString()
   if (isToday) return time
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${time}`
 }
@@ -608,6 +621,7 @@ const removeWsHandler = onChatMessage((msg) => {
         if (recallTarget) {
           recallTarget.content = '该消息已撤回'
           recallTarget.messageType = 4
+          recallTarget._recallable = false
         }
         updateContactLastMessage(partnerId, '该消息已撤回', 4)
         const c = contacts.value.find(c => c.userId === partnerId)
@@ -617,15 +631,17 @@ const removeWsHandler = onChatMessage((msg) => {
           m._tempId && m.senderId === chatMsg.senderId && m.receiverId === chatMsg.receiverId && m.content === chatMsg.content
         )
         if (tempIdx > -1) {
-          const replaced = { ...chatMsg } as DisplayMessage
+          const oldRecallable = messages.value[tempIdx]._recallable
+          const oldSentAt = messages.value[tempIdx]._sentAt
+          const replaced = { ...chatMsg, _recallable: oldRecallable, _sentAt: oldSentAt } as DisplayMessage
           messages.value[tempIdx] = replaced
-          addRecallable(replaced.id, replaced._tempId, replaced.createTime)
+          if (oldRecallable) scheduleRecallExpire(String(chatMsg.id))
         } else {
           const exists = messages.value.some(m => m.id !== 0 && m.id === chatMsg.id)
           if (!exists) {
             const newMsg = chatMsg as DisplayMessage
             messages.value.push(newMsg)
-            addRecallable(newMsg.id, newMsg._tempId, newMsg.createTime)
+            markServerRecallable()
           }
         }
         nextTick(scrollToBottom)
@@ -678,34 +694,73 @@ watch(connected, (val) => {
   }
 })
 
+watch(() => route.params.userId, async (newTarget) => {
+  if (!newTarget) return
+  const userId = Number(newTarget)
+  if (!Number.isFinite(userId) || !Number.isInteger(userId) || userId <= 0 || userId === currentTarget.value) return
+  try {
+    const userInfo = await getUserPublicInfo(userId)
+    const name = userInfo.nickname || userInfo.username || `用户${userId}`
+    currentTarget.value = userId
+    currentContactName.value = name
+    const existing = contacts.value.find(c => c.userId === userId)
+    if (existing) {
+      existing.unread = 0
+    } else {
+      contacts.value.unshift({ userId, name, avatar: userInfo.avatar || '', lastMessage: '', unread: 0 })
+    }
+    await loadMessages()
+    sendRead(userId)
+  } catch {
+    ElMessage.error('用户不存在')
+    router.replace('/chat')
+  }
+})
+
+const switchToContact = async (userId: number): Promise<boolean> => {
+  try {
+    const userInfo = await getUserPublicInfo(userId)
+    const name = userInfo.nickname || userInfo.username || `用户${userId}`
+    currentTarget.value = userId
+    currentContactName.value = name
+    const existing = contacts.value.find(c => c.userId === userId)
+    if (existing) {
+      existing.unread = 0
+    } else {
+      contacts.value.unshift({ userId, name, avatar: userInfo.avatar || '', lastMessage: '', unread: 0 })
+    }
+    await nextTick()
+    await loadMessages()
+    sendRead(userId)
+    return true
+  } catch {
+    return false
+  }
+}
+
 onMounted(async () => {
-  const queryTarget = route.query.targetUserId ? Number(route.query.targetUserId) : null
-  const queryName = route.query.name as string || '卖家'
+  document.addEventListener('click', closeContextMenu)
+  document.addEventListener('contextmenu', onDocContextMenu, true)
+  recallTimer = setInterval(markServerRecallable, 15000)
+
+  const rawU = route.params.userId || route.query.u || route.query.targetUserId
+  const queryTarget = rawU ? Number(rawU) : null
   const queryConsult = route.query.consult as string || ''
 
-  if (queryTarget) {
-    currentTarget.value = queryTarget
-    currentContactName.value = queryName
-    await nextTick()
+  if (queryTarget !== null && (!Number.isFinite(queryTarget) || !Number.isInteger(queryTarget) || queryTarget <= 0)) {
+    router.replace('/chat')
+    return
   }
 
   await loadContacts()
 
   if (queryTarget) {
-    const existing = contacts.value.find(c => c.userId === queryTarget)
-    if (existing) {
-      currentTarget.value = queryTarget
-      currentContactName.value = existing.name
-      existing.unread = 0
-    } else {
-      const newContact: ContactItem = { userId: queryTarget, name: queryName, avatar: '', lastMessage: '', unread: 0 }
-      contacts.value.unshift(newContact)
-      currentTarget.value = queryTarget
-      currentContactName.value = queryName
+    const ok = await switchToContact(queryTarget)
+    if (!ok) {
+      ElMessage.error('用户不存在')
+      router.replace('/chat')
+      return
     }
-    await nextTick()
-    await loadMessages()
-    sendRead(queryTarget)
 
     if (queryConsult) {
       try {
@@ -713,8 +768,8 @@ onMounted(async () => {
         const content = queryConsult
         sendChat(queryTarget, content, 3)
         const tempMsg: DisplayMessage = {
-          id: 0, _tempId: `temp_${++tempIdCounter}`,
-          senderId: myId.value || 0, receiverId: queryTarget,
+          id: 0, _tempId: `temp_${++tempIdCounter}`, _sentAt: Date.now(), _recallable: true,
+          senderId: myId.value || 0, receiverId: currentTarget.value!,
           content, messageType: 3, isRead: 0,
           createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
           senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
@@ -722,19 +777,25 @@ onMounted(async () => {
           receiverName: currentContactName.value, receiverAvatar: ''
         }
         messages.value.push(tempMsg)
-        addRecallable(tempMsg.id, tempMsg._tempId, tempMsg.createTime)
+        scheduleRecallExpire(tempMsg._tempId!)
         await nextTick()
         scrollToBottom()
         updateContactLastMessage(queryTarget, content, 3)
       } catch (e) { console.error(e) }
     }
-    window.history.replaceState(null, '', '/chat')
+    if (String(route.params.userId) !== String(queryTarget)) {
+      router.replace(`/chat/${queryTarget}`)
+    }
   }
 })
 
 onUnmounted(() => {
   removeWsHandler()
+  document.removeEventListener('click', closeContextMenu)
+  document.removeEventListener('contextmenu', onDocContextMenu, true)
+  if (recallTimer) clearInterval(recallTimer)
 })
+
 </script>
 
 <style scoped lang="scss">
@@ -772,6 +833,7 @@ onUnmounted(() => {
 .chat-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
 .header-online { font-size: 12px; font-weight: 500; color: #22c55e; background: #f0fdf4; padding: 2px 8px; border-radius: 10px; }
 .header-offline { font-size: 12px; font-weight: 500; color: var(--text-muted); background: var(--bg-hover); padding: 2px 8px; border-radius: 10px; }
+.header-typing { font-size: 12px; font-weight: 500; color: #6366f1; background: #eef2ff; padding: 2px 8px; border-radius: 10px; animation: typing-pulse 1.5s ease-in-out infinite; }
 .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 .message-item { display: flex; gap: 10px; &.self { justify-content: flex-end; } }
 .sender-name { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
@@ -791,7 +853,7 @@ onUnmounted(() => {
 .msg-time { font-size: 11px; color: var(--text-muted); padding: 0 4px; }
 .msg-read { font-size: 11px; color: var(--primary); }
 .msg-unread { font-size: 11px; color: var(--text-muted); }
-.typing-hint { font-size: 12px; color: var(--text-muted); padding: 4px 8px; font-style: italic; }
+
 .chat-input-area { border-top: 1px solid var(--border); }
 .plus-panel {
   display: flex; gap: 16px; padding: 16px 20px; background: #fafbfc; border-bottom: 1px solid var(--border);
@@ -823,6 +885,9 @@ onUnmounted(() => {
 .picker-item-price { font-size: 13px; color: #f56c6c; font-weight: 600; margin-top: 2px; }
 .picker-item-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
+</style>
+
+<style lang="scss">
 .context-menu {
   position: fixed; z-index: 9999; background: #fff; border-radius: 10px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid #e2e8f0;
@@ -830,7 +895,11 @@ onUnmounted(() => {
 }
 .context-menu-item {
   display: flex; align-items: center; padding: 10px 16px; cursor: pointer;
-  font-size: 13px; color: var(--text-primary); transition: background 0.15s;
-  &:hover { background: var(--primary-lighter); color: var(--primary); }
+  font-size: 13px; color: #334155; transition: background 0.15s;
+  &:hover { background: #eef2ff; color: #6366f1; }
+}
+@keyframes typing-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 </style>
