@@ -32,4 +32,7 @@ public class RedisConstant {
     public static final long NULL_CACHE_TTL = 60;
     public static final long LOCK_TTL = 10;
     public static final long ORDER_TIMEOUT_TTL = 300;
+
+    public static final String RECOMMEND_USER_PREFIX = "recommend:user:";
+    public static final long RECOMMEND_USER_TTL = 3600;
 }

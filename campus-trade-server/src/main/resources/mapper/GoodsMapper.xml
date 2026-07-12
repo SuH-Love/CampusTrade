@@ -120,4 +120,17 @@
     <select id="selectCountByStatusAndUserId" resultType="java.lang.Long">
         SELECT COUNT(*) FROM t_goods WHERE deleted = 0 AND status = #{status} AND user_id = #{userId}
     </select>
+
+    <select id="selectOnlineByCategoryIds" resultMap="BaseResultMap">
+        SELECT * FROM t_goods WHERE deleted = 0 AND status = 'ONLINE'
+        <if test="categoryIds != null and categoryIds.size() > 0">
+            AND category_id IN
+            <foreach collection="categoryIds" item="cid" open="(" separator="," close=")">#{cid}</foreach>
+        </if>
+        <if test="excludeIds != null and excludeIds.size() > 0">
+            AND id NOT IN
+            <foreach collection="excludeIds" item="eid" open="(" separator="," close=")">#{eid}</foreach>
+        </if>
+        ORDER BY create_time DESC LIMIT #{limit}
+    </select>
 </mapper>

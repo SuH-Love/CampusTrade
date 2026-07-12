@@ -47,4 +47,8 @@ public interface GoodsMapper {
     Long selectCountByStatus(@Param("status") String status);
 
     Long selectCountByStatusAndUserId(@Param("status") String status, @Param("userId") Long userId);
+
+    List<Goods> selectOnlineByCategoryIds(@Param("categoryIds") List<Long> categoryIds,
+                                          @Param("excludeIds") java.util.Set<Long> excludeIds,
+                                          @Param("limit") int limit);
 }

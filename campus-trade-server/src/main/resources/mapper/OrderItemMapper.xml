@@ -31,4 +31,11 @@
     <update id="updatePriceById">
         UPDATE t_order_item SET price = #{price} WHERE id = #{id} AND deleted = 0
     </update>
+
+    <select id="selectGoodsIdsByBuyerId" resultType="java.lang.Long">
+        SELECT DISTINCT oi.goods_id FROM t_order_item oi
+        INNER JOIN t_order o ON oi.order_id = o.id AND o.deleted = 0
+        WHERE o.buyer_id = #{buyerId} AND oi.deleted = 0
+        ORDER BY oi.create_time DESC LIMIT #{limit}
+    </select>
 </mapper>

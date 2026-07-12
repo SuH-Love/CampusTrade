@@ -14,4 +14,6 @@ public interface OrderItemMapper {
     int insertBatch(@Param("items") List<OrderItem> items);
 
     int updatePriceById(@Param("id") Long id, @Param("price") java.math.BigDecimal price);
+
+    List<Long> selectGoodsIdsByBuyerId(@Param("buyerId") Long buyerId, @Param("limit") int limit);
 }
