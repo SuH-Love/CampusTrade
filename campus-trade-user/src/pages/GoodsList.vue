@@ -64,7 +64,6 @@ const pageSize = ref(12)
 const total = ref(0)
 const loading = ref(false)
 
-const getCategoryName = (id: number) => { const cat = categories.value.find(c => c.id === id); return cat ? cat.categoryName : '' }
 
 const loadData = async () => {
   loading.value = true
