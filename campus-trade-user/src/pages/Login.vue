@@ -19,17 +19,22 @@
         <p class="auth-subtitle">登录你的账号，开始交易</p>
         <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin" size="large">
           <el-form-item prop="username">
-            <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" />
+            <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" autocomplete="username" />
           </el-form-item>
           <el-form-item prop="password">
-            <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" show-password />
+            <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" show-password autocomplete="current-password" />
+          </el-form-item>
+          <el-form-item>
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center">
+              <el-checkbox v-model="rememberMe">记住我</el-checkbox>
+              <router-link to="/forgot-password" style="font-size: 13px">忘记密码？</router-link>
+            </div>
           </el-form-item>
           <el-form-item>
             <el-button type="primary" style="width: 100%" :loading="loading" native-type="submit" round>登录</el-button>
           </el-form-item>
         </el-form>
         <div class="auth-footer">
-          <router-link to="/forgot-password" style="margin-right: 16px">忘记密码？</router-link>
           还没有账号？<router-link to="/register">立即注册</router-link>
         </div>
       </div>
@@ -49,6 +54,7 @@ const route = useRoute()
 const userStore = useUserStore()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
+const rememberMe = ref(false)
 
 const features = [
   { icon: '🔒', title: '安全交易', desc: '实名认证保障买卖安全' },
@@ -62,15 +68,23 @@ const rules = {
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
+const savedUsername = localStorage.getItem('remembered_username')
+if (savedUsername) {
+  form.username = savedUsername
+  rememberMe.value = true
+}
+
 const handleLogin = async () => {
   await formRef.value?.validate()
   loading.value = true
   try {
+    if (rememberMe.value) localStorage.setItem('remembered_username', form.username)
+    else localStorage.removeItem('remembered_username')
     await userStore.login(form)
     ElMessage.success('登录成功')
     const redirect = (route.query.redirect as string) || '/'
     router.push(redirect)
-  } catch (e) { /* ignore */ } finally { loading.value = false }
+  } catch (e) { console.error(e) } finally { loading.value = false }
 }
 </script>
 

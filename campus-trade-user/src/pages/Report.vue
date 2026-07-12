@@ -1,5 +1,5 @@
 <template>
-  <div class="report-page">
+  <div class="report-page page-bg">
     <el-card class="report-form-card">
       <template #header>
         <div class="card-header">
@@ -183,8 +183,7 @@ onMounted(async () => {
 <style scoped lang="scss">
 .report-page {
   padding: 20px;
-  background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%);
-  min-height: calc(100vh - 60px);
+
   :deep(.el-card) {
     border-radius: 16px;
     border: 1px solid rgba(99, 102, 241, 0.08);

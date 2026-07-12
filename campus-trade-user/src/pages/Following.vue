@@ -1,5 +1,5 @@
 <template>
-  <div class="following-page">
+  <div class="following-page page-bg">
     <el-card>
       <template #header>
         <h3 style="margin: 0">我的关注</h3>
@@ -79,8 +79,7 @@ onMounted(loadData)
 <style scoped lang="scss">
 .following-page {
   padding: 20px;
-  background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%);
-  min-height: calc(100vh - 60px);
+
   :deep(.el-card) {
     border-radius: 16px;
     border: 1px solid rgba(99, 102, 241, 0.08);

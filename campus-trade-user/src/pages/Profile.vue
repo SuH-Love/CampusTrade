@@ -1,5 +1,5 @@
 <template>
-  <div class="profile-page">
+  <div class="profile-page page-bg">
     <el-row :gutter="20">
       <el-col :span="8">
         <el-card class="profile-card">
@@ -136,19 +136,7 @@
             <h3 style="margin: 0 0 16px">在售商品</h3>
             <el-row :gutter="16">
               <el-col :xs="12" :sm="8" :md="6" v-for="item in goodsList" :key="item.id">
-                <div class="goods-card" @click="$router.push(`/goods/${item.id}`)">
-                  <div class="goods-img-wrap">
-                    <img :src="item.coverImage || '/default-cover.svg'" class="goods-img" loading="lazy" />
-                    <span class="goods-category-tag">{{ item.categoryName }}</span>
-                  </div>
-                  <div class="goods-info">
-                    <div class="goods-title">{{ item.title }}</div>
-                    <div class="goods-bottom">
-                      <span class="price-text">¥{{ item.price }}</span>
-                      <span class="goods-views">{{ item.viewCount }} 浏览</span>
-                    </div>
-                  </div>
-                </div>
+                <GoodsCard :goods="item" />
               </el-col>
             </el-row>
             <el-empty v-if="goodsList.length === 0 && !goodsLoading" description="暂无在售商品" />
@@ -167,6 +155,7 @@ import { updateUserInfo, updatePassword, realNameVerify, uploadAvatar, getUserPu
 import { getGoodsList } from '@/api/goods'
 import { getFollowCounts, toggleFollow, isFollowing } from '@/api/follow'
 import { getAverageRating } from '@/api/rating'
+import GoodsCard from '@/components/GoodsCard.vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import type { UserVO } from '@/api/user'
@@ -346,8 +335,7 @@ onMounted(() => {
 <style scoped lang="scss">
 .profile-page {
   padding: 20px;
-  background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%);
-  min-height: calc(100vh - 60px);
+
   :deep(.el-card) {
     border-radius: 16px;
     border: 1px solid rgba(99, 102, 241, 0.08);
@@ -391,17 +379,4 @@ onMounted(() => {
   :deep(.el-tabs__active-bar) { background: var(--primary); }
 }
 
-.goods-card {
-  background: var(--bg-card); border-radius: 14px; overflow: hidden; cursor: pointer;
-  transition: var(--transition); border: 1px solid var(--border); margin-bottom: 16px;
-  &:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--primary-lighter); }
-}
-.goods-img-wrap { position: relative; padding-top: 75%; overflow: hidden; background: #f1f5f9; }
-.goods-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; .goods-card:hover & { transform: scale(1.05); } }
-.goods-category-tag { position: absolute; top: 8px; left: 8px; background: rgba(0,0,0,0.5); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 10px; }
-.goods-info { padding: 12px; }
-.goods-title { font-size: 14px; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.goods-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
-.price-text { color: #f56c6c; font-weight: 700; font-size: 16px; }
-.goods-views { font-size: 12px; color: var(--text-muted); }
 </style>

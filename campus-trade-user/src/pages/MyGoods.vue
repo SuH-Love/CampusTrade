@@ -1,5 +1,5 @@
 <template>
-  <div class="my-goods-page">
+  <div class="my-goods-page page-bg">
     <el-card>
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px">
@@ -166,8 +166,7 @@ onMounted(loadData)
 <style scoped lang="scss">
 .my-goods-page {
   padding: 20px;
-  background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%);
-  min-height: calc(100vh - 60px);
+
   :deep(.el-card) {
     border-radius: 16px;
     border: 1px solid rgba(99, 102, 241, 0.08);

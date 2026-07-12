@@ -13,16 +13,19 @@
         <p class="auth-subtitle">注册后即可发布和购买商品</p>
         <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleRegister" size="large">
           <el-form-item prop="username">
-            <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" />
+            <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" autocomplete="username" />
           </el-form-item>
           <el-form-item prop="password">
-            <el-input v-model="form.password" type="password" placeholder="密码（至少8位）" prefix-icon="Lock" show-password />
+            <el-input v-model="form.password" type="password" placeholder="密码（至少8位）" prefix-icon="Lock" show-password autocomplete="new-password" />
+          </el-form-item>
+          <el-form-item prop="confirmPassword">
+            <el-input v-model="form.confirmPassword" type="password" placeholder="确认密码" prefix-icon="Lock" show-password autocomplete="new-password" />
           </el-form-item>
           <el-form-item prop="phone">
-            <el-input v-model="form.phone" placeholder="手机号（选填）" />
+            <el-input v-model="form.phone" placeholder="手机号（选填）" autocomplete="tel" />
           </el-form-item>
           <el-form-item prop="email">
-            <el-input v-model="form.email" placeholder="邮箱（选填）" />
+            <el-input v-model="form.email" placeholder="邮箱（选填）" autocomplete="email" />
           </el-form-item>
           <el-form-item>
             <el-button type="primary" style="width: 100%" :loading="loading" native-type="submit" round>注册</el-button>
@@ -48,10 +51,17 @@ const userStore = useUserStore()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 
-const form = reactive({ username: '', password: '', phone: '', email: '' })
+const form = reactive({ username: '', password: '', confirmPassword: '', phone: '', email: '' })
+
+const confirmPwdValidator = (_rule: unknown, value: string, callback: (err?: Error) => void) => {
+  if (value !== form.password) callback(new Error('两次密码不一致'))
+  else callback()
+}
+
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }, { min: 8, message: '密码至少8位', trigger: 'blur' }]
+  password: [{ required: true, message: '请输入密码', trigger: 'blur' }, { min: 8, message: '密码至少8位', trigger: 'blur' }],
+  confirmPassword: [{ required: true, message: '请确认密码', trigger: 'blur' }, { validator: confirmPwdValidator, trigger: 'blur' }]
 }
 
 const handleRegister = async () => {
@@ -61,7 +71,7 @@ const handleRegister = async () => {
     await userStore.register(form)
     ElMessage.success('注册成功，请登录')
     router.push('/login')
-  } catch (e) { /* ignore */ } finally { loading.value = false }
+  } catch (e) { console.error(e) } finally { loading.value = false }
 }
 </script>
 

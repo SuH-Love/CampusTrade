@@ -107,6 +107,11 @@ a:hover { color: var(--primary-dark); }
 
 .page-container { max-width: 1200px; margin: 0 auto; padding: 24px; }
 
+.page-bg {
+  min-height: calc(100vh - 60px);
+  background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%);
+}
+
 .section-title {
   font-size: 20px;
   font-weight: 700;

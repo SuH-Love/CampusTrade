@@ -1,5 +1,5 @@
 <template>
-  <div class="address-page">
+  <div class="address-page page-bg">
     <div class="address-inner page-container">
     <div class="page-header">
       <h2>收货地址管理</h2>
@@ -169,8 +169,7 @@ onMounted(loadList)
 <style scoped lang="scss">
 .address-page {
   padding: 20px;
-  background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%);
-  min-height: calc(100vh - 60px);
+
 }
 .address-inner {
   background: var(--bg-glass);

@@ -1,5 +1,5 @@
 <template>
-  <div class="my-reports-page">
+  <div class="my-reports-page page-bg">
     <el-card>
       <template #header><h3 style="margin: 0">我的举报</h3></template>
       <el-table :data="reports" stripe v-loading="loading">
@@ -88,8 +88,7 @@ onMounted(loadData)
 <style scoped lang="scss">
 .my-reports-page {
   padding: 20px;
-  background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%);
-  min-height: calc(100vh - 60px);
+
   :deep(.el-card) {
     border-radius: 16px;
     border: 1px solid rgba(99, 102, 241, 0.08);
