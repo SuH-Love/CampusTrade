@@ -1,10 +1,10 @@
 <template>
-  <div class="dashboard-page">
-    <el-row :gutter="16" style="margin-bottom: 20px">
+  <div class="dashboard-page admin-page">
+    <el-row :gutter="16" class="mb-lg">
       <el-col :xs="12" :sm="6" :md="4" v-for="item in stats" :key="item.label">
         <div class="stat-card" :style="{ borderTopColor: item.color }">
           <div class="stat-icon" :style="{ background: item.color + '18', color: item.color }">
-            <span style="font-size: 22px">{{ item.emoji }}</span>
+            <el-icon :size="22"><component :is="item.icon" /></el-icon>
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ item.value }}</div>
@@ -13,7 +13,7 @@
         </div>
       </el-col>
     </el-row>
-    <el-row :gutter="20" style="margin-bottom: 20px">
+    <el-row :gutter="20" class="mb-lg">
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header><span class="card-title">商品状态分布</span></template>
@@ -46,15 +46,15 @@
         <el-card shadow="hover">
           <template #header><span class="card-title">最近操作日志</span></template>
           <el-table :data="recentLogs" size="small" stripe>
-            <el-table-column prop="username" label="操作人" width="90" />
-            <el-table-column prop="operation" label="操作" show-overflow-tooltip>
+            <el-table-column prop="username" label="操作人" min-width="90" />
+            <el-table-column prop="operation" label="操作" show-overflow-tooltip min-width="120">
               <template #default="{ row }">{{ operationLabel(row.operation) }}</template>
             </el-table-column>
-            <el-table-column prop="module" label="模块" width="90">
+            <el-table-column prop="module" label="模块" min-width="90">
               <template #default="{ row }">{{ moduleLabel(row.module) }}</template>
             </el-table-column>
-            <el-table-column prop="ip" label="IP" width="130" />
-            <el-table-column prop="createTime" label="时间" width="170" />
+            <el-table-column prop="ip" label="IP" min-width="130" />
+            <el-table-column prop="createTime" label="时间" min-width="170" />
           </el-table>
         </el-card>
       </el-col>
@@ -64,17 +64,19 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { User, Sunny, Plus, Box, ShoppingCart, Tickets, ArrowRight } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import { getDashboardStats, getReportList, getOperationLogs } from '@/api/admin'
+import { operationLabel, moduleLabel } from '@/utils/labels'
 import type { OperationLogVO, PageQueryParams } from '@/types'
 
 const stats = ref([
-  { label: '用户总数', value: 0, emoji: '👥', color: '#6366f1' },
-  { label: '今日日活', value: 0, emoji: '🔥', color: '#f59e0b' },
-  { label: '今日新增', value: 0, emoji: '🆕', color: '#10b981' },
-  { label: '商品总数', value: 0, emoji: '📦', color: '#8b5cf6' },
-  { label: '订单总数', value: 0, emoji: '🛒', color: '#3b82f6' },
-  { label: '今日订单', value: 0, emoji: '📋', color: '#06b6d4' }
+  { label: '用户总数', value: 0, icon: User, color: '#6366f1' },
+  { label: '今日日活', value: 0, icon: Sunny, color: '#f59e0b' },
+  { label: '今日新增', value: 0, icon: Plus, color: '#10b981' },
+  { label: '商品总数', value: 0, icon: Box, color: '#8b5cf6' },
+  { label: '订单总数', value: 0, icon: ShoppingCart, color: '#3b82f6' },
+  { label: '今日订单', value: 0, icon: Tickets, color: '#06b6d4' }
 ])
 
 const todoItems = ref([
@@ -91,47 +93,6 @@ let orderChart: echarts.ECharts | null = null
 
 const goodsStatusData = ref<{ name: string; value: number }[]>([])
 const orderStatusData = ref<{ name: string; value: number }[]>([])
-
-const operationLabel = (op: string) => {
-  const map: Record<string, string> = {
-    register: '注册', login: '登录', logout: '退出', refreshToken: '刷新令牌',
-    getUserInfo: '获取用户信息', getUserPublicInfo: '获取公开信息', updateUserInfo: '更新用户信息',
-    updatePassword: '修改密码', realNameVerify: '实名认证', uploadAvatar: '上传头像', getUserStats: '用户统计',
-    getAdminInfo: '获取管理员信息', dashboardStats: '仪表盘统计', banUser: '封禁用户', unbanUser: '解封用户',
-    listUsers: '用户列表', listOrders: '订单列表', listReports: '举报列表',
-    listOperationLogs: '操作日志', listSecurityLogs: '安全日志', rejectRefund: '拒绝退款',
-    createGoods: '发布商品', updateGoods: '编辑商品', deleteGoods: '删除商品', getGoodsDetail: '商品详情',
-    listGoods: '商品列表', hotGoods: '热门商品', recommendGoods: '推荐商品',
-    submitAudit: '提交审核', auditGoods: '审核商品', onlineGoods: '上架商品', offlineGoods: '下架商品',
-    favoriteGoods: '收藏商品', unfavoriteGoods: '取消收藏',
-    createOrder: '创建订单', cancelOrder: '取消订单', payOrder: '支付订单',
-    shipOrder: '发货', finishOrder: '确认收货', refundOrder: '退款',
-    approveRefund: '同意退款', modifyPrice: '修改价格', getOrderDetail: '订单详情',
-    listCart: '购物车列表', addToCart: '加入购物车', updateQuantity: '修改数量',
-    removeFromCart: '移出购物车', clearCart: '清空购物车',
-    sendMessage: '发送消息', getRecentContacts: '最近联系人', getUnreadCount: '未读消息数',
-    markAsRead: '标记已读', getOnlineUsers: '在线用户', getTotalUnreadCount: '总未读数',
-    markAllAsRead: '全部已读', deleteNotification: '删除通知',
-    getMyPreferences: '通知偏好', setPreference: '设置偏好',
-    list: '地址列表', getById: '地址详情', add: '新增地址', update: '修改地址',
-    delete: '删除地址', setDefault: '设为默认',
-    createReport: '提交举报', handleReport: '处理举报',
-    listActiveBanners: '轮播图列表', createBanner: '创建轮播图', updateBanner: '编辑轮播图',
-    deleteBanner: '删除轮播图', toggleBannerStatus: '切换轮播图状态',
-    toggleFollow: '关注/取关', isFollowing: '是否关注', getFollowCounts: '关注数',
-    getAverageRating: '卖家评分', 订单创建: '订单创建'
-  }
-  return map[op] || op
-}
-
-const moduleLabel = (mod: string) => {
-  const map: Record<string, string> = {
-    Auth: '认证', User: '用户', Goods: '商品', Order: '订单',
-    Report: '举报', Chat: '聊天', Admin: '管理', Banner: '横幅',
-    Cart: '购物车', Notification: '通知', FileUpload: '文件上传'
-  }
-  return map[mod] || mod
-}
 
 const initGoodsChart = () => {
   if (!goodsChartRef.value) return
@@ -225,7 +186,6 @@ onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeE
 </script>
 
 <style scoped lang="scss">
-.dashboard-page { padding: 20px; }
 .stat-card {
   background: var(--admin-card-bg);
   border-radius: 12px;

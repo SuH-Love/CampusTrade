@@ -1,6 +1,6 @@
 <template>
   <el-container class="admin-layout">
-    <el-aside :width="isCollapse ? '64px' : '240px'" class="sidebar">
+    <el-aside v-if="!isMobile" :width="isCollapse ? '64px' : '240px'" class="sidebar">
       <div class="logo-area">
         <div class="logo-icon" v-if="!isCollapse">C</div>
         <div class="logo-icon small" v-else>C</div>
@@ -10,24 +10,52 @@
         <template v-for="item in menuItems" :key="item.path">
           <el-menu-item :index="item.path">
             <el-icon><component :is="item.icon" /></el-icon><span>{{ item.title }}</span>
+            <el-badge v-if="item.badge && item.badge > 0" :value="item.badge" :max="99" class="menu-badge" />
           </el-menu-item>
         </template>
       </el-menu>
     </el-aside>
+    <el-drawer v-if="isMobile" v-model="drawerVisible" direction="ltr" :size="'260px'" :show-close="false" :with-header="false" class="sidebar-drawer">
+      <div class="logo-area">
+        <div class="logo-icon">C</div>
+        <span class="logo-text">CampusTrade</span>
+      </div>
+      <el-menu :default-active="activeMenu" router class="sidebar-menu" @select="onMenuSelect">
+        <template v-for="item in menuItems" :key="item.path">
+          <el-menu-item :index="item.path">
+            <el-icon><component :is="item.icon" /></el-icon><span>{{ item.title }}</span>
+            <el-badge v-if="item.badge && item.badge > 0" :value="item.badge" :max="99" class="menu-badge" />
+          </el-menu-item>
+        </template>
+      </el-menu>
+    </el-drawer>
     <el-container>
       <el-header class="header">
         <div class="header-left">
-          <el-icon class="collapse-btn" @click="isCollapse = !isCollapse">
+          <el-icon v-if="isMobile" class="collapse-btn" @click="drawerVisible = true">
+            <Expand />
+          </el-icon>
+          <el-icon v-else class="collapse-btn" @click="isCollapse = !isCollapse">
             <Fold v-if="!isCollapse" /><Expand v-else />
           </el-icon>
-          <span class="header-title">管理后台</span>
+          <el-breadcrumb separator="/" class="header-breadcrumb">
+            <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
+            <template v-for="item in breadcrumbItems" :key="item.path">
+              <el-breadcrumb-item :to="item.path !== route.path ? { path: item.path } : undefined">{{ item.title }}</el-breadcrumb-item>
+            </template>
+          </el-breadcrumb>
         </div>
         <div class="header-right">
+          <el-tooltip :content="isFullscreen ? '退出全屏' : '全屏'" placement="bottom">
+            <el-icon class="header-action-btn" @click="toggleFullscreen">
+              <FullScreen v-if="!isFullscreen" /><Aim v-else />
+            </el-icon>
+          </el-tooltip>
           <el-dropdown>
             <div class="admin-info">
-              <el-avatar :size="32" style="background: var(--admin-primary)">{{ adminStore.username?.[0]?.toUpperCase() || 'A' }}</el-avatar>
+              <el-avatar :size="32" class="admin-avatar">{{ adminStore.username?.[0]?.toUpperCase() || 'A' }}</el-avatar>
               <span>{{ adminStore.nickname || adminStore.username || '管理员' }}</span>
-              <el-tag v-if="adminStore.isSuperAdmin" size="small" type="danger" style="margin-left: 4px">超管</el-tag>
+              <el-tag v-if="adminStore.isSuperAdmin" size="small" type="danger" class="super-tag">超管</el-tag>
             </div>
             <template #dropdown>
               <el-dropdown-menu>
@@ -43,21 +71,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
+import { getDashboardStats } from '@/api/admin'
+import type { DashboardStats } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
 const adminStore = useAdminStore()
 const activeMenu = computed(() => route.path)
 const isCollapse = ref(false)
+const isMobile = ref(false)
+const drawerVisible = ref(false)
+const isFullscreen = ref(false)
+const stats = ref<DashboardStats | null>(null)
 
 interface MenuItem {
   path: string
   title: string
   icon: string
   permission: string
+  badge?: number
 }
 
 const allMenus: MenuItem[] = [
@@ -73,13 +108,67 @@ const allMenus: MenuItem[] = [
 ]
 
 const menuItems = computed(() =>
-  allMenus.filter(m => !m.permission || adminStore.hasPermission(m.permission))
+  allMenus.filter(m => !m.permission || adminStore.hasPermission(m.permission)).map(m => {
+    if (m.path === '/goods') return { ...m, badge: stats.value?.pendingAudit || 0 }
+    if (m.path === '/report') {
+      const pendingReports = stats.value?.orderStatusMap?.REFUND || 0
+      return { ...m, badge: pendingReports > 0 ? pendingReports : undefined }
+    }
+    return m
+  })
 )
+
+const breadcrumbItems = computed(() => {
+  return route.matched
+    .filter(r => r.meta?.title && r.path !== '/')
+    .map(r => ({ path: r.path, title: r.meta.title as string }))
+})
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 768
+  if (!isMobile.value) drawerVisible.value = false
+}
+
+const onMenuSelect = () => {
+  drawerVisible.value = false
+}
+
+const toggleFullscreen = () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen()
+    isFullscreen.value = true
+  } else {
+    document.exitFullscreen()
+    isFullscreen.value = false
+  }
+}
+
+const onFullscreenChange = () => {
+  isFullscreen.value = !!document.fullscreenElement
+}
+
+const fetchStats = async () => {
+  try {
+    stats.value = await getDashboardStats()
+  } catch { /* ignore */ }
+}
 
 const handleLogout = () => {
   adminStore.logout()
   router.push('/login')
 }
+
+onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+  document.addEventListener('fullscreenchange', onFullscreenChange)
+  fetchStats()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
+})
 </script>
 
 <style scoped lang="scss">
@@ -91,6 +180,13 @@ const handleLogout = () => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.sidebar-drawer {
+  :deep(.el-drawer__body) {
+    background: var(--admin-sidebar-bg);
+    padding: 0;
+  }
 }
 
 .logo-area {
@@ -135,6 +231,15 @@ const handleLogout = () => {
   }
 }
 
+.menu-badge {
+  :deep(.el-badge__content) {
+    font-size: 10px;
+    height: 16px;
+    line-height: 16px;
+    padding: 0 5px;
+  }
+}
+
 .header {
   display: flex; align-items: center; justify-content: space-between;
   background: rgba(255, 255, 255, 0.95);
@@ -152,9 +257,27 @@ const handleLogout = () => {
   &:hover { color: var(--admin-primary); }
 }
 
-.header-title { font-size: 16px; font-weight: 600; color: var(--admin-text); }
+.header-breadcrumb {
+  font-size: 14px;
+  :deep(.el-breadcrumb__inner) {
+    color: var(--admin-text-secondary);
+    &.is-link:hover { color: var(--admin-primary); }
+  }
+  :deep(.el-breadcrumb__item:last-child .el-breadcrumb__inner) {
+    color: var(--admin-text);
+    font-weight: 600;
+  }
+}
 
-.header-right { display: flex; align-items: center; }
+.header-right { display: flex; align-items: center; gap: 16px; }
+
+.header-action-btn {
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--admin-text-secondary);
+  transition: var(--admin-transition);
+  &:hover { color: var(--admin-primary); }
+}
 
 .admin-info {
   display: flex; align-items: center; gap: 8px;
@@ -164,5 +287,17 @@ const handleLogout = () => {
   &:hover { background: var(--admin-bg); }
 }
 
+.admin-avatar {
+  background: var(--admin-primary);
+}
+
+.super-tag { margin-left: 4px; }
+
 .admin-main { background: var(--admin-bg); padding: 24px; }
+
+@media (max-width: 768px) {
+  .header-breadcrumb { display: none; }
+  .header { padding: 0 16px; }
+  .admin-main { padding: 16px; }
+}
 </style>

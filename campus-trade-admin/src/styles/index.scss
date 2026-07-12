@@ -16,6 +16,9 @@
   --admin-shadow-md: 0 4px 12px rgba(0,0,0,0.06);
   --admin-radius: 14px;
   --admin-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --admin-spacing-sm: 8px;
+  --admin-spacing-md: 16px;
+  --admin-spacing-lg: 24px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -38,9 +41,7 @@ body {
   background: rgba(255, 255, 255, 0.95) !important;
 }
 
-.el-popper {
-  z-index: 9999 !important;
-}
+.el-popper { z-index: 9999 !important; }
 
 .el-button--primary {
   background: var(--admin-primary-gradient) !important;
@@ -53,6 +54,25 @@ body {
 .el-button { border-radius: 8px !important; font-weight: 500 !important; transition: var(--admin-transition) !important; }
 .el-input__wrapper { border-radius: 8px !important; transition: var(--admin-transition) !important; }
 .el-table { border-radius: var(--admin-radius) !important; overflow: hidden; }
-.el-table th.el-table__cell { background: #f8fafc !important; font-weight: 600 !important; }
+.el-table th.el-table__cell { background: var(--admin-primary) !important; font-weight: 600 !important; color: #fff !important; }
+.el-table tr:hover > td { background: rgba(99, 102, 241, 0.06) !important; }
 .el-tag { border-radius: 6px !important; font-weight: 500 !important; }
-.el-pagination { justify-content: center !important; margin-top: 16px; .el-pager li { border-radius: 8px !important; &.is-active { background: var(--admin-primary-gradient) !important; } } .btn-prev, .btn-next { background: transparent !important; &:hover { color: var(--admin-primary); } } }
+.el-pagination {
+  justify-content: center !important;
+  margin-top: var(--admin-spacing-md);
+  .el-pager li { border-radius: 8px !important; &.is-active { background: var(--admin-primary-gradient) !important; } }
+  .btn-prev, .btn-next { background: transparent !important; &:hover { color: var(--admin-primary); } }
+}
+.el-dialog { border-radius: var(--admin-radius) !important; overflow: hidden; }
+.el-descriptions { --el-descriptions-table-border: 1px solid var(--admin-border); }
+.el-descriptions__label { font-weight: 600 !important; color: var(--admin-text-secondary) !important; }
+
+.admin-page { padding: var(--admin-spacing-lg); }
+.admin-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.admin-filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }

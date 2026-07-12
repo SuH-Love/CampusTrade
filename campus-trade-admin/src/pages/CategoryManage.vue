@@ -1,13 +1,19 @@
 <template>
-  <div class="category-manage">
+  <div class="admin-page">
     <el-card>
       <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center">
-          <h3 style="margin: 0">分类管理</h3>
+        <div class="admin-card-header">
+          <h3>分类管理</h3>
           <el-button type="primary" @click="handleAdd">新增分类</el-button>
         </div>
       </template>
-      <el-table :data="categories" stripe v-loading="loading">
+      <div class="admin-filter-bar">
+        <el-input v-model="searchKeyword" placeholder="搜索分类名称" clearable style="width: 240px" @clear="handleSearch" @keyup.enter="handleSearch">
+          <template #prefix><el-icon><Search /></el-icon></template>
+        </el-input>
+        <el-button type="primary" @click="handleSearch">搜索</el-button>
+      </div>
+      <el-table :data="filteredCategories" stripe v-loading="loading">
         <el-table-column prop="id" label="ID" min-width="60" />
         <el-table-column prop="categoryName" label="分类名称" min-width="150" />
         <el-table-column prop="sortOrder" label="排序" min-width="80" />
@@ -39,6 +45,9 @@
         <el-form-item label="图标">
           <el-input v-model="form.icon" placeholder="图标名称（可选）" />
         </el-form-item>
+        <el-form-item label="状态">
+          <el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="禁用" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -49,20 +58,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { getCategoryList, createCategory, updateCategory, deleteCategory, type CategoryVO } from '@/api/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
 
 const categories = ref<CategoryVO[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const editingId = ref<number | null>(null)
+const searchKeyword = ref('')
 
 const form = reactive({
   categoryName: '',
   sortOrder: 0,
-  icon: ''
+  icon: '',
+  status: 1
+})
+
+const filteredCategories = computed(() => {
+  if (!searchKeyword.value.trim()) return categories.value
+  const keyword = searchKeyword.value.trim().toLowerCase()
+  return categories.value.filter(item => item.categoryName.toLowerCase().includes(keyword))
 })
 
 const loadData = async () => {
@@ -72,11 +90,16 @@ const loadData = async () => {
   } catch (e) { console.error(e) } finally { loading.value = false }
 }
 
+const handleSearch = () => {
+  // filteredCategories is computed, auto-updates
+}
+
 const handleAdd = () => {
   editingId.value = null
   form.categoryName = ''
   form.sortOrder = 0
   form.icon = ''
+  form.status = 1
   dialogVisible.value = true
 }
 
@@ -85,6 +108,7 @@ const handleEdit = (row: CategoryVO) => {
   form.categoryName = row.categoryName
   form.sortOrder = row.sortOrder || 0
   form.icon = row.icon || ''
+  form.status = row.status ?? 1
   dialogVisible.value = true
 }
 
@@ -93,10 +117,10 @@ const handleSubmit = async () => {
   submitting.value = true
   try {
     if (editingId.value) {
-      await updateCategory(editingId.value, { categoryName: form.categoryName, sortOrder: form.sortOrder, icon: form.icon })
+      await updateCategory(editingId.value, { categoryName: form.categoryName, sortOrder: form.sortOrder, icon: form.icon, status: form.status })
       ElMessage.success('修改成功')
     } else {
-      await createCategory({ categoryName: form.categoryName, sortOrder: form.sortOrder, icon: form.icon })
+      await createCategory({ categoryName: form.categoryName, sortOrder: form.sortOrder, icon: form.icon, status: form.status })
       ElMessage.success('添加成功')
     }
     dialogVisible.value = false
@@ -107,10 +131,15 @@ const handleSubmit = async () => {
 const handleToggleStatus = async (row: CategoryVO) => {
   const newStatus = row.status === 1 ? 0 : 1
   try {
+    await ElMessageBox.confirm(
+      newStatus === 1 ? `确认启用分类「${row.categoryName}」？` : `确认禁用分类「${row.categoryName}」？`,
+      '操作确认',
+      { type: 'warning' }
+    )
     await updateCategory(row.id, { status: newStatus })
     ElMessage.success(newStatus === 1 ? '已启用' : '已禁用')
     loadData()
-  } catch (e) { console.error(e) }
+  } catch { /* cancel */ }
 }
 
 const handleDelete = async (row: CategoryVO) => {
@@ -126,5 +155,4 @@ onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
-.category-manage { padding: 20px; }
 </style>

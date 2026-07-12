@@ -1,11 +1,24 @@
 <template>
-  <div class="order-manage-page">
+  <div class="admin-page">
     <el-card>
       <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center">
+        <div class="admin-card-header">
           <h3>订单管理</h3>
-          <div style="display: flex; gap: 8px; align-items: center">
-            <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="loadData" style="width: 160px">
+          <div class="admin-filter-bar">
+            <el-input v-model="searchOrderNo" placeholder="搜索订单号" clearable class="filter-input" @keyup.enter="handleSearch" @clear="handleSearch">
+              <template #prefix><el-icon><Search /></el-icon></template>
+            </el-input>
+            <el-date-picker
+              v-model="dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              value-format="YYYY-MM-DD"
+              class="filter-datepicker"
+              @change="handleSearch"
+            />
+            <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch" class="filter-select">
               <el-option label="待支付" value="PENDING_PAY" />
               <el-option label="已支付" value="PAID" />
               <el-option label="已发货" value="SHIPPING" />
@@ -23,7 +36,7 @@
         <el-table-column prop="buyerName" label="买家" min-width="90" />
         <el-table-column prop="sellerName" label="卖家" min-width="90" />
         <el-table-column prop="totalAmount" label="金额" min-width="100">
-          <template #default="{ row }"><span style="color: #f56c6c; font-weight: bold">¥{{ row.totalAmount }}</span></template>
+          <template #default="{ row }"><span class="price-text">¥{{ row.totalAmount }}</span></template>
         </el-table-column>
         <el-table-column prop="status" label="状态" min-width="100">
           <template #default="{ row }">
@@ -34,25 +47,25 @@
           <template #default="{ row }">
             <el-tag v-if="row.deliveryMethod === 1" size="small" type="primary">配送</el-tag>
             <el-tag v-else-if="row.deliveryMethod === 0 || row.deliveryMethod === 2" size="small" type="success">自取</el-tag>
-            <span v-else style="color: #c0c4cc">-</span>
+            <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
         <el-table-column prop="address" label="配送地址" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">
             <span v-if="row.address">{{ row.address }}</span>
-            <span v-else style="color: #c0c4cc">-</span>
+            <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
         <el-table-column prop="cancelReason" label="取消原因" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">
-            <span v-if="row.cancelReason" style="color: #f56c6c">{{ row.cancelReason }}</span>
-            <span v-else style="color: #c0c4cc">-</span>
+            <span v-if="row.cancelReason" class="cancel-text">{{ row.cancelReason }}</span>
+            <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">
             <span v-if="row.remark">{{ row.remark }}</span>
-            <span v-else style="color: #c0c4cc">-</span>
+            <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="150" />
@@ -60,28 +73,64 @@
           <template #default="{ row }">
             <el-button size="small" @click="showDetail(row)">详情</el-button>
             <el-button v-if="row.status === 'REFUND'" type="success" size="small" @click="handleApproveRefund(row.id)">同意退款</el-button>
-            <el-button v-if="row.status === 'REFUND'" type="warning" size="small" @click="handleRejectRefund(row.id)">拒绝退款</el-button>
+            <el-button v-if="row.status === 'REFUND'" type="warning" size="small" @click="openRejectRefundDialog(row.id)">拒绝退款</el-button>
           </template>
         </el-table-column>
+        <template #empty><el-empty description="暂无订单" :image-size="60" /></template>
       </el-table>
-      <el-empty v-if="orders.length === 0" description="暂无订单" />
-      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
+      <div class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="pageNum"
+          v-model:page-size="pageSize"
+          :total="total"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, prev, pager, next, sizes"
+          @current-change="loadData"
+          @size-change="handleSizeChange"
+        />
+      </div>
     </el-card>
 
-    <el-dialog v-model="detailVisible" title="订单详情" width="600px">
-      <el-descriptions :column="2" border v-if="detailOrder">
-        <el-descriptions-item label="订单号">{{ detailOrder.orderNo }}</el-descriptions-item>
-        <el-descriptions-item label="状态"><el-tag :type="statusTagMap[detailOrder.status] || 'info'" effect="dark" round>{{ statusLabel(detailOrder.status) }}</el-tag></el-descriptions-item>
-        <el-descriptions-item label="买家">{{ detailOrder.buyerName }}</el-descriptions-item>
-        <el-descriptions-item label="卖家">{{ detailOrder.sellerName }}</el-descriptions-item>
-        <el-descriptions-item label="金额"><span style="color: #f56c6c; font-weight: bold">¥{{ detailOrder.totalAmount }}</span></el-descriptions-item>
-        <el-descriptions-item label="配送">{{ detailOrder.deliveryMethod === 1 ? '配送' : '自取' }}</el-descriptions-item>
-        <el-descriptions-item label="地址" :span="2">{{ detailOrder.address || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="备注" :span="2">{{ detailOrder.remark || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="取消原因" :span="2" v-if="detailOrder.cancelReason">{{ detailOrder.cancelReason }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ detailOrder.createTime }}</el-descriptions-item>
-        <el-descriptions-item label="支付时间">{{ detailOrder.payTime || '-' }}</el-descriptions-item>
-      </el-descriptions>
+    <el-dialog v-model="detailVisible" title="订单详情" width="680px">
+      <template v-if="detailOrder">
+        <div v-if="detailOrder.goodsItems && detailOrder.goodsItems.length" class="order-goods-section">
+          <h4 class="section-title">商品信息</h4>
+          <div class="order-goods-list">
+            <div v-for="item in detailOrder.goodsItems" :key="item.goodsId" class="order-goods-item">
+              <el-image v-if="item.coverImage" :src="item.coverImage" fit="cover" class="order-goods-image" />
+              <div class="order-goods-info">
+                <span class="order-goods-title">{{ item.title }}</span>
+                <span class="order-goods-price">¥{{ item.price }} × {{ item.quantity }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="订单号">{{ detailOrder.orderNo }}</el-descriptions-item>
+          <el-descriptions-item label="状态"><el-tag :type="statusTagMap[detailOrder.status] || 'info'" effect="dark" round>{{ statusLabel(detailOrder.status) }}</el-tag></el-descriptions-item>
+          <el-descriptions-item label="买家">{{ detailOrder.buyerName }}</el-descriptions-item>
+          <el-descriptions-item label="卖家">{{ detailOrder.sellerName }}</el-descriptions-item>
+          <el-descriptions-item label="金额"><span class="price-text">¥{{ detailOrder.totalAmount }}</span></el-descriptions-item>
+          <el-descriptions-item label="配送">{{ deliveryMethodLabel(detailOrder.deliveryMethod) }}</el-descriptions-item>
+          <el-descriptions-item label="地址" :span="2">{{ detailOrder.address || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="备注" :span="2">{{ detailOrder.remark || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="取消原因" :span="2" v-if="detailOrder.cancelReason">{{ detailOrder.cancelReason }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间">{{ detailOrder.createTime }}</el-descriptions-item>
+          <el-descriptions-item label="支付时间">{{ detailOrder.payTime || '-' }}</el-descriptions-item>
+        </el-descriptions>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="rejectRefundDialogVisible" title="拒绝退款" width="460px" :close-on-click-modal="false">
+      <el-form label-position="top">
+        <el-form-item label="拒绝原因" required>
+          <el-input v-model="rejectRefundReason" type="textarea" :rows="4" placeholder="请输入拒绝原因" maxlength="200" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="rejectRefundDialogVisible = false">取消</el-button>
+        <el-button type="danger" @click="handleRejectRefund" :loading="rejectRefundLoading">确认拒绝</el-button>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -92,37 +141,67 @@ import { getOrderList, approveRefund, rejectRefund } from '@/api/admin'
 import request from '@/utils/request'
 import type { AdminOrderVO, PageQueryParams } from '@/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { orderStatusLabel, deliveryMethodLabel } from '@/utils/labels'
+
+interface OrderGoodsItem {
+  goodsId: number
+  title: string
+  price: number
+  quantity: number
+  coverImage: string
+}
+
+interface AdminOrderDetailVO extends AdminOrderVO {
+  goodsItems?: OrderGoodsItem[]
+}
 
 const orders = ref<AdminOrderVO[]>([])
+const searchOrderNo = ref('')
 const statusFilter = ref('')
+const dateRange = ref<string[]>([])
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const loading = ref(false)
+const detailVisible = ref(false)
+const detailOrder = ref<AdminOrderDetailVO | null>(null)
+const rejectRefundDialogVisible = ref(false)
+const rejectRefundOrderId = ref<number>(0)
+const rejectRefundReason = ref('')
+const rejectRefundLoading = ref(false)
 
 const statusTagMap: Record<string, string> = {
   PENDING_PAY: 'warning', PAID: 'primary', SHIPPING: '',
   PENDING_REVIEW: 'warning', FINISHED: 'success', CANCELLED: 'info', REFUND: 'danger'
 }
-const statusLabel = (status: string) => {
-  const map: Record<string, string> = {
-    PENDING_PAY: '待支付', PAID: '已支付', SHIPPING: '已发货',
-    PENDING_REVIEW: '待评价', FINISHED: '已完成', CANCELLED: '已取消', REFUND: '退款中'
-  }
-  return map[status] || status
-}
+const statusLabel = (status: string) => orderStatusLabel(status)
 
 const loadData = async () => {
   loading.value = true
   try {
-  const params: PageQueryParams = { pageNum: pageNum.value, pageSize: pageSize.value }
-  if (statusFilter.value) params.status = statusFilter.value
-  const res = await getOrderList(params)
-  orders.value = res.list || []
-  total.value = res.total || 0
+    const params: PageQueryParams = { pageNum: pageNum.value, pageSize: pageSize.value }
+    if (searchOrderNo.value) params.orderNo = searchOrderNo.value
+    if (statusFilter.value) params.status = statusFilter.value
+    if (dateRange.value && dateRange.value.length === 2) {
+      params.startDate = dateRange.value[0]
+      params.endDate = dateRange.value[1]
+    }
+    const res = await getOrderList(params)
+    orders.value = res.list || []
+    total.value = res.total || 0
   } finally {
     loading.value = false
   }
+}
+
+const handleSearch = () => {
+  pageNum.value = 1
+  loadData()
+}
+
+const handleSizeChange = () => {
+  pageNum.value = 1
+  loadData()
 }
 
 onMounted(loadData)
@@ -134,17 +213,30 @@ const handleApproveRefund = async (id: number) => {
   loadData()
 }
 
-const handleRejectRefund = async (id: number) => {
-  const { value } = await ElMessageBox.prompt('请输入拒绝原因', '拒绝退款', { inputPattern: /\S+/, inputErrorMessage: '拒绝原因不能为空' })
-  await rejectRefund(id, value)
-  ElMessage.success('已拒绝退款')
-  loadData()
+const openRejectRefundDialog = (id: number) => {
+  rejectRefundOrderId.value = id
+  rejectRefundReason.value = ''
+  rejectRefundDialogVisible.value = true
 }
 
-const detailVisible = ref(false)
-const detailOrder = ref<AdminOrderVO | null>(null)
+const handleRejectRefund = async () => {
+  if (!rejectRefundReason.value.trim()) {
+    ElMessage.warning('请输入拒绝原因')
+    return
+  }
+  rejectRefundLoading.value = true
+  try {
+    await rejectRefund(rejectRefundOrderId.value, rejectRefundReason.value)
+    ElMessage.success('已拒绝退款')
+    rejectRefundDialogVisible.value = false
+    loadData()
+  } finally {
+    rejectRefundLoading.value = false
+  }
+}
+
 const showDetail = (row: AdminOrderVO) => {
-  detailOrder.value = row
+  detailOrder.value = row as AdminOrderDetailVO
   detailVisible.value = true
 }
 
@@ -162,5 +254,19 @@ const handleExportOrders = async () => {
 </script>
 
 <style scoped lang="scss">
-.order-manage-page { padding: 20px; :deep(.el-card) { border-radius: 14px; } }
+.filter-input { width: 200px; }
+.filter-select { width: 140px; }
+.filter-datepicker { width: 260px; }
+.text-muted { color: var(--admin-text-secondary); }
+.price-text { color: #f56c6c; font-weight: 600; }
+.cancel-text { color: #f56c6c; }
+.pagination-wrapper { display: flex; justify-content: flex-end; margin-top: 16px; }
+.order-goods-section { margin-bottom: 16px; }
+.section-title { font-size: 14px; font-weight: 600; color: var(--admin-text); margin: 0 0 8px 0; }
+.order-goods-list { display: flex; flex-direction: column; gap: 8px; }
+.order-goods-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--admin-bg); border-radius: 8px; }
+.order-goods-image { width: 48px; height: 48px; border-radius: 6px; flex-shrink: 0; }
+.order-goods-info { display: flex; flex-direction: column; gap: 2px; }
+.order-goods-title { font-size: 13px; color: var(--admin-text); }
+.order-goods-price { font-size: 12px; color: #f56c6c; }
 </style>

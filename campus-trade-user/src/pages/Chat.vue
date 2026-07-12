@@ -32,6 +32,21 @@
             <span v-if="typingHint" class="header-typing">{{ typingHint }}</span>
             <span v-else-if="isOnline(currentTarget!)" class="header-online">在线</span>
             <span v-else class="header-offline">离线</span>
+            <div class="header-search">
+              <el-button size="small" circle @click="toggleSearch"><el-icon><Search /></el-icon></el-button>
+            </div>
+          </div>
+          <div v-if="showSearch" class="search-bar">
+            <el-input v-model="searchKeyword" placeholder="搜索消息..." size="small" clearable @input="handleSearchInput" ref="searchInputRef">
+              <template #append>
+                <div class="search-nav">
+                  <span class="search-count" v-if="searchMatches.length > 0">{{ searchCurrentIdx + 1 }}/{{ searchMatches.length }}</span>
+                  <span class="search-count" v-else-if="searchKeyword">0/0</span>
+                  <el-button size="small" text :disabled="searchMatches.length === 0" @click="searchPrev"><el-icon><ArrowUp /></el-icon></el-button>
+                  <el-button size="small" text :disabled="searchMatches.length === 0" @click="searchNext"><el-icon><ArrowDown /></el-icon></el-button>
+                </div>
+              </template>
+            </el-input>
           </div>
           <div class="chat-messages" ref="messagesRef">
             <div v-for="(msg, idx) in messages" :key="msg.id || msg._tempId" class="message-item" :class="{ self: msg.senderId === myId }" :data-msg-idx="idx">
@@ -53,7 +68,7 @@
                     </div>
                   </div>
                   <div v-else-if="msg.messageType === 4" class="msg-bubble self-bubble recall-bubble"><el-icon style="margin-right: 4px"><RefreshLeft /></el-icon>该消息已撤回</div>
-                  <div v-else class="msg-bubble self-bubble">{{ msg.content }}</div>
+                  <div v-else class="msg-bubble self-bubble" v-html="highlightText(msg.content)"></div>
                   <el-button v-if="msg._recallable" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn"><el-icon style="margin-right: 2px"><RefreshLeft /></el-icon>撤回</el-button>
                   <div class="msg-meta">
                     <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
@@ -82,7 +97,7 @@
                     </div>
                   </div>
                   <div v-else-if="msg.messageType === 4" class="msg-bubble recall-bubble"><el-icon style="margin-right: 4px"><RefreshLeft /></el-icon>该消息已撤回</div>
-                  <div v-else class="msg-bubble">{{ msg.content }}</div>
+                  <div v-else class="msg-bubble" v-html="highlightText(msg.content)"></div>
                   <div class="msg-time">{{ formatTime(msg.createTime) }}</div>
                 </div>
               </template>
@@ -170,6 +185,7 @@ import type { ChatMessageVO } from '@/api/chat'
 import type { ContactVO } from '@/types'
 
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 
 interface DisplayMessage extends ChatMessageVO { _tempId?: string; _sentAt?: number; _recallable?: boolean }
 
@@ -229,6 +245,68 @@ let recallTimer: ReturnType<typeof setInterval> | null = null
 const contextMenu = ref<{ visible: boolean; x: number; y: number; msg: DisplayMessage | null; canRecall: boolean; canCopy: boolean }>({
   visible: false, x: 0, y: 0, msg: null, canRecall: false, canCopy: false
 })
+
+const showSearch = ref(false)
+const searchKeyword = ref('')
+const searchMatches = ref<number[]>([])
+const searchCurrentIdx = ref(-1)
+const searchInputRef = ref<{ focus: () => void }>()
+
+const toggleSearch = () => {
+  showSearch.value = !showSearch.value
+  if (!showSearch.value) {
+    searchKeyword.value = ''
+    searchMatches.value = []
+    searchCurrentIdx.value = -1
+  } else {
+    nextTick(() => { searchInputRef.value?.focus() })
+  }
+}
+
+const handleSearchInput = () => {
+  searchMatches.value = []
+  searchCurrentIdx.value = -1
+  if (!searchKeyword.value.trim()) return
+  const kw = searchKeyword.value.trim().toLowerCase()
+  messages.value.forEach((msg, idx) => {
+    if (msg.messageType === 1 && msg.content.toLowerCase().includes(kw)) {
+      searchMatches.value.push(idx)
+    }
+  })
+  if (searchMatches.value.length > 0) {
+    searchCurrentIdx.value = 0
+    scrollToMsg(searchMatches.value[0])
+  }
+}
+
+const searchPrev = () => {
+  if (searchMatches.value.length === 0) return
+  searchCurrentIdx.value = (searchCurrentIdx.value - 1 + searchMatches.value.length) % searchMatches.value.length
+  scrollToMsg(searchMatches.value[searchCurrentIdx.value])
+}
+
+const searchNext = () => {
+  if (searchMatches.value.length === 0) return
+  searchCurrentIdx.value = (searchCurrentIdx.value + 1) % searchMatches.value.length
+  scrollToMsg(searchMatches.value[searchCurrentIdx.value])
+}
+
+const scrollToMsg = (msgIdx: number) => {
+  const el = messagesRef.value?.querySelector(`[data-msg-idx="${msgIdx}"]`) as HTMLElement | null
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('search-highlight')
+    setTimeout(() => { el.classList.remove('search-highlight') }, 1500)
+  }
+}
+
+const highlightText = (text: string): string => {
+  if (!searchKeyword.value.trim() || !text) return text
+  const kw = searchKeyword.value.trim()
+  const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const regex = new RegExp(`(${escaped})`, 'gi')
+  return text.replace(regex, '<mark class="msg-highlight">$1</mark>')
+}
 
 const onDocContextMenu = (e: MouseEvent) => {
   const target = e.target as HTMLElement
@@ -835,6 +913,13 @@ onUnmounted(() => {
 
 .chat-main { display: flex; flex-direction: column; padding: 0; background: var(--bg-card); border-radius: 0 var(--radius-lg) var(--radius-lg) 0; }
 .chat-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.header-search { margin-left: auto; }
+.search-bar { padding: 8px 20px; border-bottom: 1px solid var(--border); background: var(--bg-hover); display: flex; align-items: center; }
+.search-nav { display: flex; align-items: center; gap: 2px; }
+.search-count { font-size: 12px; color: var(--text-muted); margin-right: 4px; white-space: nowrap; }
+.msg-highlight { background: #fbbf24; color: #1e293b; border-radius: 2px; padding: 0 1px; }
+.search-highlight { animation: search-flash 1.5s ease; }
+@keyframes search-flash { 0%, 100% { background: transparent; } 30% { background: rgba(251, 191, 36, 0.25); } }
 .header-online { font-size: 12px; font-weight: 500; color: #22c55e; background: #f0fdf4; padding: 2px 8px; border-radius: 10px; }
 .header-offline { font-size: 12px; font-weight: 500; color: var(--text-muted); background: var(--bg-hover); padding: 2px 8px; border-radius: 10px; }
 .header-typing { font-size: 12px; font-weight: 500; color: #6366f1; background: #eef2ff; padding: 2px 8px; border-radius: 10px; animation: typing-pulse 1.5s ease-in-out infinite; }

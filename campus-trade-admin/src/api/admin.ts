@@ -77,6 +77,7 @@ export interface AnnouncementVO {
   id: number
   title: string
   content: string
+  type: number
   status: number
   sortOrder: number
   createTime: string
@@ -85,10 +86,10 @@ export interface AnnouncementVO {
 export const getAnnouncementList = (params: { pageNum: number; pageSize: number }) =>
   request.get<never, PageResult<AnnouncementVO>>('/announcement/list', { params })
 
-export const createAnnouncement = (data: { title: string; content: string; status?: number; sortOrder?: number }) =>
+export const createAnnouncement = (data: { title: string; content: string; type?: number; status?: number; sortOrder?: number }) =>
   request.post<never, void>('/announcement', data)
 
-export const updateAnnouncement = (id: number, data: { title?: string; content?: string; status?: number; sortOrder?: number }) =>
+export const updateAnnouncement = (id: number, data: { title?: string; content?: string; type?: number; status?: number; sortOrder?: number }) =>
   request.put<never, void>(`/announcement/${id}`, data)
 
 export const deleteAnnouncement = (id: number) =>

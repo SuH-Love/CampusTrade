@@ -1,9 +1,9 @@
 <template>
-  <div class="announcement-manage">
+  <div class="admin-page">
     <el-card>
       <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center">
-          <h3 style="margin: 0">公告管理</h3>
+        <div class="admin-card-header">
+          <h3>公告管理</h3>
           <el-button type="primary" @click="handleAdd">发布公告</el-button>
         </div>
       </template>
@@ -11,6 +11,11 @@
         <el-table-column prop="id" label="ID" min-width="60" />
         <el-table-column prop="title" label="标题" min-width="180" />
         <el-table-column prop="content" label="内容" min-width="250" show-overflow-tooltip />
+        <el-table-column prop="type" label="类型" min-width="100">
+          <template #default="{ row }">
+            <el-tag :type="typeTagMap[row.type] || 'info'">{{ typeLabelMap[row.type] || '未知' }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="sortOrder" label="排序" min-width="70" />
         <el-table-column prop="status" label="状态" min-width="80">
           <template #default="{ row }">
@@ -26,7 +31,15 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
+      <el-pagination
+        v-model:current-page="pageNum"
+        v-model:page-size="pageSize"
+        :page-sizes="[10, 20, 50, 100]"
+        :total="total"
+        layout="total, prev, pager, next, sizes"
+        @current-change="loadData"
+        @size-change="loadData"
+      />
     </el-card>
 
     <el-dialog v-model="dialogVisible" :title="editingId ? '编辑公告' : '发布公告'" width="560px" destroy-on-close>
@@ -34,11 +47,21 @@
         <el-form-item label="标题" required>
           <el-input v-model="form.title" placeholder="请输入公告标题" />
         </el-form-item>
+        <el-form-item label="类型">
+          <el-select v-model="form.type" placeholder="请选择公告类型">
+            <el-option label="系统通知" :value="1" />
+            <el-option label="活动公告" :value="2" />
+            <el-option label="维护通知" :value="3" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="内容" required>
-          <el-input v-model="form.content" type="textarea" :rows="5" placeholder="请输入公告内容" />
+          <el-input v-model="form.content" type="textarea" :rows="6" placeholder="请输入公告内容" />
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="form.sortOrder" :min="0" :max="999" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="显示" inactive-text="隐藏" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -54,6 +77,9 @@ import { ref, reactive, onMounted } from 'vue'
 import { getAnnouncementList, createAnnouncement, updateAnnouncement, deleteAnnouncement, type AnnouncementVO } from '@/api/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
+const typeLabelMap: Record<number, string> = { 1: '系统通知', 2: '活动公告', 3: '维护通知' }
+const typeTagMap: Record<number, string> = { 1: 'primary', 2: 'success', 3: 'warning' }
+
 const announcements = ref<AnnouncementVO[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
@@ -63,7 +89,7 @@ const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 
-const form = reactive({ title: '', content: '', sortOrder: 0 })
+const form = reactive({ title: '', content: '', sortOrder: 0, type: 1, status: 1 })
 
 const loadData = async () => {
   loading.value = true
@@ -76,13 +102,13 @@ const loadData = async () => {
 
 const handleAdd = () => {
   editingId.value = null
-  form.title = ''; form.content = ''; form.sortOrder = 0
+  form.title = ''; form.content = ''; form.sortOrder = 0; form.type = 1; form.status = 1
   dialogVisible.value = true
 }
 
 const handleEdit = (row: AnnouncementVO) => {
   editingId.value = row.id
-  form.title = row.title; form.content = row.content; form.sortOrder = row.sortOrder || 0
+  form.title = row.title; form.content = row.content; form.sortOrder = row.sortOrder || 0; form.type = row.type ?? 1; form.status = row.status ?? 1
   dialogVisible.value = true
 }
 
@@ -91,10 +117,10 @@ const handleSubmit = async () => {
   submitting.value = true
   try {
     if (editingId.value) {
-      await updateAnnouncement(editingId.value, { title: form.title, content: form.content, sortOrder: form.sortOrder })
+      await updateAnnouncement(editingId.value, { title: form.title, content: form.content, sortOrder: form.sortOrder, type: form.type, status: form.status })
       ElMessage.success('修改成功')
     } else {
-      await createAnnouncement({ title: form.title, content: form.content, sortOrder: form.sortOrder })
+      await createAnnouncement({ title: form.title, content: form.content, sortOrder: form.sortOrder, type: form.type, status: form.status })
       ElMessage.success('发布成功')
     }
     dialogVisible.value = false
@@ -105,10 +131,15 @@ const handleSubmit = async () => {
 const handleToggle = async (row: AnnouncementVO) => {
   const newStatus = row.status === 1 ? 0 : 1
   try {
+    await ElMessageBox.confirm(
+      newStatus === 1 ? `确认显示公告「${row.title}」？` : `确认隐藏公告「${row.title}」？`,
+      '操作确认',
+      { type: 'warning' }
+    )
     await updateAnnouncement(row.id, { status: newStatus })
     ElMessage.success(newStatus === 1 ? '已显示' : '已隐藏')
     loadData()
-  } catch (e) { console.error(e) }
+  } catch { /* cancel */ }
 }
 
 const handleDelete = async (row: AnnouncementVO) => {
@@ -124,5 +155,4 @@ onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
-.announcement-manage { padding: 20px; }
 </style>

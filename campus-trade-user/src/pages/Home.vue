@@ -1,7 +1,7 @@
 <template>
   <div class="home-page">
     <section class="hero">
-      <el-carousel height="300px" :interval="5000" arrow="hover" indicator-position="outside">
+      <el-carousel :height="heroHeight" :interval="5000" arrow="hover" indicator-position="outside">
         <el-carousel-item v-for="banner in banners" :key="banner.id">
           <div class="hero-slide" :style="{ background: banner.imageUrl ? 'transparent' : (banner.bgColor || 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)') }">
             <img v-if="banner.imageUrl" :src="banner.imageUrl" class="hero-bg-img" />
@@ -14,7 +14,7 @@
           </div>
         </el-carousel-item>
         <el-carousel-item v-if="banners.length === 0">
-          <div class="hero-slide" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%)">
+          <div class="hero-slide hero-default">
             <div class="hero-content">
               <h1>校园二手交易平台</h1>
               <p>安全 · 便捷 · 值得信赖的校园闲置好物流转平台</p>
@@ -34,6 +34,7 @@
           clearable
           prefix-icon="Search"
           @keyup.enter="handleSearch"
+          @input="handleSearchInput"
           @focus="showSearchDropdown = true"
           @blur="hideSearchDropdown"
           class="search-input"
@@ -45,38 +46,45 @@
               <el-button link type="info" size="small" @click="clearSearchHistory">清空</el-button>
             </div>
             <div class="search-tags">
-              <el-tag v-for="(kw, idx) in searchHistory" :key="idx" size="small" round effect="plain" @mousedown.prevent="searchFromHistory(kw)" style="cursor: pointer">{{ kw }}</el-tag>
+              <el-tag v-for="(kw, idx) in searchHistory" :key="idx" size="small" round effect="plain" @mousedown.prevent="searchFromHistory(kw)" class="search-tag-btn">{{ kw }}</el-tag>
             </div>
           </div>
           <div class="search-dropdown-section" v-if="hotKeywords.length > 0">
             <div class="search-dropdown-header"><span>智能推荐</span></div>
             <div class="search-tags">
-              <el-tag v-for="(kw, idx) in hotKeywords" :key="idx" size="small" round type="danger" effect="plain" @mousedown.prevent="searchFromHistory(kw)" style="cursor: pointer">{{ kw }}</el-tag>
+              <el-tag v-for="(kw, idx) in hotKeywords" :key="idx" size="small" round type="danger" effect="plain" @mousedown.prevent="searchFromHistory(kw)" class="search-tag-btn">{{ kw }}</el-tag>
             </div>
           </div>
         </div>
       </div>
 
       <div class="category-bar">
-        <div
-          v-for="cat in categories" :key="cat.id"
-          class="category-chip"
-          :class="{ active: selectedCategoryId === cat.id }"
-          @click="toggleCategory(cat.id)"
-        >{{ cat.categoryName }}</div>
+        <div class="category-scroll">
+          <div
+            v-for="cat in categories" :key="cat.id"
+            class="category-chip"
+            :class="{ active: selectedCategoryId === cat.id }"
+            @click="toggleCategory(cat.id)"
+          >{{ cat.categoryName }}</div>
+        </div>
       </div>
 
       <div class="announcement-bar" v-if="announcements.length > 0">
         <el-icon style="color: var(--primary); font-size: 16px; flex-shrink: 0"><Bell /></el-icon>
         <div class="announcement-scroll">
-          <span v-for="(a, idx) in announcements" :key="a.id" class="announcement-item">
-            <strong>{{ a.title }}</strong>：{{ a.content }}<span v-if="idx < announcements.length - 1" class="announcement-divider">|</span>
-          </span>
+          <transition name="announcement-slide" mode="out-in">
+            <div :key="currentAnnouncementIdx" class="announcement-text">
+              <strong>{{ announcements[currentAnnouncementIdx]?.title }}</strong>：{{ announcements[currentAnnouncementIdx]?.content }}
+            </div>
+          </transition>
         </div>
       </div>
 
-      <section style="margin-top: 32px">
-        <h3 class="section-title">热门商品</h3>
+      <section class="mt-lg">
+        <div class="flex-between mb-md">
+          <h3 class="section-title" style="margin-bottom:0">热门商品</h3>
+          <el-button text type="primary" @click="$router.push('/goods')">查看更多 →</el-button>
+        </div>
         <el-row :gutter="16" v-if="hotGoods.length > 0">
           <el-col :xs="12" :sm="8" :md="6" v-for="item in hotGoods" :key="item.id">
             <GoodsCard :goods="item" />
@@ -87,11 +95,14 @@
             <GoodsCardSkeleton />
           </el-col>
         </el-row>
-        <el-empty v-else description="暂无热门商品" />
+        <EmptyState v-else icon="📦" title="暂无热门商品" description="去看看其他商品吧" action-text="浏览商品" @action="$router.push('/goods')" />
       </section>
 
-      <section style="margin-top: 40px">
-        <h3 class="section-title">最新上架</h3>
+      <section class="mt-lg">
+        <div class="flex-between mb-md">
+          <h3 class="section-title" style="margin-bottom:0">最新上架</h3>
+          <el-button text type="primary" @click="$router.push('/goods')">查看更多 →</el-button>
+        </div>
         <el-row :gutter="16" v-if="recommendGoods.length > 0">
           <el-col :xs="12" :sm="8" :md="6" v-for="item in recommendGoods" :key="item.id">
             <GoodsCard :goods="item" />
@@ -102,7 +113,7 @@
             <GoodsCardSkeleton />
           </el-col>
         </el-row>
-        <el-empty v-else description="暂无推荐商品" />
+        <EmptyState v-else icon="🆕" title="暂无推荐商品" description="成为第一个发布商品的人" action-text="去发布" @action="$router.push('/goods/publish')" />
       </section>
     </div>
     <BackToTop />
@@ -110,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getHotGoods, getRecommendGoods, getHotKeywords } from '@/api/goods'
 import { getCategoryList } from '@/api/category'
@@ -118,7 +129,9 @@ import { getActiveBanners } from '@/api/banner'
 import { getActiveAnnouncements, type AnnouncementVO } from '@/api/announcement'
 import GoodsCard from '@/components/GoodsCard.vue'
 import GoodsCardSkeleton from '@/components/GoodsCardSkeleton.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import BackToTop from '@/components/BackToTop.vue'
+import { debounce } from '@/utils/labels'
 import type { GoodsVO } from '@/api/goods'
 import type { GoodsCategory } from '@/api/category'
 import type { BannerVO } from '@/api/banner'
@@ -135,6 +148,12 @@ const searchHistory = ref<string[]>([])
 const hotKeywords = ref<string[]>([])
 const announcements = ref<AnnouncementVO[]>([])
 const homeLoading = ref(true)
+const currentAnnouncementIdx = ref(0)
+let announcementTimer: ReturnType<typeof setInterval> | null = null
+
+const heroHeight = computed(() => window.innerWidth < 768 ? '200px' : '300px')
+
+const handleSearchInput = debounce(() => {}, 300)
 
 const loadHotKeywords = async () => {
   try { hotKeywords.value = await getHotKeywords() || [] } catch (e) { console.error(e) }
@@ -170,7 +189,14 @@ const hideSearchDropdown = () => {
 }
 
 const loadAnnouncements = async () => {
-  try { announcements.value = await getActiveAnnouncements() || [] } catch (e) { console.error(e) }
+  try {
+    announcements.value = await getActiveAnnouncements() || []
+    if (announcements.value.length > 1) {
+      announcementTimer = setInterval(() => {
+        currentAnnouncementIdx.value = (currentAnnouncementIdx.value + 1) % announcements.value.length
+      }, 4000)
+    }
+  } catch (e) { console.error(e) }
 }
 
 const toggleCategory = (id: number) => {
@@ -181,11 +207,7 @@ const toggleCategory = (id: number) => {
 const bannerButtonStyle = (banner: BannerVO) => {
   const color = banner.buttonColor || 'rgba(255,255,255,0.2)'
   const isGradient = color.includes('gradient')
-  return {
-    background: color,
-    borderColor: isGradient ? 'transparent' : color,
-    color: '#fff'
-  }
+  return { background: color, borderColor: isGradient ? 'transparent' : color, color: '#fff' }
 }
 
 const loadBanners = async () => {
@@ -215,11 +237,15 @@ onMounted(() => {
   if (saved) { try { searchHistory.value = JSON.parse(saved) } catch (e) { console.error(e) } }
   loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCategories(); loadAnnouncements(); loadHotKeywords()
 })
+
+onUnmounted(() => {
+  if (announcementTimer) clearInterval(announcementTimer)
+})
 </script>
 
 <style scoped lang="scss">
 .hero {
-  margin: 0 24px;
+  margin: 0 var(--spacing-lg);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-md);
@@ -236,32 +262,21 @@ onMounted(() => {
   position: relative;
 }
 
+.hero-default { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%); }
+
 .hero-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
   background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.35) 100%);
 }
 
 .hero-content {
-  position: relative;
-  z-index: 1;
+  position: relative; z-index: 1;
   h1 { font-size: 36px; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.15); }
   p { font-size: 16px; opacity: 0.92; margin-bottom: 24px; text-shadow: 0 1px 4px rgba(0,0,0,0.1); }
   .el-button { font-size: 16px; padding: 12px 32px; background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); color: #fff; &:hover { background: rgba(255,255,255,0.35); transform: translateY(-2px); } }
 }
 
-.hero-bg-img {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 1;
-}
+.hero-bg-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
 
 .home-content {
   background: rgba(255,255,255,0.95);
@@ -269,88 +284,54 @@ onMounted(() => {
   border: 1px solid var(--border);
   border-bottom: none;
   box-shadow: var(--shadow-sm);
-  margin: 24px 24px 0;
-  max-width: 100%;
+  margin: var(--spacing-lg) var(--spacing-lg) 0;
   padding: 20px;
 }
 
-.search-section {
-  position: relative;
-  max-width: 560px;
-  margin: 0 auto;
-}
-.search-input {
-  :deep(.el-input__wrapper) {
-    border-radius: 24px;
-    box-shadow: 0 2px 12px rgba(99,102,241,0.1);
-    padding: 4px 20px;
-  }
-}
+.search-section { position: relative; max-width: 560px; margin: 0 auto; }
+.search-input { :deep(.el-input__wrapper) { border-radius: 24px; box-shadow: 0 2px 12px rgba(99,102,241,0.1); padding: 4px 20px; } }
 .search-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-  z-index: 100;
-  padding: 12px 16px;
-  margin-top: 4px;
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  z-index: 100; padding: 12px 16px; margin-top: 4px;
 }
 .search-dropdown-section { margin-bottom: 10px; &:last-child { margin-bottom: 0; } }
-.search-dropdown-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-bottom: 6px;
-  font-weight: 600;
-}
+.search-dropdown-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600; }
 .search-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.search-tag-btn { cursor: pointer; }
 
-.category-bar {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
-  margin-top: 16px;
+.category-bar { margin-top: var(--spacing-md); overflow: hidden; }
+.category-scroll {
+  display: flex; gap: 8px; overflow-x: auto; justify-content: center;
+  padding-bottom: 4px; scrollbar-width: none; &::-webkit-scrollbar { display: none; }
 }
 
 .category-chip {
-  padding: 6px 18px;
-  border-radius: 20px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
+  padding: 6px 18px; border-radius: 20px; background: #f8fafc;
+  border: 1px solid #e2e8f0; font-size: 13px; font-weight: 500;
+  color: var(--text-secondary); cursor: pointer; transition: all 0.2s ease;
+  white-space: nowrap; flex-shrink: 0;
   &:hover { border-color: var(--primary); color: var(--primary); }
   &.active { background: var(--primary-gradient); color: #fff; border-color: transparent; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3); }
 }
 
 .announcement-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  margin-top: 14px;
-  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
-  border-radius: 10px;
-  border: 1px solid #e0e7ff;
-  overflow: hidden;
+  display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+  margin-top: 14px; background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  border-radius: 10px; border: 1px solid #e0e7ff; overflow: hidden;
 }
-.announcement-scroll {
-  flex: 1;
-  overflow: hidden;
-  white-space: nowrap;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-.announcement-item { margin-right: 4px; }
-.announcement-divider { margin: 0 8px; color: #c7d2fe; }
+.announcement-scroll { flex: 1; overflow: hidden; white-space: nowrap; font-size: 12px; color: var(--text-secondary); }
+.announcement-text { display: inline; }
 
+.announcement-slide-enter-active { transition: all 0.4s ease; }
+.announcement-slide-leave-active { transition: all 0.3s ease; }
+.announcement-slide-enter-from { opacity: 0; transform: translateY(10px); }
+.announcement-slide-leave-to { opacity: 0; transform: translateY(-10px); }
+
+@media (max-width: 768px) {
+  .hero-slide { height: 200px; }
+  .hero-content h1 { font-size: 24px; }
+  .hero-content p { font-size: 14px; }
+  .home-content { margin: var(--spacing-md) var(--spacing-md) 0; padding: var(--spacing-md); }
+}
 </style>

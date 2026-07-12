@@ -18,6 +18,7 @@ export interface SellerRatingVO {
   comment: string
   goodsTitle: string
   createTime: string
+  images?: string
 }
 
 export const rateSeller = (data: { orderId: number; sellerId: number; rating: number; comment?: string }) => request.post('/rating', data)

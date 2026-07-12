@@ -32,6 +32,9 @@
           </template>
         </nav>
         <div class="header-right">
+          <el-button size="small" circle class="dark-toggle" @click="toggleDarkMode" :title="isDark ? '切换亮色模式' : '切换暗色模式'">
+            <el-icon :size="18"><Sunny v-if="isDark" /><Moon v-else /></el-icon>
+          </el-button>
           <template v-if="userStore.token">
             <el-badge :value="cartStore.cartCount || ''" :hidden="!cartStore.cartCount" class="header-badge">
               <router-link to="/cart" class="icon-btn" title="购物车">
@@ -102,17 +105,45 @@
 </template>
 
 <script setup lang="ts">
-import { onUnmounted, watch } from 'vue'
+import { onUnmounted, watch, ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
 import { getUnreadCount as getNotifyUnread } from '@/api/notification'
 import { useChatWs } from '@/composables/useChatWs'
+import { Sunny, Moon } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const userStore = useUserStore()
 const cartStore = useCartStore()
 const { chatUnread, notifyUnread, onNotification } = useChatWs()
+
+const isDark = ref(false)
+
+const applyDarkMode = (dark: boolean) => {
+  isDark.value = dark
+  if (dark) {
+    document.documentElement.classList.add('dark')
+  } else {
+    document.documentElement.classList.remove('dark')
+  }
+  localStorage.setItem('darkMode', dark ? '1' : '0')
+}
+
+const toggleDarkMode = () => {
+  applyDarkMode(!isDark.value)
+}
+
+onMounted(() => {
+  const saved = localStorage.getItem('darkMode')
+  if (saved === '1') {
+    applyDarkMode(true)
+  } else if (saved === '0') {
+    applyDarkMode(false)
+  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    applyDarkMode(true)
+  }
+})
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
@@ -163,6 +194,12 @@ onUnmounted(() => {
   top: 0;
   z-index: 100;
   box-shadow: 0 1px 12px rgba(0, 0, 0, 0.04);
+}
+
+:global(.dark) .header {
+  background: rgba(30, 41, 59, 0.95);
+  border-bottom-color: rgba(51, 65, 85, 0.5);
+  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.2);
 }
 
 .header-inner {
@@ -256,6 +293,12 @@ onUnmounted(() => {
 }
 
 .header-badge { display: flex; align-items: center; }
+
+.dark-toggle {
+  color: var(--text-secondary);
+  border-color: var(--border);
+  &:hover { color: var(--primary); border-color: var(--primary-light); }
+}
 
 .icon-btn {
   display: flex;

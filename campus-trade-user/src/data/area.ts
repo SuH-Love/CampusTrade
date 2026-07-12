@@ -42,3 +42,4 @@ const provinces: AreaOption[] = [
 ]
 
 export default provinces
+export { provinces as areaData }

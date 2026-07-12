@@ -1,9 +1,9 @@
 <template>
-  <div class="banner-manage">
+  <div class="admin-page">
     <el-card>
       <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center">
-          <h3 style="margin: 0">横幅管理</h3>
+        <div class="admin-card-header">
+          <h3>横幅管理</h3>
           <el-button type="primary" @click="handleAdd">新增横幅</el-button>
         </div>
       </template>
@@ -33,7 +33,15 @@
           </template>
         </el-table-column>
       </el-table>
-      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
+      <el-pagination
+        v-model:current-page="pageNum"
+        v-model:page-size="pageSize"
+        :page-sizes="[10, 20, 50, 100]"
+        :total="total"
+        layout="total, prev, pager, next, sizes"
+        @current-change="loadData"
+        @size-change="loadData"
+      />
     </el-card>
 
     <el-dialog v-model="dialogVisible" :title="editingId ? '编辑横幅' : '新增横幅'" width="600px" destroy-on-close>
@@ -45,14 +53,19 @@
           <el-input v-model="form.subtitle" placeholder="横幅副标题" />
         </el-form-item>
         <el-form-item label="背景图">
-          <el-input v-model="form.imageUrl" placeholder="背景图片URL(可选,优先于背景色)">
-            <template #append>
-              <el-upload :show-file-list="false" :before-upload="handleUpload" accept="image/*"><el-button>上传</el-button></el-upload>
-            </template>
-          </el-input>
+          <el-upload
+            class="banner-uploader"
+            :show-file-list="false"
+            :before-upload="handleUpload"
+            accept="image/*"
+          >
+            <img v-if="form.imageUrl" :src="form.imageUrl" class="banner-upload-preview" />
+            <el-icon v-else class="banner-upload-icon"><Plus /></el-icon>
+          </el-upload>
+          <el-button v-if="form.imageUrl" size="small" type="danger" class="banner-remove-btn" @click="form.imageUrl = ''">移除图片</el-button>
         </el-form-item>
         <el-form-item label="背景色">
-          <el-input v-model="form.bgColor" placeholder="CSS渐变或颜色值, 如 linear-gradient(135deg, #6366f1, #a78bfa)" />
+          <el-color-picker v-model="form.bgColor" show-alpha />
         </el-form-item>
         <el-form-item label="链接">
           <el-input v-model="form.linkUrl" placeholder="点击跳转路径, 如 /goods" />
@@ -61,7 +74,7 @@
           <el-input v-model="form.buttonText" placeholder="按钮显示文字, 留空则不显示按钮" />
         </el-form-item>
         <el-form-item label="按钮颜色">
-          <el-input v-model="form.buttonColor" placeholder="支持渐变, 如 linear-gradient(135deg, #6366f1, #a78bfa)" />
+          <el-color-picker v-model="form.buttonColor" show-alpha />
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="form.sortOrder" :min="0" :max="999" />
@@ -81,6 +94,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
 import { uploadImage } from '@/utils/upload'
 import request from '@/utils/request'
 
@@ -148,16 +162,25 @@ const handleSubmit = async () => {
 }
 
 const handleToggle = async (row: BannerVO) => {
-  await request.put(`/banner/${row.id}/toggle`)
-  ElMessage.success(row.status === 1 ? '已禁用' : '已启用')
-  loadData()
+  try {
+    await ElMessageBox.confirm(
+      row.status === 1 ? '确认禁用该横幅？' : '确认启用该横幅？',
+      '操作确认',
+      { type: 'warning' }
+    )
+    await request.put(`/banner/${row.id}/toggle`)
+    ElMessage.success(row.status === 1 ? '已禁用' : '已启用')
+    loadData()
+  } catch { /* cancel */ }
 }
 
 const handleDelete = async (row: BannerVO) => {
-  await ElMessageBox.confirm('确认删除该横幅？', '删除确认')
-  await request.delete(`/banner/${row.id}`)
-  ElMessage.success('已删除')
-  loadData()
+  try {
+    await ElMessageBox.confirm('确认删除该横幅？', '删除确认', { type: 'warning' })
+    await request.delete(`/banner/${row.id}`)
+    ElMessage.success('已删除')
+    loadData()
+  } catch { /* cancel */ }
 }
 
 const handleUpload = async (file: File) => {
@@ -173,10 +196,18 @@ onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
-.banner-manage { padding: 0; }
 .banner-preview {
   width: 160px; height: 60px; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center;
   img { width: 100%; height: 100%; object-fit: cover; }
   .preview-text { color: #fff; font-size: 12px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
 }
+.banner-uploader {
+  :deep(.el-upload) {
+    width: 200px; height: 80px; border: 1px dashed var(--admin-border); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; transition: var(--admin-transition);
+    &:hover { border-color: var(--admin-primary); }
+  }
+}
+.banner-upload-preview { width: 100%; height: 100%; object-fit: cover; }
+.banner-upload-icon { font-size: 28px; color: var(--admin-text-secondary); }
+.banner-remove-btn { margin-left: 12px; }
 </style>

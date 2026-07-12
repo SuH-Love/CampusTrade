@@ -1,12 +1,15 @@
 <template>
-  <div class="notification-page">
-    <el-card>
-      <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center">
-          <h3>通知中心</h3>
+  <div class="notification-page page-bg">
+    <div class="notification-inner">
+      <div class="notification-header">
+        <h3 class="notification-title">通知中心</h3>
+        <div class="header-actions">
           <el-button type="primary" size="small" @click="handleMarkAllRead" :disabled="unreadCount === 0">全部已读</el-button>
+          <el-button size="small" @click="handleBatchMarkRead" :disabled="selectedIds.length === 0">
+            批量标记已读 ({{ selectedIds.length }})
+          </el-button>
         </div>
-      </template>
+      </div>
       <div class="preference-section">
         <span class="preference-label">通知偏好：</span>
         <el-checkbox-group v-model="enabledTypes" @change="handlePreferenceChange">
@@ -22,7 +25,7 @@
         <el-tab-pane label="全部" name="all" />
         <el-tab-pane :label="`未读 (${unreadCount})`" name="unread" />
       </el-tabs>
-      <el-empty v-if="notifications.length === 0" description="暂无通知" />
+      <EmptyState v-if="notifications.length === 0 && !loading" icon="🔔" title="暂无通知" description="暂时没有新通知，安静也是一种美好" />
       <div v-else class="notification-list" v-loading="loading">
         <div
           v-for="item in notifications"
@@ -31,11 +34,12 @@
           :class="{ unread: item.isRead === 0 }"
           @click="handleRead(item)"
         >
+          <el-checkbox v-model="item._selected" class="notify-check" @click.stop />
           <div class="notification-dot" v-if="item.isRead === 0" />
           <div class="notification-body">
-            <div class="notification-title">
+            <div class="notification-title-row">
               <el-tag size="small" :type="typeTagMap[item.notificationType] || 'info'">{{ typeLabel(item.notificationType) }}</el-tag>
-              <span style="margin-left: 8px">{{ item.title }}</span>
+              <span class="notify-title-text">{{ item.title }}</span>
             </div>
             <div class="notification-content">{{ item.content }}</div>
             <div class="notification-time">{{ item.createTime }}</div>
@@ -43,25 +47,30 @@
           <el-button type="danger" size="small" text @click.stop="handleDelete(item.id)">删除</el-button>
         </div>
       </div>
-      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" />
-    </el-card>
+      <el-pagination v-if="total > 0" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { listNotifications, getUnreadCount, markAsRead, markAllAsRead, deleteNotification } from '@/api/notification'
 import { getMyPreferences, setPreference } from '@/api/notificationPreference'
+import EmptyState from '@/components/EmptyState.vue'
 import type { NotificationVO } from '@/api/notification'
 import { ElMessage } from 'element-plus'
 import { useChatWs } from '@/composables/useChatWs'
+
+interface NotificationItem extends NotificationVO {
+  _selected?: boolean
+}
 
 const router = useRouter()
 const { notifyUnread, onNotification } = useChatWs()
 
 const activeTab = ref('all')
-const notifications = ref<NotificationVO[]>([])
+const notifications = ref<NotificationItem[]>([])
 const pageNum = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
@@ -77,12 +86,16 @@ const typeLabel = (type: string) => {
 const allTypes = ['SYSTEM', 'ORDER', 'GOODS', 'CHAT', 'FOLLOW', 'REPORT']
 const enabledTypes = ref<string[]>([...allTypes])
 
+const selectedIds = computed(() =>
+  notifications.value.filter(n => n._selected).map(n => n.id)
+)
+
 const loadData = async () => {
   loading.value = true
   try {
     const isRead = activeTab.value === 'unread' ? 0 : undefined
     const res = await listNotifications(isRead, pageNum.value, pageSize.value)
-    notifications.value = res.list || []
+    notifications.value = (res.list || []).map((n: NotificationVO) => ({ ...n, _selected: false }))
     total.value = res.total || 0
   } finally {
     loading.value = false
@@ -102,7 +115,7 @@ const handleTabChange = () => {
   loadData()
 }
 
-const handleRead = async (item: NotificationVO) => {
+const handleRead = async (item: NotificationItem) => {
   if (item.isRead === 0) {
     await markAsRead(item.id)
     item.isRead = 1
@@ -135,6 +148,20 @@ const handleMarkAllRead = async () => {
   await markAllAsRead()
   ElMessage.success('已全部标记为已读')
   notifyUnread.value = 0
+  loadData()
+}
+
+const handleBatchMarkRead = async () => {
+  const ids = selectedIds.value
+  if (ids.length === 0) return
+  for (const id of ids) {
+    const item = notifications.value.find(n => n.id === id)
+    if (item && item.isRead === 0) {
+      await markAsRead(id)
+    }
+  }
+  ElMessage.success(`已标记 ${ids.length} 条为已读`)
+  loadUnreadCount()
   loadData()
 }
 
@@ -173,6 +200,17 @@ onUnmounted(() => { removeNotifyHandler() })
 
 <style scoped lang="scss">
 .notification-page { padding: 20px; }
+.notification-inner {
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+}
+.notification-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.notification-title { margin: 0; }
+.header-actions { display: flex; gap: 8px; }
 .notification-list { max-height: 600px; overflow-y: auto; }
 .notification-item {
   display: flex; align-items: flex-start; gap: 10px; padding: 16px; border-bottom: 1px solid var(--border-light); cursor: pointer;
@@ -180,9 +218,11 @@ onUnmounted(() => { removeNotifyHandler() })
   &:hover { background: var(--bg-hover); border-radius: var(--radius-sm); }
   &.unread { background: var(--primary-lighter); border-radius: var(--radius-sm); }
 }
+.notify-check { flex-shrink: 0; margin-top: 2px; }
 .notification-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); margin-top: 6px; flex-shrink: 0; }
 .notification-body { flex: 1; }
-.notification-title { display: flex; align-items: center; font-weight: 600; }
+.notification-title-row { display: flex; align-items: center; font-weight: 600; }
+.notify-title-text { margin-left: 8px; }
 .notification-content { color: var(--text-secondary); margin: 6px 0; font-size: 14px; line-height: 1.6; }
 .notification-time { color: var(--text-muted); font-size: 12px; }
 .preference-section {
@@ -194,4 +234,12 @@ onUnmounted(() => { removeNotifyHandler() })
   border: 1px solid var(--border);
 }
 .preference-label { font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+.list-pagination { margin-top: 20px; justify-content: center; }
+
+@media (max-width: 576px) {
+  .notification-page { padding: 12px; }
+  .notification-inner { padding: 16px; }
+  .notification-header { flex-direction: column; align-items: flex-start; }
+  .preference-section { flex-wrap: wrap; }
+}
 </style>

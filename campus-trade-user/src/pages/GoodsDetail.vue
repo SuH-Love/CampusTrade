@@ -1,14 +1,31 @@
 <template>
-  <div v-if="goods" class="goods-detail">
+  <div v-if="pageLoading" class="goods-detail-skeleton">
+    <el-row :gutter="32">
+      <el-col :xs="24" :md="12">
+        <div class="skeleton-gallery"></div>
+      </el-col>
+      <el-col :xs="24" :md="12">
+        <div class="skeleton-info">
+          <div class="skeleton-tags"></div>
+          <div class="skeleton-title"></div>
+          <div class="skeleton-stats"></div>
+          <div class="skeleton-price"></div>
+          <div class="skeleton-seller"></div>
+          <div class="skeleton-actions"></div>
+        </div>
+      </el-col>
+    </el-row>
+  </div>
+  <div v-else-if="goods" class="goods-detail">
     <el-row :gutter="32">
       <el-col :xs="24" :md="12">
         <div class="detail-gallery">
           <el-carousel height="420px" indicator-position="outside" v-if="imageList.length > 1">
             <el-carousel-item v-for="(img, idx) in imageList" :key="idx">
-              <el-image :src="img" fit="cover" class="gallery-img" />
+              <el-image :src="img" fit="cover" class="gallery-img" :preview-src-list="imageList" :initial-index="idx" />
             </el-carousel-item>
           </el-carousel>
-          <el-image v-else :src="goods.coverImage || '/default-cover.svg'" fit="cover" class="gallery-img single" />
+          <el-image v-else :src="goods.coverImage || '/default-cover.svg'" fit="cover" class="gallery-img single" :preview-src-list="imageList" :initial-index="0" />
         </div>
       </el-col>
       <el-col :xs="24" :md="12">
@@ -33,25 +50,41 @@
           </div>
 
           <div class="seller-card" v-if="userStore.token && goods.userId !== userStore.userInfo?.id">
-            <el-avatar :size="44" :src="goods.userAvatar || '/default-avatar.svg'" @click="$router.push(`/profile/${goods.userId}`)" style="cursor: pointer" />
-            <div class="seller-info" @click="$router.push(`/profile/${goods.userId}`)" style="cursor: pointer">
+            <el-avatar :size="44" :src="goods.userAvatar || '/default-avatar.svg'" class="seller-avatar" @click="$router.push(`/profile/${goods.userId}`)" />
+            <div class="seller-info" @click="$router.push(`/profile/${goods.userId}`)">
               <div class="seller-name">
                 {{ goods.username }}
-                <el-tag v-if="goods.sellerRealVerified === 1" type="success" effect="dark" size="small" round style="margin-left: 6px; vertical-align: middle">已认证</el-tag>
+                <el-tag v-if="goods.sellerRealVerified === 1" type="success" effect="dark" size="small" round class="seller-verified-tag">已认证</el-tag>
               </div>
               <div class="seller-action">
                 <span>查看主页</span>
-                <el-rate v-if="sellerRating > 0" :model-value="sellerRating" disabled size="small" style="margin-left: 8px; vertical-align: middle" />
-                <span v-else style="margin-left: 8px; font-size: 12px; color: var(--text-muted)">暂无评价</span>
+                <el-rate v-if="sellerRating > 0" :model-value="sellerRating" disabled size="small" class="seller-rate" />
+                <span v-else class="seller-no-rating">暂无评价</span>
+              </div>
+              <div class="seller-meta">
+                <span v-if="sellerPublicInfo" class="seller-meta-item">
+                  <el-icon><Star /></el-icon>
+                  信誉 {{ sellerRating > 0 ? sellerRating.toFixed(1) : '-' }}
+                </span>
+                <span v-if="sellerPublicInfo && sellerPublicInfo.goodsCount !== undefined" class="seller-meta-item">
+                  <el-icon><Goods /></el-icon>
+                  在售 {{ sellerPublicInfo.onlineGoods ?? sellerPublicInfo.goodsCount }}
+                </span>
+                <span v-if="sellerFollowCounts" class="seller-meta-item">
+                  <el-icon><User /></el-icon>
+                  {{ sellerFollowCounts.followers }} 粉丝
+                </span>
               </div>
             </div>
-            <el-button size="small" @click.stop="handleChat" round>聊天</el-button>
-            <el-button size="small" type="primary" @click.stop="handleConsult" round plain>咨询商品</el-button>
-            <el-button :type="isFollowed ? 'warning' : 'default'" size="small" @click.stop="handleToggleFollow" :loading="followLoading" round>
-              {{ isFollowed ? '已关注' : '关注' }}
-            </el-button>
+            <div class="seller-actions">
+              <el-button size="small" @click.stop="handleChat" round>聊天</el-button>
+              <el-button size="small" type="primary" @click.stop="handleConsult" round plain>咨询商品</el-button>
+              <el-button :type="isFollowed ? 'warning' : 'default'" size="small" @click.stop="handleToggleFollow" :loading="followLoading" round>
+                {{ isFollowed ? '已关注' : '关注' }}
+              </el-button>
+            </div>
           </div>
-          <div class="action-bar">
+          <div class="action-bar-sticky">
             <el-button type="primary" size="large" @click="handleBuy" :loading="buying" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id" round>
               立即购买
             </el-button>
@@ -67,13 +100,13 @@
         </div>
       </el-col>
      </el-row>
-     <div class="detail-tabs" style="margin-top: 28px">
+     <div class="detail-tabs">
        <el-tabs v-model="activeTab">
          <el-tab-pane label="商品描述" name="desc">
            <div class="desc-content">{{ goods.description || '暂无描述' }}</div>
          </el-tab-pane>
          <el-tab-pane name="reviews">
-           <template #label>卖家评价<el-badge v-if="ratingTotal > 0" :value="ratingTotal" type="primary" style="margin-left: 6px" /></template>
+           <template #label>卖家评价<el-badge v-if="ratingTotal > 0" :value="ratingTotal" type="primary" class="review-badge" /></template>
            <div class="reviews-section">
              <div class="rating-summary" v-if="ratingDist">
                <div class="rating-score">
@@ -89,17 +122,28 @@
                  </div>
                </div>
              </div>
-             <div class="review-list" v-if="reviewList.length > 0">
-                <div v-for="r in reviewList" :key="r.id" class="review-item">
-                  <el-avatar :size="36" :src="r.buyerAvatar || '/default-avatar.svg'" style="cursor: pointer" @click="$router.push(`/profile/${r.buyerId}`)" />
+             <div class="review-filter" v-if="ratingDist && ratingDist.totalCount > 0">
+               <el-radio-group v-model="reviewFilter" size="small" @change="handleReviewFilterChange">
+                 <el-radio-button value="all">全部 ({{ ratingDist.totalCount }})</el-radio-button>
+                 <el-radio-button value="good">好评 ({{ ratingDist.distribution[5] || 0 }})</el-radio-button>
+                 <el-radio-button value="medium">中评 ({{ (ratingDist.distribution[3] || 0) + (ratingDist.distribution[4] || 0) }})</el-radio-button>
+                 <el-radio-button value="bad">差评 ({{ (ratingDist.distribution[1] || 0) + (ratingDist.distribution[2] || 0) }})</el-radio-button>
+               </el-radio-group>
+             </div>
+             <div class="review-list" v-if="filteredReviews.length > 0">
+                <div v-for="r in filteredReviews" :key="r.id" class="review-item">
+                  <el-avatar :size="36" :src="r.buyerAvatar || '/default-avatar.svg'" class="reviewer-avatar" @click="$router.push(`/profile/${r.buyerId}`)" />
                   <div class="review-body">
                     <div class="review-header">
-                      <span class="reviewer-name" style="cursor: pointer" @click="$router.push(`/profile/${r.buyerId}`)">{{ r.buyerName }}</span>
+                      <span class="reviewer-name" @click="$router.push(`/profile/${r.buyerId}`)">{{ r.buyerName }}</span>
                       <span v-if="r.goodsTitle" class="review-goods">购买了「{{ r.goodsTitle }}」</span>
                       <el-rate :model-value="r.rating" disabled size="small" />
                       <span class="review-time">{{ formatReviewTime(r.createTime) }}</span>
                     </div>
                     <div class="review-comment" v-if="r.comment">{{ r.comment }}</div>
+                    <div class="review-images" v-if="r.images">
+                      <el-image v-for="(img, imgIdx) in parseReviewImages(r.images)" :key="imgIdx" :src="img" fit="cover" class="review-img-thumb" :preview-src-list="parseReviewImages(r.images)" :initial-index="imgIdx" hide-on-click-modal />
+                    </div>
                   </div>
                 </div>
                <div class="review-pagination" v-if="ratingTotal > reviewPageSize">
@@ -113,62 +157,76 @@
                  />
                </div>
              </div>
-             <el-empty v-else description="暂无评价" :image-size="80" />
+             <EmptyState v-else icon="💬" title="暂无评价" description="该卖家还没有收到评价" />
            </div>
          </el-tab-pane>
        </el-tabs>
      </div>
-   </div>
-   <div v-else style="padding: 20px"><el-empty description="商品不存在" /></div>
+     <div class="similar-section" v-if="similarGoods.length > 0">
+       <h3 class="similar-title">相似商品推荐</h3>
+       <div class="similar-scroll">
+         <GoodsCard v-for="g in similarGoods" :key="g.id" :goods="g" class="similar-card" />
+       </div>
+     </div>
+     <div class="similar-section" v-else-if="similarLoading">
+       <h3 class="similar-title">相似商品推荐</h3>
+       <div class="similar-scroll">
+         <GoodsCardSkeleton v-for="i in 4" :key="i" class="similar-card" />
+       </div>
+     </div>
+  </div>
+  <div v-else class="goods-not-found">
+    <EmptyState icon="🔍" title="商品不存在" description="该商品可能已下架或被删除" action-text="返回首页" @action="$router.push('/')" />
+  </div>
 
   <el-dialog v-model="buyDialogVisible" title="确认购买" width="520px" destroy-on-close>
     <div v-if="goods">
-      <p style="margin-bottom: 12px">确认购买「{{ goods.title }}」？单价 ¥{{ goods.price }}</p>
-      <div style="margin-bottom: 12px">
-        <span style="margin-right: 12px">购买数量：</span>
+      <p class="buy-confirm-text">确认购买「{{ goods.title }}」？单价 ¥{{ goods.price }}</p>
+      <div class="buy-quantity-row">
+        <span class="buy-label">购买数量：</span>
         <el-input-number v-model="buyQuantity" :min="1" :max="goods.stock || 1" size="small" />
-        <span style="margin-left: 8px; color: #94a3b8; font-size: 13px">（库存 {{ goods.stock || 1 }} 件）</span>
+        <span class="buy-stock-hint">（库存 {{ goods.stock || 1 }} 件）</span>
       </div>
-      <div style="margin-bottom: 12px">
-        <span style="margin-right: 12px">配送方式：</span>
+      <div class="buy-delivery-row">
+        <span class="buy-label">配送方式：</span>
         <el-radio-group v-model="buyDeliveryMethod">
           <el-radio value="PICKUP">自取</el-radio>
           <el-radio value="DELIVERY">配送</el-radio>
         </el-radio-group>
       </div>
       <template v-if="buyDeliveryMethod === 'DELIVERY'">
-        <div v-if="buyAddressList.length > 0" style="margin-bottom: 10px">
-          <div style="font-size: 13px; color: #64748b; margin-bottom: 6px">选择已有地址：</div>
+        <div v-if="buyAddressList.length > 0" class="buy-address-list">
+          <div class="buy-address-label">选择已有地址：</div>
           <div
             v-for="addr in buyAddressList" :key="addr.id"
             class="buy-address-item"
             :class="{ active: buySelectedAddressId === addr.id }"
             @click="buySelectedAddressId = addr.id"
           >
-            <div style="font-size: 14px; font-weight: 500">{{ addr.receiverName }} {{ addr.receiverPhone }}</div>
-            <div style="font-size: 12px; color: #64748b; margin-top: 2px">{{ [addr.province, addr.city, addr.district, addr.detailAddress].filter(Boolean).join(' ') }}</div>
+            <div class="buy-address-name">{{ addr.receiverName }} {{ addr.receiverPhone }}</div>
+            <div class="buy-address-detail">{{ [addr.province, addr.city, addr.district, addr.detailAddress].filter(Boolean).join(' ') }}</div>
           </div>
         </div>
-        <div style="margin-bottom: 8px">
+        <div class="buy-add-addr-toggle">
           <el-button type="primary" size="small" link @click="buyShowAddAddr = !buyShowAddAddr">{{ buyShowAddAddr ? '收起' : '新增收货地址' }}</el-button>
         </div>
-        <div v-if="buyShowAddAddr" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 8px; background: #fafafa">
+        <div v-if="buyShowAddAddr" class="buy-add-addr-form">
           <el-form :model="buyAddrForm" label-width="90px" size="small">
             <el-row :gutter="8">
               <el-col :span="12"><el-form-item label="收货人"><el-input v-model="buyAddrForm.receiverName" placeholder="收货人" /></el-form-item></el-col>
               <el-col :span="12"><el-form-item label="手机号"><el-input v-model="buyAddrForm.receiverPhone" placeholder="手机号" /></el-form-item></el-col>
             </el-row>
             <el-form-item label="省/市/区">
-              <el-cascader v-model="buyAreaValue" :options="areaOptions" :props="{ expandTrigger: 'hover' }" placeholder="请选择" style="width: 100%" teleported />
+              <el-cascader v-model="buyAreaValue" :options="areaOptions" :props="{ expandTrigger: 'hover' }" placeholder="请选择" class="buy-area-cascader" teleported />
             </el-form-item>
             <el-form-item label="详细地址"><el-input v-model="buyAddrForm.detailAddress" placeholder="街道、楼栋、门牌号" /></el-form-item>
             <el-form-item><el-button type="primary" @click="handleBuyAddAddress" :loading="buyAddrSaving">保存地址</el-button></el-form-item>
           </el-form>
         </div>
       </template>
-      <div style="margin-top: 12px">
-        <span style="margin-right: 12px; font-size: 14px">订单备注：</span>
-        <el-input v-model="buyRemark" placeholder="选填，如特殊要求等" size="small" style="width: 100%; margin-top: 4px" />
+      <div class="buy-remark-row">
+        <span class="buy-label">订单备注：</span>
+        <el-input v-model="buyRemark" placeholder="选填，如特殊要求等" size="small" class="buy-remark-input" />
       </div>
     </div>
     <template #footer>
@@ -181,16 +239,21 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getGoodsDetail, favoriteGoods, unfavoriteGoods } from '@/api/goods'
+import { getGoodsDetail, getGoodsList, favoriteGoods, unfavoriteGoods } from '@/api/goods'
 import { createOrder } from '@/api/order'
 import { addToCart, getCartList, type CartVO } from '@/api/cart'
-import { toggleFollow, isFollowing } from '@/api/follow'
+import { toggleFollow, isFollowing, getFollowCounts } from '@/api/follow'
 import { getAverageRating, getRatingList, getRatingDistribution, type SellerRatingVO, type RatingDistribution } from '@/api/rating'
 import { getAddressList, addAddress, type DeliveryAddressVO } from '@/api/address'
+import { getUserPublicInfo, type UserVO } from '@/api/user'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
 import { ElMessage } from 'element-plus'
+import { Star, Goods, User } from '@element-plus/icons-vue'
 import type { GoodsVO } from '@/api/goods'
+import GoodsCard from '@/components/GoodsCard.vue'
+import GoodsCardSkeleton from '@/components/GoodsCardSkeleton.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import areaOptions from '@/data/area'
 
 const route = useRoute()
@@ -198,6 +261,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const cartStore = useCartStore()
 const goods = ref<GoodsVO | null>(null)
+const pageLoading = ref(true)
 const buying = ref(false)
 const favoriting = ref(false)
 const addingToCart = ref(false)
@@ -211,6 +275,11 @@ const reviewList = ref<SellerRatingVO[]>([])
 const reviewPage = ref(1)
 const reviewPageSize = 10
 const ratingTotal = ref(0)
+const reviewFilter = ref<'all' | 'good' | 'medium' | 'bad'>('all')
+const sellerPublicInfo = ref<UserVO | null>(null)
+const sellerFollowCounts = ref<{ following: number; followers: number } | null>(null)
+const similarGoods = ref<GoodsVO[]>([])
+const similarLoading = ref(false)
 
 const buyDialogVisible = ref(false)
 const buyQuantity = ref(1)
@@ -234,6 +303,16 @@ const discount = computed(() => {
   return (goods.value.price / goods.value.originalPrice * 10).toFixed(1)
 })
 
+const filteredReviews = computed(() => {
+  if (reviewFilter.value === 'all') return reviewList.value
+  return reviewList.value.filter((r: SellerRatingVO) => {
+    if (reviewFilter.value === 'good') return r.rating >= 5
+    if (reviewFilter.value === 'medium') return r.rating >= 3 && r.rating <= 4
+    if (reviewFilter.value === 'bad') return r.rating <= 2
+    return true
+  })
+})
+
 const statusLabel = (status: string) => {
   const map: Record<string, string> = { DRAFT: '草稿', PENDING: '待审核', APPROVED: '审核通过', REJECTED: '已拒绝', ONLINE: '在售', OFFLINE: '已下架', SOLD: '已售出' }
   return map[status] || status
@@ -245,20 +324,41 @@ const statusTagType = (status: string) => {
 }
 
 const loadData = async () => {
-  goods.value = await getGoodsDetail(Number(route.params.id))
-  if (goods.value && userStore.token && goods.value.userId !== userStore.userInfo?.id) {
-    try { isFollowed.value = await isFollowing(goods.value.userId) } catch (e) { console.error(e) }
-    try { sellerRating.value = await getAverageRating(goods.value.userId) } catch (e) { console.error(e) }
+  pageLoading.value = true
+  try {
+    goods.value = await getGoodsDetail(Number(route.params.id))
+    if (goods.value && userStore.token && goods.value.userId !== userStore.userInfo?.id) {
+      try { isFollowed.value = await isFollowing(goods.value.userId) } catch (e) { console.error(e) }
+      try { sellerRating.value = await getAverageRating(goods.value.userId) } catch (e) { console.error(e) }
+      try { sellerPublicInfo.value = await getUserPublicInfo(goods.value.userId) } catch (e) { console.error(e) }
+      try { sellerFollowCounts.value = await getFollowCounts(goods.value.userId) } catch (e) { console.error(e) }
+    }
+    if (goods.value && userStore.token) {
+      try {
+        const cartList = await getCartList()
+        isInCart.value = cartList ? cartList.some((c: CartVO) => c.goodsId === goods.value!.id) : false
+      } catch (e) { console.error(e) }
+    }
+    if (goods.value) {
+      try { ratingDist.value = await getRatingDistribution(goods.value.userId) } catch (e) { console.error(e) }
+      loadReviews()
+      loadSimilarGoods()
+    }
+  } finally {
+    pageLoading.value = false
   }
-  if (goods.value && userStore.token) {
-    try {
-      const cartList = await getCartList()
-      isInCart.value = cartList ? cartList.some((c: CartVO) => c.goodsId === goods.value!.id) : false
-    } catch (e) { console.error(e) }
-  }
-  if (goods.value) {
-    try { ratingDist.value = await getRatingDistribution(goods.value.userId) } catch (e) { console.error(e) }
-    loadReviews()
+}
+
+const loadSimilarGoods = async () => {
+  if (!goods.value) return
+  similarLoading.value = true
+  try {
+    const res = await getGoodsList({ pageNum: 1, pageSize: 10, categoryId: goods.value.categoryId })
+    similarGoods.value = (res.list || []).filter((g: GoodsVO) => g.id !== goods.value!.id && g.status === 'ONLINE').slice(0, 8)
+  } catch (e) {
+    console.error(e)
+  } finally {
+    similarLoading.value = false
   }
 }
 
@@ -399,6 +499,10 @@ const handleToggleFollow = async () => {
   } finally { followLoading.value = false }
 }
 
+const handleReviewFilterChange = () => {
+  reviewPage.value = 1
+}
+
 const loadReviews = async () => {
   if (!goods.value) return
   try {
@@ -425,13 +529,101 @@ const formatReviewTime = (time: string) => {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
 }
 
+const parseReviewImages = (images: string): string[] => {
+  if (!images) return []
+  return images.split(',').map(s => s.trim()).filter(Boolean)
+}
+
 onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
 .goods-detail {
-  padding: 20px;
+  padding: var(--spacing-lg);
+  padding-bottom: 100px;
 }
+
+.goods-detail-skeleton {
+  padding: var(--spacing-lg);
+}
+
+.skeleton-gallery {
+  width: 100%;
+  height: 420px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-info {
+  padding-top: 8px;
+}
+
+.skeleton-tags {
+  height: 24px;
+  width: 40%;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-title {
+  height: 32px;
+  width: 80%;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-stats {
+  height: 16px;
+  width: 50%;
+  border-radius: 4px;
+  margin-bottom: 22px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-price {
+  height: 48px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  margin-bottom: 24px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-seller {
+  height: 72px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  margin-bottom: 24px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-actions {
+  height: 48px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 .detail-gallery {
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -497,13 +689,144 @@ onMounted(loadData)
   margin-bottom: 24px;
   &:hover { background: var(--primary-lighter); border-color: var(--primary-light); }
 }
-.seller-name { font-weight: 600; font-size: 15px; }
-.seller-action { font-size: 12px; color: var(--primary); margin-top: 2px; display: flex; align-items: center; }
 
-.action-bar {
+.seller-avatar { cursor: pointer; }
+
+.seller-info {
+  flex: 1;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.seller-name { font-weight: 600; font-size: 15px; }
+
+.seller-verified-tag {
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.seller-action {
+  font-size: 12px;
+  color: var(--primary);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+}
+
+.seller-rate {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.seller-no-rating {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.seller-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.seller-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.seller-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.action-bar-sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  padding: var(--spacing-md) 0;
+  background: linear-gradient(to top, var(--bg-card) 70%, transparent);
+  margin-top: 8px;
+}
+
+.buy-confirm-text { margin-bottom: 12px; }
+
+.buy-quantity-row {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.buy-label { margin-right: 12px; }
+
+.buy-stock-hint {
+  margin-left: 8px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.buy-delivery-row {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.buy-address-list { margin-bottom: 10px; }
+
+.buy-address-label {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.buy-address-item {
+  padding: 10px 14px;
+  margin-bottom: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover { border-color: #6366f1; }
+  &.active { border-color: #6366f1; background: rgba(99,102,241,0.06); }
+}
+
+.buy-address-name { font-size: 14px; font-weight: 500; }
+
+.buy-address-detail {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.buy-add-addr-toggle { margin-bottom: 8px; }
+
+.buy-add-addr-form {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: #fafafa;
+}
+
+.buy-area-cascader { width: 100%; }
+
+.buy-remark-row {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.buy-remark-input {
+  width: 100%;
+  margin-top: 4px;
 }
 
 .buy-address-item {
@@ -520,6 +843,7 @@ onMounted(loadData)
   padding: 20px 24px;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border);
+  margin-top: 28px;
 }
 .desc-content {
   font-size: 14px;
@@ -558,6 +882,15 @@ onMounted(loadData)
   .bar-fill { height: 100%; background: var(--primary-gradient); border-radius: 4px; transition: width 0.4s ease; }
   .bar-count { font-size: 12px; color: var(--text-muted); width: 24px; }
 }
+
+.review-filter {
+  margin-bottom: 16px;
+}
+
+.review-badge { margin-left: 6px; }
+
+.reviewer-avatar { cursor: pointer; }
+
 .review-item {
   display: flex;
   gap: 12px;
@@ -571,10 +904,91 @@ onMounted(loadData)
   align-items: center;
   gap: 8px;
   margin-bottom: 6px;
-  .reviewer-name { font-weight: 600; font-size: 14px; }
+  flex-wrap: wrap;
+  .reviewer-name { font-weight: 600; font-size: 14px; cursor: pointer; }
   .review-goods { font-size: 12px; color: var(--primary); background: var(--primary-lighter); padding: 1px 8px; border-radius: 10px; }
   .review-time { font-size: 12px; color: var(--text-muted); margin-left: auto; }
 }
 .review-comment { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+.review-images { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.review-img-thumb { width: 72px; height: 72px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); }
 .review-pagination { margin-top: 16px; display: flex; justify-content: center; }
+
+.similar-section {
+  margin-top: 32px;
+}
+
+.similar-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  padding-left: 4px;
+}
+
+.similar-scroll {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  &::-webkit-scrollbar { height: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+}
+
+.similar-card {
+  flex: 0 0 220px;
+  min-width: 220px;
+  margin-bottom: 0;
+}
+
+.goods-not-found {
+  padding: var(--spacing-xl);
+}
+
+@media (max-width: 768px) {
+  .goods-detail {
+    padding: var(--spacing-md);
+    padding-bottom: 90px;
+  }
+
+  .gallery-img { height: 280px; }
+
+  .detail-title { font-size: 20px; }
+
+  .price-current { font-size: 28px; }
+
+  .seller-card { flex-wrap: wrap; }
+
+  .seller-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .action-bar-sticky {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-top: 0;
+    z-index: 100;
+    background: var(--bg-card);
+  }
+
+  .similar-card {
+    flex: 0 0 170px;
+    min-width: 170px;
+  }
+
+  .rating-summary {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
 </style>

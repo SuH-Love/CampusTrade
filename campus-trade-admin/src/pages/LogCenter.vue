@@ -1,6 +1,12 @@
 <template>
-  <div class="log-center-page">
+  <div class="log-center-page admin-page">
     <el-card>
+      <template #header>
+        <div class="admin-card-header">
+          <h3 style="margin:0">日志中心</h3>
+          <el-input v-model="searchKeyword" placeholder="搜索操作人/IP" clearable style="width: 200px" @keyup.enter="handleSearch" @clear="handleSearch" />
+        </div>
+      </template>
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
         <el-tab-pane label="操作日志" name="operation" />
         <el-tab-pane label="安全日志" name="security" />
@@ -15,15 +21,17 @@
           <template #default="{ row }">{{ moduleLabel(row.module) }}</template>
         </el-table-column>
         <el-table-column v-if="activeTab === 'security'" prop="eventType" label="事件类型" min-width="120">
-          <template #default="{ row }">{{ eventTypeLabel(row.eventType) }}</template>
+          <template #default="{ row }">
+            <el-tag :type="row.eventType === 'LOGIN_FAIL' || row.eventType === 'MALICIOUS_INPUT' ? 'danger' : row.eventType === 'LOGIN_SUCCESS' ? 'success' : 'warning'" size="small">{{ eventTypeLabel(row.eventType) }}</el-tag>
+          </template>
         </el-table-column>
         <el-table-column v-if="activeTab === 'security'" prop="username" label="用户" min-width="100" />
         <el-table-column prop="ip" label="IP" min-width="120" />
         <el-table-column prop="detail" label="详情" min-width="150" show-overflow-tooltip />
         <el-table-column prop="createTime" label="时间" min-width="150" />
       </el-table>
-      <el-empty v-if="logs.length === 0" description="暂无日志" />
-      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" style="margin-top: 16px" />
+      <el-empty v-if="!loading && logs.length === 0" description="暂无日志" />
+      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="total, prev, pager, next, sizes" :page-sizes="[10, 15, 30, 50]" @current-change="loadData" @size-change="handleSizeChange" />
     </el-card>
   </div>
 </template>
@@ -31,6 +39,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getOperationLogs, getSecurityLogs } from '@/api/admin'
+import { operationLabel, moduleLabel, eventTypeLabel } from '@/utils/labels'
 import type { OperationLogVO, SecurityLogVO, PageQueryParams } from '@/types'
 
 type LogItem = OperationLogVO | SecurityLogVO
@@ -41,15 +50,17 @@ const pageNum = ref(1)
 const pageSize = ref(15)
 const total = ref(0)
 const loading = ref(false)
+const searchKeyword = ref('')
 
 const loadData = async () => {
   loading.value = true
   try {
-  const params: PageQueryParams = { pageNum: pageNum.value, pageSize: pageSize.value }
-  const res = activeTab.value === 'operation' ? await getOperationLogs(params) : await getSecurityLogs(params)
-  logs.value = res.list || []
-  total.value = res.total || 0
-  } finally {
+    const params: PageQueryParams = { pageNum: pageNum.value, pageSize: pageSize.value }
+    if (searchKeyword.value) params.keyword = searchKeyword.value
+    const res = activeTab.value === 'operation' ? await getOperationLogs(params) : await getSecurityLogs(params)
+    logs.value = res.list || []
+    total.value = res.total || 0
+  } catch (e) { console.error(e) } finally {
     loading.value = false
   }
 }
@@ -59,81 +70,21 @@ const handleTabChange = () => {
   loadData()
 }
 
-const moduleLabel = (module: string) => {
-  const map: Record<string, string> = {
-    Auth: '认证', User: '用户', Goods: '商品', GoodsCategory: '商品分类',
-    Order: '订单', Report: '举报', Notification: '通知', Chat: '聊天',
-    StompChat: '聊天', FileUpload: '文件上传', Admin: '管理',
-    UserFollow: '关注', DeliveryAddress: '收货地址', Cart: '购物车',
-    SellerRating: '商家评价', NotificationPreference: '通知偏好',
-    Banner: '横幅', OrderItem: '订单项', GoodsFavorite: '商品收藏',
-    OperationLog: '操作日志', SecurityLog: '安全日志',
-    Announcement: '系统公告', UserBlacklist: '黑名单'
-  }
-  return map[module] || module
+const handleSearch = () => {
+  pageNum.value = 1
+  loadData()
 }
 
-const operationLabel = (op: string) => {
-  const map: Record<string, string> = {
-    register: '注册', login: '登录', logout: '退出', refreshToken: '刷新令牌',
-    getUserInfo: '获取用户信息', getUserPublicInfo: '获取公开信息', updateUserInfo: '更新用户信息',
-    updatePassword: '修改密码', realNameVerify: '实名认证', uploadAvatar: '上传头像', getUserStats: '用户统计',
-    getAdminInfo: '获取管理员信息', dashboardStats: '仪表盘统计', banUser: '封禁用户', unbanUser: '解封用户',
-    listUsers: '用户列表', listOrders: '订单列表', listReports: '举报列表',
-    listOperationLogs: '操作日志', listSecurityLogs: '安全日志',
-    resolveReport: '通过举报', dismissReport: '驳回举报', rejectRefund: '拒绝退款',
-    createGoods: '发布商品', updateGoods: '编辑商品', deleteGoods: '删除商品', getGoodsDetail: '商品详情',
-    listGoods: '商品列表', hotGoods: '热门商品', recommendGoods: '推荐商品',
-    submitAudit: '提交审核', auditGoods: '审核商品', onlineGoods: '上架商品', offlineGoods: '下架商品',
-    favoriteGoods: '收藏商品', unfavoriteGoods: '取消收藏', listFavorites: '收藏列表', listMyGoods: '我的商品',
-    createOrder: '创建订单', cancelOrder: '取消订单', payOrder: '支付订单',
-    shipOrder: '发货', finishOrder: '确认收货', refundOrder: '退款',
-    approveRefund: '同意退款', modifyPrice: '修改价格', getOrderDetail: '订单详情',
-    listBuyerOrders: '买家订单', listSellerOrders: '卖家订单', rateOrder: '评价订单',
-    listCart: '购物车列表', addToCart: '加入购物车', updateQuantity: '修改数量',
-    removeFromCart: '移出购物车', clearCart: '清空购物车',
-    sendMessage: '发送消息', getHistory: '聊天记录', getRecentContacts: '最近联系人',
-    getUnreadCount: '未读消息数', markAsRead: '标记已读',
-    getOnlineUsers: '在线用户', getTotalUnreadCount: '总未读数',
-    markAllAsRead: '全部已读', deleteNotification: '删除通知', listNotifications: '通知列表',
-    getMyPreferences: '通知偏好', setPreference: '设置偏好',
-    list: '地址列表', getById: '地址详情', add: '新增地址', update: '修改地址',
-    delete: '删除地址', setDefault: '设为默认',
-    createReport: '提交举报', handleReport: '处理举报', listMyReports: '我的举报',
-    listActiveBanners: '活跃轮播图', listAllBanners: '轮播图管理列表',
-    createBanner: '创建轮播图', updateBanner: '编辑轮播图',
-    deleteBanner: '删除轮播图', toggleBannerStatus: '切换轮播图状态',
-    listAll: '分类列表', deleteImage: '删除图片', uploadImage: '上传图片',
-    toggleFollow: '关注/取关', isFollowing: '是否关注', getFollowCounts: '关注数',
-    listFollowing: '关注列表', listFollowers: '粉丝列表',
-    getAverageRating: '卖家评分', getRatingList: '评价列表', getRatingDistribution: '评分分布',
-    hotKeywords: '热门搜索词',
-    blockUser: '屏蔽用户', unblockUser: '取消屏蔽', getBlacklist: '黑名单列表', isBlocked: '是否已屏蔽',
-    getActiveAnnouncements: '获取公告', listAnnouncements: '公告列表', createAnnouncement: '创建公告', updateAnnouncement: '编辑公告', deleteAnnouncement: '删除公告',
-    exportUsers: '导出用户CSV', exportOrders: '导出订单CSV',
-    recallMessage: '撤回消息', resetPassword: '重置密码',
-    createCategory: '创建分类', updateCategory: '编辑分类', deleteCategory: '删除分类'
-  }
-  return map[op] || op
-}
-
-const eventTypeLabel = (type: string) => {
-  const map: Record<string, string> = {
-    LOGIN_FAIL: '登录失败', LOGIN_SUCCESS: '登录成功', ACCESS_DENIED: '访问拒绝',
-    TOKEN_EXPIRED: 'Token过期', RATE_LIMIT: '频率限制', MALICIOUS_INPUT: '恶意输入',
-    LOGOUT: '退出登录', REGISTER: '注册'
-  }
-  return map[type] || type
+const handleSizeChange = (size: number) => {
+  pageSize.value = size
+  pageNum.value = 1
+  loadData()
 }
 
 onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
-.log-center-page {
-  padding: 20px;
-  :deep(.el-card) { border-radius: 14px; }
-  :deep(.el-tabs__item.is-active) { color: var(--admin-primary); font-weight: 600; }
-  :deep(.el-tabs__active-bar) { background: var(--admin-primary); }
-}
+:deep(.el-tabs__item.is-active) { color: var(--admin-primary); font-weight: 600; }
+:deep(.el-tabs__active-bar) { background: var(--admin-primary); }
 </style>
