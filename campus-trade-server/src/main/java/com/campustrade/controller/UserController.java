@@ -76,7 +76,7 @@ public class UserController {
         stats.put("publishedGoods", goodsMapper.selectCount(null, null, null, null, null, userId));
         stats.put("onlineGoods", goodsMapper.selectCount(null, null, null, null, "ONLINE", userId));
         stats.put("buyerOrders", orderMapper.selectCountByBuyerId(userId, null));
-        stats.put("sellerOrders", orderMapper.selectCountBySellerId(userId, null));
+        stats.put("sellerOrders", orderMapper.selectCountBySellerId(userId, "FINISHED"));
         stats.put("finishedOrders", orderMapper.selectCountByBuyerId(userId, "FINISHED"));
         stats.put("totalSpent", orderMapper.selectTotalSpentByBuyerId(userId));
         stats.put("totalEarned", orderMapper.selectTotalEarnedBySellerId(userId));

@@ -135,7 +135,7 @@
         <div v-for="o in pickerOrderList" :key="o.id" class="picker-item" @click="confirmSendOrder(o)">
           <div class="picker-item-info">
             <div class="picker-item-title">{{ o.orderNo }}</div>
-            <div class="picker-item-sub">¥{{ o.totalAmount }} · {{ o.status }}</div>
+            <div class="picker-item-sub">¥{{ o.totalAmount }} · {{ orderStatusLabel(o.status) }}</div>
           </div>
         </div>
         <el-empty v-if="!orderPickerLoading && pickerOrderList.length === 0" description="暂无与该商家的订单" :image-size="50" />
@@ -473,9 +473,13 @@ const parseOrderAmount = (content: string) => {
 const parseOrderStatus = (content: string) => {
   try {
     const d = JSON.parse(content)
-    const map: Record<string, string> = { PENDING_PAY: '待支付', PAID: '已支付', SHIPPING: '已发货', PENDING_REVIEW: '待评价', FINISHED: '已完成', CANCELLED: '已取消', REFUND: '退款中' }
-    return map[d.status] || d.status || ''
+    return orderStatusLabel(d.status)
   } catch { return '' }
+}
+
+const orderStatusLabel = (status: string) => {
+  const map: Record<string, string> = { PENDING_PAY: '待支付', PAID: '已支付', SHIPPING: '已发货', PENDING_REVIEW: '待评价', FINISHED: '已完成', CANCELLED: '已取消', REFUND: '退款中' }
+  return map[status] || status || ''
 }
 
 const openOrderLink = (content: string) => {

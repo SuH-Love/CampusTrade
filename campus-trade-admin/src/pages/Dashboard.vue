@@ -200,8 +200,11 @@ const loadStats = async () => {
     initOrderChart()
   } catch (e) { console.error(e) }
   try {
-    const res = await getReportList({ pageNum: 1, pageSize: 1, status: 'PENDING' } as PageQueryParams)
-    todoItems.value[1].count = res.total || 0
+    const [pendingRes, processingRes] = await Promise.all([
+      getReportList({ pageNum: 1, pageSize: 1, status: 'PENDING' } as PageQueryParams),
+      getReportList({ pageNum: 1, pageSize: 1, status: 'PROCESSING' } as PageQueryParams)
+    ])
+    todoItems.value[1].count = (pendingRes.total || 0) + (processingRes.total || 0)
   } catch (e) { console.error(e) }
 }
 
