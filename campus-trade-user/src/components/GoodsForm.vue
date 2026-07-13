@@ -130,7 +130,8 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { Plus, Close } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import type { FormInstance, UploadRequestOptions } from 'element-plus'
+import type { FormInstance } from 'element-plus'
+type UploadRequestOptions = { file: File; onProgress: (e: { percent: number }) => void; onSuccess: (response: unknown) => void; onError: (e: unknown) => void }
 import { getCategoryList } from '@/api/category'
 import type { GoodsCategory } from '@/api/category'
 import { uploadImage } from '@/api/file'

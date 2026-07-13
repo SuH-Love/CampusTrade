@@ -68,7 +68,7 @@
                 </span>
                 <span v-if="sellerPublicInfo && sellerPublicInfo.goodsCount !== undefined" class="seller-meta-item">
                   <el-icon><Goods /></el-icon>
-                  在售 {{ sellerPublicInfo.onlineGoods ?? sellerPublicInfo.goodsCount }}
+                  在售 {{ sellerPublicInfo.goodsCount ?? 0 }}
                 </span>
                 <span v-if="sellerFollowCounts" class="seller-meta-item">
                   <el-icon><User /></el-icon>
