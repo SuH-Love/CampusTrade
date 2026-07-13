@@ -292,7 +292,7 @@ onUnmounted(() => {
 .search-input { :deep(.el-input__wrapper) { border-radius: 24px; box-shadow: 0 2px 12px rgba(99,102,241,0.1); padding: 4px 20px; } }
 .search-dropdown {
   position: absolute; top: 100%; left: 0; right: 0;
-  background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  background: var(--color-dropdown-bg); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);
   z-index: 100; padding: 12px 16px; margin-top: 4px;
 }
 .search-dropdown-section { margin-bottom: 10px; &:last-child { margin-bottom: 0; } }
@@ -307,8 +307,8 @@ onUnmounted(() => {
 }
 
 .category-chip {
-  padding: 6px 18px; border-radius: 20px; background: #f8fafc;
-  border: 1px solid #e2e8f0; font-size: 13px; font-weight: 500;
+  padding: 6px 18px; border-radius: 20px; background: var(--color-chip-bg);
+  border: 1px solid var(--color-chip-border); font-size: 13px; font-weight: 500;
   color: var(--text-secondary); cursor: pointer; transition: all 0.2s ease;
   white-space: nowrap; flex-shrink: 0;
   &:hover { border-color: var(--primary); color: var(--primary); }
@@ -317,8 +317,8 @@ onUnmounted(() => {
 
 .announcement-bar {
   display: flex; align-items: center; gap: 8px; padding: 8px 16px;
-  margin-top: 14px; background: linear-gradient(135deg, #f5f3ff, #ede9fe);
-  border-radius: 10px; border: 1px solid #e0e7ff; overflow: hidden;
+  margin-top: 14px; background: linear-gradient(135deg, var(--color-announcement-from), var(--color-announcement-to));
+  border-radius: 10px; border: 1px solid var(--color-announcement-border); overflow: hidden;
 }
 .announcement-scroll { flex: 1; overflow: hidden; white-space: nowrap; font-size: 12px; color: var(--text-secondary); }
 .announcement-icon { color: var(--primary); font-size: 16px; flex-shrink: 0; }

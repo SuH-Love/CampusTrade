@@ -114,7 +114,7 @@
         </div>
       </div>
 
-      <el-empty v-if="filteredOrders.length === 0 && !loading" description="暂无订单" />
+      <EmptyState v-if="filteredOrders.length === 0 && !loading" icon="📦" title="暂无订单" description="快去挑选心仪的商品吧" action-text="去购物" @action="$router.push('/goods')" />
       <el-pagination v-if="total > 0" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="order-pagination" />
     </el-card>
   </div>
@@ -128,6 +128,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { OrderVO } from '@/api/order'
 import type { OrderQueryParams } from '@/types'
 import { formatPrice, formatTime, orderStatusLabel, orderStatusTagType } from '@/utils/labels'
+import EmptyState from '@/components/EmptyState.vue'
 
 const route = useRoute()
 const activeTab = ref((route.query.tab as string) || 'buyer')

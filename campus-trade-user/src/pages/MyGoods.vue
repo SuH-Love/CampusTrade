@@ -219,12 +219,12 @@ onUnmounted(() => { window.removeEventListener('resize', handleResize) })
 .goods-thumb { width: 60px; height: 60px; border-radius: 4px; flex-shrink: 0; }
 .goods-cell-title { font-weight: 500; }
 .goods-cell-cat { color: #999; font-size: 12px; }
-.price-text { color: #f56c6c; font-weight: bold; }
+.price-text { color: var(--danger); font-weight: bold; }
 .original-price { color: #999; font-size: 12px; text-decoration: line-through; margin-left: 6px; }
-.low-stock { color: #f56c6c; font-weight: bold; }
+.low-stock { color: var(--danger); font-weight: bold; }
 .text-placeholder { color: #999; }
 .status-tip { color: var(--text-muted); font-size: 12px; margin-top: 4px; }
-.reject-reason { color: #f56c6c; font-size: 12px; margin-top: 4px; }
+.reject-reason { color: var(--danger); font-size: 12px; margin-top: 4px; }
 .list-pagination { margin-top: 20px; justify-content: center; }
 
 .goods-cards { display: flex; flex-direction: column; gap: 12px; }

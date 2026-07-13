@@ -122,7 +122,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { getGoodsList, auditGoods, getCategoryList } from '@/api/admin'
 import type { CategoryVO } from '@/api/admin'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { AdminGoodsVO, PageQueryParams } from '@/types'
 import { goodsStatusLabel } from '@/utils/labels'
 
@@ -183,9 +183,14 @@ const handleSizeChange = () => {
 }
 
 const handleAudit = async (id: number, status: string) => {
-  await auditGoods(id, { status })
-  ElMessage.success('审核通过')
-  loadData()
+  try {
+    await ElMessageBox.confirm('确认通过该商品审核？', '审核确认', { type: 'warning' })
+  } catch { return }
+  try {
+    await auditGoods(id, { status })
+    ElMessage.success('审核通过')
+    loadData()
+  } catch (e) { console.error(e) }
 }
 
 const openRejectDialog = (id: number) => {

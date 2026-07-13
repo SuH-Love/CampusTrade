@@ -67,7 +67,7 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { User, Sunny, Plus, Box, ShoppingCart, Tickets, ArrowRight } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import { getDashboardStats, getReportList, getOperationLogs } from '@/api/admin'
-import { operationLabel, moduleLabel } from '@/utils/labels'
+import { operationLabel, moduleLabel, goodsStatusLabel, orderStatusLabel } from '@/utils/labels'
 import type { OperationLogVO, PageQueryParams } from '@/types'
 
 const stats = ref([
@@ -103,7 +103,7 @@ const initGoodsChart = () => {
     series: [{
       type: 'pie', radius: ['40%', '70%'], center: ['50%', '45%'],
       avoidLabelOverlap: true,
-      itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
+      itemStyle: { borderRadius: 8, borderColor: 'transparent', borderWidth: 2 },
       label: { show: true, formatter: '{b}\n{c}' },
       data: goodsStatusData.value
     }],
@@ -120,7 +120,7 @@ const initOrderChart = () => {
     series: [{
       type: 'pie', radius: ['40%', '70%'], center: ['50%', '45%'],
       avoidLabelOverlap: true,
-      itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
+      itemStyle: { borderRadius: 8, borderColor: 'transparent', borderWidth: 2 },
       label: { show: true, formatter: '{b}\n{c}' },
       data: orderStatusData.value
     }],
@@ -139,18 +139,16 @@ const loadStats = async () => {
     stats.value[5].value = res.todayOrders || 0
     todoItems.value[0].count = res.pendingAudit || 0
     if (res.goodsStatusMap) {
-      const nameMap: Record<string, string> = { ONLINE: '在售', OFFLINE: '已下架', SOLD: '已售出', PENDING: '待审核', DRAFT: '草稿', REJECTED: '已拒绝' }
       goodsStatusData.value = Object.entries(res.goodsStatusMap)
         .filter(([, v]) => v > 0)
-        .map(([k, v]) => ({ name: nameMap[k] || k, value: v }))
+        .map(([k, v]) => ({ name: goodsStatusLabel(k), value: v }))
     } else {
       goodsStatusData.value = [{ name: '在售', value: 0 }, { name: '待审核', value: res.pendingAudit || 0 }]
     }
     if (res.orderStatusMap) {
-      const nameMap: Record<string, string> = { PENDING_PAY: '待支付', PAID: '已支付', SHIPPING: '已发货', PENDING_REVIEW: '待评价', FINISHED: '已完成', CANCELLED: '已取消', REFUND: '退款中' }
       orderStatusData.value = Object.entries(res.orderStatusMap)
         .filter(([, v]) => v > 0)
-        .map(([k, v]) => ({ name: nameMap[k] || k, value: v }))
+        .map(([k, v]) => ({ name: orderStatusLabel(k), value: v }))
       const refundEntry = orderStatusData.value.find(d => d.name === '退款中')
       todoItems.value[2].count = refundEntry ? refundEntry.value : 0
     } else {

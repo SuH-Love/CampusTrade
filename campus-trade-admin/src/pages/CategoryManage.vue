@@ -31,6 +31,7 @@
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
+        <template #empty><el-empty description="暂无分类" /></template>
       </el-table>
     </el-card>
 
@@ -154,5 +155,4 @@ const handleDelete = async (row: CategoryVO) => {
 onMounted(loadData)
 </script>
 
-<style scoped lang="scss">
-</style>
+

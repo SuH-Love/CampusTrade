@@ -24,7 +24,7 @@
         </div>
       </div>
     </div>
-    <el-empty v-else description="暂无收货地址" />
+    <EmptyState v-else icon="📍" title="暂无收货地址" description="添加一个收货地址，方便购物配送" action-text="新增地址" @action="openDialog()" />
 
     <el-dialog v-model="dialogVisible" :title="editingAddr ? '编辑地址' : '新增地址'" width="520px" destroy-on-close append-to-body>
       <el-form :model="form" :rules="rules" ref="formRef" label-width="90px">
@@ -59,6 +59,7 @@ import { getAddressList, addAddress, updateAddress, deleteAddress, setDefaultAdd
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import areaOptions from '@/data/area'
+import EmptyState from '@/components/EmptyState.vue'
 
 const addressList = ref<DeliveryAddressVO[]>([])
 const dialogVisible = ref(false)

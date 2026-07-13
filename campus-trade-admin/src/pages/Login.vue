@@ -14,6 +14,9 @@
           <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" show-password />
         </el-form-item>
         <el-form-item>
+          <el-checkbox v-model="rememberMe">记住我</el-checkbox>
+        </el-form-item>
+        <el-form-item>
           <el-button type="primary" class="w-full" native-type="submit" :loading="loading" round>登录</el-button>
         </el-form-item>
       </el-form>
@@ -33,7 +36,9 @@ const adminStore = useAdminStore()
 const formRef = ref<{ validate: () => Promise<void> }>()
 const loading = ref(false)
 
-const form = reactive({ username: '', password: '' })
+const rememberMe = ref(false)
+const form = reactive({ username: localStorage.getItem('admin_remembered_username') || '', password: '' })
+if (form.username) rememberMe.value = true
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
@@ -44,6 +49,11 @@ const handleLogin = async () => {
   await formRef.value.validate()
   loading.value = true
   try {
+    if (rememberMe.value) {
+      localStorage.setItem('admin_remembered_username', form.username)
+    } else {
+      localStorage.removeItem('admin_remembered_username')
+    }
     await adminStore.login(form)
     ElMessage.success('登录成功')
     router.push('/')

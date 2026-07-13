@@ -32,6 +32,7 @@
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
+        <template #empty><el-empty description="暂无横幅" /></template>
       </el-table>
       <el-pagination
         v-model:current-page="pageNum"

@@ -72,7 +72,7 @@
           </el-form>
         </div>
       </template>
-      <el-empty v-else-if="!loading" description="订单不存在" />
+      <EmptyState v-else-if="!loading" icon="📋" title="暂无评价" description="该订单暂无评价信息" />
     </el-card>
   </div>
 </template>
@@ -85,6 +85,7 @@ import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { OrderVO } from '@/api/order'
 import { orderStatusLabel, orderStatusTagType } from '@/utils/labels'
+import EmptyState from '@/components/EmptyState.vue'
 
 const route = useRoute()
 const userStore = useUserStore()

@@ -59,6 +59,7 @@
             </div>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item @click="changePasswordDialogVisible = true">修改密码</el-dropdown-item>
                 <el-dropdown-item @click="handleLogout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -67,15 +68,34 @@
       </el-header>
       <el-main class="admin-main"><router-view /></el-main>
     </el-container>
+
+    <el-dialog v-model="changePasswordDialogVisible" title="修改密码" width="440px" destroy-on-close :close-on-click-modal="false">
+      <el-form :model="passwordForm" :rules="passwordRules" ref="passwordFormRef" label-width="90px">
+        <el-form-item label="当前密码" prop="oldPassword">
+          <el-input v-model="passwordForm.oldPassword" type="password" show-password placeholder="请输入当前密码" />
+        </el-form-item>
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="passwordForm.newPassword" type="password" show-password placeholder="请输入新密码" />
+        </el-form-item>
+        <el-form-item label="确认密码" prop="confirmPassword">
+          <el-input v-model="passwordForm.confirmPassword" type="password" show-password placeholder="请再次输入新密码" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="changePasswordDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleChangePassword" :loading="changePasswordLoading">确定</el-button>
+      </template>
+    </el-dialog>
   </el-container>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
-import { getDashboardStats, getReportList } from '@/api/admin'
+import { getDashboardStats, getReportList, updateAdminPassword } from '@/api/admin'
 import type { DashboardStats, PageQueryParams } from '@/types'
+import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 const router = useRouter()
@@ -163,6 +183,45 @@ const fetchStats = async () => {
 const handleLogout = () => {
   adminStore.logout()
   router.push('/login')
+}
+
+const changePasswordDialogVisible = ref(false)
+const changePasswordLoading = ref(false)
+const passwordFormRef = ref<{ validate: () => Promise<void> }>()
+const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
+
+const validateConfirmPassword = (_rule: unknown, value: string, callback: (err?: Error) => void) => {
+  if (value !== passwordForm.newPassword) {
+    callback(new Error('两次输入的密码不一致'))
+  } else {
+    callback()
+  }
+}
+
+const passwordRules = {
+  oldPassword: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
+  newPassword: [{ required: true, message: '请输入新密码', trigger: 'blur' }, { min: 6, message: '密码不少于6位', trigger: 'blur' }],
+  confirmPassword: [{ required: true, message: '请再次输入新密码', trigger: 'blur' }, { validator: validateConfirmPassword, trigger: 'blur' }]
+}
+
+const handleChangePassword = async () => {
+  if (!passwordFormRef.value) return
+  await passwordFormRef.value.validate()
+  changePasswordLoading.value = true
+  try {
+    await updateAdminPassword({ oldPassword: passwordForm.oldPassword, newPassword: passwordForm.newPassword })
+    ElMessage.success('密码修改成功，请重新登录')
+    changePasswordDialogVisible.value = false
+    passwordForm.oldPassword = ''
+    passwordForm.newPassword = ''
+    passwordForm.confirmPassword = ''
+    handleLogout()
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : '修改失败'
+    ElMessage.error(msg)
+  } finally {
+    changePasswordLoading.value = false
+  }
 }
 
 onMounted(() => {

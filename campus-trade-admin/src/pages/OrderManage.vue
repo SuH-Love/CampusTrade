@@ -207,10 +207,14 @@ const handleSizeChange = () => {
 onMounted(loadData)
 
 const handleApproveRefund = async (id: number) => {
-  await ElMessageBox.confirm('确认同意退款？', '同意退款')
-  await approveRefund(id)
-  ElMessage.success('已同意退款')
-  loadData()
+  try {
+    await ElMessageBox.confirm('确认同意退款？', '同意退款')
+  } catch { return }
+  try {
+    await approveRefund(id)
+    ElMessage.success('已同意退款')
+    loadData()
+  } catch (e) { console.error(e) }
 }
 
 const openRejectRefundDialog = (id: number) => {

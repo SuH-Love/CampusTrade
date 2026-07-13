@@ -26,7 +26,7 @@
         <el-tab-pane :label="`未读 (${unreadCount})`" name="unread" />
       </el-tabs>
       <EmptyState v-if="notifications.length === 0 && !loading" icon="🔔" title="暂无通知" description="暂时没有新通知，安静也是一种美好" />
-      <div v-else class="notification-list" v-loading="loading">
+      <TransitionGroup v-else name="list" tag="div" class="notification-list" v-loading="loading">
         <div
           v-for="item in notifications"
           :key="item.id"
@@ -46,7 +46,7 @@
           </div>
           <el-button type="danger" size="small" text @click.stop="handleDelete(item.id)">删除</el-button>
         </div>
-      </div>
+      </TransitionGroup>
       <el-pagination v-if="total > 0" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
     </div>
   </div>

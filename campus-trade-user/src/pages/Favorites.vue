@@ -12,11 +12,11 @@
           </el-select>
         </div>
       </div>
-      <el-row :gutter="16" v-loading="loading" class="favorites-grid">
+      <TransitionGroup name="list" tag="div" class="favorites-grid" v-loading="loading">
         <el-col :xs="12" :sm="8" :md="6" v-for="item in filteredGoods" :key="item.id">
           <GoodsCard :goods="item" :clickable="item.status === 'ONLINE'" :show-meta="true" :show-unfav="true" @unfavorite="handleUnfavorite" />
         </el-col>
-      </el-row>
+      </TransitionGroup>
       <EmptyState v-if="filteredGoods.length === 0 && !loading" icon="❤️" title="暂无收藏" description="去逛逛商品列表，收藏你喜欢的宝贝吧" action-text="去逛逛" @action="$router.push('/goods')" />
       <el-pagination v-if="total > 0" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
     </div>

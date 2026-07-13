@@ -55,3 +55,11 @@ export interface ContactVO {
   content: string
   messageType?: number
 }
+
+export interface ContactItem {
+  userId: number
+  name: string
+  avatar: string
+  lastMessage: string
+  unread: number
+}

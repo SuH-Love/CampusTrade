@@ -1,30 +1,16 @@
 <template>
   <div class="chat-page">
     <el-container class="chat-container">
-      <el-aside width="300px" class="chat-sidebar">
-        <div class="sidebar-header">
-          <span>消息</span>
-          <el-tag v-if="connected" type="success" size="small" effect="dark">在线</el-tag>
-          <el-tag v-else type="info" size="small" effect="dark">离线</el-tag>
-        </div>
-        <div class="contact-list">
-          <div v-for="contact in contacts" :key="contact.userId" class="contact-item" :class="{ active: currentTarget === contact.userId }" @click="selectContact(contact)">
-            <div class="avatar-wrap">
-              <el-avatar :size="44" :src="contact.avatar" />
-              <span v-if="isOnline(contact.userId)" class="online-dot"></span>
-              <span v-if="contact.unread" class="unread-badge">{{ contact.unread > 99 ? '99+' : contact.unread }}</span>
-            </div>
-            <div class="contact-info">
-              <div class="contact-name" @click.stop="$router.push(`/profile/${contact.userId}`)">{{ contact.name }}</div>
-              <div class="contact-last">{{ contact.lastMessage }}</div>
-            </div>
-            <el-button size="small" type="danger" plain round @click.stop="handleBlock(contact)" title="屏蔽" class="block-btn">
-              <el-icon class="icon-mr-xs"><Close /></el-icon>屏蔽
-            </el-button>
-          </div>
-        </div>
-        <el-empty v-if="contacts.length === 0" description="暂无会话" :image-size="60" />
-      </el-aside>
+      <ChatSidebar
+        :contacts="contacts"
+        :current-target="currentTarget"
+        :online-users="onlineUsers"
+        :search-keyword="sidebarSearchKeyword"
+        :connected="connected"
+        @select="selectContact"
+        @search="sidebarSearchKeyword = $event"
+        @block="handleBlock"
+      />
       <el-main class="chat-main">
         <template v-if="currentTarget">
           <div class="chat-header">
@@ -49,84 +35,76 @@
             </el-input>
           </div>
           <div class="chat-messages" ref="messagesRef">
-            <div v-for="(msg, idx) in messages" :key="msg.id || msg._tempId" class="message-item" :class="{ self: msg.senderId === myId }" :data-msg-idx="idx">
-              <template v-if="msg.senderId === myId">
-                <div class="msg-wrap self-wrap">
-                  <div v-if="msg.messageType === 2" class="msg-bubble self-bubble img-bubble"><el-image :src="msg.content" fit="cover" class="chat-img" :preview-src-list="[msg.content]" hide-on-click-modal /></div>
-                  <div v-else-if="msg.messageType === 3 && parseMsgType(msg.content) === 'order'" class="msg-bubble self-bubble order-bubble" @click="openOrderLink(msg.content)">
-                    <el-icon><List /></el-icon>
-                    <div class="order-card-info">
-                      <div class="order-card-title">{{ parseOrderNo(msg.content) }}</div>
-                      <div class="order-card-sub">¥{{ parseOrderAmount(msg.content) }} · {{ parseOrderStatus(msg.content) }}</div>
+            <template v-for="item in chatList" :key="item.type === 'date' ? 'date-' + item.label : 'msg-' + (item.msg.id || item.msg._tempId)">
+              <div v-if="item.type === 'date'" class="date-separator">
+                <span class="date-separator-text">{{ item.label }}</span>
+              </div>
+              <div v-else class="message-item" :class="{ self: item.msg.senderId === myId }" :data-msg-idx="item.idx">
+                <template v-if="item.msg.senderId === myId">
+                  <div class="msg-wrap self-wrap">
+                    <div v-if="item.msg.messageType === 2" class="msg-bubble self-bubble img-bubble"><el-image :src="item.msg.content" fit="cover" class="chat-img" :preview-src-list="[item.msg.content]" hide-on-click-modal /></div>
+                    <div v-else-if="item.msg.messageType === 3 && parseMsgType(item.msg.content) === 'order'" class="msg-bubble self-bubble order-bubble" @click="openOrderLink(item.msg.content)">
+                      <el-icon><List /></el-icon>
+                      <div class="order-card-info">
+                        <div class="order-card-title">{{ parseOrderNo(item.msg.content) }}</div>
+                        <div class="order-card-sub">¥{{ parseOrderAmount(item.msg.content) }} · {{ parseOrderStatus(item.msg.content) }}</div>
+                      </div>
+                    </div>
+                    <div v-else-if="item.msg.messageType === 3" class="msg-bubble self-bubble goods-bubble" @click="openGoodsLink(item.msg.content)">
+                      <el-icon><Goods /></el-icon>
+                      <div class="goods-card-info">
+                        <div class="goods-card-title">{{ parseGoodsText(item.msg.content) }}</div>
+                        <div class="goods-card-price" v-if="parseGoodsPrice(item.msg.content)">¥{{ parseGoodsPrice(item.msg.content) }}</div>
+                      </div>
+                    </div>
+                    <div v-else-if="item.msg.messageType === 4" class="msg-bubble self-bubble recall-bubble"><el-icon class="icon-mr-sm"><RefreshLeft /></el-icon>该消息已撤回</div>
+                    <div v-else class="msg-bubble self-bubble" v-html="highlightText(item.msg.content)"></div>
+                    <el-button v-if="item.msg._recallable" size="small" text type="info" @click="handleRecall(item.msg)" class="recall-btn"><el-icon class="icon-mr-xs"><RefreshLeft /></el-icon>撤回</el-button>
+                    <div class="msg-meta">
+                      <span class="msg-time">{{ formatTime(item.msg.createTime) }}</span>
+                      <span v-if="item.msg.isRead" class="msg-read">已读</span>
+                      <span v-else class="msg-unread">未读</span>
                     </div>
                   </div>
-                  <div v-else-if="msg.messageType === 3" class="msg-bubble self-bubble goods-bubble" @click="openGoodsLink(msg.content)">
-                    <el-icon><Goods /></el-icon>
-                    <div class="goods-card-info">
-                      <div class="goods-card-title">{{ parseGoodsText(msg.content) }}</div>
-                      <div class="goods-card-price" v-if="parseGoodsPrice(msg.content)">¥{{ parseGoodsPrice(msg.content) }}</div>
+                </template>
+                <template v-else>
+                  <el-avatar :size="36" :src="item.msg.senderAvatar" />
+                  <div class="msg-wrap">
+                    <div class="sender-name">{{ item.msg.senderName }}</div>
+                    <div v-if="item.msg.messageType === 2" class="msg-bubble img-bubble"><el-image :src="item.msg.content" fit="cover" class="chat-img" :preview-src-list="[item.msg.content]" hide-on-click-modal /></div>
+                    <div v-else-if="item.msg.messageType === 3 && parseMsgType(item.msg.content) === 'order'" class="msg-bubble order-bubble" @click="openOrderLink(item.msg.content)">
+                      <el-icon><List /></el-icon>
+                      <div class="order-card-info">
+                        <div class="order-card-title">{{ parseOrderNo(item.msg.content) }}</div>
+                        <div class="order-card-sub">¥{{ parseOrderAmount(item.msg.content) }} · {{ parseOrderStatus(item.msg.content) }}</div>
+                      </div>
                     </div>
-                  </div>
-                  <div v-else-if="msg.messageType === 4" class="msg-bubble self-bubble recall-bubble"><el-icon class="icon-mr-sm"><RefreshLeft /></el-icon>该消息已撤回</div>
-                  <div v-else class="msg-bubble self-bubble" v-html="highlightText(msg.content)"></div>
-                  <el-button v-if="msg._recallable" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn"><el-icon class="icon-mr-xs"><RefreshLeft /></el-icon>撤回</el-button>
-                  <div class="msg-meta">
-                    <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
-                    <span v-if="msg.isRead" class="msg-read">已读</span>
-                    <span v-else class="msg-unread">未读</span>
-                  </div>
-                </div>
-              </template>
-              <template v-else>
-                <el-avatar :size="36" :src="msg.senderAvatar" />
-                <div class="msg-wrap">
-                  <div class="sender-name">{{ msg.senderName }}</div>
-                  <div v-if="msg.messageType === 2" class="msg-bubble img-bubble"><el-image :src="msg.content" fit="cover" class="chat-img" :preview-src-list="[msg.content]" hide-on-click-modal /></div>
-                  <div v-else-if="msg.messageType === 3 && parseMsgType(msg.content) === 'order'" class="msg-bubble order-bubble" @click="openOrderLink(msg.content)">
-                    <el-icon><List /></el-icon>
-                    <div class="order-card-info">
-                      <div class="order-card-title">{{ parseOrderNo(msg.content) }}</div>
-                      <div class="order-card-sub">¥{{ parseOrderAmount(msg.content) }} · {{ parseOrderStatus(msg.content) }}</div>
+                    <div v-else-if="item.msg.messageType === 3" class="msg-bubble goods-bubble" @click="openGoodsLink(item.msg.content)">
+                      <el-icon><Goods /></el-icon>
+                      <div class="goods-card-info">
+                        <div class="goods-card-title">{{ parseGoodsText(item.msg.content) }}</div>
+                        <div class="goods-card-price" v-if="parseGoodsPrice(item.msg.content)">¥{{ parseGoodsPrice(item.msg.content) }}</div>
+                      </div>
                     </div>
+                    <div v-else-if="item.msg.messageType === 4" class="msg-bubble recall-bubble"><el-icon class="icon-mr-sm"><RefreshLeft /></el-icon>该消息已撤回</div>
+                    <div v-else class="msg-bubble" v-html="highlightText(item.msg.content)"></div>
+                    <div class="msg-time">{{ formatTime(item.msg.createTime) }}</div>
                   </div>
-                  <div v-else-if="msg.messageType === 3" class="msg-bubble goods-bubble" @click="openGoodsLink(msg.content)">
-                    <el-icon><Goods /></el-icon>
-                    <div class="goods-card-info">
-                      <div class="goods-card-title">{{ parseGoodsText(msg.content) }}</div>
-                      <div class="goods-card-price" v-if="parseGoodsPrice(msg.content)">¥{{ parseGoodsPrice(msg.content) }}</div>
-                    </div>
-                  </div>
-                  <div v-else-if="msg.messageType === 4" class="msg-bubble recall-bubble"><el-icon class="icon-mr-sm"><RefreshLeft /></el-icon>该消息已撤回</div>
-                  <div v-else class="msg-bubble" v-html="highlightText(msg.content)"></div>
-                  <div class="msg-time">{{ formatTime(msg.createTime) }}</div>
-                </div>
-              </template>
-            </div>
+                </template>
+              </div>
+            </template>
 
             <el-empty v-if="messages.length === 0" description="暂无消息，发送第一条消息吧" :image-size="60" />
           </div>
-          <div class="chat-input-area">
-            <div v-if="showPlusPanel" class="plus-panel">
-              <div class="plus-item" @click="triggerImageUpload">
-                <div class="plus-icon"><el-icon><Picture /></el-icon></div>
-                <span>图片</span>
-              </div>
-              <div class="plus-item" @click="showOrderPicker = true">
-                <div class="plus-icon"><el-icon><List /></el-icon></div>
-                <span>订单</span>
-              </div>
-              <div class="plus-item" @click="showGoodsPicker = true">
-                <div class="plus-icon"><el-icon><Goods /></el-icon></div>
-                <span>商品</span>
-              </div>
-            </div>
-            <div class="chat-input">
-              <el-button size="large" round @click="showPlusPanel = !showPlusPanel" :type="showPlusPanel ? 'primary' : 'default'"><el-icon><Plus /></el-icon></el-button>
-              <el-upload ref="uploadRef" action="" :auto-upload="false" :show-file-list="false" accept="image/jpeg,image/png,image/gif,image/webp" :on-change="handleImageSelect" class="upload-hidden" />
-              <el-input v-model="inputText" placeholder="输入消息..." @keyup.enter="handleSend" @input="handleTyping" size="large" @focus="showPlusPanel = false" />
-              <el-button type="primary" size="large" @click="handleSend" :disabled="!inputText.trim()" :loading="sending" round>发送</el-button>
-            </div>
-          </div>
+          <ChatInput
+            :current-target="currentTarget"
+            :disabled="sending"
+            @send="handleSendFromInput"
+            @send-goods="showGoodsPicker = true"
+            @send-order="showOrderPicker = true"
+            @send-image="handleSendImage"
+            @typing="handleTypingFromInput"
+          />
         </template>
         <div v-else class="chat-empty"><el-empty description="选择联系人开始聊天" /></div>
       </el-main>
@@ -182,13 +160,17 @@ import { getBuyerOrders, type OrderVO } from '@/api/order'
 import { getUserPublicInfo } from '@/api/user'
 import { useChatWs } from '@/composables/useChatWs'
 import type { ChatMessageVO } from '@/api/chat'
-import type { ContactVO } from '@/types'
+import type { ContactVO, ContactItem } from '@/types'
+import ChatSidebar from '@/components/ChatSidebar.vue'
+import ChatInput from '@/components/ChatInput.vue'
 
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { orderStatusLabel } from '@/utils/labels'
 
 interface DisplayMessage extends ChatMessageVO { _tempId?: string; _sentAt?: number; _recallable?: boolean }
+
+type ChatListItem = { type: 'message'; msg: DisplayMessage; idx: number } | { type: 'date'; label: string }
 
 const route = useRoute()
 const router = useRouter()
@@ -221,27 +203,24 @@ const {
   sendRead, onChatMessage, chatUnreadMap, getMyId
 } = useChatWs()
 
-interface ContactItem { userId: number; name: string; avatar: string; lastMessage: string; unread: number }
-
 const contacts = ref<ContactItem[]>([])
 const currentTarget = ref<number | null>(null)
 const currentContactName = ref('')
 const messages = ref<DisplayMessage[]>([])
-const inputText = ref('')
 const sending = ref(false)
 const messagesRef = ref<HTMLElement>()
 const typingHint = ref('')
-const showPlusPanel = ref(false)
 const showGoodsPicker = ref(false)
 const showOrderPicker = ref(false)
 const goodsPickerLoading = ref(false)
 const orderPickerLoading = ref(false)
 const pickerGoodsList = ref<GoodsVO[]>([])
 const pickerOrderList = ref<OrderVO[]>([])
-const uploadRef = ref<{ $el: HTMLElement }>()
 let lastTypingSent = false
 let tempIdCounter = 0
 let recallTimer: ReturnType<typeof setInterval> | null = null
+
+const sidebarSearchKeyword = ref('')
 
 const contextMenu = ref<{ visible: boolean; x: number; y: number; msg: DisplayMessage | null; canRecall: boolean; canCopy: boolean }>({
   visible: false, x: 0, y: 0, msg: null, canRecall: false, canCopy: false
@@ -358,6 +337,42 @@ const formatLastMessage = (content: string, messageType?: number) => {
 
 const isOnline = (userId: number) => onlineUsers.value.has(userId)
 
+const parseDateFromCreateTime = (createTime: string | null | undefined): Date | null => {
+  if (!createTime) return null
+  const d = createTime.includes('T') ? new Date(createTime) : new Date(createTime.replace(' ', 'T'))
+  return isNaN(d.getTime()) ? null : d
+}
+
+const getDateKey = (createTime: string | null | undefined): string => {
+  const d = parseDateFromCreateTime(createTime)
+  return d ? d.toDateString() : ''
+}
+
+const formatDateSeparator = (createTime: string | null | undefined): string => {
+  const d = parseDateFromCreateTime(createTime)
+  if (!d) return ''
+  const today = new Date()
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (d.toDateString() === today.toDateString()) return '今天'
+  if (d.toDateString() === yesterday.toDateString()) return '昨天'
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
+}
+
+const chatList = computed<ChatListItem[]>(() => {
+  const result: ChatListItem[] = []
+  let lastDateStr = ''
+  for (let i = 0; i < messages.value.length; i++) {
+    const msg = messages.value[i]
+    const dateStr = getDateKey(msg.createTime)
+    if (dateStr !== lastDateStr) {
+      result.push({ type: 'date', label: formatDateSeparator(msg.createTime) })
+      lastDateStr = dateStr
+    }
+    result.push({ type: 'message', msg, idx: i })
+  }
+  return result
+})
 
 const loadContacts = async () => {
   try {
@@ -409,9 +424,8 @@ const loadMessages = async () => {
   }
 }
 
-const handleSend = async () => {
-  if (!inputText.value.trim() || !currentTarget.value) return
-  const content = inputText.value.trim()
+const handleSendFromInput = async (text: string) => {
+  if (!text || !currentTarget.value) return
   const targetId = currentTarget.value
   const id = myId.value
   sending.value = true
@@ -423,10 +437,9 @@ const handleSend = async () => {
     _recallable: true,
     senderId: id || 0,
     receiverId: targetId,
-    content,
+    content: text,
     messageType: 1,
     isRead: 0,
-
     createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
     senderName: userStore.userInfo?.nickname || userStore.userInfo?.username || '',
     senderAvatar: userStore.userInfo?.avatar || '',
@@ -436,14 +449,13 @@ const handleSend = async () => {
   messages.value.push(tempMsg)
   scheduleRecallExpire(tempMsg._tempId!)
 
-  inputText.value = ''
   nextTick(scrollToBottom)
 
   try {
-    const sent = sendChat(targetId, content)
+    const sent = sendChat(targetId, text)
     if (!sent) {
       const { sendMessage } = await import('@/api/chat')
-      await sendMessage({ receiverId: targetId, content, messageType: 1 })
+      await sendMessage({ receiverId: targetId, content: text, messageType: 1 })
       const idx = messages.value.findIndex(m => m._tempId === tempMsg._tempId)
       if (idx > -1) {
         await loadMessages()
@@ -451,53 +463,26 @@ const handleSend = async () => {
     }
     sendStopTyping(targetId)
     lastTypingSent = false
-    updateContactLastMessage(targetId, content, 1)
+    updateContactLastMessage(targetId, text, 1)
   } finally {
     sending.value = false
   }
 }
 
-const updateContactLastMessage = (partnerId: number, content: string, messageType?: number) => {
-  const idx = contacts.value.findIndex(c => c.userId === partnerId)
-  if (idx > -1) {
-    contacts.value[idx].lastMessage = formatLastMessage(content, messageType)
-    if (idx > 0) {
-      const contact = contacts.value.splice(idx, 1)[0]
-      contacts.value.unshift(contact)
-    }
-  }
-}
-
-const handleTyping = () => {
+const handleTypingFromInput = (value: string) => {
   if (!currentTarget.value) return
-  if (inputText.value.trim() && !lastTypingSent) {
+  if (value.trim() && !lastTypingSent) {
     sendTyping(currentTarget.value)
     lastTypingSent = true
   }
-  if (!inputText.value.trim() && lastTypingSent) {
+  if (!value.trim() && lastTypingSent) {
     sendStopTyping(currentTarget.value)
     lastTypingSent = false
   }
 }
 
-const triggerImageUpload = () => {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = 'image/jpeg,image/png,image/gif,image/webp'
-  input.onchange = async (e: Event) => {
-    const file = (e.target as HTMLInputElement).files?.[0]
-    if (file) {
-      const fakeEvent = { raw: file }
-      await handleImageSelect(fakeEvent)
-    }
-  }
-  input.click()
-  showPlusPanel.value = false
-}
-
-const handleImageSelect = async (uploadFile: { raw?: File }) => {
-  if (!uploadFile.raw || !currentTarget.value) return
-  const file = uploadFile.raw
+const handleSendImage = async (file: File) => {
+  if (!currentTarget.value) return
   const isImage = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)
   const isLt10M = file.size / 1024 / 1024 < 10
   if (!isImage) { ElMessage.error('仅支持 jpg/png/gif/webp 格式'); return }
@@ -520,6 +505,17 @@ const handleImageSelect = async (uploadFile: { raw?: File }) => {
     sendChat(targetId, url, 2)
     updateContactLastMessage(targetId, url, 2)
   } catch { ElMessage.error('图片发送失败') }
+}
+
+const updateContactLastMessage = (partnerId: number, content: string, messageType?: number) => {
+  const idx = contacts.value.findIndex(c => c.userId === partnerId)
+  if (idx > -1) {
+    contacts.value[idx].lastMessage = formatLastMessage(content, messageType)
+    if (idx > 0) {
+      const contact = contacts.value.splice(idx, 1)[0]
+      contacts.value.unshift(contact)
+    }
+  }
 }
 
 const parseGoodsText = (content: string) => {
@@ -561,7 +557,6 @@ const parseOrderStatus = (content: string) => {
     return orderStatusLabel(d.status)
   } catch { return '' }
 }
-
 
 const openOrderLink = (content: string) => {
   try {
@@ -631,14 +626,12 @@ const confirmSendGoods = (g: GoodsVO) => {
   updateContactLastMessage(currentTarget.value, content, 3)
 }
 
-
 const scrollToBottom = () => {
   if (!messagesRef.value) return
   messagesRef.value.scrollTop = messagesRef.value.scrollHeight
   setTimeout(() => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight }, 100)
   setTimeout(() => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight }, 300)
 }
-
 
 const handleRecall = async (msg: DisplayMessage) => {
   if (!msg.id && !msg._tempId) return
@@ -886,35 +879,6 @@ onUnmounted(() => {
 <style scoped lang="scss">
 .chat-page { padding: 20px 24px; }
 .chat-container { height: calc(100vh - 112px); }
-.chat-sidebar {
-  background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  border-right: 1px solid var(--border);
-  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
-  overflow-y: auto;
-}
-.sidebar-header {
-  padding: 20px;
-  font-size: 18px;
-  font-weight: 700;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.contact-list { padding: 4px 0; }
-.contact-item {
-  display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; transition: var(--transition-fast);
-  &:hover { background: var(--bg-hover); }
-  &.active { background: var(--primary-lighter); }
-}
-.avatar-wrap { position: relative; flex-shrink: 0; }
-.online-dot { position: absolute; bottom: 1px; right: 1px; width: 10px; height: 10px; background: #22c55e; border: 2px solid var(--bg-card); border-radius: 50%; }
-.unread-badge { position: absolute; top: -2px; right: -6px; min-width: 18px; height: 18px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 600; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid var(--bg-card); }
-.contact-info { flex: 1; overflow: hidden; }
-.contact-name { font-weight: 600; font-size: 14px; cursor: pointer; }
-.contact-last { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
-
 .chat-main { display: flex; flex-direction: column; padding: 0; background: var(--bg-card); border-radius: 0 var(--radius-lg) var(--radius-lg) 0; }
 .chat-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
 .header-search { margin-left: auto; }
@@ -946,24 +910,6 @@ onUnmounted(() => {
 .msg-time { font-size: 11px; color: var(--text-muted); padding: 0 4px; }
 .msg-read { font-size: 11px; color: var(--primary); }
 .msg-unread { font-size: 11px; color: var(--text-muted); }
-
-.chat-input-area { border-top: 1px solid var(--border); }
-.plus-panel {
-  display: flex; gap: 16px; padding: 16px 20px; background: #fafbfc; border-bottom: 1px solid var(--border);
-}
-.plus-item {
-  display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;
-  transition: var(--transition-fast);
-  &:hover { transform: translateY(-2px); }
-}
-.plus-icon {
-  width: 48px; height: 48px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: center; font-size: 22px; color: var(--primary);
-  transition: var(--transition-fast);
-  &:hover { background: var(--primary-lighter); border-color: var(--primary-light); }
-}
-.plus-item span { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
-.chat-input { display: flex; gap: 10px; padding: 16px 20px; }
 .chat-empty { display: flex; align-items: center; justify-content: center; height: 100%; }
 .goods-card-info { flex: 1; min-width: 0; }
 .goods-card-title { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -977,13 +923,12 @@ onUnmounted(() => {
 .picker-item-title { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .picker-item-price { font-size: 13px; color: #f56c6c; font-weight: 600; margin-top: 2px; }
 .picker-item-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-.block-btn { flex-shrink: 0; font-size: 12px; }
 .icon-mr-xs { margin-right: 2px; }
 .icon-mr-sm { margin-right: 4px; }
 .icon-mr-md { margin-right: 6px; }
-.upload-hidden { display: none; }
 .picker-item-img { width: 48px; height: 48px; border-radius: 6px; flex-shrink: 0; }
-
+.date-separator { display: flex; align-items: center; justify-content: center; padding: 4px 0; }
+.date-separator-text { font-size: 12px; color: var(--text-muted); background: var(--bg-hover); padding: 4px 14px; border-radius: 12px; user-select: none; }
 </style>
 
 <style lang="scss">

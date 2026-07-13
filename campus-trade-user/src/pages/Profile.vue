@@ -140,7 +140,7 @@
                 <GoodsCard :goods="item" />
               </el-col>
             </el-row>
-            <el-empty v-if="goodsList.length === 0 && !goodsLoading" description="暂无在售商品" />
+            <EmptyState v-if="goodsList.length === 0 && !goodsLoading" icon="🏪" title="暂无在售商品" description="该用户暂无在售商品" />
             <el-pagination v-if="goodsTotal > goodsPageSize" v-model:current-page="goodsPageNum" :page-size="goodsPageSize" :total="goodsTotal" layout="prev, pager, next" @current-change="loadOtherUserGoods" class="goods-pagination" />
           </el-card>
         </template>
@@ -158,6 +158,7 @@ import { getGoodsList } from '@/api/goods'
 import { getFollowCounts, toggleFollow, isFollowing } from '@/api/follow'
 import { getAverageRating } from '@/api/rating'
 import GoodsCard from '@/components/GoodsCard.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import type { UserVO } from '@/api/user'

@@ -128,12 +128,12 @@ onMounted(loadData)
 .inline-rate { vertical-align: middle; }
 .unfollow-btn {
   flex-shrink: 0;
-  border: 1px solid #f59e0b;
-  color: #f59e0b;
+  border: 1px solid var(--color-chip-border);
+  color: var(--warning);
   background: transparent;
   font-weight: 600;
   transition: all 0.25s;
-  &:hover { background: #f59e0b; color: #fff; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3); }
+  &:hover { background: var(--warning); color: #fff; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3); }
 }
 .list-pagination { margin-top: 20px; justify-content: center; }
 

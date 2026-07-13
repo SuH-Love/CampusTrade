@@ -22,7 +22,7 @@
 
 .skeleton-img {
   padding-top: 75%;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, var(--color-img-placeholder-from) 25%, var(--color-img-placeholder-to) 50%, var(--color-img-placeholder-from) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -33,7 +33,7 @@
   height: 16px;
   width: 70%;
   border-radius: 4px;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, var(--color-img-placeholder-from) 25%, var(--color-img-placeholder-to) 50%, var(--color-img-placeholder-from) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -49,7 +49,7 @@
   height: 18px;
   width: 60px;
   border-radius: 4px;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, var(--color-img-placeholder-from) 25%, var(--color-img-placeholder-to) 50%, var(--color-img-placeholder-from) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -58,7 +58,7 @@
   height: 14px;
   width: 50px;
   border-radius: 4px;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, var(--color-img-placeholder-from) 25%, var(--color-img-placeholder-to) 50%, var(--color-img-placeholder-from) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }

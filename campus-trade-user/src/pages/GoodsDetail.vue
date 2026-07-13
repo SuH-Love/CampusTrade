@@ -49,41 +49,19 @@
             <el-tag v-if="goods.originalPrice > goods.price" type="danger" effect="dark" round size="small">{{ discount }}折</el-tag>
           </div>
 
-          <div class="seller-card" v-if="userStore.token && goods.userId !== userStore.userInfo?.id">
-            <el-avatar :size="44" :src="goods.userAvatar || '/default-avatar.svg'" class="seller-avatar" @click="$router.push(`/profile/${goods.userId}`)" />
-            <div class="seller-info" @click="$router.push(`/profile/${goods.userId}`)">
-              <div class="seller-name">
-                {{ goods.username }}
-                <el-tag v-if="goods.sellerRealVerified === 1" type="success" effect="dark" size="small" round class="seller-verified-tag">已认证</el-tag>
-              </div>
-              <div class="seller-action">
-                <span>查看主页</span>
-                <el-rate v-if="sellerRating > 0" :model-value="sellerRating" disabled size="small" class="seller-rate" />
-                <span v-else class="seller-no-rating">暂无评价</span>
-              </div>
-              <div class="seller-meta">
-                <span v-if="sellerPublicInfo" class="seller-meta-item">
-                  <el-icon><Star /></el-icon>
-                  信誉 {{ sellerRating > 0 ? sellerRating.toFixed(1) : '-' }}
-                </span>
-                <span v-if="sellerPublicInfo && sellerPublicInfo.goodsCount !== undefined" class="seller-meta-item">
-                  <el-icon><Goods /></el-icon>
-                  在售 {{ sellerPublicInfo.goodsCount ?? 0 }}
-                </span>
-                <span v-if="sellerFollowCounts" class="seller-meta-item">
-                  <el-icon><User /></el-icon>
-                  {{ sellerFollowCounts.followers }} 粉丝
-                </span>
-              </div>
-            </div>
-            <div class="seller-actions">
-              <el-button size="small" @click.stop="handleChat" round>聊天</el-button>
-              <el-button size="small" type="primary" @click.stop="handleConsult" round plain>咨询商品</el-button>
-              <el-button :type="isFollowed ? 'warning' : 'default'" size="small" @click.stop="handleToggleFollow" :loading="followLoading" round>
-                {{ isFollowed ? '已关注' : '关注' }}
-              </el-button>
-            </div>
-          </div>
+          <SellerCard
+            v-if="userStore.token && goods.userId !== userStore.userInfo?.id"
+            :seller-info="goods"
+            :seller-rating="sellerRating"
+            :seller-public-info="sellerPublicInfo"
+            :follow-counts="sellerFollowCounts"
+            :is-followed="isFollowed"
+            :follow-loading="followLoading"
+            @follow="handleToggleFollow"
+            @chat="handleConsult"
+            @view-profile="$router.push(`/profile/${goods.userId}`)"
+          />
+
           <div class="action-bar-sticky">
             <el-button type="primary" size="large" @click="handleBuy" :loading="buying" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id" round>
               立即购买
@@ -107,58 +85,13 @@
          </el-tab-pane>
          <el-tab-pane name="reviews">
            <template #label>卖家评价<el-badge v-if="ratingTotal > 0" :value="ratingTotal" type="primary" class="review-badge" /></template>
-           <div class="reviews-section">
-             <div class="rating-summary" v-if="ratingDist">
-               <div class="rating-score">
-                 <span class="score-num">{{ ratingDist.avgRating }}</span>
-                 <el-rate :model-value="ratingDist.avgRating" disabled allow-half size="large" />
-                 <span class="score-total">{{ ratingDist.totalCount }} 条评价</span>
-               </div>
-               <div class="rating-bars">
-                 <div v-for="s in [5,4,3,2,1]" :key="s" class="rating-bar-row">
-                   <span class="bar-label">{{ s }}星</span>
-                   <div class="bar-track"><div class="bar-fill" :style="{ width: getBarWidth(s) + '%' }" /></div>
-                   <span class="bar-count">{{ ratingDist.distribution[s] || 0 }}</span>
-                 </div>
-               </div>
-             </div>
-             <div class="review-filter" v-if="ratingDist && ratingDist.totalCount > 0">
-               <el-radio-group v-model="reviewFilter" size="small" @change="handleReviewFilterChange">
-                 <el-radio-button value="all">全部 ({{ ratingDist.totalCount }})</el-radio-button>
-                 <el-radio-button value="good">好评 ({{ ratingDist.distribution[5] || 0 }})</el-radio-button>
-                 <el-radio-button value="medium">中评 ({{ (ratingDist.distribution[3] || 0) + (ratingDist.distribution[4] || 0) }})</el-radio-button>
-                 <el-radio-button value="bad">差评 ({{ (ratingDist.distribution[1] || 0) + (ratingDist.distribution[2] || 0) }})</el-radio-button>
-               </el-radio-group>
-             </div>
-             <div class="review-list" v-if="filteredReviews.length > 0">
-                <div v-for="r in filteredReviews" :key="r.id" class="review-item">
-                  <el-avatar :size="36" :src="r.buyerAvatar || '/default-avatar.svg'" class="reviewer-avatar" @click="$router.push(`/profile/${r.buyerId}`)" />
-                  <div class="review-body">
-                    <div class="review-header">
-                      <span class="reviewer-name" @click="$router.push(`/profile/${r.buyerId}`)">{{ r.buyerName }}</span>
-                      <span v-if="r.goodsTitle" class="review-goods">购买了「{{ r.goodsTitle }}」</span>
-                      <el-rate :model-value="r.rating" disabled size="small" />
-                      <span class="review-time">{{ formatReviewTime(r.createTime) }}</span>
-                    </div>
-                    <div class="review-comment" v-if="r.comment">{{ r.comment }}</div>
-                    <div class="review-images" v-if="r.images">
-                      <el-image v-for="(img, imgIdx) in parseReviewImages(r.images)" :key="imgIdx" :src="img" fit="cover" class="review-img-thumb" :preview-src-list="parseReviewImages(r.images)" :initial-index="imgIdx" hide-on-click-modal />
-                    </div>
-                  </div>
-                </div>
-               <div class="review-pagination" v-if="ratingTotal > reviewPageSize">
-                 <el-pagination
-                   v-model:current-page="reviewPage"
-                   :page-size="reviewPageSize"
-                   :total="ratingTotal"
-                   layout="prev, pager, next"
-                   small
-                   @current-change="loadReviews"
-                 />
-               </div>
-             </div>
-             <EmptyState v-else icon="💬" title="暂无评价" description="该卖家还没有收到评价" />
-           </div>
+           <ReviewSection
+             :rating-distribution="ratingDist"
+             :reviews="reviewList"
+             :rating-total="ratingTotal"
+             @load-more="handleLoadReviews"
+             @filter-change="handleReviewFilterChange"
+           />
          </el-tab-pane>
        </el-tabs>
      </div>
@@ -179,82 +112,35 @@
     <EmptyState icon="🔍" title="商品不存在" description="该商品可能已下架或被删除" action-text="返回首页" @action="$router.push('/')" />
   </div>
 
-  <el-dialog v-model="buyDialogVisible" title="确认购买" width="520px" destroy-on-close>
-    <div v-if="goods">
-      <p class="buy-confirm-text">确认购买「{{ goods.title }}」？单价 ¥{{ goods.price }}</p>
-      <div class="buy-quantity-row">
-        <span class="buy-label">购买数量：</span>
-        <el-input-number v-model="buyQuantity" :min="1" :max="goods.stock || 1" size="small" />
-        <span class="buy-stock-hint">（库存 {{ goods.stock || 1 }} 件）</span>
-      </div>
-      <div class="buy-delivery-row">
-        <span class="buy-label">配送方式：</span>
-        <el-radio-group v-model="buyDeliveryMethod">
-          <el-radio value="PICKUP">自取</el-radio>
-          <el-radio value="DELIVERY">配送</el-radio>
-        </el-radio-group>
-      </div>
-      <template v-if="buyDeliveryMethod === 'DELIVERY'">
-        <div v-if="buyAddressList.length > 0" class="buy-address-list">
-          <div class="buy-address-label">选择已有地址：</div>
-          <div
-            v-for="addr in buyAddressList" :key="addr.id"
-            class="buy-address-item"
-            :class="{ active: buySelectedAddressId === addr.id }"
-            @click="buySelectedAddressId = addr.id"
-          >
-            <div class="buy-address-name">{{ addr.receiverName }} {{ addr.receiverPhone }}</div>
-            <div class="buy-address-detail">{{ [addr.province, addr.city, addr.district, addr.detailAddress].filter(Boolean).join(' ') }}</div>
-          </div>
-        </div>
-        <div class="buy-add-addr-toggle">
-          <el-button type="primary" size="small" link @click="buyShowAddAddr = !buyShowAddAddr">{{ buyShowAddAddr ? '收起' : '新增收货地址' }}</el-button>
-        </div>
-        <div v-if="buyShowAddAddr" class="buy-add-addr-form">
-          <el-form :model="buyAddrForm" label-width="90px" size="small">
-            <el-row :gutter="8">
-              <el-col :span="12"><el-form-item label="收货人"><el-input v-model="buyAddrForm.receiverName" placeholder="收货人" /></el-form-item></el-col>
-              <el-col :span="12"><el-form-item label="手机号"><el-input v-model="buyAddrForm.receiverPhone" placeholder="手机号" /></el-form-item></el-col>
-            </el-row>
-            <el-form-item label="省/市/区">
-              <el-cascader v-model="buyAreaValue" :options="areaOptions" :props="{ expandTrigger: 'hover' }" placeholder="请选择" class="buy-area-cascader" teleported />
-            </el-form-item>
-            <el-form-item label="详细地址"><el-input v-model="buyAddrForm.detailAddress" placeholder="街道、楼栋、门牌号" /></el-form-item>
-            <el-form-item><el-button type="primary" @click="handleBuyAddAddress" :loading="buyAddrSaving">保存地址</el-button></el-form-item>
-          </el-form>
-        </div>
-      </template>
-      <div class="buy-remark-row">
-        <span class="buy-label">订单备注：</span>
-        <el-input v-model="buyRemark" placeholder="选填，如特殊要求等" size="small" class="buy-remark-input" />
-      </div>
-    </div>
-    <template #footer>
-      <el-button @click="buyDialogVisible = false">取消</el-button>
-      <el-button type="primary" @click="handleConfirmBuy" :loading="buying">确认购买</el-button>
-    </template>
-  </el-dialog>
+  <BuyDialog
+    v-model:visible="buyDialogVisible"
+    :goods="goods"
+    :addresses="buyAddressList"
+    @confirm="handleConfirmBuy"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getGoodsDetail, getGoodsList, favoriteGoods, unfavoriteGoods } from '@/api/goods'
 import { createOrder } from '@/api/order'
 import { addToCart, getCartList, type CartVO } from '@/api/cart'
 import { toggleFollow, isFollowing, getFollowCounts } from '@/api/follow'
 import { getAverageRating, getRatingList, getRatingDistribution, type SellerRatingVO, type RatingDistribution } from '@/api/rating'
-import { getAddressList, addAddress, type DeliveryAddressVO } from '@/api/address'
+import { getAddressList, type DeliveryAddressVO } from '@/api/address'
 import { getUserPublicInfo, type UserVO } from '@/api/user'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
 import { ElMessage } from 'element-plus'
-import { Star, Goods, User } from '@element-plus/icons-vue'
+import { Star } from '@element-plus/icons-vue'
 import type { GoodsVO } from '@/api/goods'
 import GoodsCard from '@/components/GoodsCard.vue'
 import GoodsCardSkeleton from '@/components/GoodsCardSkeleton.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import areaOptions from '@/data/area'
+import SellerCard from '@/components/SellerCard.vue'
+import ReviewSection from '@/components/ReviewSection.vue'
+import BuyDialog from '@/components/BuyDialog.vue'
 import { goodsStatusLabel, goodsStatusTagType } from '@/utils/labels'
 
 const route = useRoute()
@@ -283,15 +169,7 @@ const similarGoods = ref<GoodsVO[]>([])
 const similarLoading = ref(false)
 
 const buyDialogVisible = ref(false)
-const buyQuantity = ref(1)
-const buyDeliveryMethod = ref('PICKUP')
 const buyAddressList = ref<DeliveryAddressVO[]>([])
-const buySelectedAddressId = ref<number | null>(null)
-const buyShowAddAddr = ref(false)
-const buyAddrSaving = ref(false)
-const buyAreaValue = ref<string[]>([])
-const buyRemark = ref('')
-const buyAddrForm = reactive({ receiverName: '', receiverPhone: '', province: '', city: '', district: '', detailAddress: '', isDefault: 0 })
 
 const imageList = computed(() => {
   if (!goods.value) return []
@@ -303,17 +181,6 @@ const discount = computed(() => {
   if (!goods.value?.originalPrice || goods.value.originalPrice === 0) return ''
   return (goods.value.price / goods.value.originalPrice * 10).toFixed(1)
 })
-
-const filteredReviews = computed(() => {
-  if (reviewFilter.value === 'all') return reviewList.value
-  return reviewList.value.filter((r: SellerRatingVO) => {
-    if (reviewFilter.value === 'good') return r.rating >= 5
-    if (reviewFilter.value === 'medium') return r.rating >= 3 && r.rating <= 4
-    if (reviewFilter.value === 'bad') return r.rating <= 2
-    return true
-  })
-})
-
 
 const loadData = async () => {
   pageLoading.value = true
@@ -356,54 +223,13 @@ const loadSimilarGoods = async () => {
 
 const handleBuy = async () => {
   if (!goods.value) return
-  buyQuantity.value = 1
-  buyDeliveryMethod.value = 'PICKUP'
-  buySelectedAddressId.value = null
-  buyShowAddAddr.value = false
-  buyAreaValue.value = []
-  buyRemark.value = ''
-  buyAddrForm.receiverName = ''; buyAddrForm.receiverPhone = ''; buyAddrForm.province = ''; buyAddrForm.city = ''; buyAddrForm.district = ''; buyAddrForm.detailAddress = ''
   try { buyAddressList.value = await getAddressList() } catch (e) { console.error(e) }
   buyDialogVisible.value = true
 }
 
-const handleBuyAddAddress = async () => {
-  if (!buyAddrForm.receiverName || !buyAddrForm.receiverPhone || !buyAddrForm.detailAddress) { ElMessage.error('请填写收货人、手机号和详细地址'); return }
-  if (buyAreaValue.value.length === 3) {
-    buyAddrForm.province = buyAreaValue.value[0]
-    buyAddrForm.city = buyAreaValue.value[1]
-    buyAddrForm.district = buyAreaValue.value[2]
-  }
-  buyAddrSaving.value = true
-  try {
-    await addAddress(buyAddrForm)
-    buyAddressList.value = await getAddressList()
-    const newest = buyAddressList.value[0]
-    if (newest) buySelectedAddressId.value = newest.id
-    buyShowAddAddr.value = false
-    buyAddrForm.receiverName = ''; buyAddrForm.receiverPhone = ''; buyAddrForm.province = ''; buyAddrForm.city = ''; buyAddrForm.district = ''; buyAddrForm.detailAddress = ''
-    buyAreaValue.value = []
-    ElMessage.success('地址添加成功')
-  } catch (e) { console.error(e); ElMessage.error('添加失败') } finally { buyAddrSaving.value = false }
-}
-
-const handleConfirmBuy = async () => {
-  if (!goods.value) return
-  if (buyDeliveryMethod.value === 'DELIVERY' && !buySelectedAddressId.value) {
-    ElMessage.error('请选择配送地址')
-    return
-  }
+const handleConfirmBuy = async (data: { goodsId: number; quantity: number; remark?: string; deliveryMethod?: string; deliveryAddress?: string }) => {
   buying.value = true
   try {
-    const data: { goodsId: number; quantity: number; remark?: string; deliveryMethod?: string; deliveryAddress?: string } = { goodsId: goods.value.id, quantity: buyQuantity.value }
-    if (buyRemark.value.trim()) data.remark = buyRemark.value.trim()
-    if (buyDeliveryMethod.value === 'DELIVERY') {
-      data.deliveryMethod = 'DELIVERY'
-      const addr = buyAddressList.value.find(a => a.id === buySelectedAddressId.value)
-      data.deliveryAddress = addr ? [addr.province, addr.city, addr.district, addr.detailAddress].filter(Boolean).join(' ') + ` (${addr.receiverName} ${addr.receiverPhone})` : ''
-    } else {
-      data.deliveryMethod = 'PICKUP'
-    }
     await createOrder(data)
     cartStore.fetchCartCount()
     loadData()
@@ -423,12 +249,6 @@ const handleFavorite = async () => {
       await favoriteGoods(goods.value.id); goods.value.isFavorited = true; goods.value.favoriteCount++; ElMessage.success('已收藏')
     }
   } catch (e) { console.error(e) } finally { favoriting.value = false }
-}
-
-const handleChat = () => {
-  if (!userStore.token) { ElMessage.warning('请先登录'); return }
-  if (!goods.value) return
-  router.push(`/chat/${goods.value.userId}`)
 }
 
 const handleConsult = () => {
@@ -491,8 +311,15 @@ const handleToggleFollow = async () => {
   } finally { followLoading.value = false }
 }
 
-const handleReviewFilterChange = () => {
+const handleReviewFilterChange = (filter: 'all' | 'good' | 'medium' | 'bad') => {
+  reviewFilter.value = filter
   reviewPage.value = 1
+  loadReviews()
+}
+
+const handleLoadReviews = (page: number) => {
+  reviewPage.value = page
+  loadReviews()
 }
 
 const loadReviews = async () => {
@@ -502,28 +329,6 @@ const loadReviews = async () => {
     reviewList.value = res.list
     ratingTotal.value = res.total
   } catch (e) { console.error(e) }
-}
-
-const getBarWidth = (star: number) => {
-  if (!ratingDist.value || ratingDist.value.totalCount === 0) return 0
-  return ((ratingDist.value.distribution[star] || 0) / ratingDist.value.totalCount) * 100
-}
-
-const formatReviewTime = (time: string) => {
-  if (!time) return ''
-  const d = new Date(time)
-  const now = new Date()
-  const diff = now.getTime() - d.getTime()
-  if (diff < 60000) return '刚刚'
-  if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前'
-  if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
-  if (diff < 2592000000) return Math.floor(diff / 86400000) + '天前'
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
-}
-
-const parseReviewImages = (images: string): string[] => {
-  if (!images) return []
-  return images.split(',').map(s => s.trim()).filter(Boolean)
 }
 
 onMounted(loadData)
@@ -543,7 +348,7 @@ onMounted(loadData)
   width: 100%;
   height: 420px;
   border-radius: var(--radius-lg);
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, var(--color-img-placeholder-from) 25%, var(--color-img-placeholder-to) 50%, var(--color-img-placeholder-from) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -557,7 +362,7 @@ onMounted(loadData)
   width: 40%;
   border-radius: 12px;
   margin-bottom: 14px;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, var(--color-img-placeholder-from) 25%, var(--color-img-placeholder-to) 50%, var(--color-img-placeholder-from) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -567,7 +372,7 @@ onMounted(loadData)
   width: 80%;
   border-radius: 6px;
   margin-bottom: 10px;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, var(--color-img-placeholder-from) 25%, var(--color-img-placeholder-to) 50%, var(--color-img-placeholder-from) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -577,7 +382,7 @@ onMounted(loadData)
   width: 50%;
   border-radius: 4px;
   margin-bottom: 22px;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, var(--color-img-placeholder-from) 25%, var(--color-img-placeholder-to) 50%, var(--color-img-placeholder-from) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -587,7 +392,7 @@ onMounted(loadData)
   width: 100%;
   border-radius: var(--radius-md);
   margin-bottom: 24px;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, var(--color-img-placeholder-from) 25%, var(--color-img-placeholder-to) 50%, var(--color-img-placeholder-from) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -597,7 +402,7 @@ onMounted(loadData)
   width: 100%;
   border-radius: var(--radius-md);
   margin-bottom: 24px;
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, var(--color-img-placeholder-from) 25%, var(--color-img-placeholder-to) 50%, var(--color-img-placeholder-from) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -606,7 +411,7 @@ onMounted(loadData)
   height: 48px;
   width: 100%;
   border-radius: var(--radius-md);
-  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, var(--color-img-placeholder-from) 25%, var(--color-img-placeholder-to) 50%, var(--color-img-placeholder-from) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
@@ -619,7 +424,7 @@ onMounted(loadData)
 .detail-gallery {
   border-radius: var(--radius-lg);
   overflow: hidden;
-  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  background: linear-gradient(135deg, var(--color-img-placeholder-from), var(--color-img-placeholder-to));
   box-shadow: var(--shadow-md);
 }
 .gallery-img {
@@ -650,91 +455,17 @@ onMounted(loadData)
 .stat-dot { opacity: 0.5; }
 
 .price-box {
-  background: linear-gradient(135deg, #fef2f2, #fff7ed);
+  background: linear-gradient(135deg, var(--color-price-box-from), var(--color-price-box-to));
   border-radius: var(--radius-md);
   padding: 20px 24px;
   display: flex;
   align-items: baseline;
   gap: 12px;
   margin-bottom: 24px;
-  border: 1px solid #fecaca;
+  border: 1px solid var(--color-price-box-border);
 }
 .price-current { font-size: 36px; font-weight: 800; color: var(--danger); letter-spacing: -0.5px; }
 .price-original { font-size: 16px; color: var(--text-muted); text-decoration: line-through; }
-
-.detail-desc {
-  margin-bottom: 24px;
-  h3 { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
-  p { font-size: 14px; color: var(--text-secondary); line-height: 1.8; }
-}
-
-.seller-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 18px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  background: var(--bg-glass);
-  backdrop-filter: blur(8px);
-  transition: var(--transition);
-  margin-bottom: 24px;
-  &:hover { background: var(--primary-lighter); border-color: var(--primary-light); }
-}
-
-.seller-avatar { cursor: pointer; }
-
-.seller-info {
-  flex: 1;
-  cursor: pointer;
-  min-width: 0;
-}
-
-.seller-name { font-weight: 600; font-size: 15px; }
-
-.seller-verified-tag {
-  margin-left: 6px;
-  vertical-align: middle;
-}
-
-.seller-action {
-  font-size: 12px;
-  color: var(--primary);
-  margin-top: 2px;
-  display: flex;
-  align-items: center;
-}
-
-.seller-rate {
-  margin-left: 8px;
-  vertical-align: middle;
-}
-
-.seller-no-rating {
-  margin-left: 8px;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.seller-meta {
-  display: flex;
-  gap: 12px;
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.seller-meta-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.seller-actions {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
 
 .action-bar-sticky {
   position: sticky;
@@ -746,87 +477,6 @@ onMounted(loadData)
   padding: var(--spacing-md) 0;
   background: linear-gradient(to top, var(--bg-card) 70%, transparent);
   margin-top: 8px;
-}
-
-.buy-confirm-text { margin-bottom: 12px; }
-
-.buy-quantity-row {
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-}
-
-.buy-label { margin-right: 12px; }
-
-.buy-stock-hint {
-  margin-left: 8px;
-  color: #94a3b8;
-  font-size: 13px;
-}
-
-.buy-delivery-row {
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-}
-
-.buy-address-list { margin-bottom: 10px; }
-
-.buy-address-label {
-  font-size: 13px;
-  color: #64748b;
-  margin-bottom: 6px;
-}
-
-.buy-address-item {
-  padding: 10px 14px;
-  margin-bottom: 6px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  &:hover { border-color: #6366f1; }
-  &.active { border-color: #6366f1; background: rgba(99,102,241,0.06); }
-}
-
-.buy-address-name { font-size: 14px; font-weight: 500; }
-
-.buy-address-detail {
-  font-size: 12px;
-  color: #64748b;
-  margin-top: 2px;
-}
-
-.buy-add-addr-toggle { margin-bottom: 8px; }
-
-.buy-add-addr-form {
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 8px;
-  background: #fafafa;
-}
-
-.buy-area-cascader { width: 100%; }
-
-.buy-remark-row {
-  margin-top: 12px;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.buy-remark-input {
-  width: 100%;
-  margin-top: 4px;
-}
-
-.buy-address-item {
-  padding: 10px 14px; margin-bottom: 6px;
-  border: 1px solid #e2e8f0; border-radius: 8px;
-  cursor: pointer; transition: all 0.2s;
-  &:hover { border-color: #6366f1; }
-  &.active { border-color: #6366f1; background: rgba(99,102,241,0.06); }
 }
 
 .detail-tabs {
@@ -844,67 +494,8 @@ onMounted(loadData)
   padding: 8px 0;
   white-space: pre-wrap;
 }
-.reviews-section { padding: 8px 0; }
-.rating-summary {
-  display: flex;
-  gap: 32px;
-  padding: 20px 24px;
-  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
-  border-radius: var(--radius-md);
-  margin-bottom: 20px;
-  align-items: center;
-}
-.rating-score {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-width: 120px;
-  .score-num { font-size: 42px; font-weight: 800; color: var(--primary); line-height: 1; }
-  .score-total { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-}
-.rating-bars { flex: 1; }
-.rating-bar-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-  .bar-label { font-size: 12px; color: var(--text-muted); width: 28px; text-align: right; }
-  .bar-track { flex: 1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
-  .bar-fill { height: 100%; background: var(--primary-gradient); border-radius: 4px; transition: width 0.4s ease; }
-  .bar-count { font-size: 12px; color: var(--text-muted); width: 24px; }
-}
-
-.review-filter {
-  margin-bottom: 16px;
-}
 
 .review-badge { margin-left: 6px; }
-
-.reviewer-avatar { cursor: pointer; }
-
-.review-item {
-  display: flex;
-  gap: 12px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--border);
-  &:last-child { border-bottom: none; }
-}
-.review-body { flex: 1; }
-.review-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-  flex-wrap: wrap;
-  .reviewer-name { font-weight: 600; font-size: 14px; cursor: pointer; }
-  .review-goods { font-size: 12px; color: var(--primary); background: var(--primary-lighter); padding: 1px 8px; border-radius: 10px; }
-  .review-time { font-size: 12px; color: var(--text-muted); margin-left: auto; }
-}
-.review-comment { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
-.review-images { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-.review-img-thumb { width: 72px; height: 72px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); }
-.review-pagination { margin-top: 16px; display: flex; justify-content: center; }
 
 .similar-section {
   margin-top: 32px;
@@ -952,13 +543,6 @@ onMounted(loadData)
 
   .price-current { font-size: 28px; }
 
-  .seller-card { flex-wrap: wrap; }
-
-  .seller-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-
   .action-bar-sticky {
     position: fixed;
     left: 0;
@@ -976,11 +560,6 @@ onMounted(loadData)
   .similar-card {
     flex: 0 0 170px;
     min-width: 170px;
-  }
-
-  .rating-summary {
-    flex-direction: column;
-    gap: 16px;
   }
 }
 </style>

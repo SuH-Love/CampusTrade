@@ -10,8 +10,8 @@
           </div>
         </div>
       </template>
-      <el-empty v-if="cartList.length === 0 && !loading" description="购物车是空的" />
-      <div v-else class="cart-list" v-loading="loading">
+      <EmptyState v-if="cartList.length === 0 && !loading" icon="🛒" title="购物车空空如也" description="快去挑选心仪的商品吧" action-text="去逛逛" @action="$router.push('/goods')" />
+      <TransitionGroup v-else name="list" tag="div" class="cart-list" v-loading="loading">
         <div v-for="item in cartList" :key="item.id" class="cart-item" :class="{ 'cart-item--selected': selectedIds.includes(item.id) }">
           <el-checkbox :model-value="selectedIds.includes(item.id)" @change="(val: boolean | string | number) => toggleSelect(item.id, val)" />
           <el-image :src="item.coverImage || '/default-cover.svg'" class="cart-image" fit="cover" alt="商品图片" @click="$router.push(`/goods/${item.goodsId}`)" />
@@ -27,7 +27,7 @@
             <el-button type="danger" size="small" @click.stop="handleRemove(item.id)" round>删除</el-button>
           </div>
         </div>
-      </div>
+      </TransitionGroup>
       <div v-if="cartList.length > 0" class="cart-footer">
         <span class="cart-total">合计：<span class="total-price">¥{{ selectedTotalPrice }}</span></span>
         <el-button type="primary" size="large" @click="handleBatchCheckout" :disabled="selectedIds.length === 0" round>批量结算({{ selectedIds.length }})</el-button>
@@ -85,6 +85,7 @@ import { getAddressList, addAddress, type DeliveryAddressVO } from '@/api/addres
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useCartStore } from '@/stores/cart'
 import { areaData } from '@/data/area'
+import EmptyState from '@/components/EmptyState.vue'
 
 const cartStore = useCartStore()
 

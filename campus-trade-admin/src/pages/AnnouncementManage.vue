@@ -30,6 +30,7 @@
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
+        <template #empty><el-empty description="暂无公告" /></template>
       </el-table>
       <el-pagination
         v-model:current-page="pageNum"
@@ -154,5 +155,4 @@ const handleDelete = async (row: AnnouncementVO) => {
 onMounted(loadData)
 </script>
 
-<style scoped lang="scss">
-</style>
+

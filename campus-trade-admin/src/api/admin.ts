@@ -9,6 +9,9 @@ export const adminLogin = (data: { username: string; password: string }) =>
 export const getAdminInfo = () =>
   request.get<never, AdminInfoVO>('/admin/info')
 
+export const updateAdminPassword = (data: { oldPassword: string; newPassword: string }) =>
+  request.put<never, void>('/admin/password', data)
+
 export const getUserList = (params: PageQueryParams) =>
   request.get<never, PageResult<AdminUserVO>>('/admin/user', { params })
 
@@ -64,7 +67,7 @@ export interface CategoryVO {
 export const getCategoryList = () =>
   request.get<never, CategoryVO[]>('/goods-category')
 
-export const createCategory = (data: { categoryName: string; sortOrder?: number; icon?: string }) =>
+export const createCategory = (data: { categoryName: string; sortOrder?: number; icon?: string; status?: number }) =>
   request.post<never, void>('/goods-category', data)
 
 export const updateCategory = (id: number, data: { categoryName?: string; sortOrder?: number; icon?: string; status?: number }) =>

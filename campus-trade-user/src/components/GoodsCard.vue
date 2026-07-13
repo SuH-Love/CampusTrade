@@ -100,7 +100,7 @@ const handleClick = () => {
   position: relative;
   padding-top: 75%;
   overflow: hidden;
-  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  background: linear-gradient(135deg, var(--color-img-placeholder-from), var(--color-img-placeholder-to));
   &.no-click { cursor: not-allowed; }
 }
 
@@ -128,7 +128,7 @@ const handleClick = () => {
 }
 
 .goods-category-tag {
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--color-tag-bg);
   backdrop-filter: blur(8px);
   color: #fff;
   font-size: 11px;
@@ -139,7 +139,7 @@ const handleClick = () => {
 }
 
 .goods-condition-tag {
-  background: rgba(234, 179, 8, 0.85);
+  background: var(--color-condition-bg);
   backdrop-filter: blur(6px);
   color: #fff;
   font-size: 11px;
@@ -149,7 +149,7 @@ const handleClick = () => {
 }
 
 .goods-discount-tag {
-  background: rgba(239, 68, 68, 0.85);
+  background: var(--color-discount-bg);
   backdrop-filter: blur(6px);
   color: #fff;
   font-size: 11px;
@@ -238,14 +238,14 @@ const handleClick = () => {
   border-radius: 50%;
   border: none;
   background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  color: var(--color-unfav);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.25s;
   &:hover {
-    background: #ef4444;
+    background: var(--color-unfav);
     color: #fff;
     transform: scale(1.15);
     box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);

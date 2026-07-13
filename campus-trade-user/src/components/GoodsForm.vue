@@ -117,6 +117,7 @@
     <div class="step-actions">
       <el-button v-if="currentStep > 0" @click="prevStep">上一步</el-button>
       <div class="step-actions-right">
+        <span v-if="draftSaved" class="draft-saved-hint">已自动保存</span>
         <el-button v-if="currentStep < 2" type="primary" @click="nextStep">下一步</el-button>
         <el-button v-if="currentStep === 2" type="primary" :loading="loading" @click="handleSubmit">
           {{ isEdit ? '保存修改' : '确认发布' }}
@@ -261,6 +262,7 @@ const handleSubmit = () => {
 }
 
 let draftTimer: ReturnType<typeof setInterval> | null = null
+const draftSaved = ref(false)
 
 const saveDraft = () => {
   if (isEdit.value) return
@@ -275,6 +277,8 @@ const saveDraft = () => {
     condition: form.condition,
     stock: form.stock
   }))
+  draftSaved.value = true
+  setTimeout(() => { draftSaved.value = false }, 3000)
 }
 
 const loadDraft = () => {
@@ -440,7 +444,7 @@ defineExpose({ clearDraft })
   height: 22px;
   border-radius: 50%;
   border: none;
-  background: rgba(239, 68, 68, 0.85);
+  background: var(--color-discount-bg);
   color: #fff;
   cursor: pointer;
   display: flex;
@@ -487,7 +491,7 @@ defineExpose({ clearDraft })
 .preview-cover-wrap {
   position: relative;
   padding-top: 75%;
-  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  background: linear-gradient(135deg, var(--color-img-placeholder-from), var(--color-img-placeholder-to));
 }
 
 .preview-cover-img {
@@ -516,11 +520,11 @@ defineExpose({ clearDraft })
   color: #fff;
 
   &--category {
-    background: rgba(0, 0, 0, 0.55);
+    background: var(--color-tag-bg);
   }
 
   &--condition {
-    background: rgba(234, 179, 8, 0.85);
+    background: var(--color-condition-bg);
   }
 }
 
@@ -594,5 +598,12 @@ defineExpose({ clearDraft })
 .step-actions-right {
   display: flex;
   gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.draft-saved-hint {
+  font-size: 13px;
+  color: var(--success);
+  font-weight: 500;
 }
 </style>

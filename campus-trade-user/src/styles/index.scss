@@ -45,6 +45,27 @@
 
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+
+  --color-tag-bg: rgba(0, 0, 0, 0.55);
+  --color-condition-bg: rgba(234, 179, 8, 0.85);
+  --color-discount-bg: rgba(239, 68, 68, 0.85);
+  --color-online: #22c55e;
+  --color-msg-bubble: #f1f5f9;
+  --color-placeholder: #94a3b8;
+  --color-img-placeholder-from: #f1f5f9;
+  --color-img-placeholder-to: #e2e8f0;
+  --color-unfav: #ef4444;
+  --color-highlight: #fbbf24;
+  --color-highlight-text: #1e293b;
+  --color-chip-bg: #f8fafc;
+  --color-chip-border: #e2e8f0;
+  --color-announcement-from: #f5f3ff;
+  --color-announcement-to: #ede9fe;
+  --color-announcement-border: #e0e7ff;
+  --color-dropdown-bg: #ffffff;
+  --color-price-box-from: #fef2f2;
+  --color-price-box-to: #fff7ed;
+  --color-price-box-border: #fecaca;
 }
 
 .dark {
@@ -212,6 +233,11 @@ a:hover { color: var(--primary-dark); }
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.list-enter-active, .list-leave-active { transition: all 0.3s ease; }
+.list-enter-from { opacity: 0; transform: translateX(-20px); }
+.list-leave-to { opacity: 0; transform: translateX(20px); }
+.list-move { transition: transform 0.3s ease; }
 
 .slide-up-enter-active { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
 .slide-up-enter-from { opacity: 0; transform: translateY(20px); }
