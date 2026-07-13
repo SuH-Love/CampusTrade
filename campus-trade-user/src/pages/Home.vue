@@ -4,7 +4,7 @@
       <el-carousel :height="heroHeight" :interval="5000" arrow="hover" indicator-position="outside">
         <el-carousel-item v-for="banner in banners" :key="banner.id">
           <div class="hero-slide" :style="{ background: banner.imageUrl ? 'transparent' : (banner.bgColor || 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)') }">
-            <img v-if="banner.imageUrl" :src="banner.imageUrl" class="hero-bg-img" />
+            <img v-if="banner.imageUrl" :src="banner.imageUrl" class="hero-bg-img" alt="轮播图" />
             <div class="hero-overlay" v-if="banner.imageUrl" />
             <div class="hero-content">
               <h1 v-if="banner.title">{{ banner.title }}</h1>
@@ -70,7 +70,7 @@
       </div>
 
       <div class="announcement-bar" v-if="announcements.length > 0">
-        <el-icon style="color: var(--primary); font-size: 16px; flex-shrink: 0"><Bell /></el-icon>
+        <el-icon class="announcement-icon"><Bell /></el-icon>
         <div class="announcement-scroll">
           <transition name="announcement-slide" mode="out-in">
             <div :key="currentAnnouncementIdx" class="announcement-text">
@@ -82,7 +82,7 @@
 
       <section class="mt-lg">
         <div class="flex-between mb-md">
-          <h3 class="section-title" style="margin-bottom:0">热门商品</h3>
+          <h3 class="section-title mb-0">热门商品</h3>
           <el-button text type="primary" @click="$router.push('/goods')">查看更多 →</el-button>
         </div>
         <el-row :gutter="16" v-if="hotGoods.length > 0">
@@ -100,7 +100,7 @@
 
       <section class="mt-lg">
         <div class="flex-between mb-md">
-          <h3 class="section-title" style="margin-bottom:0">最新上架</h3>
+          <h3 class="section-title mb-0">最新上架</h3>
           <el-button text type="primary" @click="$router.push('/goods')">查看更多 →</el-button>
         </div>
         <el-row :gutter="16" v-if="recommendGoods.length > 0">
@@ -321,6 +321,7 @@ onUnmounted(() => {
   border-radius: 10px; border: 1px solid #e0e7ff; overflow: hidden;
 }
 .announcement-scroll { flex: 1; overflow: hidden; white-space: nowrap; font-size: 12px; color: var(--text-secondary); }
+.announcement-icon { color: var(--primary); font-size: 16px; flex-shrink: 0; }
 .announcement-text { display: inline; }
 
 .announcement-slide-enter-active { transition: all 0.4s ease; }

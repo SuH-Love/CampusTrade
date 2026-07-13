@@ -74,8 +74,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
-import { getDashboardStats } from '@/api/admin'
-import type { DashboardStats } from '@/types'
+import { getDashboardStats, getReportList } from '@/api/admin'
+import type { DashboardStats, PageQueryParams } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -86,6 +86,7 @@ const isMobile = ref(false)
 const drawerVisible = ref(false)
 const isFullscreen = ref(false)
 const stats = ref<DashboardStats | null>(null)
+const reportCount = ref(0)
 
 interface MenuItem {
   path: string
@@ -111,8 +112,7 @@ const menuItems = computed(() =>
   allMenus.filter(m => !m.permission || adminStore.hasPermission(m.permission)).map(m => {
     if (m.path === '/goods') return { ...m, badge: stats.value?.pendingAudit || 0 }
     if (m.path === '/report') {
-      const pendingReports = stats.value?.orderStatusMap?.REFUND || 0
-      return { ...m, badge: pendingReports > 0 ? pendingReports : undefined }
+      return { ...m, badge: reportCount.value > 0 ? reportCount.value : undefined }
     }
     return m
   })
@@ -150,6 +150,13 @@ const onFullscreenChange = () => {
 const fetchStats = async () => {
   try {
     stats.value = await getDashboardStats()
+  } catch { /* ignore */ }
+  try {
+    const [pendingRes, processingRes] = await Promise.all([
+      getReportList({ pageNum: 1, pageSize: 1, status: 'PENDING' } as PageQueryParams),
+      getReportList({ pageNum: 1, pageSize: 1, status: 'PROCESSING' } as PageQueryParams)
+    ])
+    reportCount.value = (pendingRes.total || 0) + (processingRes.total || 0)
   } catch { /* ignore */ }
 }
 
@@ -243,7 +250,7 @@ onUnmounted(() => {
 .header {
   display: flex; align-items: center; justify-content: space-between;
   background: rgba(255, 255, 255, 0.95);
-  border-bottom: 1px solid var(--admin-border);
+  border-bottom: 1px solid var(--admin-border-light);
   padding: 0 24px;
   height: 60px;
   box-shadow: var(--admin-shadow);
@@ -293,7 +300,7 @@ onUnmounted(() => {
 
 .super-tag { margin-left: 4px; }
 
-.admin-main { background: var(--admin-bg); padding: 24px; }
+.admin-main { background: var(--admin-bg-light); padding: 24px; }
 
 @media (max-width: 768px) {
   .header-breadcrumb { display: none; }

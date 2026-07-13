@@ -254,13 +254,8 @@ const handleExportOrders = async () => {
 </script>
 
 <style scoped lang="scss">
-.filter-input { width: 200px; }
-.filter-select { width: 140px; }
 .filter-datepicker { width: 260px; }
-.text-muted { color: var(--admin-text-secondary); }
-.price-text { color: #f56c6c; font-weight: 600; }
-.cancel-text { color: #f56c6c; }
-.pagination-wrapper { display: flex; justify-content: flex-end; margin-top: 16px; }
+.cancel-text { color: var(--admin-price-color); }
 .order-goods-section { margin-bottom: 16px; }
 .section-title { font-size: 14px; font-weight: 600; color: var(--admin-text); margin: 0 0 8px 0; }
 .order-goods-list { display: flex; flex-direction: column; gap: 8px; }
@@ -268,5 +263,5 @@ const handleExportOrders = async () => {
 .order-goods-image { width: 48px; height: 48px; border-radius: 6px; flex-shrink: 0; }
 .order-goods-info { display: flex; flex-direction: column; gap: 2px; }
 .order-goods-title { font-size: 13px; color: var(--admin-text); }
-.order-goods-price { font-size: 12px; color: #f56c6c; }
+.order-goods-price { font-size: 12px; color: var(--admin-price-color); }
 </style>

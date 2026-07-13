@@ -96,23 +96,7 @@ import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { uploadImage } from '@/utils/upload'
-import request from '@/utils/request'
-
-interface BannerVO {
-  id: number
-  title: string
-  subtitle: string
-  imageUrl: string
-  linkUrl: string
-  bgColor: string
-  buttonText: string
-  buttonColor: string
-  sortOrder: number
-  status: number
-  createTime: string
-}
-
-interface PageResult<T> { list: T[]; total: number }
+import { getBannerList, createBanner, updateBanner, toggleBanner, deleteBanner, type BannerVO } from '@/api/admin'
 
 const banners = ref<BannerVO[]>([])
 const pageNum = ref(1)
@@ -122,12 +106,12 @@ const loading = ref(false)
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const editingId = ref<number | null>(null)
-const form = ref({ title: '', subtitle: '', imageUrl: '', linkUrl: '', bgColor: '', buttonText: '', buttonColor: '', sortOrder: 0, status: 1 })
+const form = ref<Omit<BannerVO, 'id' | 'createTime'>>({ title: '', subtitle: '', imageUrl: '', linkUrl: '', bgColor: '', buttonText: '', buttonColor: '', sortOrder: 0, status: 1 })
 
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await request.get<never, PageResult<BannerVO>>('/banner/list', { params: { pageNum: pageNum.value, pageSize: pageSize.value } })
+    const res = await getBannerList({ pageNum: pageNum.value, pageSize: pageSize.value })
     banners.value = res.list || []
     total.value = res.total || 0
   } finally { loading.value = false }
@@ -150,10 +134,10 @@ const handleSubmit = async () => {
   submitting.value = true
   try {
     if (editingId.value) {
-      await request.put(`/banner/${editingId.value}`, form.value)
+      await updateBanner(editingId.value, form.value)
       ElMessage.success('修改成功')
     } else {
-      await request.post('/banner', form.value)
+      await createBanner(form.value)
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
@@ -168,7 +152,7 @@ const handleToggle = async (row: BannerVO) => {
       '操作确认',
       { type: 'warning' }
     )
-    await request.put(`/banner/${row.id}/toggle`)
+    await toggleBanner(row.id)
     ElMessage.success(row.status === 1 ? '已禁用' : '已启用')
     loadData()
   } catch { /* cancel */ }
@@ -177,7 +161,7 @@ const handleToggle = async (row: BannerVO) => {
 const handleDelete = async (row: BannerVO) => {
   try {
     await ElMessageBox.confirm('确认删除该横幅？', '删除确认', { type: 'warning' })
-    await request.delete(`/banner/${row.id}`)
+    await deleteBanner(row.id)
     ElMessage.success('已删除')
     loadData()
   } catch { /* cancel */ }

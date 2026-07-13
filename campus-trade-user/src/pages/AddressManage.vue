@@ -35,7 +35,7 @@
           <el-input v-model="form.receiverPhone" placeholder="请输入手机号" />
         </el-form-item>
         <el-form-item label="省/市/区">
-          <el-cascader v-model="areaValue" :options="areaOptions" :props="cascaderProps" placeholder="请选择省/市/区" style="width: 100%" @change="handleAreaChange" teleported />
+          <el-cascader v-model="areaValue" :options="areaOptions" :props="cascaderProps" placeholder="请选择省/市/区" class="w-full" @change="handleAreaChange" teleported />
         </el-form-item>
         <el-form-item label="详细地址" prop="detailAddress">
           <el-input v-model="form.detailAddress" type="textarea" :rows="2" placeholder="街道、楼栋、门牌号等" />

@@ -14,7 +14,7 @@
       <div v-else class="cart-list" v-loading="loading">
         <div v-for="item in cartList" :key="item.id" class="cart-item" :class="{ 'cart-item--selected': selectedIds.includes(item.id) }">
           <el-checkbox :model-value="selectedIds.includes(item.id)" @change="(val: boolean | string | number) => toggleSelect(item.id, val)" />
-          <el-image :src="item.coverImage || '/default-cover.svg'" class="cart-image" fit="cover" @click="$router.push(`/goods/${item.goodsId}`)" />
+          <el-image :src="item.coverImage || '/default-cover.svg'" class="cart-image" fit="cover" alt="商品图片" @click="$router.push(`/goods/${item.goodsId}`)" />
           <div class="cart-info" @click="$router.push(`/goods/${item.goodsId}`)">
             <div class="cart-title">{{ item.title }}</div>
             <div class="cart-price">¥{{ item.price }}</div>

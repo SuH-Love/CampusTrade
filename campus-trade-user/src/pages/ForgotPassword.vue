@@ -25,7 +25,7 @@
             <el-input v-model="form.confirmPassword" type="password" placeholder="确认新密码" prefix-icon="Lock" show-password />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" style="width: 100%" :loading="loading" native-type="submit" round>重置密码</el-button>
+            <el-button type="primary" class="w-full" :loading="loading" native-type="submit" round>重置密码</el-button>
           </el-form-item>
         </el-form>
         <div class="auth-footer">

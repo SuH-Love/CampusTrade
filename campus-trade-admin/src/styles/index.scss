@@ -19,6 +19,11 @@
   --admin-spacing-sm: 8px;
   --admin-spacing-md: 16px;
   --admin-spacing-lg: 24px;
+  --admin-danger: #ef4444;
+  --admin-price-color: #f56c6c;
+  --admin-text-muted: #94a3b8;
+  --admin-bg-light: #f8fafc;
+  --admin-border-light: #e2e8f0;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -76,3 +81,12 @@ body {
   gap: 12px;
 }
 .admin-filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.filter-input { width: 200px; }
+.filter-select { width: 140px; }
+.pagination-wrapper { display: flex; justify-content: flex-end; margin-top: 16px; }
+.price-text { color: var(--admin-price-color); font-weight: 700; }
+.text-muted { color: var(--admin-text-muted); font-size: 12px; }
+.w-full { width: 100%; }
+.m-0 { margin: 0; }
+.chart-container { height: 300px; }
+.todo-arrow { color: var(--admin-text-secondary); }

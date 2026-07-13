@@ -53,7 +53,7 @@
             accept="image/*"
             class="cover-uploader"
           >
-            <img v-if="form.coverImage" :src="form.coverImage" class="cover-preview" />
+            <img v-if="form.coverImage" :src="form.coverImage" class="cover-preview" alt="商品图片" />
             <div v-else class="upload-placeholder">
               <el-icon class="upload-icon"><Plus /></el-icon>
               <span>上传封面</span>
@@ -66,7 +66,7 @@
           <div class="upload-label">商品图片 <span class="upload-hint">（最多5张）</span></div>
           <div class="image-grid">
             <div v-for="(url, idx) in imageUrls" :key="idx" class="image-item">
-              <img :src="url" class="image-thumb" />
+              <img :src="url" class="image-thumb" alt="商品图片" />
               <button class="image-remove" @click="removeImage(idx)">
                 <el-icon><Close /></el-icon>
               </button>
@@ -92,7 +92,7 @@
       <div v-show="currentStep === 2" class="step-preview">
         <div class="preview-card">
           <div class="preview-cover-wrap">
-            <img :src="form.coverImage || '/default-cover.svg'" class="preview-cover-img" />
+            <img :src="form.coverImage || '/default-cover.svg'" class="preview-cover-img" alt="商品图片" />
             <div class="preview-tags">
               <span v-if="categoryName" class="preview-tag preview-tag--category">{{ categoryName }}</span>
               <span v-if="form.condition" class="preview-tag preview-tag--condition">{{ form.condition }}</span>
@@ -107,7 +107,7 @@
             </div>
             <div class="preview-stock">库存: {{ form.stock }}</div>
             <div v-if="imageUrls.length" class="preview-images">
-              <img v-for="url in imageUrls" :key="url" :src="url" class="preview-img-thumb" />
+              <img v-for="url in imageUrls" :key="url" :src="url" class="preview-img-thumb" alt="商品图片" />
             </div>
           </div>
         </div>

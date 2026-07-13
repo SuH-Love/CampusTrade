@@ -178,7 +178,7 @@ const handleBan = async () => {
   }
   banLoading.value = true
   try {
-    await banUser(banUserId.value)
+    await banUser(banUserId.value, banReason.value)
     ElMessage.success('已封禁')
     banDialogVisible.value = false
     loadData()
@@ -211,6 +211,5 @@ const handleExportUsers = async () => {
 <style scoped lang="scss">
 .filter-input { width: 220px; }
 .filter-select { width: 120px; }
-.text-muted { color: var(--admin-text-secondary); }
-.pagination-wrapper { display: flex; justify-content: flex-end; margin-top: 16px; }
+
 </style>

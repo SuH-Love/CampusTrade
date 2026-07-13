@@ -12,8 +12,8 @@ export const getAdminInfo = () =>
 export const getUserList = (params: PageQueryParams) =>
   request.get<never, PageResult<AdminUserVO>>('/admin/user', { params })
 
-export const banUser = (id: number) =>
-  request.put<never, void>(`/admin/user/${id}/ban`)
+export const banUser = (id: number, reason?: string) =>
+  request.put<never, void>(`/admin/user/${id}/ban`, null, { params: { reason } })
 
 export const unbanUser = (id: number) =>
   request.put<never, void>(`/admin/user/${id}/unban`)
@@ -36,11 +36,11 @@ export const rejectRefund = (id: number, reason?: string) =>
 export const getReportList = (params: PageQueryParams) =>
   request.get<never, PageResult<AdminReportVO>>('/admin/report', { params })
 
-export const resolveReport = (id: number) =>
-  request.put<never, void>(`/admin/report/${id}/resolve`)
+export const resolveReport = (id: number, reason?: string) =>
+  request.put<never, void>(`/admin/report/${id}/resolve`, null, { params: { reason } })
 
-export const dismissReport = (id: number) =>
-  request.put<never, void>(`/admin/report/${id}/dismiss`)
+export const dismissReport = (id: number, reason?: string) =>
+  request.put<never, void>(`/admin/report/${id}/dismiss`, null, { params: { reason } })
 
 export const getOperationLogs = (params: PageQueryParams) =>
   request.get<never, PageResult<OperationLogVO>>('/admin/log/operation', { params })
@@ -94,3 +94,32 @@ export const updateAnnouncement = (id: number, data: { title?: string; content?:
 
 export const deleteAnnouncement = (id: number) =>
   request.delete<never, void>(`/announcement/${id}`)
+
+export interface BannerVO {
+  id: number
+  title: string
+  subtitle: string
+  imageUrl: string
+  linkUrl: string
+  bgColor: string
+  buttonText: string
+  buttonColor: string
+  sortOrder: number
+  status: number
+  createTime: string
+}
+
+export const getBannerList = (params: { pageNum: number; pageSize: number }) =>
+  request.get<never, PageResult<BannerVO>>('/banner/list', { params })
+
+export const createBanner = (data: Omit<BannerVO, 'id' | 'createTime'>) =>
+  request.post<never, void>('/banner', data)
+
+export const updateBanner = (id: number, data: Omit<BannerVO, 'id' | 'createTime'>) =>
+  request.put<never, void>(`/banner/${id}`, data)
+
+export const toggleBanner = (id: number) =>
+  request.put<never, void>(`/banner/${id}/toggle`)
+
+export const deleteBanner = (id: number) =>
+  request.delete<never, void>(`/banner/${id}`)

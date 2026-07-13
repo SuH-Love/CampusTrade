@@ -59,7 +59,7 @@ import { listNotifications, getUnreadCount, markAsRead, markAllAsRead, deleteNot
 import { getMyPreferences, setPreference } from '@/api/notificationPreference'
 import EmptyState from '@/components/EmptyState.vue'
 import type { NotificationVO } from '@/api/notification'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useChatWs } from '@/composables/useChatWs'
 
 interface NotificationItem extends NotificationVO {
@@ -166,6 +166,7 @@ const handleBatchMarkRead = async () => {
 }
 
 const handleDelete = async (id: number) => {
+  await ElMessageBox.confirm('确认删除该通知？', '删除确认', { type: 'warning' })
   await deleteNotification(id)
   ElMessage.success('已删除')
   loadUnreadCount()

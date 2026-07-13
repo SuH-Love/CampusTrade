@@ -17,13 +17,13 @@
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header><span class="card-title">商品状态分布</span></template>
-          <div ref="goodsChartRef" style="height: 300px" />
+          <div ref="goodsChartRef" class="chart-container" />
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card shadow="hover">
           <template #header><span class="card-title">订单状态分布</span></template>
-          <div ref="orderChartRef" style="height: 300px" />
+          <div ref="orderChartRef" class="chart-container" />
         </el-card>
       </el-col>
     </el-row>
@@ -37,7 +37,7 @@
                 <span class="todo-label">{{ item.label }}</span>
                 <el-tag :type="item.count > 0 ? 'danger' : 'info'" round size="small">{{ item.count }}</el-tag>
               </div>
-              <el-icon style="color: var(--admin-text-secondary)"><ArrowRight /></el-icon>
+              <el-icon class="todo-arrow"><ArrowRight /></el-icon>
             </div>
           </div>
         </el-card>

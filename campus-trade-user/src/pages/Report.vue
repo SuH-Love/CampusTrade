@@ -7,9 +7,9 @@
           <span class="header-desc">我们会认真处理每一条举报</span>
         </div>
       </template>
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="80px" style="max-width: 600px">
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="80px" class="report-form">
         <el-form-item label="举报类型" prop="targetType">
-          <el-select v-model="form.targetType" placeholder="选择类型" :disabled="!!route.query.targetType" @change="handleTypeChange" style="width: 100%">
+          <el-select v-model="form.targetType" placeholder="选择类型" :disabled="!!route.query.targetType" @change="handleTypeChange" class="w-full">
             <el-option label="商品" :value="1" />
             <el-option label="用户" :value="2" />
             <el-option label="聊天" :value="3" />
@@ -41,7 +41,7 @@
           </el-upload>
           <div v-if="imageList.length > 0" class="uploaded-images">
             <div v-for="(img, idx) in imageList" :key="idx" class="image-preview-item">
-              <el-image :src="img" fit="cover" style="width: 80px; height: 80px; border-radius: 10px" :preview-src-list="imageList" :initial-index="idx" />
+              <el-image :src="img" fit="cover" class="evidence-img" :preview-src-list="imageList" :initial-index="idx" alt="证据图片" />
               <el-button type="danger" :icon="Delete" circle size="small" class="image-delete-btn" @click="removeImage(idx)" />
             </div>
           </div>
@@ -50,7 +50,7 @@
       </el-form>
     </el-card>
 
-    <el-card style="margin-top: 20px" class="report-list-card">
+    <el-card class="report-list-card">
       <template #header>
         <div class="card-header">
           <h3>我的举报</h3>
@@ -72,7 +72,7 @@
         <el-table-column prop="handleResult" label="处理结果" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">
             <span v-if="row.handleResult">{{ row.handleResult }}</span>
-            <span v-else style="color: var(--text-muted)">-</span>
+            <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="时间" min-width="170" />
@@ -207,4 +207,8 @@ onMounted(async () => {
 .uploaded-images { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
 .image-preview-item { position: relative; display: inline-block; }
 .image-delete-btn { position: absolute; top: -6px; right: -6px; z-index: 1; }
+.report-form { max-width: 600px; }
+.report-list-card { margin-top: 20px; }
+.evidence-img { width: 80px; height: 80px; border-radius: 10px; }
+.text-muted { color: var(--text-muted); }
 </style>

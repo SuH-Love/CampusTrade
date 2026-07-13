@@ -197,7 +197,7 @@ const handleResolve = async () => {
   }
   resolveLoading.value = true
   try {
-    await resolveReport(resolveReportId.value)
+    await resolveReport(resolveReportId.value, resolveReason.value)
     ElMessage.success('已处理')
     resolveDialogVisible.value = false
     loadData()
@@ -219,7 +219,7 @@ const handleDismiss = async () => {
   }
   dismissLoading.value = true
   try {
-    await dismissReport(dismissReportId.value)
+    await dismissReport(dismissReportId.value, dismissReason.value)
     ElMessage.success('已驳回')
     dismissDialogVisible.value = false
     loadData()
@@ -237,10 +237,7 @@ onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
-.filter-input { width: 200px; }
-.filter-select { width: 140px; }
-.text-muted { color: var(--admin-text-secondary); }
-.pagination-wrapper { display: flex; justify-content: flex-end; margin-top: 16px; }
+
 .evidence-section { margin-top: 16px; }
 .section-title { font-size: 14px; font-weight: 600; color: var(--admin-text); margin: 0 0 8px 0; }
 .evidence-images { display: flex; gap: 8px; flex-wrap: wrap; }

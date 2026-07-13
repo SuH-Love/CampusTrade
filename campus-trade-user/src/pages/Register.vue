@@ -28,7 +28,7 @@
             <el-input v-model="form.email" placeholder="邮箱（选填）" autocomplete="email" />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" style="width: 100%" :loading="loading" native-type="submit" round>注册</el-button>
+            <el-button type="primary" class="w-full" :loading="loading" native-type="submit" round>注册</el-button>
           </el-form-item>
         </el-form>
         <div class="auth-footer">

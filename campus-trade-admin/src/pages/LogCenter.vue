@@ -3,8 +3,8 @@
     <el-card>
       <template #header>
         <div class="admin-card-header">
-          <h3 style="margin:0">日志中心</h3>
-          <el-input v-model="searchKeyword" placeholder="搜索操作人/IP" clearable style="width: 200px" @keyup.enter="handleSearch" @clear="handleSearch" />
+          <h3 class="m-0">日志中心</h3>
+          <el-input v-model="searchKeyword" placeholder="搜索操作人/IP" clearable class="filter-input" @keyup.enter="handleSearch" @clear="handleSearch" />
         </div>
       </template>
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">

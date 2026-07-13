@@ -28,6 +28,7 @@
                 :initial-index="idx"
                 fit="cover"
                 class="report-thumb"
+                alt="证据图片"
               />
             </div>
             <span v-else class="text-placeholder">-</span>
@@ -102,6 +103,7 @@
               :initial-index="idx"
               fit="cover"
               class="detail-image"
+              alt="证据图片"
             />
           </div>
         </div>

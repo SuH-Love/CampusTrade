@@ -51,8 +51,8 @@
         </el-table-column>
         <el-table-column prop="status" label="状态" min-width="120">
           <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
-            <div v-if="row.status === 'PENDING_PAY' && getCountdown(row.createTime)" class="countdown-text">{{ getCountdown(row.createTime) }}</div>
+            <el-tag :type="orderStatusTagType(row.status)">{{ orderStatusLabel(row.status) }}</el-tag>
+            <div v-if="row.status === 'PENDING_PAY' && countdownMap.get(row.id)" class="countdown-text">{{ countdownMap.get(row.id) }}</div>
           </template>
         </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip />
@@ -82,7 +82,7 @@
         <div v-for="row in filteredOrders" :key="row.id" class="order-card">
           <div class="order-card-header">
             <span class="order-card-no">{{ row.orderNo }}</span>
-            <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+            <el-tag :type="orderStatusTagType(row.status)" size="small">{{ orderStatusLabel(row.status) }}</el-tag>
           </div>
           <div class="order-card-body">
             <div v-if="row.items && row.items.length > 0" class="order-card-goods">
@@ -99,7 +99,7 @@
             </div>
             <div class="order-card-user">{{ activeTab === 'buyer' ? row.sellerName : row.buyerName }} · {{ formatTime(row.createTime) }}</div>
           </div>
-          <div v-if="row.status === 'PENDING_PAY' && getCountdown(row.createTime)" class="order-card-countdown">{{ getCountdown(row.createTime) }}</div>
+          <div v-if="row.status === 'PENDING_PAY' && countdownMap.get(row.id)" class="order-card-countdown">{{ countdownMap.get(row.id) }}</div>
           <div class="order-card-actions">
             <el-button size="small" @click="$router.push(`/order/${row.id}`)">详情</el-button>
             <el-button v-if="row.status === 'PENDING_PAY' && activeTab === 'buyer'" type="primary" size="small" @click="handlePay(row.id)">支付</el-button>
@@ -121,13 +121,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getBuyerOrders, getSellerOrders, payOrder, cancelOrder, shipOrder, finishOrder, refundOrder, approveRefund, rejectRefund, modifyPrice } from '@/api/order'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { OrderVO } from '@/api/order'
 import type { OrderQueryParams } from '@/types'
-import { formatPrice, formatTime } from '@/utils/labels'
+import { formatPrice, formatTime, orderStatusLabel, orderStatusTagType } from '@/utils/labels'
 
 const route = useRoute()
 const activeTab = ref((route.query.tab as string) || 'buyer')
@@ -144,21 +144,6 @@ const handleResize = () => {
   isMobile.value = window.innerWidth < 768
 }
 
-const statusLabel = (status: string) => {
-  const map: Record<string, string> = {
-    PENDING_PAY: '待支付', PAID: '已支付', SHIPPING: '已发货',
-    PENDING_REVIEW: '待评价', FINISHED: '已完成', CANCELLED: '已取消', REFUND: '退款中'
-  }
-  return map[status] || status
-}
-
-const statusTagType = (status: string) => {
-  const map: Record<string, string> = {
-    PENDING_PAY: 'warning', PAID: 'primary', SHIPPING: '',
-    PENDING_REVIEW: 'warning', FINISHED: 'success', CANCELLED: 'info', REFUND: 'danger'
-  }
-  return map[status] || ''
-}
 
 const filteredOrders = computed(() => {
   let list = orders.value
@@ -271,27 +256,32 @@ const handleRejectRefund = async (id: number) => {
 
 const ORDER_TIMEOUT_MS = 5 * 60 * 1000
 let countdownTimer: number | null = null
+const countdownMap = reactive(new Map<number, string>())
 
-const getCountdown = (createTime: string): string => {
-  const created = new Date(createTime.includes('T') ? createTime : createTime.replace(' ', 'T')).getTime()
-  const remaining = ORDER_TIMEOUT_MS - (Date.now() - created)
-  if (remaining <= 0) return '已超时'
-  const minutes = Math.floor(remaining / 60000)
-  const seconds = Math.floor((remaining % 60000) / 1000)
-  return `剩余 ${minutes}:${String(seconds).padStart(2, '0')}`
-}
-
-const isOrderExpired = (createTime: string): boolean => {
-  const created = new Date(createTime.includes('T') ? createTime : createTime.replace(' ', 'T')).getTime()
-  return (Date.now() - created) >= ORDER_TIMEOUT_MS
+const updateCountdowns = () => {
+  let hasExpired = false
+  for (const order of orders.value) {
+    if (order.status === 'PENDING_PAY') {
+      const created = new Date(order.createTime.includes('T') ? order.createTime : order.createTime.replace(' ', 'T')).getTime()
+      const remaining = ORDER_TIMEOUT_MS - (Date.now() - created)
+      if (remaining <= 0) {
+        countdownMap.set(order.id, '已超时')
+        hasExpired = true
+      } else {
+        const minutes = Math.floor(remaining / 60000)
+        const seconds = Math.floor((remaining % 60000) / 1000)
+        countdownMap.set(order.id, `剩余 ${minutes}:${String(seconds).padStart(2, '0')}`)
+      }
+    } else {
+      countdownMap.delete(order.id)
+    }
+  }
+  if (hasExpired) loadData()
 }
 
 onMounted(() => {
   loadData()
-  countdownTimer = window.setInterval(() => {
-    const hasExpired = orders.value.some(o => o.status === 'PENDING_PAY' && isOrderExpired(o.createTime))
-    if (hasExpired) { loadData() } else { orders.value = [...orders.value] }
-  }, 1000)
+  countdownTimer = window.setInterval(updateCountdowns, 1000)
   window.addEventListener('resize', handleResize)
 })
 

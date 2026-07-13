@@ -228,14 +228,9 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-.filter-input { width: 200px; }
-.filter-select { width: 140px; }
-.text-muted { color: var(--admin-text-secondary); }
-.price-text { color: #f56c6c; font-weight: 600; }
 .original-price { font-size: 12px; color: var(--admin-text-secondary); text-decoration: line-through; margin-left: 4px; }
-.reject-text { color: #f56c6c; }
+.reject-text { color: var(--admin-price-color); }
 .cover-image { width: 50px; height: 50px; border-radius: 8px; }
-.pagination-wrapper { display: flex; justify-content: flex-end; margin-top: 16px; }
 .detail-images { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
 .detail-image-item { width: 100px; height: 100px; border-radius: 8px; border: 1px solid var(--admin-border); }
 .detail-descriptions { margin-top: 8px; }

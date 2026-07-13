@@ -5,7 +5,7 @@
     @click="handleClick"
   >
     <div class="goods-img-wrap" :class="{ 'no-click': !clickable }">
-      <img :src="goods.coverImage || '/default-cover.svg'" class="goods-img" loading="lazy" />
+      <img :src="goods.coverImage || '/default-cover.svg'" class="goods-img" loading="lazy" alt="商品图片" />
       <div class="goods-tags">
         <span v-if="goods.categoryName" class="goods-category-tag">{{ goods.categoryName }}</span>
         <span v-if="goods.condition" class="goods-condition-tag">{{ goods.condition }}</span>

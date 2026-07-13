@@ -31,7 +31,7 @@
       <el-col :xs="24" :md="12">
         <div class="detail-info">
           <div class="detail-status">
-            <el-tag :type="statusTagType(goods.status)" effect="dark" round>{{ statusLabel(goods.status) }}</el-tag>
+            <el-tag :type="goodsStatusTagType(goods.status)" effect="dark" round>{{ goodsStatusLabel(goods.status) }}</el-tag>
             <el-tag round>{{ goods.categoryName }}</el-tag>
             <el-tag v-if="goods.condition" type="warning" round>{{ goods.condition }}</el-tag>
           </div>
@@ -255,6 +255,7 @@ import GoodsCard from '@/components/GoodsCard.vue'
 import GoodsCardSkeleton from '@/components/GoodsCardSkeleton.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import areaOptions from '@/data/area'
+import { goodsStatusLabel, goodsStatusTagType } from '@/utils/labels'
 
 const route = useRoute()
 const router = useRouter()
@@ -313,15 +314,6 @@ const filteredReviews = computed(() => {
   })
 })
 
-const statusLabel = (status: string) => {
-  const map: Record<string, string> = { DRAFT: '草稿', PENDING: '待审核', APPROVED: '审核通过', REJECTED: '已拒绝', ONLINE: '在售', OFFLINE: '已下架', SOLD: '已售出' }
-  return map[status] || status
-}
-
-const statusTagType = (status: string) => {
-  const map: Record<string, string> = { DRAFT: 'info', PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger', ONLINE: 'success', OFFLINE: 'info', SOLD: 'warning' }
-  return map[status] || 'info'
-}
 
 const loadData = async () => {
   pageLoading.value = true

@@ -25,13 +25,13 @@
             <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" show-password autocomplete="current-password" />
           </el-form-item>
           <el-form-item>
-            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center">
+            <div class="flex-between w-full">
               <el-checkbox v-model="rememberMe">记住我</el-checkbox>
-              <router-link to="/forgot-password" style="font-size: 13px">忘记密码？</router-link>
+              <router-link to="/forgot-password" class="text-sm">忘记密码？</router-link>
             </div>
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" style="width: 100%" :loading="loading" native-type="submit" round>登录</el-button>
+            <el-button type="primary" class="w-full" :loading="loading" native-type="submit" round>登录</el-button>
           </el-form-item>
         </el-form>
         <div class="auth-footer">

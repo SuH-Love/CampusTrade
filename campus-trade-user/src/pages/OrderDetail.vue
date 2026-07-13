@@ -2,8 +2,8 @@
   <div class="order-detail-page">
     <el-card v-loading="loading">
       <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center">
-          <h3 style="margin: 0">订单详情</h3>
+        <div class="detail-header">
+          <h3 class="m-0">订单详情</h3>
           <el-button @click="$router.back()">返回</el-button>
         </div>
       </template>
@@ -11,13 +11,13 @@
         <el-descriptions :column="2" border>
           <el-descriptions-item label="订单号">{{ order.orderNo }}</el-descriptions-item>
           <el-descriptions-item label="状态">
-            <el-tag :type="statusTagType(order.status)">{{ statusLabel(order.status) }}</el-tag>
-            <span v-if="order.status === 'PENDING_PAY' && countdownText" style="color: #f56c6c; font-size: 13px; margin-left: 8px; font-weight: 500">{{ countdownText }}</span>
+            <el-tag :type="orderStatusTagType(order.status)">{{ orderStatusLabel(order.status) }}</el-tag>
+            <span v-if="order.status === 'PENDING_PAY' && countdownText" class="countdown-hint">{{ countdownText }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="买家">{{ order.buyerName }}</el-descriptions-item>
           <el-descriptions-item label="卖家">{{ order.sellerName }}</el-descriptions-item>
           <el-descriptions-item label="金额">
-            <span style="color: #f56c6c; font-weight: bold; font-size: 18px">¥{{ order.totalAmount }}</span>
+            <span class="price-highlight">¥{{ order.totalAmount }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="备注">{{ order.remark || '无' }}</el-descriptions-item>
           <el-descriptions-item label="配送方式">{{ order.deliveryMethod === 1 || order.deliveryMethod === 'DELIVERY' ? '配送' : '自取' }}</el-descriptions-item>
@@ -31,22 +31,22 @@
           <el-descriptions-item v-if="order.cancelReason" label="取消原因">{{ order.cancelReason }}</el-descriptions-item>
         </el-descriptions>
 
-        <h4 style="margin: 24px 0 12px">商品信息</h4>
+        <h4 class="detail-section-title">商品信息</h4>
         <el-table :data="order.items || []" stripe>
           <el-table-column label="商品" min-width="200">
             <template #default="{ row }">
-              <div style="display: flex; align-items: center; gap: 12px">
-                <el-image v-if="row.goodsImage" :src="row.goodsImage" style="width: 60px; height: 60px; border-radius: 4px; flex-shrink: 0" fit="cover" />
+              <div class="goods-item">
+                <el-image v-if="row.goodsImage" :src="row.goodsImage" class="goods-item-img" fit="cover" alt="商品图片" />
                 <span>{{ row.goodsTitle }}</span>
               </div>
             </template>
           </el-table-column>
           <el-table-column prop="price" label="成交价" min-width="100">
-            <template #default="{ row }"><span style="color: #f56c6c; font-weight: bold">¥{{ row.price }}</span></template>
+            <template #default="{ row }"><span class="price-bold">¥{{ row.price }}</span></template>
           </el-table-column>
         </el-table>
 
-        <div style="margin-top: 24px; display: flex; gap: 12px" v-if="isBuyer || isSeller">
+        <div class="action-bar" v-if="isBuyer || isSeller">
           <el-button v-if="order.status === 'PENDING_PAY' && isBuyer" type="primary" @click="handlePay">支付</el-button>
           <el-button v-if="order.status === 'PENDING_PAY' && isBuyer" @click="handleCancel">取消订单</el-button>
           <el-button v-if="order.status === 'PENDING_PAY' && isSeller" type="warning" @click="handleModifyPrice">改价</el-button>
@@ -58,7 +58,7 @@
         </div>
 
         <div v-if="order.status === 'PENDING_REVIEW' && isBuyer" class="rating-section">
-          <h4 style="margin: 24px 0 12px">评价卖家</h4>
+          <h4 class="detail-section-title">评价卖家</h4>
           <el-form :model="ratingForm" label-width="80px">
             <el-form-item label="评分">
               <el-rate v-model="ratingForm.rating" :colors="['#6366f1', '#6366f1', '#6366f1']" />
@@ -84,6 +84,7 @@ import { getOrderDetail, payOrder, cancelOrder, shipOrder, finishOrder, refundOr
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { OrderVO } from '@/api/order'
+import { orderStatusLabel, orderStatusTagType } from '@/utils/labels'
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -109,21 +110,6 @@ const updateCountdown = () => {
 const isBuyer = computed(() => order.value?.buyerId === userStore.userInfo?.id)
 const isSeller = computed(() => order.value?.sellerId === userStore.userInfo?.id)
 
-const statusLabel = (status: string) => {
-  const map: Record<string, string> = {
-    PENDING_PAY: '待支付', PAID: '已支付', SHIPPING: '已发货',
-    PENDING_REVIEW: '待评价', FINISHED: '已完成', CANCELLED: '已取消', REFUND: '退款中'
-  }
-  return map[status] || status
-}
-
-const statusTagType = (status: string) => {
-  const map: Record<string, string> = {
-    PENDING_PAY: 'warning', PAID: 'primary', SHIPPING: '',
-    PENDING_REVIEW: 'warning', FINISHED: 'success', CANCELLED: 'info', REFUND: 'danger'
-  }
-  return map[status] || ''
-}
 
 const loadData = async () => {
   loading.value = true
@@ -219,6 +205,14 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
 
 <style scoped lang="scss">
 .order-detail-page { padding: 20px; }
+.detail-header { display: flex; justify-content: space-between; align-items: center; }
+.countdown-hint { color: #f56c6c; font-size: 13px; margin-left: 8px; font-weight: 500; }
+.price-highlight { color: #f56c6c; font-weight: bold; font-size: 18px; }
+.price-bold { color: #f56c6c; font-weight: bold; }
+.detail-section-title { margin: 24px 0 12px; }
+.goods-item { display: flex; align-items: center; gap: 12px; }
+.goods-item-img { width: 60px; height: 60px; border-radius: 4px; flex-shrink: 0; }
+.action-bar { margin-top: 24px; display: flex; gap: 12px; }
 .rating-section {
   margin-top: 24px;
   padding: 24px;

@@ -14,7 +14,7 @@
           <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" show-password />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" style="width: 100%" native-type="submit" :loading="loading" round>登录</el-button>
+          <el-button type="primary" class="w-full" native-type="submit" :loading="loading" round>登录</el-button>
         </el-form-item>
       </el-form>
     </div>

@@ -67,24 +67,26 @@ export const eventTypeLabel = (type: string): string => {
 
 export const orderStatusLabel = (status: string): string => {
   const map: Record<string, string> = {
-    PENDING_PAYMENT: '待支付', PENDING_SHIPMENT: '待发货', SHIPPED: '已发货',
-    FINISHED: '已完成', CANCELLED: '已取消', REFUNDING: '退款中',
-    REFUNDED: '已退款'
+    PENDING_PAYMENT: '待支付', PENDING_PAY: '待支付', PENDING_SHIPMENT: '待发货',
+    PAID: '已支付', SHIPPED: '已发货', SHIPPING: '配送中',
+    PENDING_REVIEW: '待评价', FINISHED: '已完成', CANCELLED: '已取消',
+    REFUNDING: '退款中', REFUND: '退款', REFUNDED: '已退款'
   }
   return map[status] || status
 }
 
 export const goodsStatusLabel = (status: string): string => {
   const map: Record<string, string> = {
-    DRAFT: '草稿', PENDING_REVIEW: '待审核', ONLINE: '在售',
-    OFFLINE: '已下架', SOLD: '已售出', REJECTED: '审核拒绝'
+    DRAFT: '草稿', PENDING: '待审核', PENDING_REVIEW: '待审核', APPROVED: '已审核',
+    ONLINE: '在售', OFFLINE: '已下架', SOLD: '已售出', REJECTED: '审核拒绝'
   }
   return map[status] || status
 }
 
 export const reportStatusLabel = (status: string): string => {
   const map: Record<string, string> = {
-    PENDING: '待处理', PROCESSING: '处理中', RESOLVED: '已通过', DISMISSED: '已驳回'
+    PENDING: '待处理', PROCESSING: '处理中', RESOLVED: '已通过',
+    DISMISSED: '已驳回', FINISHED: '已完成'
   }
   return map[status] || status
 }

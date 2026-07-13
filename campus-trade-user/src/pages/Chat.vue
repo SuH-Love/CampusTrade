@@ -1,6 +1,6 @@
 <template>
   <div class="chat-page">
-    <el-container style="height: calc(100vh - 112px)">
+    <el-container class="chat-container">
       <el-aside width="300px" class="chat-sidebar">
         <div class="sidebar-header">
           <span>消息</span>
@@ -15,11 +15,11 @@
               <span v-if="contact.unread" class="unread-badge">{{ contact.unread > 99 ? '99+' : contact.unread }}</span>
             </div>
             <div class="contact-info">
-              <div class="contact-name" @click.stop="$router.push(`/profile/${contact.userId}`)" style="cursor: pointer">{{ contact.name }}</div>
+              <div class="contact-name" @click.stop="$router.push(`/profile/${contact.userId}`)">{{ contact.name }}</div>
               <div class="contact-last">{{ contact.lastMessage }}</div>
             </div>
-            <el-button size="small" type="danger" plain round @click.stop="handleBlock(contact)" title="屏蔽" style="flex-shrink: 0; font-size: 12px">
-              <el-icon style="margin-right: 2px"><Close /></el-icon>屏蔽
+            <el-button size="small" type="danger" plain round @click.stop="handleBlock(contact)" title="屏蔽" class="block-btn">
+              <el-icon class="icon-mr-xs"><Close /></el-icon>屏蔽
             </el-button>
           </div>
         </div>
@@ -67,9 +67,9 @@
                       <div class="goods-card-price" v-if="parseGoodsPrice(msg.content)">¥{{ parseGoodsPrice(msg.content) }}</div>
                     </div>
                   </div>
-                  <div v-else-if="msg.messageType === 4" class="msg-bubble self-bubble recall-bubble"><el-icon style="margin-right: 4px"><RefreshLeft /></el-icon>该消息已撤回</div>
+                  <div v-else-if="msg.messageType === 4" class="msg-bubble self-bubble recall-bubble"><el-icon class="icon-mr-sm"><RefreshLeft /></el-icon>该消息已撤回</div>
                   <div v-else class="msg-bubble self-bubble" v-html="highlightText(msg.content)"></div>
-                  <el-button v-if="msg._recallable" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn"><el-icon style="margin-right: 2px"><RefreshLeft /></el-icon>撤回</el-button>
+                  <el-button v-if="msg._recallable" size="small" text type="info" @click="handleRecall(msg)" class="recall-btn"><el-icon class="icon-mr-xs"><RefreshLeft /></el-icon>撤回</el-button>
                   <div class="msg-meta">
                     <span class="msg-time">{{ formatTime(msg.createTime) }}</span>
                     <span v-if="msg.isRead" class="msg-read">已读</span>
@@ -96,7 +96,7 @@
                       <div class="goods-card-price" v-if="parseGoodsPrice(msg.content)">¥{{ parseGoodsPrice(msg.content) }}</div>
                     </div>
                   </div>
-                  <div v-else-if="msg.messageType === 4" class="msg-bubble recall-bubble"><el-icon style="margin-right: 4px"><RefreshLeft /></el-icon>该消息已撤回</div>
+                  <div v-else-if="msg.messageType === 4" class="msg-bubble recall-bubble"><el-icon class="icon-mr-sm"><RefreshLeft /></el-icon>该消息已撤回</div>
                   <div v-else class="msg-bubble" v-html="highlightText(msg.content)"></div>
                   <div class="msg-time">{{ formatTime(msg.createTime) }}</div>
                 </div>
@@ -122,7 +122,7 @@
             </div>
             <div class="chat-input">
               <el-button size="large" round @click="showPlusPanel = !showPlusPanel" :type="showPlusPanel ? 'primary' : 'default'"><el-icon><Plus /></el-icon></el-button>
-              <el-upload ref="uploadRef" action="" :auto-upload="false" :show-file-list="false" accept="image/jpeg,image/png,image/gif,image/webp" :on-change="handleImageSelect" style="display: none" />
+              <el-upload ref="uploadRef" action="" :auto-upload="false" :show-file-list="false" accept="image/jpeg,image/png,image/gif,image/webp" :on-change="handleImageSelect" class="upload-hidden" />
               <el-input v-model="inputText" placeholder="输入消息..." @keyup.enter="handleSend" @input="handleTyping" size="large" @focus="showPlusPanel = false" />
               <el-button type="primary" size="large" @click="handleSend" :disabled="!inputText.trim()" :loading="sending" round>发送</el-button>
             </div>
@@ -135,7 +135,7 @@
     <el-dialog v-model="showGoodsPicker" title="选择商品" width="480px" destroy-on-close @open="loadPickerGoods">
       <div v-loading="goodsPickerLoading" class="picker-list">
         <div v-for="g in pickerGoodsList" :key="g.id" class="picker-item" @click="confirmSendGoods(g)">
-          <el-image :src="g.coverImage || '/default-cover.svg'" style="width: 48px; height: 48px; border-radius: 6px; flex-shrink: 0" fit="cover" />
+          <el-image :src="g.coverImage || '/default-cover.svg'" class="picker-item-img" fit="cover" />
           <div class="picker-item-info">
             <div class="picker-item-title">{{ g.title }}</div>
             <div class="picker-item-price">¥{{ g.price }}</div>
@@ -161,10 +161,10 @@
   <Teleport to="body">
     <div v-if="contextMenu.visible" class="context-menu" :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }">
       <div v-if="contextMenu.canRecall" class="context-menu-item" @click="handleRecall(contextMenu.msg!)">
-        <el-icon style="margin-right: 6px"><RefreshLeft /></el-icon>撤回消息
+        <el-icon class="icon-mr-md"><RefreshLeft /></el-icon>撤回消息
       </div>
       <div v-if="contextMenu.canCopy" class="context-menu-item" @click="handleCopyMsg(contextMenu.msg!)">
-        <el-icon style="margin-right: 6px"><CopyDocument /></el-icon>复制内容
+        <el-icon class="icon-mr-md"><CopyDocument /></el-icon>复制内容
       </div>
     </div>
   </Teleport>
@@ -186,6 +186,7 @@ import type { ContactVO } from '@/types'
 
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
+import { orderStatusLabel } from '@/utils/labels'
 
 interface DisplayMessage extends ChatMessageVO { _tempId?: string; _sentAt?: number; _recallable?: boolean }
 
@@ -300,12 +301,18 @@ const scrollToMsg = (msgIdx: number) => {
   }
 }
 
+const escapeHtml = (str: string): string => {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+
 const highlightText = (text: string): string => {
-  if (!searchKeyword.value.trim() || !text) return text
+  if (!text) return ''
+  const safe = escapeHtml(text)
+  if (!searchKeyword.value.trim()) return safe
   const kw = searchKeyword.value.trim()
   const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const regex = new RegExp(`(${escaped})`, 'gi')
-  return text.replace(regex, '<mark class="msg-highlight">$1</mark>')
+  return safe.replace(regex, '<mark class="msg-highlight">$1</mark>')
 }
 
 const onDocContextMenu = (e: MouseEvent) => {
@@ -555,10 +562,6 @@ const parseOrderStatus = (content: string) => {
   } catch { return '' }
 }
 
-const orderStatusLabel = (status: string) => {
-  const map: Record<string, string> = { PENDING_PAY: '待支付', PAID: '已支付', SHIPPING: '已发货', PENDING_REVIEW: '待评价', FINISHED: '已完成', CANCELLED: '已取消', REFUND: '退款中' }
-  return map[status] || status || ''
-}
 
 const openOrderLink = (content: string) => {
   try {
@@ -882,6 +885,7 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .chat-page { padding: 20px 24px; }
+.chat-container { height: calc(100vh - 112px); }
 .chat-sidebar {
   background: var(--bg-glass);
   backdrop-filter: blur(12px);
@@ -908,7 +912,7 @@ onUnmounted(() => {
 .online-dot { position: absolute; bottom: 1px; right: 1px; width: 10px; height: 10px; background: #22c55e; border: 2px solid var(--bg-card); border-radius: 50%; }
 .unread-badge { position: absolute; top: -2px; right: -6px; min-width: 18px; height: 18px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 600; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid var(--bg-card); }
 .contact-info { flex: 1; overflow: hidden; }
-.contact-name { font-weight: 600; font-size: 14px; }
+.contact-name { font-weight: 600; font-size: 14px; cursor: pointer; }
 .contact-last { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
 
 .chat-main { display: flex; flex-direction: column; padding: 0; background: var(--bg-card); border-radius: 0 var(--radius-lg) var(--radius-lg) 0; }
@@ -973,6 +977,12 @@ onUnmounted(() => {
 .picker-item-title { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .picker-item-price { font-size: 13px; color: #f56c6c; font-weight: 600; margin-top: 2px; }
 .picker-item-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.block-btn { flex-shrink: 0; font-size: 12px; }
+.icon-mr-xs { margin-right: 2px; }
+.icon-mr-sm { margin-right: 4px; }
+.icon-mr-md { margin-right: 6px; }
+.upload-hidden { display: none; }
+.picker-item-img { width: 48px; height: 48px; border-radius: 6px; flex-shrink: 0; }
 
 </style>
 

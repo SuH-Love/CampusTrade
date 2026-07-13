@@ -8,6 +8,9 @@
           </div>
           <span class="logo-text">CampusTrade</span>
         </div>
+        <button class="hamburger-btn" @click="drawerVisible = true" aria-label="菜单">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
         <nav class="nav-links">
           <router-link to="/" class="nav-link" :class="{ active: route.path === '/' }">
             <el-icon :size="16"><HomeFilled /></el-icon><span>首页</span>
@@ -101,6 +104,39 @@
         <div class="footer-copy">&copy; 2026 CampusTrade 校园二手交易平台 · 安全 · 便捷 · 值得信赖</div>
       </div>
     </el-footer>
+    <el-drawer v-model="drawerVisible" direction="ltr" size="260px" :show-close="false">
+      <template #header>
+        <div class="drawer-logo">
+          <div class="logo-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          </div>
+          <span class="logo-text">CampusTrade</span>
+        </div>
+      </template>
+      <nav class="drawer-nav">
+        <router-link to="/" class="drawer-link" :class="{ active: route.path === '/' }" @click="drawerVisible = false">
+          <el-icon :size="18"><HomeFilled /></el-icon><span>首页</span>
+        </router-link>
+        <router-link to="/goods" class="drawer-link" :class="{ active: route.path.startsWith('/goods') }" @click="drawerVisible = false">
+          <el-icon :size="18"><Goods /></el-icon><span>商品</span>
+        </router-link>
+        <template v-if="userStore.token">
+          <div class="drawer-divider" />
+          <router-link to="/my-goods" class="drawer-link" :class="{ active: route.path === '/my-goods' }" @click="drawerVisible = false">
+            <el-icon :size="18"><Box /></el-icon><span>我的商品</span>
+          </router-link>
+          <router-link to="/order" class="drawer-link" :class="{ active: route.path.startsWith('/order') }" @click="drawerVisible = false">
+            <el-icon :size="18"><List /></el-icon><span>订单</span>
+          </router-link>
+          <router-link to="/favorites" class="drawer-link" :class="{ active: route.path === '/favorites' }" @click="drawerVisible = false">
+            <el-icon :size="18"><Star /></el-icon><span>收藏</span>
+          </router-link>
+          <router-link to="/following" class="drawer-link" :class="{ active: route.path === '/following' }" @click="drawerVisible = false">
+            <el-icon :size="18"><UserFilled /></el-icon><span>关注</span>
+          </router-link>
+        </template>
+      </nav>
+    </el-drawer>
   </el-container>
 </template>
 
@@ -119,6 +155,7 @@ const cartStore = useCartStore()
 const { chatUnread, notifyUnread, onNotification } = useChatWs()
 
 const isDark = ref(false)
+const drawerVisible = ref(false)
 
 const applyDarkMode = (dark: boolean) => {
   isDark.value = dark
@@ -392,5 +429,59 @@ onUnmounted(() => {
   font-size: 12px;
   color: var(--text-muted);
   text-align: center;
+}
+
+.hamburger-btn {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-fast);
+  &:hover { background: var(--primary-lighter); color: var(--primary); }
+}
+
+.drawer-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drawer-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.drawer-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: var(--transition-fast);
+  &:hover { color: var(--primary); background: var(--primary-lighter); }
+  &.active { color: var(--primary); background: var(--primary-lighter); font-weight: 600; }
+}
+
+.drawer-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 16px;
+}
+
+@media (max-width: 768px) {
+  .hamburger-btn { display: flex; }
+  .nav-links { display: none; }
+  .header-inner { padding: 0 16px; }
 }
 </style>

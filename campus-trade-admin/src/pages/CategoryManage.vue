@@ -8,7 +8,7 @@
         </div>
       </template>
       <div class="admin-filter-bar">
-        <el-input v-model="searchKeyword" placeholder="搜索分类名称" clearable style="width: 240px" @clear="handleSearch" @keyup.enter="handleSearch">
+        <el-input v-model="searchKeyword" placeholder="搜索分类名称" clearable class="filter-input" @clear="handleSearch" @keyup.enter="handleSearch">
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
         <el-button type="primary" @click="handleSearch">搜索</el-button>

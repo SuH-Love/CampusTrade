@@ -17,7 +17,7 @@
       <div class="quick-links">
         <el-button type="primary" round @click="$router.push('/')">返回首页</el-button>
         <el-button round @click="$router.push('/goods')">商品列表</el-button>
-        <el-button round @click="$router.push('/orders')">我的订单</el-button>
+        <el-button round @click="$router.push('/order')">我的订单</el-button>
       </div>
       <div class="countdown-text">{{ countdown }}秒后自动返回首页</div>
     </div>

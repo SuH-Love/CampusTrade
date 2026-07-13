@@ -158,7 +158,7 @@ import { getGoodsList } from '@/api/goods'
 import { getFollowCounts, toggleFollow, isFollowing } from '@/api/follow'
 import { getAverageRating } from '@/api/rating'
 import GoodsCard from '@/components/GoodsCard.vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import type { UserVO } from '@/api/user'
 import type { GoodsVO } from '@/api/goods'
@@ -326,6 +326,7 @@ const handleVerify = async () => {
 }
 
 const handleLogout = async () => {
+  await ElMessageBox.confirm('确认退出登录？', '退出确认', { type: 'warning' })
   await userStore.logout()
   router.push('/login')
 }

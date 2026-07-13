@@ -51,7 +51,7 @@
         </el-table-column>
         <el-table-column prop="status" label="状态" min-width="100">
           <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+            <el-tag :type="goodsStatusTagType(row.status)">{{ goodsStatusLabel(row.status) }}</el-tag>
             <div v-if="statusTip(row.status)" class="status-tip">{{ statusTip(row.status) }}</div>
             <div v-if="row.rejectReason" class="reject-reason">原因：{{ row.rejectReason }}</div>
           </template>
@@ -81,7 +81,7 @@
                 <div class="goods-card-cat">{{ row.categoryName }}</div>
               </div>
             </div>
-            <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+            <el-tag :type="goodsStatusTagType(row.status)" size="small">{{ goodsStatusLabel(row.status) }}</el-tag>
           </div>
           <div class="goods-card-body">
             <div class="goods-card-meta">
@@ -121,6 +121,7 @@ import { getMyGoods, submitAudit, onlineGoods, offlineGoods, deleteGoods } from 
 import EmptyState from '@/components/EmptyState.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { GoodsVO } from '@/api/goods'
+import { goodsStatusLabel, goodsStatusTagType } from '@/utils/labels'
 
 const route = useRoute()
 
@@ -138,15 +139,6 @@ const handleResize = () => {
   isMobile.value = window.innerWidth < 768
 }
 
-const statusLabel = (status: string) => {
-  const map: Record<string, string> = { DRAFT: '草稿', PENDING: '待审核', APPROVED: '审核通过', REJECTED: '已拒绝', ONLINE: '已上架', OFFLINE: '已下架', SOLD: '已售出' }
-  return map[status] || status
-}
-
-const statusTagType = (status: string) => {
-  const map: Record<string, string> = { DRAFT: 'info', PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger', ONLINE: '', OFFLINE: 'info', SOLD: 'success' }
-  return map[status] || 'info'
-}
 
 const statusTip = (status: string) => {
   const map: Record<string, string> = { APPROVED: '可点击上架', PENDING: '等待管理员审核', REJECTED: '请修改后重新提交', DRAFT: '可提交审核或继续编辑' }
