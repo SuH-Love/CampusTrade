@@ -20,7 +20,7 @@ public interface UserService {
 
     Result<Void> realNameVerify(Long userId, String realName, String studentId);
 
-    Result<PageResult<UserVO>> listUsers(String username, Integer status, Integer pageNum, Integer pageSize);
+    Result<PageResult<UserVO>> listUsers(String keyword, Integer status, Integer pageNum, Integer pageSize);
 
     Result<Void> banUser(Long userId);
 

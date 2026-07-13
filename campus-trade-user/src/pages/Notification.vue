@@ -119,9 +119,10 @@ const handleRead = async (item: NotificationItem) => {
   if (item.isRead === 0) {
     await markAsRead(item.id)
     item.isRead = 1
-    const count = await getUnreadCount()
-    unreadCount.value = count
-    notifyUnread.value = count
+    if (unreadCount.value > 0) {
+      unreadCount.value--
+      notifyUnread.value = unreadCount.value
+    }
   }
   navigateByNotification(item)
 }
@@ -154,14 +155,12 @@ const handleMarkAllRead = async () => {
 const handleBatchMarkRead = async () => {
   const ids = selectedIds.value
   if (ids.length === 0) return
-  for (const id of ids) {
-    const item = notifications.value.find(n => n.id === id)
-    if (item && item.isRead === 0) {
-      await markAsRead(id)
-    }
+  const unreadIds = notifications.value.filter(n => ids.includes(n.id) && n.isRead === 0).map(n => n.id)
+  if (unreadIds.length > 0) {
+    await markAllAsRead()
   }
   ElMessage.success(`已标记 ${ids.length} 条为已读`)
-  loadUnreadCount()
+  notifyUnread.value = 0
   loadData()
 }
 
@@ -201,9 +200,8 @@ onUnmounted(() => { removeNotifyHandler() })
 
 <style scoped lang="scss">
 .notification-page { padding: 20px; }
-.notification-inner {
+  .notification-inner {
   background: var(--bg-glass);
-  backdrop-filter: blur(12px);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
@@ -230,7 +228,7 @@ onUnmounted(() => { removeNotifyHandler() })
   display: flex; align-items: center; gap: 8px;
   padding: 14px 18px; margin-bottom: 14px;
   background: var(--bg-glass);
-  backdrop-filter: blur(8px);
+
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
 }

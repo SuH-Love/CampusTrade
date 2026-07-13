@@ -80,10 +80,11 @@ body {
   flex-wrap: wrap;
   gap: 12px;
 }
+.header-actions { display: flex; gap: 12px; align-items: center; }
 .admin-filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .filter-input { width: 200px; }
 .filter-select { width: 140px; }
-.pagination-wrapper { display: flex; justify-content: flex-end; margin-top: 16px; }
+.pagination-wrapper { display: flex; justify-content: center; margin-top: 16px; }
 .price-text { color: var(--admin-price-color); font-weight: 700; }
 .text-muted { color: var(--admin-text-muted); font-size: 12px; }
 .w-full { width: 100%; }

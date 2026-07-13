@@ -32,15 +32,17 @@
         </el-table-column>
         <template #empty><el-empty description="暂无公告" /></template>
       </el-table>
-      <el-pagination
-        v-model:current-page="pageNum"
-        v-model:page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, prev, pager, next, sizes"
-        @current-change="loadData"
-        @size-change="loadData"
-      />
+      <div class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="pageNum"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="total"
+          layout="total, prev, pager, next, sizes"
+          @current-change="loadData"
+          @size-change="loadData"
+        />
+      </div>
     </el-card>
 
     <el-dialog v-model="dialogVisible" :title="editingId ? '编辑公告' : '发布公告'" width="560px" destroy-on-close>

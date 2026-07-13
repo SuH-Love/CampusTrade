@@ -9,9 +9,9 @@ import com.campustrade.vo.SecurityLogVO;
 
 public interface LogService {
 
-    Result<PageResult<OperationLogVO>> listOperationLogs(String module, String username, Integer pageNum, Integer pageSize);
+    Result<PageResult<OperationLogVO>> listOperationLogs(String keyword, Integer pageNum, Integer pageSize);
 
-    Result<PageResult<SecurityLogVO>> listSecurityLogs(String eventType, String username, Integer pageNum, Integer pageSize);
+    Result<PageResult<SecurityLogVO>> listSecurityLogs(String keyword, Integer pageNum, Integer pageSize);
 
     void recordOperationLog(OperationLog log);
 

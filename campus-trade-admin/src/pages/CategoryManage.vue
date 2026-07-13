@@ -4,15 +4,14 @@
       <template #header>
         <div class="admin-card-header">
           <h3>分类管理</h3>
-          <el-button type="primary" @click="handleAdd">新增分类</el-button>
+          <div class="header-actions">
+            <el-input v-model="searchKeyword" placeholder="搜索分类名称" clearable class="filter-input" @clear="handleSearch">
+              <template #prefix><el-icon><Search /></el-icon></template>
+            </el-input>
+            <el-button type="primary" @click="handleAdd">新增分类</el-button>
+          </div>
         </div>
       </template>
-      <div class="admin-filter-bar">
-        <el-input v-model="searchKeyword" placeholder="搜索分类名称" clearable class="filter-input" @clear="handleSearch" @keyup.enter="handleSearch">
-          <template #prefix><el-icon><Search /></el-icon></template>
-        </el-input>
-        <el-button type="primary" @click="handleSearch">搜索</el-button>
-      </div>
       <el-table :data="filteredCategories" stripe v-loading="loading">
         <el-table-column prop="id" label="ID" min-width="60" />
         <el-table-column prop="categoryName" label="分类名称" min-width="150" />

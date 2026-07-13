@@ -331,14 +331,14 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public Result<PageResult<OrderVO>> listOrdersByAdmin(String status, Integer pageNum, Integer pageSize) {
-        return listAllOrders(status, pageNum, pageSize);
+        return listAllOrders(null, status, null, null, pageNum, pageSize);
     }
 
     @Override
-    public Result<PageResult<OrderVO>> listAllOrders(String status, Integer pageNum, Integer pageSize) {
+    public Result<PageResult<OrderVO>> listAllOrders(String orderNo, String status, String startDate, String endDate, Integer pageNum, Integer pageSize) {
         int offset = (pageNum - 1) * pageSize;
-        List<Order> list = orderMapper.selectAll(status, offset, pageSize);
-        Long total = orderMapper.selectCountAll(status);
+        List<Order> list = orderMapper.selectAll(orderNo, status, startDate, endDate, offset, pageSize);
+        Long total = orderMapper.selectCountAll(orderNo, status, startDate, endDate);
         List<OrderVO> vos = toVOList(list);
         return Result.success(new PageResult<>(vos, total));
     }
@@ -396,7 +396,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public long countOrders() {
-        Long count = orderMapper.selectCountAll(null);
+        Long count = orderMapper.selectCountAll(null, null, null, null);
         return count != null ? count : 0L;
     }
 

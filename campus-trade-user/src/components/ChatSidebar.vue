@@ -84,7 +84,7 @@ const filteredContacts = computed(() => {
   &.active { background: var(--primary-lighter); }
 }
 .avatar-wrap { position: relative; flex-shrink: 0; }
-.online-dot { position: absolute; bottom: 1px; right: 1px; width: 10px; height: 10px; background: #22c55e; border: 2px solid var(--bg-card); border-radius: 50%; }
+.online-dot { position: absolute; bottom: 1px; right: 1px; width: 10px; height: 10px; background: var(--color-online); border: 2px solid var(--bg-card); border-radius: 50%; }
 .unread-badge { position: absolute; top: -2px; right: -6px; min-width: 18px; height: 18px; background: var(--danger); color: #fff; font-size: 11px; font-weight: 600; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid var(--bg-card); }
 .contact-info { flex: 1; overflow: hidden; }
 .contact-name { font-weight: 600; font-size: 14px; cursor: pointer; }

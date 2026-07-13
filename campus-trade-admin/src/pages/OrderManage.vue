@@ -5,7 +5,7 @@
         <div class="admin-card-header">
           <h3>订单管理</h3>
           <div class="admin-filter-bar">
-            <el-input v-model="searchOrderNo" placeholder="搜索订单号" clearable class="filter-input" @keyup.enter="handleSearch" @clear="handleSearch">
+            <el-input v-model="searchOrderNo" placeholder="搜索订单号" clearable class="filter-input" @clear="handleSearch">
               <template #prefix><el-icon><Search /></el-icon></template>
             </el-input>
             <el-date-picker
@@ -136,7 +136,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { getOrderList, approveRefund, rejectRefund } from '@/api/admin'
 import request from '@/utils/request'
 import type { AdminOrderVO, PageQueryParams } from '@/types'
@@ -198,6 +198,12 @@ const handleSearch = () => {
   pageNum.value = 1
   loadData()
 }
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+watch(searchOrderNo, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(handleSearch, 300)
+})
 
 const handleSizeChange = () => {
   pageNum.value = 1

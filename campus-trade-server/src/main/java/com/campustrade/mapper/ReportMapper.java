@@ -23,8 +23,8 @@ public interface ReportMapper {
 
     int updateById(Report report);
 
-    List<Report> selectAllByStatus(@Param("status") String status,
+    List<Report> selectAllByStatus(@Param("keyword") String keyword, @Param("status") String status,
                                    @Param("offset") Integer offset, @Param("pageSize") Integer pageSize);
 
-    Long selectCountByStatus(@Param("status") String status);
+    Long selectCountByStatus(@Param("keyword") String keyword, @Param("status") String status);
 }

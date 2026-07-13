@@ -885,20 +885,20 @@ onUnmounted(() => {
 .search-bar { padding: 8px 20px; border-bottom: 1px solid var(--border); background: var(--bg-hover); display: flex; align-items: center; }
 .search-nav { display: flex; align-items: center; gap: 2px; }
 .search-count { font-size: 12px; color: var(--text-muted); margin-right: 4px; white-space: nowrap; }
-.msg-highlight { background: #fbbf24; color: #1e293b; border-radius: 2px; padding: 0 1px; }
+.msg-highlight { background: var(--color-highlight); color: var(--color-highlight-text); border-radius: 2px; padding: 0 1px; }
 .search-highlight { animation: search-flash 1.5s ease; }
 @keyframes search-flash { 0%, 100% { background: transparent; } 30% { background: rgba(251, 191, 36, 0.25); } }
-.header-online { font-size: 12px; font-weight: 500; color: #22c55e; background: #f0fdf4; padding: 2px 8px; border-radius: 10px; }
+.header-online { font-size: 12px; font-weight: 500; color: var(--color-online); background: rgba(34,197,94,0.1); padding: 2px 8px; border-radius: 10px; }
 .header-offline { font-size: 12px; font-weight: 500; color: var(--text-muted); background: var(--bg-hover); padding: 2px 8px; border-radius: 10px; }
-.header-typing { font-size: 12px; font-weight: 500; color: #6366f1; background: #eef2ff; padding: 2px 8px; border-radius: 10px; animation: typing-pulse 1.5s ease-in-out infinite; }
+.header-typing { font-size: 12px; font-weight: 500; color: var(--primary); background: var(--primary-lighter); padding: 2px 8px; border-radius: 10px; animation: typing-pulse 1.5s ease-in-out infinite; }
 .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 .message-item { display: flex; gap: 10px; &.self { justify-content: flex-end; } }
 .sender-name { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
 .msg-wrap { min-width: 0; width: fit-content; max-width: 60%; }
 .msg-wrap.self-wrap { display: flex; flex-direction: column; align-items: flex-end; }
-.msg-bubble { background: #f1f5f9; padding: 10px 16px; border-radius: 16px 16px 16px 4px; word-break: break-all; font-size: 14px; line-height: 1.6; }
+.msg-bubble { background: var(--color-msg-bubble); padding: 10px 16px; border-radius: 16px 16px 16px 4px; word-break: break-all; font-size: 14px; line-height: 1.6; }
 .self-bubble { background: var(--primary-gradient); color: #fff; border-radius: 16px 16px 4px 16px; }
-.recall-bubble { background: #f1f5f9 !important; color: #94a3b8 !important; font-size: 12px !important; font-style: italic; display: flex; align-items: center; border-radius: 12px !important; }
+.recall-bubble { background: var(--bg-hover) !important; color: var(--text-muted) !important; font-size: 12px !important; font-style: italic; display: flex; align-items: center; border-radius: 12px !important; }
 .img-bubble { padding: 4px !important; background: transparent !important; }
 .chat-img { max-width: 200px; max-height: 200px; border-radius: 12px; cursor: pointer; }
 .goods-bubble { cursor: pointer; display: flex; align-items: center; gap: 6px; &:hover { opacity: 0.85; } }
@@ -921,7 +921,7 @@ onUnmounted(() => {
 }
 .picker-item-info { flex: 1; min-width: 0; }
 .picker-item-title { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.picker-item-price { font-size: 13px; color: #f56c6c; font-weight: 600; margin-top: 2px; }
+.picker-item-price { font-size: 13px; color: var(--danger); font-weight: 600; margin-top: 2px; }
 .picker-item-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 .icon-mr-xs { margin-right: 2px; }
 .icon-mr-sm { margin-right: 4px; }
@@ -933,14 +933,14 @@ onUnmounted(() => {
 
 <style lang="scss">
 .context-menu {
-  position: fixed; z-index: 9999; background: #fff; border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid #e2e8f0;
+  position: fixed; z-index: 9999; background: var(--bg-card); border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid var(--border);
   padding: 4px 0; min-width: 140px;
 }
 .context-menu-item {
   display: flex; align-items: center; padding: 10px 16px; cursor: pointer;
-  font-size: 13px; color: #334155; transition: background 0.15s;
-  &:hover { background: #eef2ff; color: #6366f1; }
+  font-size: 13px; color: var(--text-primary); transition: background 0.15s;
+  &:hover { background: var(--primary-lighter); color: var(--primary); }
 }
 @keyframes typing-pulse {
   0%, 100% { opacity: 1; }

@@ -144,11 +144,11 @@ public class AdminController {
     @ApiOperation("用户列表")
     @GetMapping("/user")
     public Result<PageResult<UserVO>> listUsers(
-            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
-        return userService.listUsers(username, status, pageNum, pageSize);
+        return userService.listUsers(keyword, status, pageNum, pageSize);
     }
 
     @ApiOperation("封禁用户")
@@ -178,10 +178,13 @@ public class AdminController {
     @ApiOperation("订单管理列表")
     @GetMapping("/order")
     public Result<PageResult<OrderVO>> listOrders(
+            @RequestParam(required = false) String orderNo,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
-        return orderService.listAllOrders(status, pageNum, pageSize);
+        return orderService.listAllOrders(orderNo, status, startDate, endDate, pageNum, pageSize);
     }
 
     @ApiOperation("管理员同意退款")
@@ -199,10 +202,11 @@ public class AdminController {
     @ApiOperation("举报管理列表")
     @GetMapping("/report")
     public Result<PageResult<ReportVO>> listReports(
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
-        return reportService.listAllReports(status, pageNum, pageSize);
+        return reportService.listAllReports(keyword, status, pageNum, pageSize);
     }
 
     @ApiOperation("处理举报-通过")
@@ -220,21 +224,19 @@ public class AdminController {
     @ApiOperation("操作日志")
     @GetMapping("/log/operation")
     public Result<PageResult<OperationLogVO>> listOperationLogs(
-            @RequestParam(required = false) String module,
-            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
-        return logService.listOperationLogs(module, username, pageNum, pageSize);
+        return logService.listOperationLogs(keyword, pageNum, pageSize);
     }
 
     @ApiOperation("安全日志")
     @GetMapping("/log/security")
     public Result<PageResult<SecurityLogVO>> listSecurityLogs(
-            @RequestParam(required = false) String eventType,
-            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize) {
-        return logService.listSecurityLogs(eventType, username, pageNum, pageSize);
+        return logService.listSecurityLogs(keyword, pageNum, pageSize);
     }
 
     @ApiOperation("导出用户CSV")
@@ -265,7 +267,7 @@ public class AdminController {
         PrintWriter writer = response.getWriter();
         writer.write('\uFEFF');
         writer.println("ID,订单号,买家ID,卖家ID,金额,状态,创建时间");
-        List<com.campustrade.entity.Order> orders = orderMapper.selectAll(null, 0, 10000);
+        List<com.campustrade.entity.Order> orders = orderMapper.selectAll(null, null, null, null, 0, 10000);
         for (com.campustrade.entity.Order o : orders) {
             writer.println(o.getId() + "," + o.getOrderNo() + "," +
                 o.getBuyerId() + "," + o.getSellerId() + "," +

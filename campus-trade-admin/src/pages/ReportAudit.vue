@@ -5,7 +5,7 @@
         <div class="admin-card-header">
           <h3>举报审核</h3>
           <div class="admin-filter-bar">
-            <el-input v-model="searchKeyword" placeholder="搜索举报人/原因" clearable class="filter-input" @keyup.enter="handleSearch" @clear="handleSearch">
+            <el-input v-model="searchKeyword" placeholder="搜索举报人/原因" clearable class="filter-input" @clear="handleSearch">
               <template #prefix><el-icon><Search /></el-icon></template>
             </el-input>
             <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch" class="filter-select">
@@ -124,7 +124,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { getReportList, resolveReport, dismissReport } from '@/api/admin'
 import { ElMessage } from 'element-plus'
 import type { AdminReportVO, PageQueryParams } from '@/types'
@@ -178,6 +178,12 @@ const handleSearch = () => {
   pageNum.value = 1
   loadData()
 }
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+watch(searchKeyword, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(handleSearch, 300)
+})
 
 const handleSizeChange = () => {
   pageNum.value = 1

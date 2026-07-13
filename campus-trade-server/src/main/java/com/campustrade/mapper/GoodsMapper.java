@@ -1,6 +1,7 @@
 package com.campustrade.mapper;
 
 import com.campustrade.entity.Goods;
+import com.campustrade.vo.GoodsVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -23,6 +24,15 @@ public interface GoodsMapper {
     Long selectCount(@Param("categoryId") Long categoryId, @Param("keyword") String keyword,
                      @Param("minPrice") BigDecimal minPrice, @Param("maxPrice") BigDecimal maxPrice,
                      @Param("status") String status, @Param("userId") Long userId);
+
+    List<GoodsVO> selectListVO(@Param("categoryId") Long categoryId, @Param("keyword") String keyword,
+                               @Param("minPrice") BigDecimal minPrice, @Param("maxPrice") BigDecimal maxPrice,
+                               @Param("status") String status, @Param("userId") Long userId,
+                               @Param("offset") Integer offset, @Param("pageSize") Integer pageSize);
+
+    List<GoodsVO> selectHotGoodsVO(@Param("limit") Integer limit);
+
+    List<GoodsVO> selectRecommendGoodsVO(@Param("limit") Integer limit);
 
     List<Goods> selectHotGoods(@Param("limit") Integer limit);
 

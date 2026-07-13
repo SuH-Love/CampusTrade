@@ -9,10 +9,10 @@ import java.util.List;
 @Mapper
 public interface OperationLogMapper {
 
-    List<OperationLog> selectList(@Param("module") String module, @Param("username") String username,
+    List<OperationLog> selectList(@Param("keyword") String keyword,
                                   @Param("offset") Integer offset, @Param("pageSize") Integer pageSize);
 
-    Long selectCount(@Param("module") String module, @Param("username") String username);
+    Long selectCount(@Param("keyword") String keyword);
 
     int insert(OperationLog log);
 }

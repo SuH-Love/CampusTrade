@@ -61,12 +61,14 @@
 
     <select id="selectAllByStatus" resultMap="BaseResultMap">
         SELECT * FROM t_report WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">AND (reason LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))</if>
         <if test="status != null and status != ''">AND status = #{status}</if>
         ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
     </select>
 
     <select id="selectCountByStatus" resultType="java.lang.Long">
         SELECT COUNT(*) FROM t_report WHERE deleted = 0
+        <if test="keyword != null and keyword != ''">AND (reason LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))</if>
         <if test="status != null and status != ''">AND status = #{status}</if>
     </select>
 </mapper>

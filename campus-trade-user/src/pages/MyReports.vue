@@ -169,7 +169,7 @@ onMounted(loadData)
 .my-reports-title { margin: 0; }
 .reports-table { width: 100%; }
 .target-title { font-weight: 500; }
-.text-placeholder { color: #999; }
+.text-placeholder { color: var(--text-muted); }
 .report-images { display: flex; flex-wrap: wrap; gap: 2px; }
 .report-thumb { width: 40px; height: 40px; border-radius: 4px; }
 .list-pagination { margin-top: 20px; justify-content: center; }

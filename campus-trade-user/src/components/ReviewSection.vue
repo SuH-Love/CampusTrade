@@ -124,7 +124,7 @@ const handlePageChange = (page: number) => {
   display: flex;
   gap: 32px;
   padding: 20px 24px;
-  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  background: linear-gradient(135deg, var(--color-announcement-from), var(--color-announcement-to));
   border-radius: var(--radius-md);
   margin-bottom: 20px;
   align-items: center;
@@ -145,7 +145,7 @@ const handlePageChange = (page: number) => {
   gap: 8px;
   margin-bottom: 4px;
   .bar-label { font-size: 12px; color: var(--text-muted); width: 28px; text-align: right; }
-  .bar-track { flex: 1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+  .bar-track { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
   .bar-fill { height: 100%; background: var(--primary-gradient); border-radius: 4px; transition: width 0.4s ease; }
   .bar-count { font-size: 12px; color: var(--text-muted); width: 24px; }
 }

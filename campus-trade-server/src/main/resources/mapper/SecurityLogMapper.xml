@@ -18,15 +18,13 @@
 
     <select id="selectList" resultMap="BaseResultMap">
         SELECT * FROM t_security_log WHERE deleted = 0
-        <if test="eventType != null and eventType != ''">AND event_type = #{eventType}</if>
-        <if test="username != null and username != ''">AND username LIKE CONCAT('%', #{username}, '%')</if>
+        <if test="keyword != null and keyword != ''">AND (username LIKE CONCAT('%', #{keyword}, '%') OR event_type LIKE CONCAT('%', #{keyword}, '%') OR detail LIKE CONCAT('%', #{keyword}, '%'))</if>
         ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
     </select>
 
     <select id="selectCount" resultType="java.lang.Long">
         SELECT COUNT(*) FROM t_security_log WHERE deleted = 0
-        <if test="eventType != null and eventType != ''">AND event_type = #{eventType}</if>
-        <if test="username != null and username != ''">AND username LIKE CONCAT('%', #{username}, '%')</if>
+        <if test="keyword != null and keyword != ''">AND (username LIKE CONCAT('%', #{keyword}, '%') OR event_type LIKE CONCAT('%', #{keyword}, '%') OR detail LIKE CONCAT('%', #{keyword}, '%'))</if>
     </select>
 
     <select id="selectCountTodayByEventType" resultType="java.lang.Long">

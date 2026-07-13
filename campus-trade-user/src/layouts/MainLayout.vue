@@ -35,9 +35,9 @@
           </template>
         </nav>
         <div class="header-right">
-          <el-button size="small" circle class="dark-toggle" @click="toggleDarkMode" :title="isDark ? '切换亮色模式' : '切换暗色模式'">
-            <el-icon :size="18"><Sunny v-if="isDark" /><Moon v-else /></el-icon>
-          </el-button>
+          <div class="icon-btn" @click="toggleDarkMode" :title="isDark ? '切换亮色模式' : '切换暗色模式'">
+            <el-icon :size="20"><Sunny v-if="isDark" /><Moon v-else /></el-icon>
+          </div>
           <template v-if="userStore.token">
             <el-badge :value="cartStore.cartCount || ''" :hidden="!cartStore.cartCount" class="header-badge">
               <router-link to="/cart" class="icon-btn" title="购物车">
@@ -223,21 +223,16 @@ onUnmounted(() => {
 .main-layout { min-height: 100vh; display: flex; flex-direction: column; }
 
 .header {
-  background: rgba(255, 255, 255, 0.95);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  background: var(--bg-glass);
+  border-bottom: 1px solid var(--border);
   padding: 0;
   height: 64px;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-sm);
 }
 
-:global(.dark) .header {
-  background: rgba(30, 41, 59, 0.95);
-  border-bottom-color: rgba(51, 65, 85, 0.5);
-  box-shadow: 0 1px 12px rgba(0, 0, 0, 0.2);
-}
 
 .header-inner {
   max-width: 1280px;
@@ -331,11 +326,6 @@ onUnmounted(() => {
 
 .header-badge { display: flex; align-items: center; }
 
-.dark-toggle {
-  color: var(--text-secondary);
-  border-color: var(--border);
-  &:hover { color: var(--primary); border-color: var(--primary-light); }
-}
 
 .icon-btn {
   display: flex;

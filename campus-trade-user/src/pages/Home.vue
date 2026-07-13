@@ -263,10 +263,14 @@ onUnmounted(() => {
 }
 
 .hero-default { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%); }
+:deep(.dark) .hero-default, .dark .hero-default { background: linear-gradient(135deg, #4338ca 0%, #6d28d9 50%, #7c3aed 100%); }
 
 .hero-overlay {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
   background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.35) 100%);
+}
+.dark .hero-overlay {
+  background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.55) 100%);
 }
 
 .hero-content {
@@ -276,10 +280,10 @@ onUnmounted(() => {
   .el-button { font-size: 16px; padding: 12px 32px; background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); color: #fff; &:hover { background: rgba(255,255,255,0.35); transform: translateY(-2px); } }
 }
 
-.hero-bg-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+.hero-bg-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(var(--img-brightness)); }
 
 .home-content {
-  background: rgba(255,255,255,0.95);
+  background: var(--bg-glass);
   border-radius: 20px 20px 0 0;
   border: 1px solid var(--border);
   border-bottom: none;

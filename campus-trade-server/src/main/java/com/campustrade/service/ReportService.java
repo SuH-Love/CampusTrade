@@ -16,7 +16,7 @@ public interface ReportService {
 
     Result<Void> handleReport(Long handlerId, Long reportId, ReportHandleDTO dto);
 
-    Result<PageResult<ReportVO>> listAllReports(String status, Integer pageNum, Integer pageSize);
+    Result<PageResult<ReportVO>> listAllReports(String keyword, String status, Integer pageNum, Integer pageSize);
 
     Result<Void> resolveReport(Long reportId);
 

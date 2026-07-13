@@ -150,7 +150,7 @@ const handleConfirm = () => {
 
 .buy-stock-hint {
   margin-left: 8px;
-  color: #94a3b8;
+  color: var(--text-muted);
   font-size: 13px;
 }
 
@@ -164,37 +164,37 @@ const handleConfirm = () => {
 
 .buy-address-label {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-secondary);
   margin-bottom: 6px;
 }
 
 .buy-address-item {
   padding: 10px 14px;
   margin-bottom: 6px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  &:hover { border-color: #6366f1; }
-  &.active { border-color: #6366f1; background: rgba(99,102,241,0.06); }
+  &:hover { border-color: var(--primary); }
+  &.active { border-color: var(--primary); background: rgba(99,102,241,0.06); }
 }
 
 .buy-address-name { font-size: 14px; font-weight: 500; }
 
 .buy-address-detail {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-secondary);
   margin-top: 2px;
 }
 
 .buy-add-addr-toggle { margin-bottom: 8px; }
 
 .buy-add-addr-form {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 8px;
-  background: #fafafa;
+  background: var(--bg-hover);
 }
 
 .buy-area-cascader { width: 100%; }

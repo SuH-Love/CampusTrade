@@ -431,6 +431,7 @@ onMounted(loadData)
   width: 100%;
   height: 420px;
   border-radius: var(--radius-lg);
+  filter: brightness(var(--img-brightness));
   &.single { display: block; }
 }
 
@@ -475,12 +476,12 @@ onMounted(loadData)
   gap: 10px;
   flex-wrap: wrap;
   padding: var(--spacing-md) 0;
-  background: linear-gradient(to top, var(--bg-card) 70%, transparent);
+
   margin-top: 8px;
 }
 
 .detail-tabs {
-  background: rgba(255,255,255,0.95);
+  background: var(--bg-glass);
   border-radius: var(--radius-lg);
   padding: 20px 24px;
   box-shadow: var(--shadow-sm);
@@ -518,7 +519,7 @@ onMounted(loadData)
   -webkit-overflow-scrolling: touch;
   &::-webkit-scrollbar { height: 6px; }
   &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  &::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 3px; }
 }
 
 .similar-card {
@@ -548,13 +549,12 @@ onMounted(loadData)
     left: 0;
     right: 0;
     bottom: 0;
-    background: var(--bg-card);
+    background: transparent;
     border-top: 1px solid var(--border);
     box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
     padding: var(--spacing-sm) var(--spacing-md);
     margin-top: 0;
     z-index: 100;
-    background: var(--bg-card);
   }
 
   .similar-card {

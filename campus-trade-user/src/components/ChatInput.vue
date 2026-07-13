@@ -71,7 +71,7 @@ const handleImageClick = () => {
 <style scoped lang="scss">
 .chat-input-area { border-top: 1px solid var(--border); }
 .plus-panel {
-  display: flex; gap: 16px; padding: 16px 20px; background: #fafbfc; border-bottom: 1px solid var(--border);
+  display: flex; gap: 16px; padding: 16px 20px; background: var(--bg-hover); border-bottom: 1px solid var(--border);
 }
 .plus-item {
   display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;

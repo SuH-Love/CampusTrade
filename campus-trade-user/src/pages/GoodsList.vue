@@ -91,7 +91,7 @@ onMounted(() => {
 .goods-list { padding: 20px; }
 .goods-list-inner {
   background: var(--bg-glass);
-  backdrop-filter: blur(12px);
+
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);

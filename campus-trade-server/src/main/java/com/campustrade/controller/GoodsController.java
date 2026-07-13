@@ -112,8 +112,9 @@ public class GoodsController {
     public Result<PageResult<GoodsVO>> listFavorites(
             @RequestParam(defaultValue = "1") Integer pageNum,
             @RequestParam(defaultValue = "10") Integer pageSize,
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status) {
-        return goodsService.listFavoriteGoods(SecurityUtil.requireCurrentUserId(), pageNum, pageSize, status);
+        return goodsService.listFavoriteGoods(SecurityUtil.requireCurrentUserId(), pageNum, pageSize, keyword, status);
     }
 
     @ApiOperation("我的商品")

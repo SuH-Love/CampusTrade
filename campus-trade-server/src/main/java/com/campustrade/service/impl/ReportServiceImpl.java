@@ -92,10 +92,10 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public Result<PageResult<ReportVO>> listAllReports(String status, Integer pageNum, Integer pageSize) {
+    public Result<PageResult<ReportVO>> listAllReports(String keyword, String status, Integer pageNum, Integer pageSize) {
         int offset = (pageNum - 1) * pageSize;
-        List<Report> list = reportMapper.selectAllByStatus(status, offset, pageSize);
-        Long total = reportMapper.selectCountByStatus(status);
+        List<Report> list = reportMapper.selectAllByStatus(keyword, status, offset, pageSize);
+        Long total = reportMapper.selectCountByStatus(keyword, status);
         List<ReportVO> vos = toVOList(list);
         return Result.success(new PageResult<>(vos, total));
     }

@@ -20,10 +20,10 @@ public interface UserMapper {
 
     User selectByEmail(@Param("email") String email);
 
-    List<User> selectList(@Param("username") String username, @Param("status") Integer status,
+    List<User> selectList(@Param("keyword") String keyword, @Param("status") Integer status,
                           @Param("offset") Integer offset, @Param("pageSize") Integer pageSize);
 
-    Long selectCount(@Param("username") String username, @Param("status") Integer status);
+    Long selectCount(@Param("keyword") String keyword, @Param("status") Integer status);
 
     int insert(User user);
 

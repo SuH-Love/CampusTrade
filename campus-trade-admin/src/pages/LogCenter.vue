@@ -4,7 +4,7 @@
       <template #header>
         <div class="admin-card-header">
           <h3 class="m-0">日志中心</h3>
-          <el-input v-model="searchKeyword" placeholder="搜索操作人/IP" clearable class="filter-input" @keyup.enter="handleSearch" @clear="handleSearch" />
+          <el-input v-model="searchKeyword" placeholder="搜索操作人/IP" clearable class="filter-input" @clear="handleSearch" />
         </div>
       </template>
       <el-tabs v-model="activeTab" @tab-change="handleTabChange">
@@ -31,13 +31,15 @@
         <el-table-column prop="createTime" label="时间" min-width="150" />
       </el-table>
       <el-empty v-if="!loading && logs.length === 0" description="暂无日志" />
-      <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="total, prev, pager, next, sizes" :page-sizes="[10, 15, 30, 50]" @current-change="loadData" @size-change="handleSizeChange" />
+      <div class="pagination-wrapper">
+        <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="total, prev, pager, next, sizes" :page-sizes="[10, 15, 30, 50]" @current-change="loadData" @size-change="handleSizeChange" />
+      </div>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { getOperationLogs, getSecurityLogs } from '@/api/admin'
 import { operationLabel, moduleLabel, eventTypeLabel } from '@/utils/labels'
 import type { OperationLogVO, SecurityLogVO, PageQueryParams } from '@/types'
@@ -74,6 +76,12 @@ const handleSearch = () => {
   pageNum.value = 1
   loadData()
 }
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+watch(searchKeyword, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(handleSearch, 300)
+})
 
 const handleSizeChange = (size: number) => {
   pageSize.value = size

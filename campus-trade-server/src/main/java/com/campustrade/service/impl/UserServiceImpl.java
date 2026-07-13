@@ -125,10 +125,10 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Result<PageResult<UserVO>> listUsers(String username, Integer status, Integer pageNum, Integer pageSize) {
+    public Result<PageResult<UserVO>> listUsers(String keyword, Integer status, Integer pageNum, Integer pageSize) {
         int offset = (pageNum - 1) * pageSize;
-        List<User> users = userMapper.selectList(username, status, offset, pageSize);
-        Long total = userMapper.selectCount(username, status);
+        List<User> users = userMapper.selectList(keyword, status, offset, pageSize);
+        Long total = userMapper.selectCount(keyword, status);
         List<UserVO> vos = users.stream().map(u -> toVO(u, true)).collect(Collectors.toList());
         return Result.success(new PageResult<>(vos, total));
     }

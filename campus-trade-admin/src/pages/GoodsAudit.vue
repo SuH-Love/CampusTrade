@@ -5,7 +5,7 @@
         <div class="admin-card-header">
           <h3>商品审核</h3>
           <div class="admin-filter-bar">
-            <el-input v-model="searchKeyword" placeholder="搜索标题/卖家" clearable class="filter-input" @keyup.enter="handleSearch" @clear="handleSearch">
+            <el-input v-model="searchKeyword" placeholder="搜索标题/卖家" clearable class="filter-input" @clear="handleSearch">
               <template #prefix><el-icon><Search /></el-icon></template>
             </el-input>
             <el-select v-model="categoryFilter" placeholder="分类筛选" clearable @change="handleSearch" class="filter-select">
@@ -119,7 +119,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { getGoodsList, auditGoods, getCategoryList } from '@/api/admin'
 import type { CategoryVO } from '@/api/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -176,6 +176,12 @@ const handleSearch = () => {
   pageNum.value = 1
   loadData()
 }
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+watch(searchKeyword, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(handleSearch, 300)
+})
 
 const handleSizeChange = () => {
   pageNum.value = 1

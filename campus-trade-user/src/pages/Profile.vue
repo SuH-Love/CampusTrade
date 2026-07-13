@@ -359,8 +359,8 @@ onMounted(() => {
 
   :deep(.el-card) {
     border-radius: 16px;
-    border: 1px solid rgba(99, 102, 241, 0.08);
-    box-shadow: 0 4px 24px rgba(99, 102, 241, 0.06);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
   }
 }
 .profile-card { text-align: center; }

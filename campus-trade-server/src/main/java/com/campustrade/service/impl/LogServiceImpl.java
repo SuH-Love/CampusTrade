@@ -31,19 +31,19 @@ public class LogServiceImpl implements LogService {
     private RabbitTemplate rabbitTemplate;
 
     @Override
-    public Result<PageResult<OperationLogVO>> listOperationLogs(String module, String username, Integer pageNum, Integer pageSize) {
+    public Result<PageResult<OperationLogVO>> listOperationLogs(String keyword, Integer pageNum, Integer pageSize) {
         int offset = (pageNum - 1) * pageSize;
-        List<OperationLog> list = operationLogMapper.selectList(module, username, offset, pageSize);
-        Long total = operationLogMapper.selectCount(module, username);
+        List<OperationLog> list = operationLogMapper.selectList(keyword, offset, pageSize);
+        Long total = operationLogMapper.selectCount(keyword);
         List<OperationLogVO> voList = list.stream().map(this::toOperationLogVO).collect(Collectors.toList());
         return Result.success(new PageResult<>(voList, total));
     }
 
     @Override
-    public Result<PageResult<SecurityLogVO>> listSecurityLogs(String eventType, String username, Integer pageNum, Integer pageSize) {
+    public Result<PageResult<SecurityLogVO>> listSecurityLogs(String keyword, Integer pageNum, Integer pageSize) {
         int offset = (pageNum - 1) * pageSize;
-        List<SecurityLog> list = securityLogMapper.selectList(eventType, username, offset, pageSize);
-        Long total = securityLogMapper.selectCount(eventType, username);
+        List<SecurityLog> list = securityLogMapper.selectList(keyword, offset, pageSize);
+        Long total = securityLogMapper.selectCount(keyword);
         List<SecurityLogVO> voList = list.stream().map(this::toSecurityLogVO).collect(Collectors.toList());
         return Result.success(new PageResult<>(voList, total));
     }

@@ -79,13 +79,19 @@
 
     <select id="selectAll" resultMap="BaseResultMap">
         SELECT * FROM t_order WHERE deleted = 0
+        <if test="orderNo != null and orderNo != ''">AND order_no LIKE CONCAT('%', #{orderNo}, '%')</if>
         <if test="status != null and status != ''">AND status = #{status}</if>
+        <if test="startDate != null and startDate != ''">AND create_time &gt;= #{startDate}</if>
+        <if test="endDate != null and endDate != ''">AND create_time &lt;= CONCAT(#{endDate}, ' 23:59:59')</if>
         ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
     </select>
 
     <select id="selectCountAll" resultType="java.lang.Long">
         SELECT COUNT(*) FROM t_order WHERE deleted = 0
+        <if test="orderNo != null and orderNo != ''">AND order_no LIKE CONCAT('%', #{orderNo}, '%')</if>
         <if test="status != null and status != ''">AND status = #{status}</if>
+        <if test="startDate != null and startDate != ''">AND create_time &gt;= #{startDate}</if>
+        <if test="endDate != null and endDate != ''">AND create_time &lt;= CONCAT(#{endDate}, ' 23:59:59')</if>
     </select>
 
     <select id="selectCountByStatus" resultType="java.lang.Long">

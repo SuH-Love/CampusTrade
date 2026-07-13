@@ -203,7 +203,7 @@ onUnmounted(() => { window.removeEventListener('resize', handleResize) })
 .my-goods-page { padding: 20px; }
 .my-goods-inner {
   background: var(--bg-glass);
-  backdrop-filter: blur(12px);
+
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
@@ -218,11 +218,11 @@ onUnmounted(() => { window.removeEventListener('resize', handleResize) })
 .goods-cell { display: flex; align-items: center; gap: 12px; }
 .goods-thumb { width: 60px; height: 60px; border-radius: 4px; flex-shrink: 0; }
 .goods-cell-title { font-weight: 500; }
-.goods-cell-cat { color: #999; font-size: 12px; }
+.goods-cell-cat { color: var(--text-muted); font-size: 12px; }
 .price-text { color: var(--danger); font-weight: bold; }
-.original-price { color: #999; font-size: 12px; text-decoration: line-through; margin-left: 6px; }
+.original-price { color: var(--text-muted); font-size: 12px; text-decoration: line-through; margin-left: 6px; }
 .low-stock { color: var(--danger); font-weight: bold; }
-.text-placeholder { color: #999; }
+.text-placeholder { color: var(--text-muted); }
 .status-tip { color: var(--text-muted); font-size: 12px; margin-top: 4px; }
 .reject-reason { color: var(--danger); font-size: 12px; margin-top: 4px; }
 .list-pagination { margin-top: 20px; justify-content: center; }

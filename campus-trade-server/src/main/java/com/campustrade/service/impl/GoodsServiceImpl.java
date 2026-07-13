@@ -186,11 +186,10 @@ public class GoodsServiceImpl implements GoodsService {
         if (status == null && dto.getUserId() == null) {
             status = GoodsStatus.ONLINE.getCode();
         }
-        List<Goods> list = goodsMapper.selectList(dto.getCategoryId(), dto.getKeyword(),
+        List<GoodsVO> vos = goodsMapper.selectListVO(dto.getCategoryId(), dto.getKeyword(),
                 dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId(), offset, dto.getPageSize());
         Long total = goodsMapper.selectCount(dto.getCategoryId(), dto.getKeyword(),
                 dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId());
-        List<GoodsVO> vos = toVOList(list);
         return Result.success(new PageResult<>(vos, total));
     }
 
@@ -200,8 +199,7 @@ public class GoodsServiceImpl implements GoodsService {
         Object cached = redisTemplate.opsForValue().get(cacheKey);
         if (cached != null) return Result.success((PageResult<GoodsVO>) cached);
 
-        List<Goods> list = goodsMapper.selectHotGoods(20);
-        List<GoodsVO> vos = toVOList(list);
+        List<GoodsVO> vos = goodsMapper.selectHotGoodsVO(20);
         PageResult<GoodsVO> result = new PageResult<>(vos, (long) vos.size());
         redisTemplate.opsForValue().set(cacheKey, result, RedisConstant.GOODS_HOT_TTL, TimeUnit.SECONDS);
         return Result.success(result);
@@ -213,8 +211,7 @@ public class GoodsServiceImpl implements GoodsService {
         Object cached = redisTemplate.opsForValue().get(cacheKey);
         if (cached != null) return Result.success((PageResult<GoodsVO>) cached);
 
-        List<Goods> list = goodsMapper.selectRecommendGoods(20);
-        List<GoodsVO> vos = toVOList(list);
+        List<GoodsVO> vos = goodsMapper.selectRecommendGoodsVO(20);
         PageResult<GoodsVO> result = new PageResult<>(vos, (long) vos.size());
         redisTemplate.opsForValue().set(cacheKey, result, RedisConstant.GOODS_RECOMMEND_TTL, TimeUnit.SECONDS);
         return Result.success(result);
@@ -326,32 +323,20 @@ public class GoodsServiceImpl implements GoodsService {
     }
 
     @Override
-    public Result<PageResult<GoodsVO>> listFavoriteGoods(Long userId, Integer pageNum, Integer pageSize, String status) {
+    public Result<PageResult<GoodsVO>> listFavoriteGoods(Long userId, Integer pageNum, Integer pageSize, String keyword, String status) {
         int offset = (pageNum - 1) * pageSize;
-        List<Long> goodsIds;
-        Long total;
-        if (status != null && !status.isEmpty()) {
-            goodsIds = favoriteMapper.selectGoodsIdsByUserIdAndStatus(userId, status, offset, pageSize);
-            total = favoriteMapper.selectCountByUserIdAndStatus(userId, status);
-        } else {
-            goodsIds = favoriteMapper.selectGoodsIdsByUserId(userId, offset, pageSize);
-            total = favoriteMapper.selectCountByUserId(userId);
-        }
-        if (goodsIds.isEmpty()) return Result.success(new PageResult<>(List.of(), 0L));
-        List<Goods> goodsList = goodsMapper.selectByIds(goodsIds);
-        List<GoodsVO> vos = toVOList(goodsList);
-        vos.forEach(v -> v.setIsFavorited(true));
+        List<GoodsVO> vos = favoriteMapper.selectFavoriteGoodsVOByUserId(userId, keyword, status, offset, pageSize);
+        Long total = favoriteMapper.selectFavoriteCountByUserId(userId, keyword, status);
         return Result.success(new PageResult<>(vos, total));
     }
 
     @Override
     public Result<PageResult<GoodsVO>> listGoodsByAdmin(GoodsQueryDTO dto) {
         int offset = (dto.getPageNum() - 1) * dto.getPageSize();
-        List<Goods> list = goodsMapper.selectList(dto.getCategoryId(), dto.getKeyword(),
+        List<GoodsVO> vos = goodsMapper.selectListVO(dto.getCategoryId(), dto.getKeyword(),
                 dto.getMinPrice(), dto.getMaxPrice(), dto.getStatus(), dto.getUserId(), offset, dto.getPageSize());
         Long total = goodsMapper.selectCount(dto.getCategoryId(), dto.getKeyword(),
                 dto.getMinPrice(), dto.getMaxPrice(), dto.getStatus(), dto.getUserId());
-        List<GoodsVO> vos = toVOList(list);
         return Result.success(new PageResult<>(vos, total));
     }
 

@@ -121,6 +121,52 @@
         SELECT COUNT(*) FROM t_goods WHERE deleted = 0 AND status = #{status} AND user_id = #{userId}
     </select>
 
+    <select id="selectListVO" resultType="com.campustrade.vo.GoodsVO">
+        SELECT g.id, g.user_id, g.category_id, g.title, g.description, g.price, g.original_price,
+               g.`condition`, g.cover_image, g.images, g.status, g.reject_reason,
+               g.view_count, g.favorite_count, g.stock, g.create_time,
+               IFNULL(u.nickname, u.username) AS username, u.avatar AS userAvatar, u.real_verified AS sellerRealVerified,
+               c.category_name AS categoryName
+        FROM t_goods g
+        LEFT JOIN t_user u ON g.user_id = u.id AND u.deleted = 0
+        LEFT JOIN t_goods_category c ON g.category_id = c.id AND c.deleted = 0
+        WHERE g.deleted = 0
+        <if test="categoryId != null">AND g.category_id = #{categoryId}</if>
+        <if test="keyword != null and keyword != ''">AND (g.title LIKE CONCAT('%', #{keyword}, '%') OR g.description LIKE CONCAT('%', #{keyword}, '%'))</if>
+        <if test="minPrice != null">AND g.price &gt;= #{minPrice}</if>
+        <if test="maxPrice != null">AND g.price &lt;= #{maxPrice}</if>
+        <if test="status != null and status != ''">AND g.status = #{status}</if>
+        <if test="userId != null">AND g.user_id = #{userId}</if>
+        ORDER BY g.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectHotGoodsVO" resultType="com.campustrade.vo.GoodsVO">
+        SELECT g.id, g.user_id, g.category_id, g.title, g.description, g.price, g.original_price,
+               g.`condition`, g.cover_image, g.images, g.status, g.reject_reason,
+               g.view_count, g.favorite_count, g.stock, g.create_time,
+               IFNULL(u.nickname, u.username) AS username, u.avatar AS userAvatar, u.real_verified AS sellerRealVerified,
+               c.category_name AS categoryName
+        FROM t_goods g
+        LEFT JOIN t_user u ON g.user_id = u.id AND u.deleted = 0
+        LEFT JOIN t_goods_category c ON g.category_id = c.id AND c.deleted = 0
+        WHERE g.deleted = 0 AND g.status = 'ONLINE'
+        ORDER BY g.view_count DESC, g.favorite_count DESC LIMIT #{limit}
+    </select>
+
+    <select id="selectRecommendGoodsVO" resultType="com.campustrade.vo.GoodsVO">
+        SELECT g.id, g.user_id, g.category_id, g.title, g.description, g.price, g.original_price,
+               g.`condition`, g.cover_image, g.images, g.status, g.reject_reason,
+               g.view_count, g.favorite_count, g.stock, g.create_time,
+               IFNULL(u.nickname, u.username) AS username, u.avatar AS userAvatar, u.real_verified AS sellerRealVerified,
+               c.category_name AS categoryName
+        FROM t_goods g
+        LEFT JOIN t_user u ON g.user_id = u.id AND u.deleted = 0
+        LEFT JOIN t_goods_category c ON g.category_id = c.id AND c.deleted = 0
+        WHERE g.deleted = 0 AND g.status = 'ONLINE'
+        ORDER BY g.create_time DESC LIMIT #{limit}
+    </select>
+
     <select id="selectOnlineByCategoryIds" resultMap="BaseResultMap">
         SELECT * FROM t_goods WHERE deleted = 0 AND status = 'ONLINE'
         <if test="categoryIds != null and categoryIds.size() > 0">

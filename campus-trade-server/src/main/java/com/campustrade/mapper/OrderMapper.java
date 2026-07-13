@@ -27,10 +27,12 @@ public interface OrderMapper {
 
     int updateById(Order order);
 
-    List<Order> selectAll(@Param("status") String status,
+    List<Order> selectAll(@Param("orderNo") String orderNo, @Param("status") String status,
+                          @Param("startDate") String startDate, @Param("endDate") String endDate,
                           @Param("offset") Integer offset, @Param("pageSize") Integer pageSize);
 
-    Long selectCountAll(@Param("status") String status);
+    Long selectCountAll(@Param("orderNo") String orderNo, @Param("status") String status,
+                        @Param("startDate") String startDate, @Param("endDate") String endDate);
 
     Long selectCountByStatus(@Param("status") String status);
 

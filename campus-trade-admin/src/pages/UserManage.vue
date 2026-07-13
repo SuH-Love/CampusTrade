@@ -5,7 +5,7 @@
         <div class="admin-card-header">
           <h3>用户管理</h3>
           <div class="admin-filter-bar">
-            <el-input v-model="searchKeyword" placeholder="搜索用户名/手机号" clearable class="filter-input" @keyup.enter="handleSearch" @clear="handleSearch">
+            <el-input v-model="searchKeyword" placeholder="搜索用户名/手机号" clearable class="filter-input" @clear="handleSearch">
               <template #prefix><el-icon><Search /></el-icon></template>
             </el-input>
             <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch" class="filter-select">
@@ -116,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { getUserList, banUser, unbanUser } from '@/api/admin'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
@@ -154,6 +154,12 @@ const handleSearch = () => {
   pageNum.value = 1
   loadData()
 }
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+watch(searchKeyword, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(handleSearch, 300)
+})
 
 const handleSizeChange = () => {
   pageNum.value = 1

@@ -61,7 +61,7 @@
           <h4 class="detail-section-title">评价卖家</h4>
           <el-form :model="ratingForm" label-width="80px">
             <el-form-item label="评分">
-              <el-rate v-model="ratingForm.rating" :colors="['#6366f1', '#6366f1', '#6366f1']" />
+              <el-rate v-model="ratingForm.rating" />
             </el-form-item>
             <el-form-item label="评价">
               <el-input v-model="ratingForm.comment" type="textarea" :rows="3" placeholder="请输入评价内容（可选）" />
@@ -207,9 +207,9 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
 <style scoped lang="scss">
 .order-detail-page { padding: 20px; }
 .detail-header { display: flex; justify-content: space-between; align-items: center; }
-.countdown-hint { color: #f56c6c; font-size: 13px; margin-left: 8px; font-weight: 500; }
-.price-highlight { color: #f56c6c; font-weight: bold; font-size: 18px; }
-.price-bold { color: #f56c6c; font-weight: bold; }
+.countdown-hint { color: var(--danger); font-size: 13px; margin-left: 8px; font-weight: 500; }
+.price-highlight { color: var(--danger); font-weight: bold; font-size: 18px; }
+.price-bold { color: var(--danger); font-weight: bold; }
 .detail-section-title { margin: 24px 0 12px; }
 .goods-item { display: flex; align-items: center; gap: 12px; }
 .goods-item-img { width: 60px; height: 60px; border-radius: 4px; flex-shrink: 0; }
@@ -218,8 +218,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
   margin-top: 24px;
   padding: 24px;
   background: var(--bg-glass);
-  backdrop-filter: blur(8px);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
+  :deep(.el-rate) { --el-rate-primary-color: var(--primary); }
 }
 </style>

@@ -111,6 +111,7 @@ const handleClick = () => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  filter: brightness(var(--img-brightness));
   transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   .goods-card.is-clickable:not(.is-sold):not(.is-offline):hover & {
     transform: scale(1.08);
@@ -129,7 +130,7 @@ const handleClick = () => {
 
 .goods-category-tag {
   background: var(--color-tag-bg);
-  backdrop-filter: blur(8px);
+
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -140,7 +141,7 @@ const handleClick = () => {
 
 .goods-condition-tag {
   background: var(--color-condition-bg);
-  backdrop-filter: blur(6px);
+
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -150,7 +151,7 @@ const handleClick = () => {
 
 .goods-discount-tag {
   background: var(--color-discount-bg);
-  backdrop-filter: blur(6px);
+
   color: #fff;
   font-size: 11px;
   font-weight: 600;
@@ -173,7 +174,7 @@ const handleClick = () => {
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(2px);
+
   display: flex;
   align-items: center;
   justify-content: center;

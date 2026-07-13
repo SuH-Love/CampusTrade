@@ -298,8 +298,8 @@ onUnmounted(() => {
 
   :deep(.el-card) {
     border-radius: 16px;
-    border: 1px solid rgba(99, 102, 241, 0.08);
-    box-shadow: 0 4px 24px rgba(99, 102, 241, 0.06);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
   }
 }
 .orders-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
@@ -313,7 +313,7 @@ onUnmounted(() => {
 .goods-title-cell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .goods-more-tag { flex-shrink: 0; }
 .amount-text { color: var(--danger); font-weight: bold; }
-.text-placeholder { color: #999; }
+.text-placeholder { color: var(--text-muted); }
 .countdown-text { color: var(--danger); font-size: 12px; margin-top: 4px; font-weight: 500; }
 .cancel-reason { color: var(--danger); }
 .order-pagination { margin-top: 16px; justify-content: center; }

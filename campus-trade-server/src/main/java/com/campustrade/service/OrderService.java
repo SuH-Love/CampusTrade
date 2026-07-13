@@ -39,7 +39,7 @@ public interface OrderService {
 
     Result<PageResult<OrderVO>> listOrdersByAdmin(String status, Integer pageNum, Integer pageSize);
 
-    Result<PageResult<OrderVO>> listAllOrders(String status, Integer pageNum, Integer pageSize);
+    Result<PageResult<OrderVO>> listAllOrders(String orderNo, String status, String startDate, String endDate, Integer pageNum, Integer pageSize);
 
     long countOrders();
 }

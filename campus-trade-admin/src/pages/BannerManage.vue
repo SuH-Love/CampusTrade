@@ -12,7 +12,7 @@
         <el-table-column label="预览" min-width="160">
           <template #default="{ row }">
             <div v-if="row.imageUrl" class="banner-preview"><img :src="row.imageUrl" /></div>
-            <div v-else class="banner-preview" :style="{ background: row.bgColor }"><span class="preview-text">{{ row.title }}</span></div>
+            <div v-else class="banner-preview" :style="{ background: row.bgColor || '#6366f1' }"><span class="preview-text">{{ row.title }}</span></div>
           </template>
         </el-table-column>
         <el-table-column prop="title" label="标题" min-width="150" />
@@ -34,15 +34,17 @@
         </el-table-column>
         <template #empty><el-empty description="暂无横幅" /></template>
       </el-table>
-      <el-pagination
-        v-model:current-page="pageNum"
-        v-model:page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, prev, pager, next, sizes"
-        @current-change="loadData"
-        @size-change="loadData"
-      />
+      <div class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="pageNum"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="total"
+          layout="total, prev, pager, next, sizes"
+          @current-change="loadData"
+          @size-change="loadData"
+        />
+      </div>
     </el-card>
 
     <el-dialog v-model="dialogVisible" :title="editingId ? '编辑横幅' : '新增横幅'" width="600px" destroy-on-close>
@@ -66,7 +68,20 @@
           <el-button v-if="form.imageUrl" size="small" type="danger" class="banner-remove-btn" @click="form.imageUrl = ''">移除图片</el-button>
         </el-form-item>
         <el-form-item label="背景色">
-          <el-color-picker v-model="form.bgColor" show-alpha />
+          <div class="color-field">
+            <el-color-picker v-model="solidBgColor" show-alpha @change="onSolidBgChange" />
+            <el-input v-model="form.bgColor" placeholder="如 #6366f1 或 linear-gradient(135deg, #6366f1, #8b5cf6)" class="color-input" />
+            <el-dropdown trigger="click" @command="onGradientBg">
+              <el-button size="small">渐变预设</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-for="g in gradientPresets" :key="g.value" :command="g.value">
+                    <span class="gradient-item"><span class="gradient-dot" :style="{ background: g.value }"></span>{{ g.label }}</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </el-form-item>
         <el-form-item label="链接">
           <el-input v-model="form.linkUrl" placeholder="点击跳转路径, 如 /goods" />
@@ -75,7 +90,20 @@
           <el-input v-model="form.buttonText" placeholder="按钮显示文字, 留空则不显示按钮" />
         </el-form-item>
         <el-form-item label="按钮颜色">
-          <el-color-picker v-model="form.buttonColor" show-alpha />
+          <div class="color-field">
+            <el-color-picker v-model="solidBtnColor" show-alpha @change="onSolidBtnChange" />
+            <el-input v-model="form.buttonColor" placeholder="如 #ffffff 或 linear-gradient(135deg, #f59e0b, #ef4444)" class="color-input" />
+            <el-dropdown trigger="click" @command="onGradientBtn">
+              <el-button size="small">渐变预设</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-for="g in gradientPresets" :key="g.value" :command="g.value">
+                    <span class="gradient-item"><span class="gradient-dot" :style="{ background: g.value }"></span>{{ g.label }}</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="form.sortOrder" :min="0" :max="999" />
@@ -109,6 +137,25 @@ const submitting = ref(false)
 const editingId = ref<number | null>(null)
 const form = ref<Omit<BannerVO, 'id' | 'createTime'>>({ title: '', subtitle: '', imageUrl: '', linkUrl: '', bgColor: '', buttonText: '', buttonColor: '', sortOrder: 0, status: 1 })
 
+const solidBgColor = ref('')
+const solidBtnColor = ref('')
+
+const gradientPresets = [
+  { label: '靛蓝紫', value: 'linear-gradient(135deg, #6366f1, #8b5cf6)' },
+  { label: '蓝青', value: 'linear-gradient(135deg, #3b82f6, #06b6d4)' },
+  { label: '橙红', value: 'linear-gradient(135deg, #f59e0b, #ef4444)' },
+  { label: '粉紫', value: 'linear-gradient(135deg, #ec4899, #8b5cf6)' },
+  { label: '绿青', value: 'linear-gradient(135deg, #10b981, #06b6d4)' },
+  { label: '深蓝紫', value: 'linear-gradient(135deg, #1e3a8a, #7c3aed)' },
+  { label: '暖橙', value: 'linear-gradient(135deg, #f97316, #eab308)' },
+  { label: '玫瑰金', value: 'linear-gradient(135deg, #f43f5e, #d97706)' },
+]
+
+const onSolidBgChange = (val: string) => { if (val) form.value.bgColor = val }
+const onSolidBtnChange = (val: string) => { if (val) form.value.buttonColor = val }
+const onGradientBg = (val: string) => { form.value.bgColor = val; solidBgColor.value = '' }
+const onGradientBtn = (val: string) => { form.value.buttonColor = val; solidBtnColor.value = '' }
+
 const loadData = async () => {
   loading.value = true
   try {
@@ -121,12 +168,16 @@ const loadData = async () => {
 const handleAdd = () => {
   editingId.value = null
   form.value = { title: '', subtitle: '', imageUrl: '', linkUrl: '', bgColor: '', buttonText: '', buttonColor: '', sortOrder: 0, status: 1 }
+  solidBgColor.value = ''
+  solidBtnColor.value = ''
   dialogVisible.value = true
 }
 
 const handleEdit = (row: BannerVO) => {
   editingId.value = row.id
   form.value = { title: row.title, subtitle: row.subtitle, imageUrl: row.imageUrl, linkUrl: row.linkUrl, bgColor: row.bgColor, buttonText: row.buttonText, buttonColor: row.buttonColor, sortOrder: row.sortOrder, status: row.status }
+  solidBgColor.value = row.bgColor && !row.bgColor.includes('gradient') ? row.bgColor : ''
+  solidBtnColor.value = row.buttonColor && !row.buttonColor.includes('gradient') ? row.buttonColor : ''
   dialogVisible.value = true
 }
 
@@ -195,4 +246,8 @@ onMounted(loadData)
 .banner-upload-preview { width: 100%; height: 100%; object-fit: cover; }
 .banner-upload-icon { font-size: 28px; color: var(--admin-text-secondary); }
 .banner-remove-btn { margin-left: 12px; }
+.color-field { display: flex; align-items: center; gap: 8px; width: 100%; }
+.color-input { flex: 1; }
+.gradient-item { display: flex; align-items: center; gap: 8px; }
+.gradient-dot { width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.1); }
 </style>
