@@ -125,7 +125,9 @@ const allMenus: MenuItem[] = [
   { path: '/order', title: '订单管理', icon: 'List', permission: 'goods:manage' },
   { path: '/report', title: '举报审核', icon: 'Warning', permission: 'report:manage' },
   { path: '/banner', title: '横幅管理', icon: 'Picture', permission: '' },
-  { path: '/log', title: '日志中心', icon: 'Document', permission: 'log:manage' }
+  { path: '/log', title: '日志中心', icon: 'Document', permission: 'log:manage' },
+  { path: '/system-config', title: '系统配置', icon: 'Setting', permission: '' },
+  { path: '/fund-log', title: '资金流水', icon: 'Coin', permission: '' }
 ]
 
 const menuItems = computed(() =>

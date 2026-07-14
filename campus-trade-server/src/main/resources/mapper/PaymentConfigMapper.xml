@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.PaymentConfigMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.PaymentConfig">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="payment_type" property="paymentType"/>
+        <result column="alipay_account" property="alipayAccount"/>
+        <result column="real_name" property="realName"/>
+        <result column="is_default" property="isDefault"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+    </resultMap>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM t_payment_config WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT * FROM t_payment_config WHERE user_id = #{userId} AND deleted = 0
+        ORDER BY is_default DESC, create_time DESC
+    </select>
+
+    <select id="selectDefaultByUserId" resultMap="BaseResultMap">
+        SELECT * FROM t_payment_config WHERE user_id = #{userId} AND is_default = 1 AND deleted = 0 AND status = 'ACTIVE'
+        LIMIT 1
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_payment_config (user_id, payment_type, alipay_account, real_name, is_default, status, create_time, update_time, deleted, version)
+        VALUES (#{userId}, #{paymentType}, #{alipayAccount}, #{realName}, #{isDefault}, #{status}, NOW(), NOW(), 0, 0)
+    </insert>
+
+    <update id="updateById">
+        UPDATE t_payment_config
+        <set>
+            <if test="paymentType != null">payment_type = #{paymentType},</if>
+            <if test="alipayAccount != null">alipay_account = #{alipayAccount},</if>
+            <if test="realName != null">real_name = #{realName},</if>
+            <if test="isDefault != null">is_default = #{isDefault},</if>
+            <if test="status != null">status = #{status},</if>
+            version = version + 1
+        </set>
+        WHERE id = #{id} AND deleted = 0 AND version = #{version}
+    </update>
+
+    <update id="logicDeleteById">
+        UPDATE t_payment_config SET deleted = 1 WHERE id = #{id} AND user_id = #{userId}
+    </update>
+
+    <update id="resetDefaultByUserId">
+        UPDATE t_payment_config SET is_default = 0 WHERE user_id = #{userId} AND deleted = 0 AND is_default = 1
+    </update>
+</mapper>

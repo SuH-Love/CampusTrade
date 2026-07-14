@@ -126,3 +126,34 @@ export const toggleBanner = (id: number) =>
 
 export const deleteBanner = (id: number) =>
   request.delete<never, void>(`/banner/${id}`)
+
+export interface SystemConfigVO {
+  id: number
+  configKey: string
+  configValue: string
+  description: string
+}
+
+export interface FundLogVO {
+  id: number
+  orderId: number
+  userId: number
+  amount: number
+  type: string
+  status: string
+  tradeNo: string | null
+  remark: string | null
+  createTime: string
+}
+
+export const getSystemConfig = () =>
+  request.get<never, SystemConfigVO[]>('/admin/system-config')
+
+export const updateSystemConfig = (configs: SystemConfigVO[]) =>
+  request.put<never, void>('/admin/system-config', configs)
+
+export const getAlipayStatus = () =>
+  request.get<never, Record<string, unknown>>('/admin/alipay-status')
+
+export const getFundLogList = (params: PageQueryParams & { type?: string; orderId?: number }) =>
+  request.get<never, PageResult<FundLogVO>>('/admin/fund-log', { params })

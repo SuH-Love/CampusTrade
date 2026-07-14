@@ -43,24 +43,37 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        initRoles();
-        initPermissions();
-        initRolePermissions();
-        initAdminUser();
-        initNormalUser();
-        initCategories();
-        createBannerTableIfNeeded();
-        initBanners();
-        alterGoodsTableAddCondition();
-        alterOrderItemTableAddQuantity();
-        alterOrderTableAddDelivery();
-        createSellerRatingTableIfNeeded();
-        createUserFollowTableIfNeeded();
-        createNotificationPreferenceTableIfNeeded();
-        createCartTableIfNeeded();
-        createDeliveryAddressTableIfNeeded();
-        clearPermissionCache();}
+        safeRun("initRoles", this::initRoles);
+        safeRun("initPermissions", this::initPermissions);
+        safeRun("initRolePermissions", this::initRolePermissions);
+        safeRun("initAdminUser", this::initAdminUser);
+        safeRun("initNormalUser", this::initNormalUser);
+        safeRun("initCategories", this::initCategories);
+        safeRun("createBannerTableIfNeeded", this::createBannerTableIfNeeded);
+        safeRun("initBanners", this::initBanners);
+        safeRun("alterGoodsTableAddCondition", this::alterGoodsTableAddCondition);
+        safeRun("alterOrderItemTableAddQuantity", this::alterOrderItemTableAddQuantity);
+        safeRun("alterOrderTableAddDelivery", this::alterOrderTableAddDelivery);
+        safeRun("createSellerRatingTableIfNeeded", this::createSellerRatingTableIfNeeded);
+        safeRun("createUserFollowTableIfNeeded", this::createUserFollowTableIfNeeded);
+        safeRun("createNotificationPreferenceTableIfNeeded", this::createNotificationPreferenceTableIfNeeded);
+        safeRun("createCartTableIfNeeded", this::createCartTableIfNeeded);
+        safeRun("createDeliveryAddressTableIfNeeded", this::createDeliveryAddressTableIfNeeded);
+        safeRun("createPaymentConfigTableIfNeeded", this::createPaymentConfigTableIfNeeded);
+        safeRun("createFundLogTableIfNeeded", this::createFundLogTableIfNeeded);
+        safeRun("alterOrderTableAddPaymentFields", this::alterOrderTableAddPaymentFields);
+        safeRun("createSystemConfigTableIfNeeded", this::createSystemConfigTableIfNeeded);
+        safeRun("initSystemConfigDefaults", this::initSystemConfigDefaults);
+        safeRun("clearPermissionCache", this::clearPermissionCache);
+    }
 
+    private void safeRun(String name, Runnable task) {
+        try {
+            task.run();
+        } catch (Exception e) {
+            log.warn("DataInitializer task '{}' failed: {}", name, e.getMessage());
+        }
+    }
     private void initRoles() {
         if (roleMapper.selectById(1L) == null) {
             insertRole(1L, "超级管理员", "ROLE_SUPER_ADMIN", "系统超级管理员");
@@ -422,5 +435,90 @@ public class DataInitializer implements CommandLineRunner {
             Set<String> keys = redisTemplate.keys("permissions:*");
             if (keys != null && !keys.isEmpty()) redisTemplate.delete(keys);
         } catch (Exception ignored) {}
+    }
+
+    private void createPaymentConfigTableIfNeeded() {
+        try {
+            jdbcTemplate.execute(
+                "CREATE TABLE IF NOT EXISTS t_payment_config (" +
+                "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+                "user_id BIGINT NOT NULL," +
+                "payment_type VARCHAR(20) NOT NULL DEFAULT 'ALIPAY'," +
+                "alipay_account VARCHAR(100) DEFAULT NULL," +
+                "real_name VARCHAR(50) DEFAULT NULL," +
+                "is_default TINYINT DEFAULT 0," +
+                "status VARCHAR(20) DEFAULT 'ACTIVE'," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "deleted TINYINT DEFAULT 0," +
+                "version INT DEFAULT 0," +
+                "KEY idx_user_id (user_id)" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+        } catch (Exception e) { log.warn("Create t_payment_config failed: {}", e.getMessage()); }
+    }
+
+    private void createFundLogTableIfNeeded() {
+        try {
+            jdbcTemplate.execute(
+                "CREATE TABLE IF NOT EXISTS t_fund_log (" +
+                "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+                "order_id BIGINT NOT NULL," +
+                "user_id BIGINT NOT NULL," +
+                "amount DECIMAL(10,2) NOT NULL," +
+                "type VARCHAR(20) NOT NULL," +
+                "status VARCHAR(20) DEFAULT 'SUCCESS'," +
+                "trade_no VARCHAR(64) DEFAULT NULL," +
+                "remark VARCHAR(500) DEFAULT NULL," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "KEY idx_order_id (order_id)," +
+                "KEY idx_user_id (user_id)" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+        } catch (Exception e) { log.warn("Create t_fund_log failed: {}", e.getMessage()); }
+    }
+
+    private void alterOrderTableAddPaymentFields() {
+        try { jdbcTemplate.execute("ALTER TABLE t_order ADD COLUMN trade_no VARCHAR(64) DEFAULT NULL COMMENT '支付宝交易号' AFTER tracking_no"); } catch (Exception ignored) {}
+        try { jdbcTemplate.execute("ALTER TABLE t_order ADD COLUMN pre_refund_status VARCHAR(20) DEFAULT NULL COMMENT '退款前状态' AFTER trade_no"); } catch (Exception ignored) {}
+        try { jdbcTemplate.execute("ALTER TABLE t_order ADD COLUMN seller_payment_config_id BIGINT DEFAULT NULL COMMENT '卖家收款配置ID' AFTER pre_refund_status"); } catch (Exception ignored) {}
+    }
+
+    private void createSystemConfigTableIfNeeded() {
+        try {
+            jdbcTemplate.execute(
+                "CREATE TABLE IF NOT EXISTS t_system_config (" +
+                "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+                "config_key VARCHAR(100) NOT NULL," +
+                "config_value TEXT DEFAULT NULL," +
+                "description VARCHAR(200) DEFAULT NULL," +
+                "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+                "UNIQUE KEY uk_config_key (config_key)" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+            );
+        } catch (Exception e) { log.warn("Create t_system_config failed: {}", e.getMessage()); }
+    }
+
+    private void initSystemConfigDefaults() {
+        String[][] defaults = {
+            {"alipay.app_id", "", "支付宝应用ID"},
+            {"alipay.private_key", "", "支付宝应用私钥"},
+            {"alipay.alipay_public_key", "", "支付宝公钥"},
+            {"alipay.gateway", "https://openapi-sandbox.dl.alipaydev.com/gateway.do", "支付宝网关"},
+            {"alipay.notify_url", "", "支付宝异步通知URL"},
+            {"alipay.return_url", "", "支付宝同步跳转URL"}
+        };
+        for (String[] item : defaults) {
+            try {
+                Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM t_system_config WHERE config_key = ?", Integer.class, item[0]);
+                if (count != null && count == 0) {
+                    jdbcTemplate.update(
+                        "INSERT INTO t_system_config (config_key, config_value, description) VALUES (?, ?, ?)",
+                        item[0], item[1], item[2]);
+                }
+            } catch (Exception ignored) {}
+        }
     }
 }

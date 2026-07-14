@@ -71,6 +71,9 @@
                   <el-dropdown-item @click="$router.push('/address')">
                     <el-icon><Location /></el-icon>收货地址
                   </el-dropdown-item>
+                  <el-dropdown-item @click="$router.push('/payment-config')">
+                    <el-icon><CreditCard /></el-icon>收款管理
+                  </el-dropdown-item>
                   <el-dropdown-item divided @click="handleLogout">
                     <el-icon><SwitchButton /></el-icon>退出登录
                   </el-dropdown-item>
@@ -147,7 +150,7 @@ import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
 import { getUnreadCount as getNotifyUnread } from '@/api/notification'
 import { useChatWs } from '@/composables/useChatWs'
-import { Sunny, Moon } from '@element-plus/icons-vue'
+import { Sunny, Moon, CreditCard } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const userStore = useUserStore()

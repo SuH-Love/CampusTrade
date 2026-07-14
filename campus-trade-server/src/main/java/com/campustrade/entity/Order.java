@@ -25,4 +25,7 @@ public class Order extends BaseEntity {
     private Integer deliveryMethod;
     private String address;
     private String trackingNo;
+    private String tradeNo;
+    private String preRefundStatus;
+    private Long sellerPaymentConfigId;
 }

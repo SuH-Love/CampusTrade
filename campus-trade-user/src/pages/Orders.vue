@@ -123,7 +123,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getBuyerOrders, getSellerOrders, payOrder, cancelOrder, shipOrder, finishOrder, refundOrder, approveRefund, rejectRefund, modifyPrice } from '@/api/order'
+import { getBuyerOrders, getSellerOrders, payOrder, createPayment, cancelOrder, shipOrder, finishOrder, refundOrder, approveRefund, rejectRefund, modifyPrice, getOrderDetail } from '@/api/order'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { OrderVO } from '@/api/order'
 import type { OrderQueryParams } from '@/types'
@@ -187,10 +187,49 @@ const handleSearch = () => {
 }
 
 const handlePay = async (id: number) => {
-  await ElMessageBox.confirm('确认支付该订单？', '支付确认')
-  await payOrder(id)
-  ElMessage.success('支付成功')
-  loadData()
+  try {
+    const payForm = await createPayment(id)
+    if (payForm) {
+      const div = document.createElement('div')
+      div.innerHTML = payForm
+      document.body.appendChild(div)
+      const form = div.querySelector('form')
+      if (form) {
+        form.submit()
+        startPayPolling(id)
+      } else {
+        window.open(payForm, '_blank')
+        startPayPolling(id)
+      }
+    }
+  } catch (e: unknown) {
+    const errMsg = e instanceof Error ? e.message : '支付失败'
+    if (errMsg.includes('503') || errMsg.includes('未配置')) {
+      await ElMessageBox.confirm('支付宝未配置，是否使用模拟支付？', '支付方式', { confirmButtonText: '模拟支付', cancelButtonText: '取消' })
+      await payOrder(id)
+      ElMessage.success('模拟支付成功')
+      loadData()
+    } else {
+      ElMessage.error(errMsg)
+    }
+  }
+}
+
+const startPayPolling = (orderId: number) => {
+  ElMessage.info('请在支付宝页面完成支付，支付完成后将自动刷新')
+  let count = 0
+  const timer = setInterval(async () => {
+    count++
+    if (count > 60) { clearInterval(timer); return }
+    try {
+      const order = await getOrderDetail(orderId)
+      if (order.status !== 'PENDING_PAY') {
+        clearInterval(timer)
+        ElMessage.success('支付成功')
+        loadData()
+      }
+    } catch { /* ignore */ }
+  }, 2000)
 }
 
 const handleCancel = async (id: number) => {

@@ -58,38 +58,49 @@ public class OrderTimeoutListener extends KeyExpirationEventMessageListener {
             return;
         }
 
-        Order order = orderMapper.selectById(orderId);
-        if (order == null) {
-            return;
-        }
-        if (!OrderStatus.PENDING_PAY.getCode().equals(order.getStatus())) {
+        String lockKey = PREFIX + "lock:" + orderId;
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent(lockKey, "1", 30, java.util.concurrent.TimeUnit.SECONDS);
+        if (locked == null || !locked) {
+            log.warn("Order timeout lock failed for order {}, skip", orderId);
             return;
         }
 
-        order.setStatus(OrderStatus.CANCELLED.getCode());
-        order.setCancelReason("超时未支付，系统自动取消");
-        order.setCancelTime(LocalDateTime.now());
-        orderMapper.updateById(order);
-
-        List<OrderItem> items = orderItemMapper.selectByOrderId(orderId);
-        for (OrderItem item : items) {
-            Goods goods = goodsMapper.selectById(item.getGoodsId());
-            if (goods != null) {
-                int restoreQty = item.getQuantity() != null ? item.getQuantity() : 1;
-                goods.setStock(goods.getStock() != null ? goods.getStock() + restoreQty : restoreQty);
-                if (GoodsStatus.SOLD.getCode().equals(goods.getStatus())) {
-                    goods.setStatus(GoodsStatus.ONLINE.getCode());
-                }
-                goodsMapper.updateById(goods);
-                redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + item.getGoodsId());
-                redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
-                redisTemplate.delete(RedisConstant.GOODS_RECOMMEND_KEY);
+        try {
+            Order order = orderMapper.selectById(orderId);
+            if (order == null) {
+                return;
             }
+            if (!OrderStatus.PENDING_PAY.getCode().equals(order.getStatus())) {
+                return;
+            }
+
+            order.setStatus(OrderStatus.CANCELLED.getCode());
+            order.setCancelReason("超时未支付，系统自动取消");
+            order.setCancelTime(LocalDateTime.now());
+            orderMapper.updateById(order);
+
+            List<OrderItem> items = orderItemMapper.selectByOrderId(orderId);
+            for (OrderItem item : items) {
+                Goods goods = goodsMapper.selectById(item.getGoodsId());
+                if (goods != null) {
+                    int restoreQty = item.getQuantity() != null ? item.getQuantity() : 1;
+                    goods.setStock(goods.getStock() != null ? goods.getStock() + restoreQty : restoreQty);
+                    if (GoodsStatus.SOLD.getCode().equals(goods.getStatus())) {
+                        goods.setStatus(GoodsStatus.ONLINE.getCode());
+                    }
+                    goodsMapper.updateById(goods);
+                    redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + item.getGoodsId());
+                    redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
+                    redisTemplate.delete(RedisConstant.GOODS_RECOMMEND_KEY);
+                }
+            }
+
+            notificationService.sendNotification(order.getBuyerId(), "订单超时取消",
+                    "您的订单「" + order.getOrderNo() + "」因超时未支付已自动取消", "ORDER", order.getId());
+
+            log.info("Order {} auto-cancelled by Redis key expiration", order.getOrderNo());
+        } finally {
+            redisTemplate.delete(lockKey);
         }
-
-        notificationService.sendNotification(order.getBuyerId(), "订单超时取消",
-                "您的订单「" + order.getOrderNo() + "」因超时未支付已自动取消", "ORDER", order.getId());
-
-        log.info("Order {} auto-cancelled by Redis key expiration", order.getOrderNo());
     }
 }

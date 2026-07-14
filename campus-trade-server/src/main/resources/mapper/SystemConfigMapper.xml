@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.SystemConfigMapper">
+
+    <select id="selectAll" resultType="com.campustrade.entity.SystemConfig">
+        SELECT * FROM t_system_config ORDER BY id
+    </select>
+
+    <select id="selectByKey" resultType="com.campustrade.entity.SystemConfig">
+        SELECT * FROM t_system_config WHERE config_key = #{configKey}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_system_config (config_key, config_value, description, create_time, update_time)
+        VALUES (#{configKey}, #{configValue}, #{description}, NOW(), NOW())
+    </insert>
+
+    <update id="updateByKey">
+        UPDATE t_system_config SET config_value = #{configValue}, description = #{description}, update_time = NOW()
+        WHERE config_key = #{configKey}
+    </update>
+</mapper>

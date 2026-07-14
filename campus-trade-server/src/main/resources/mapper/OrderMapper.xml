@@ -18,6 +18,9 @@
         <result column="delivery_method" property="deliveryMethod"/>
         <result column="address" property="address"/>
         <result column="tracking_no" property="trackingNo"/>
+        <result column="trade_no" property="tradeNo"/>
+        <result column="pre_refund_status" property="preRefundStatus"/>
+        <result column="seller_payment_config_id" property="sellerPaymentConfigId"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
         <result column="deleted" property="deleted"/>
@@ -55,8 +58,12 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO t_order (order_no, buyer_id, seller_id, total_amount, status, remark, delivery_method, address, create_time, update_time, deleted, version)
-        VALUES (#{orderNo}, #{buyerId}, #{sellerId}, #{totalAmount}, #{status}, #{remark}, #{deliveryMethod}, #{address}, NOW(), NOW(), 0, 0)
+        INSERT INTO t_order (order_no, buyer_id, seller_id, total_amount, status, remark, delivery_method, address
+            <if test="sellerPaymentConfigId != null">, seller_payment_config_id</if>
+            , create_time, update_time, deleted, version)
+        VALUES (#{orderNo}, #{buyerId}, #{sellerId}, #{totalAmount}, #{status}, #{remark}, #{deliveryMethod}, #{address}
+            <if test="sellerPaymentConfigId != null">, #{sellerPaymentConfigId}</if>
+            , NOW(), NOW(), 0, 0)
     </insert>
 
     <update id="updateById">
@@ -72,6 +79,8 @@
             <if test="deliveryMethod != null">delivery_method = #{deliveryMethod},</if>
             <if test="address != null">address = #{address},</if>
             <if test="trackingNo != null">tracking_no = #{trackingNo},</if>
+            <if test="tradeNo != null">trade_no = #{tradeNo},</if>
+            <if test="preRefundStatus != null">pre_refund_status = #{preRefundStatus},</if>
             version = version + 1
         </set>
         WHERE id = #{id} AND deleted = 0 AND version = #{version}

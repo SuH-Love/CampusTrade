@@ -8,6 +8,12 @@
         </div>
       </template>
       <template v-if="order">
+        <div v-if="isEscrowOrder" class="escrow-badge">
+          <el-tag type="warning" effect="dark" size="large">
+            <el-icon style="margin-right:4px;vertical-align:middle"><Lock /></el-icon>担保交易
+          </el-tag>
+          <span class="escrow-hint">资金由平台担保，确认收货后结算给卖家</span>
+        </div>
         <el-descriptions :column="2" border>
           <el-descriptions-item label="订单号">{{ order.orderNo }}</el-descriptions-item>
           <el-descriptions-item label="状态">
@@ -24,12 +30,28 @@
           <el-descriptions-item v-if="order.deliveryMethod === 1 || order.deliveryMethod === 'DELIVERY'" label="配送地址">{{ order.deliveryAddress || order.address || '-' }}</el-descriptions-item>
           <el-descriptions-item label="创建时间">{{ order.createTime }}</el-descriptions-item>
           <el-descriptions-item label="支付时间">{{ order.payTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item v-if="order.tradeNo" label="交易单号">
+            <span class="trade-no">{{ order.tradeNo }}</span>
+          </el-descriptions-item>
           <el-descriptions-item label="发货时间">{{ order.shipTime || '-' }}</el-descriptions-item>
           <el-descriptions-item v-if="order.trackingNo" label="物流单号">{{ order.trackingNo }}</el-descriptions-item>
           <el-descriptions-item label="完成时间">{{ order.finishTime || '-' }}</el-descriptions-item>
           <el-descriptions-item v-if="order.cancelTime" label="取消时间">{{ order.cancelTime }}</el-descriptions-item>
           <el-descriptions-item v-if="order.cancelReason" label="取消原因">{{ order.cancelReason }}</el-descriptions-item>
         </el-descriptions>
+
+        <div v-if="fundLogs.length > 0" class="fund-log-section">
+          <h4 class="detail-section-title">资金流水</h4>
+          <el-timeline>
+            <el-timeline-item v-for="log in fundLogs" :key="log.id" :timestamp="log.createTime" placement="top" :type="fundLogTypeColor(log.type)">
+              <div class="fund-log-item">
+                <el-tag :type="fundLogTypeTag(log.type)" size="small">{{ fundTypeLabel(log.type) }}</el-tag>
+                <span class="fund-log-amount" :class="{ 'amount-in': log.type === 'REFUND', 'amount-out': log.type === 'PAY' }">¥{{ log.amount }}</span>
+                <span class="fund-log-remark">{{ log.remark }}</span>
+              </div>
+            </el-timeline-item>
+          </el-timeline>
+        </div>
 
         <h4 class="detail-section-title">商品信息</h4>
         <el-table :data="order.items || []" stripe>
@@ -80,10 +102,11 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { getOrderDetail, payOrder, cancelOrder, shipOrder, finishOrder, refundOrder, approveRefund, rejectRefund, rateOrder, modifyPrice } from '@/api/order'
+import { getOrderDetail, payOrder, createPayment, cancelOrder, shipOrder, finishOrder, refundOrder, approveRefund, rejectRefund, rateOrder, modifyPrice, getOrderFundLogs } from '@/api/order'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { OrderVO } from '@/api/order'
+import { Lock } from '@element-plus/icons-vue'
+import type { OrderVO, FundLogVO } from '@/api/order'
 import { orderStatusLabel, orderStatusTagType } from '@/utils/labels'
 import EmptyState from '@/components/EmptyState.vue'
 
@@ -110,22 +133,85 @@ const updateCountdown = () => {
 
 const isBuyer = computed(() => order.value?.buyerId === userStore.userInfo?.id)
 const isSeller = computed(() => order.value?.sellerId === userStore.userInfo?.id)
+const isEscrowOrder = computed(() => {
+  if (!order.value) return false
+  return ['PAID', 'SHIPPING', 'REFUND', 'PENDING_REVIEW'].includes(order.value.status) || !!order.value.tradeNo
+})
+
+const fundLogs = ref<FundLogVO[]>([])
+
+const fundTypeLabel = (type: string): string => {
+  const map: Record<string, string> = { PAY: '买家支付', FREEZE: '担保冻结', SETTLE: '结算给卖家', REFUND: '退款' }
+  return map[type] || type
+}
+const fundLogTypeColor = (type: string): string => {
+  const map: Record<string, string> = { PAY: 'primary', FREEZE: 'warning', SETTLE: 'success', REFUND: 'danger' }
+  return map[type] || ''
+}
+const fundLogTypeTag = (type: string): string => {
+  const map: Record<string, string> = { PAY: '', FREEZE: 'warning', SETTLE: 'success', REFUND: 'danger' }
+  return map[type] || 'info'
+}
 
 
 const loadData = async () => {
   loading.value = true
   try {
     order.value = await getOrderDetail(Number(route.params.id))
+    try {
+      fundLogs.value = await getOrderFundLogs(Number(route.params.id))
+    } catch (e) { console.error(e) }
   } finally {
     loading.value = false
   }
 }
 
 const handlePay = async () => {
-  await ElMessageBox.confirm('确认支付该订单？', '支付确认')
-  await payOrder(order.value!.id)
-  ElMessage.success('支付成功')
-  loadData()
+  if (!order.value) return
+  try {
+    const payForm = await createPayment(order.value.id)
+    if (payForm) {
+      const div = document.createElement('div')
+      div.innerHTML = payForm
+      document.body.appendChild(div)
+      const form = div.querySelector('form')
+      if (form) {
+        form.submit()
+        startPayPolling()
+      } else {
+        window.open(payForm, '_blank')
+        startPayPolling()
+      }
+    }
+  } catch (e: unknown) {
+    const errMsg = e instanceof Error ? e.message : '支付失败'
+    if (errMsg.includes('503') || errMsg.includes('未配置')) {
+      await ElMessageBox.confirm('支付宝未配置，是否使用模拟支付？', '支付方式', { confirmButtonText: '模拟支付', cancelButtonText: '取消' })
+      await payOrder(order.value!.id)
+      ElMessage.success('模拟支付成功')
+      loadData()
+    } else {
+      ElMessage.error(errMsg)
+    }
+  }
+}
+
+const startPayPolling = () => {
+  if (!order.value) return
+  ElMessage.info('请在支付宝页面完成支付，支付完成后将自动刷新')
+  let count = 0
+  const timer = setInterval(async () => {
+    count++
+    if (count > 60) { clearInterval(timer); return }
+    try {
+      const updated = await getOrderDetail(order.value!.id)
+      if (updated.status !== 'PENDING_PAY') {
+        clearInterval(timer)
+        ElMessage.success('支付成功')
+        loadData()
+      }
+    } catch { /* ignore */ }
+  }, 2000)
 }
 
 const handleCancel = async () => {
@@ -214,6 +300,24 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
 .goods-item { display: flex; align-items: center; gap: 12px; }
 .goods-item-img { width: 60px; height: 60px; border-radius: 4px; flex-shrink: 0; }
 .action-bar { margin-top: 24px; display: flex; gap: 12px; }
+.escrow-badge {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 16px; padding: 12px 16px;
+  background: var(--bg-glass); border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+.escrow-hint { font-size: 13px; color: var(--text-secondary); }
+.trade-no { font-family: monospace; font-size: 13px; word-break: break-all; }
+.fund-log-section {
+  margin-top: 24px; padding: 20px;
+  background: var(--bg-glass); border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+.fund-log-item { display: flex; align-items: center; gap: 10px; }
+.fund-log-amount { font-weight: 600; font-size: 15px; }
+.fund-log-amount.amount-in { color: var(--success); }
+.fund-log-amount.amount-out { color: var(--danger); }
+.fund-log-remark { color: var(--text-secondary); font-size: 13px; }
 .rating-section {
   margin-top: 24px;
   padding: 24px;

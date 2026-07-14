@@ -8,6 +8,7 @@ export interface OrderItemVO {
   goodsTitle: string
   goodsImage: string | null
   price: number
+  quantity: number
 }
 
 export interface OrderVO {
@@ -24,6 +25,8 @@ export interface OrderVO {
   address: string | null
   deliveryAddress: string | null
   trackingNo: string | null
+  tradeNo: string | null
+  preRefundStatus: string | null
   payTime: string | null
   shipTime: string | null
   finishTime: string | null
@@ -31,6 +34,18 @@ export interface OrderVO {
   cancelReason: string | null
   createTime: string
   items: OrderItemVO[]
+}
+
+export interface FundLogVO {
+  id: number
+  orderId: number
+  userId: number
+  amount: number
+  type: string
+  status: string
+  tradeNo: string | null
+  remark: string | null
+  createTime: string
 }
 
 export const createOrder = (data: { goodsId: number; quantity?: number; remark?: string; deliveryMethod?: string; deliveryAddress?: string }) =>
@@ -43,6 +58,8 @@ export const cancelOrder = (id: number, reason?: string) =>
   request.put(`/order/${id}/cancel`, null, { params: { reason } })
 
 export const payOrder = (id: number) => request.put(`/order/${id}/pay`)
+
+export const createPayment = (id: number) => request.post<never, string>(`/order/${id}/create-payment`)
 
 export const shipOrder = (id: number, trackingNo?: string) => request.put(`/order/${id}/ship`, null, { params: { trackingNo } })
 
@@ -65,3 +82,6 @@ export const getSellerOrders = (params: OrderQueryParams) => request.get<never, 
 
 export const modifyPrice = (id: number, newPrice: number) =>
   request.put(`/order/${id}/modify-price`, null, { params: { newPrice } })
+
+export const getOrderFundLogs = (orderId: number) =>
+  request.get<never, FundLogVO[]>(`/order/${orderId}/fund-logs`)

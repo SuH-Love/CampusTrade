@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.FundLogMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_fund_log (order_id, user_id, amount, type, status, trade_no, remark, create_time)
+        VALUES (#{orderId}, #{userId}, #{amount}, #{type}, #{status}, #{tradeNo}, #{remark}, NOW())
+    </insert>
+
+    <select id="selectById" resultType="com.campustrade.entity.FundLog">
+        SELECT * FROM t_fund_log WHERE id = #{id}
+    </select>
+
+    <select id="selectByOrderId" resultType="com.campustrade.entity.FundLog">
+        SELECT * FROM t_fund_log WHERE order_id = #{orderId} ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByUserId" resultType="com.campustrade.entity.FundLog">
+        SELECT * FROM t_fund_log WHERE user_id = #{userId} ORDER BY create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectCountByUserId" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_fund_log WHERE user_id = #{userId}
+    </select>
+
+    <select id="selectAll" resultType="com.campustrade.entity.FundLog">
+        SELECT * FROM t_fund_log
+        <where>
+            <if test="type != null and type != ''">AND type = #{type}</if>
+            <if test="orderId != null">AND order_id = #{orderId}</if>
+        </where>
+        ORDER BY create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="selectCountAll" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_fund_log
+        <where>
+            <if test="type != null and type != ''">AND type = #{type}</if>
+            <if test="orderId != null">AND order_id = #{orderId}</if>
+        </where>
+    </select>
+</mapper>

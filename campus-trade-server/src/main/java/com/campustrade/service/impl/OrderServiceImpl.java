@@ -1,8 +1,16 @@
 package com.campustrade.service.impl;
 
+import com.alibaba.fastjson.JSONObject;
+import com.alipay.api.AlipayApiException;
+import com.alipay.api.AlipayClient;
+import com.alipay.api.internal.util.AlipaySignature;
+import com.alipay.api.request.AlipayTradePagePayRequest;
+import com.alipay.api.request.AlipayTradeRefundRequest;
+import com.alipay.api.response.AlipayTradeRefundResponse;
 import com.campustrade.common.PageResult;
 import com.campustrade.common.Result;
 import com.campustrade.common.ResultCode;
+import com.campustrade.config.AlipayConfig;
 import com.campustrade.constant.MQConstant;
 import com.campustrade.constant.RedisConstant;
 import com.campustrade.dto.OrderCreateDTO;
@@ -15,17 +23,20 @@ import com.campustrade.service.NotificationService;
 import com.campustrade.vo.OrderItemVO;
 import com.campustrade.vo.OrderVO;
 import com.campustrade.util.SnowflakeIdUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class OrderServiceImpl implements OrderService {
 
@@ -55,6 +66,18 @@ public class OrderServiceImpl implements OrderService {
 
     @Autowired
     private CartMapper cartMapper;
+
+    @Autowired
+    private AlipayClient alipayClient;
+
+    @Autowired
+    private AlipayConfig alipayConfig;
+
+    @Autowired
+    private FundLogMapper fundLogMapper;
+
+    @Autowired
+    private PaymentConfigMapper paymentConfigMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -89,6 +112,16 @@ public class OrderServiceImpl implements OrderService {
         order.setRemark(dto.getRemark());
         order.setDeliveryMethod("DELIVERY".equals(dto.getDeliveryMethod()) ? 1 : 0);
         order.setAddress(dto.getDeliveryAddress());
+
+        try {
+            PaymentConfig sellerPayment = paymentConfigMapper.selectDefaultByUserId(goods.getUserId());
+            if (sellerPayment != null) {
+                order.setSellerPaymentConfigId(sellerPayment.getId());
+            }
+        } catch (Exception e) {
+            log.debug("Payment config not available for seller {}", goods.getUserId());
+        }
+
         orderMapper.insert(order);
 
         OrderItem item = new OrderItem();
@@ -170,23 +203,182 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public Result<Void> payOrder(Long userId, Long orderId) {
+        if (!alipayConfig.isConfigured()) {
+            return payOrderFallback(userId, orderId);
+        }
+        Result<String> payResult = createPayment(userId, orderId);
+        if (payResult.getCode() != 200) {
+            return Result.error(payResult.getCode(), payResult.getMessage());
+        }
+        return Result.success();
+    }
+
+    @Override
+    public Result<String> createPayment(Long userId, Long orderId) {
         Order order = orderMapper.selectById(orderId);
         if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
         if (!order.getBuyerId().equals(userId)) return Result.error(ResultCode.ORDER_NOT_OWNER);
         if (!OrderStatus.PENDING_PAY.getCode().equals(order.getStatus())) return Result.error(ResultCode.ORDER_STATUS_ERROR);
-        order.setStatus(OrderStatus.PAID.getCode());
-        order.setPayTime(LocalDateTime.now());
-        int rows = orderMapper.updateById(order);
-        if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
 
-        redisTemplate.delete(RedisConstant.ORDER_TIMEOUT_PREFIX + orderId);
+        if (!alipayConfig.isConfigured()) {
+            return Result.error(503, "支付宝未配置，请联系管理员");
+        }
 
-        notificationService.sendNotification(order.getSellerId(), "订单支付通知",
-                "买家已支付订单「" + order.getOrderNo() + "」，请尽快发货", "ORDER", order.getId());
+        String lockKey = RedisConstant.ORDER_TIMEOUT_PREFIX + "lock:" + orderId;
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent(lockKey, "1", 30, TimeUnit.SECONDS);
+        if (locked == null || !locked) {
+            return Result.error(409, "订单正在处理中，请稍后重试");
+        }
 
-        return Result.success();
+        try {
+            Order freshOrder = orderMapper.selectById(orderId);
+            if (freshOrder == null || !OrderStatus.PENDING_PAY.getCode().equals(freshOrder.getStatus())) {
+                return Result.error(ResultCode.ORDER_STATUS_ERROR);
+            }
+
+            AlipayTradePagePayRequest request = new AlipayTradePagePayRequest();
+            request.setNotifyUrl(alipayConfig.getEffectiveNotifyUrl());
+            request.setReturnUrl(alipayConfig.getEffectiveReturnUrl() + orderId);
+
+            JSONObject bizContent = new JSONObject();
+            bizContent.put("out_trade_no", order.getOrderNo());
+            bizContent.put("total_amount", order.getTotalAmount().toPlainString());
+            bizContent.put("subject", "CampusTrade订单-" + order.getOrderNo());
+            bizContent.put("product_code", "FAST_INSTANT_TRADE_PAY");
+            request.setBizContent(bizContent.toString());
+
+            String form = alipayClient.pageExecute(request).getBody();
+            log.info("Alipay payment created for order: {}", order.getOrderNo());
+            return Result.success(form);
+        } catch (AlipayApiException e) {
+            log.error("Alipay create payment failed: {}", e.getMessage(), e);
+            return Result.error(500, "创建支付失败: " + e.getErrMsg());
+        } finally {
+            redisTemplate.delete(lockKey);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Void> handlePayNotify(Map<String, String> params) {
+        try {
+            boolean signVerified = AlipaySignature.rsaCheckV1(
+                    params, alipayConfig.getEffectiveAlipayPublicKey(), "UTF-8", alipayConfig.getSignType());
+            if (!signVerified) {
+                log.error("Alipay notify sign verification failed");
+                return Result.error(400, "验签失败");
+            }
+        } catch (AlipayApiException e) {
+            log.error("Alipay sign verify error: {}", e.getMessage());
+            return Result.error(400, "验签异常");
+        }
+
+        String tradeStatus = params.get("trade_status");
+        if (!"TRADE_SUCCESS".equals(tradeStatus) && !"TRADE_FINISHED".equals(tradeStatus)) {
+            return Result.success();
+        }
+
+        String outTradeNo = params.get("out_trade_no");
+        String tradeNo = params.get("trade_no");
+
+        Order order = orderMapper.selectByOrderNo(outTradeNo);
+        if (order == null) {
+            log.error("Alipay notify: order not found for out_trade_no={}", outTradeNo);
+            return Result.error(ResultCode.ORDER_NOT_FOUND);
+        }
+
+        if (!OrderStatus.PENDING_PAY.getCode().equals(order.getStatus())) {
+            log.info("Alipay notify: order {} already paid, ignore", outTradeNo);
+            return Result.success();
+        }
+
+        String lockKey = RedisConstant.ORDER_TIMEOUT_PREFIX + "lock:" + order.getId();
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent(lockKey, "1", 30, TimeUnit.SECONDS);
+        if (locked == null || !locked) {
+            log.warn("Alipay notify: order {} lock failed, retry later", outTradeNo);
+            return Result.error(409, "处理中");
+        }
+
+        try {
+            Order freshOrder = orderMapper.selectById(order.getId());
+            if (freshOrder == null || !OrderStatus.PENDING_PAY.getCode().equals(freshOrder.getStatus())) {
+                return Result.success();
+            }
+
+            freshOrder.setStatus(OrderStatus.PAID.getCode());
+            freshOrder.setPayTime(LocalDateTime.now());
+            freshOrder.setTradeNo(tradeNo);
+            orderMapper.updateById(freshOrder);
+
+            redisTemplate.delete(RedisConstant.ORDER_TIMEOUT_PREFIX + order.getId());
+
+            FundLog fundLog = new FundLog();
+            fundLog.setOrderId(order.getId());
+            fundLog.setUserId(order.getBuyerId());
+            fundLog.setAmount(order.getTotalAmount());
+            fundLog.setType("PAY");
+            fundLog.setStatus("SUCCESS");
+            fundLog.setTradeNo(tradeNo);
+            fundLog.setRemark("买家支付");
+            safeInsertFundLog(fundLog);
+
+            FundLog freezeLog = new FundLog();
+            freezeLog.setOrderId(order.getId());
+            freezeLog.setUserId(order.getSellerId());
+            freezeLog.setAmount(order.getTotalAmount());
+            freezeLog.setType("FREEZE");
+            freezeLog.setStatus("SUCCESS");
+            freezeLog.setTradeNo(tradeNo);
+            freezeLog.setRemark("担保冻结");
+            safeInsertFundLog(freezeLog);
+
+            notificationService.sendNotification(order.getSellerId(), "订单支付通知",
+                    "买家已支付订单「" + order.getOrderNo() + "」，请尽快发货", "ORDER", order.getId());
+
+            log.info("Alipay notify: order {} paid successfully, tradeNo={}", outTradeNo, tradeNo);
+            return Result.success();
+        } finally {
+            redisTemplate.delete(lockKey);
+        }
+    }
+
+    private Result<Void> payOrderFallback(Long userId, Long orderId) {
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
+        if (!order.getBuyerId().equals(userId)) return Result.error(ResultCode.ORDER_NOT_OWNER);
+        if (!OrderStatus.PENDING_PAY.getCode().equals(order.getStatus())) return Result.error(ResultCode.ORDER_STATUS_ERROR);
+
+        String lockKey = RedisConstant.ORDER_TIMEOUT_PREFIX + "lock:" + orderId;
+        Boolean locked = redisTemplate.opsForValue().setIfAbsent(lockKey, "1", 30, TimeUnit.SECONDS);
+        if (locked == null || !locked) {
+            return Result.error(409, "订单正在处理中");
+        }
+
+        try {
+            order.setStatus(OrderStatus.PAID.getCode());
+            order.setPayTime(LocalDateTime.now());
+            int rows = orderMapper.updateById(order);
+            if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
+
+            redisTemplate.delete(RedisConstant.ORDER_TIMEOUT_PREFIX + orderId);
+
+            FundLog fundLog = new FundLog();
+            fundLog.setOrderId(order.getId());
+            fundLog.setUserId(order.getBuyerId());
+            fundLog.setAmount(order.getTotalAmount());
+            fundLog.setType("PAY");
+            fundLog.setStatus("SUCCESS");
+            fundLog.setRemark("模拟支付");
+            safeInsertFundLog(fundLog);
+
+            notificationService.sendNotification(order.getSellerId(), "订单支付通知",
+                    "买家已支付订单「" + order.getOrderNo() + "」，请尽快发货", "ORDER", order.getId());
+
+            return Result.success();
+        } finally {
+            redisTemplate.delete(lockKey);
+        }
     }
 
     @Override
@@ -223,6 +415,16 @@ public class OrderServiceImpl implements OrderService {
         int rows = orderMapper.updateById(order);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
 
+        FundLog settleLog = new FundLog();
+        settleLog.setOrderId(order.getId());
+        settleLog.setUserId(order.getSellerId());
+        settleLog.setAmount(order.getTotalAmount());
+        settleLog.setType("SETTLE");
+        settleLog.setStatus("SUCCESS");
+        settleLog.setTradeNo(order.getTradeNo());
+        settleLog.setRemark("担保结算给卖家");
+        safeInsertFundLog(settleLog);
+
         notificationService.sendNotification(order.getSellerId(), "订单完成通知",
                 "买家已确认收货，订单「" + order.getOrderNo() + "」已完成", "ORDER", order.getId());
 
@@ -237,6 +439,7 @@ public class OrderServiceImpl implements OrderService {
         if (!order.getBuyerId().equals(userId)) return Result.error(ResultCode.ORDER_NOT_OWNER);
         if (!OrderStatus.PAID.getCode().equals(order.getStatus()) && !OrderStatus.SHIPPING.getCode().equals(order.getStatus()))
             return Result.error(ResultCode.ORDER_STATUS_ERROR);
+        order.setPreRefundStatus(order.getStatus());
         order.setStatus(OrderStatus.REFUND.getCode());
         order.setCancelReason(reason);
         int rows = orderMapper.updateById(order);
@@ -256,26 +459,44 @@ public class OrderServiceImpl implements OrderService {
         if (!order.getSellerId().equals(userId)) return Result.error(ResultCode.ORDER_NOT_OWNER);
         if (!OrderStatus.REFUND.getCode().equals(order.getStatus()))
             return Result.error(ResultCode.ORDER_STATUS_ERROR);
+
+        if (alipayConfig.isConfigured() && order.getTradeNo() != null) {
+            try {
+                AlipayTradeRefundRequest refundRequest = new AlipayTradeRefundRequest();
+                JSONObject bizContent = new JSONObject();
+                bizContent.put("out_trade_no", order.getOrderNo());
+                bizContent.put("refund_amount", order.getTotalAmount().toPlainString());
+                bizContent.put("refund_reason", "卖家同意退款");
+                refundRequest.setBizContent(bizContent.toString());
+
+                AlipayTradeRefundResponse refundResponse = alipayClient.execute(refundRequest);
+                if (!refundResponse.isSuccess()) {
+                    log.error("Alipay refund failed for order {}: {}", order.getOrderNo(), refundResponse.getSubMsg());
+                    return Result.error(500, "支付宝退款失败: " + refundResponse.getSubMsg());
+                }
+                log.info("Alipay refund success for order: {}", order.getOrderNo());
+            } catch (AlipayApiException e) {
+                log.error("Alipay refund error: {}", e.getMessage(), e);
+                return Result.error(500, "支付宝退款异常: " + e.getErrMsg());
+            }
+        }
+
         order.setStatus(OrderStatus.CANCELLED.getCode());
         order.setCancelTime(LocalDateTime.now());
         int rows = orderMapper.updateById(order);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
 
-        List<OrderItem> items = orderItemMapper.selectByOrderId(orderId);
-        for (OrderItem item : items) {
-            Goods goods = goodsMapper.selectById(item.getGoodsId());
-            if (goods != null) {
-                int restoreQty = item.getQuantity() != null ? item.getQuantity() : 1;
-                goods.setStock(goods.getStock() != null ? goods.getStock() + restoreQty : restoreQty);
-                if (GoodsStatus.SOLD.getCode().equals(goods.getStatus())) {
-                    goods.setStatus(GoodsStatus.ONLINE.getCode());
-                }
-                goodsMapper.updateById(goods);
-                redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + item.getGoodsId());
-                redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
-                redisTemplate.delete(RedisConstant.GOODS_RECOMMEND_KEY);
-            }
-        }
+        restoreGoodsStock(orderId);
+
+        FundLog refundLog = new FundLog();
+        refundLog.setOrderId(order.getId());
+        refundLog.setUserId(order.getBuyerId());
+        refundLog.setAmount(order.getTotalAmount());
+        refundLog.setType("REFUND");
+        refundLog.setStatus("SUCCESS");
+        refundLog.setTradeNo(order.getTradeNo());
+        refundLog.setRemark("退款成功");
+        safeInsertFundLog(refundLog);
 
         notificationService.sendNotification(order.getBuyerId(), "退款成功",
                 "卖家已同意订单「" + order.getOrderNo() + "」的退款申请", "ORDER", order.getId());
@@ -291,7 +512,9 @@ public class OrderServiceImpl implements OrderService {
         if (!order.getSellerId().equals(userId)) return Result.error(ResultCode.ORDER_NOT_OWNER);
         if (!OrderStatus.REFUND.getCode().equals(order.getStatus()))
             return Result.error(ResultCode.ORDER_STATUS_ERROR);
-        order.setStatus(OrderStatus.PAID.getCode());
+
+        String restoreStatus = order.getPreRefundStatus() != null ? order.getPreRefundStatus() : OrderStatus.PAID.getCode();
+        order.setStatus(restoreStatus);
         order.setCancelReason(reason);
         int rows = orderMapper.updateById(order);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
@@ -405,9 +628,68 @@ public class OrderServiceImpl implements OrderService {
     public Result<Void> adminApproveRefund(Long orderId) {
         Order order = orderMapper.selectById(orderId);
         if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
+
+        if (alipayConfig.isConfigured() && order.getTradeNo() != null) {
+            try {
+                AlipayTradeRefundRequest refundRequest = new AlipayTradeRefundRequest();
+                JSONObject bizContent = new JSONObject();
+                bizContent.put("out_trade_no", order.getOrderNo());
+                bizContent.put("refund_amount", order.getTotalAmount().toPlainString());
+                bizContent.put("refund_reason", "管理员同意退款");
+                refundRequest.setBizContent(bizContent.toString());
+
+                AlipayTradeRefundResponse refundResponse = alipayClient.execute(refundRequest);
+                if (!refundResponse.isSuccess()) {
+                    log.error("Admin alipay refund failed for order {}: {}", order.getOrderNo(), refundResponse.getSubMsg());
+                }
+            } catch (AlipayApiException e) {
+                log.error("Admin alipay refund error: {}", e.getMessage(), e);
+            }
+        }
+
         order.setStatus(OrderStatus.CANCELLED.getCode());
         order.setCancelTime(LocalDateTime.now());
         orderMapper.updateById(order);
+        restoreGoodsStock(orderId);
+
+        FundLog refundLog = new FundLog();
+        refundLog.setOrderId(order.getId());
+        refundLog.setUserId(order.getBuyerId());
+        refundLog.setAmount(order.getTotalAmount());
+        refundLog.setType("REFUND");
+        refundLog.setStatus("SUCCESS");
+        refundLog.setTradeNo(order.getTradeNo());
+        refundLog.setRemark("管理员退款");
+        safeInsertFundLog(refundLog);
+
+        notificationService.sendNotification(order.getBuyerId(), "退款成功",
+                "管理员同意了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
+        notificationService.sendNotification(order.getSellerId(), "退款通知",
+                "管理员同意了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
+        return Result.success();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Result<Void> adminRejectRefund(Long orderId, String reason) {
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
+        String restoreStatus = order.getPreRefundStatus() != null ? order.getPreRefundStatus() : OrderStatus.PAID.getCode();
+        order.setStatus(restoreStatus);
+        order.setCancelReason(reason);
+        orderMapper.updateById(order);
+        notificationService.sendNotification(order.getBuyerId(), "退款被拒绝",
+                "管理员拒绝了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
+        notificationService.sendNotification(order.getSellerId(), "退款通知",
+                "管理员拒绝了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
+        return Result.success();
+    }
+
+    private String generateOrderNo() {
+        return "CT" + SnowflakeIdUtil.getInstance().nextIdStr();
+    }
+
+    private void restoreGoodsStock(Long orderId) {
         List<OrderItem> items = orderItemMapper.selectByOrderId(orderId);
         for (OrderItem item : items) {
             Goods goods = goodsMapper.selectById(item.getGoodsId());
@@ -423,30 +705,6 @@ public class OrderServiceImpl implements OrderService {
                 redisTemplate.delete(RedisConstant.GOODS_RECOMMEND_KEY);
             }
         }
-        notificationService.sendNotification(order.getBuyerId(), "退款成功",
-                "管理员同意了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
-        notificationService.sendNotification(order.getSellerId(), "退款通知",
-                "管理员同意了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
-        return Result.success();
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public Result<Void> adminRejectRefund(Long orderId, String reason) {
-        Order order = orderMapper.selectById(orderId);
-        if (order == null) return Result.error(ResultCode.ORDER_NOT_FOUND);
-        order.setStatus(OrderStatus.PAID.getCode());
-        order.setCancelReason(reason);
-        orderMapper.updateById(order);
-        notificationService.sendNotification(order.getBuyerId(), "退款被拒绝",
-                "管理员拒绝了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
-        notificationService.sendNotification(order.getSellerId(), "退款通知",
-                "管理员拒绝了订单「" + order.getOrderNo() + "」的退款", "ORDER", order.getId());
-        return Result.success();
-    }
-
-    private String generateOrderNo() {
-        return "CT" + SnowflakeIdUtil.getInstance().nextIdStr();
     }
 
     private OrderVO toVO(Order order) {
@@ -466,6 +724,9 @@ public class OrderServiceImpl implements OrderService {
         vo.setDeliveryMethod(order.getDeliveryMethod());
         vo.setAddress(order.getAddress());
         vo.setTrackingNo(order.getTrackingNo());
+        vo.setTradeNo(order.getTradeNo());
+        vo.setPreRefundStatus(order.getPreRefundStatus());
+        vo.setSellerPaymentConfigId(order.getSellerPaymentConfigId());
         vo.setCreateTime(order.getCreateTime());
 
         User buyer = userMapper.selectById(order.getBuyerId());
@@ -506,6 +767,9 @@ public class OrderServiceImpl implements OrderService {
             vo.setDeliveryMethod(order.getDeliveryMethod());
             vo.setAddress(order.getAddress());
             vo.setTrackingNo(order.getTrackingNo());
+            vo.setTradeNo(order.getTradeNo());
+            vo.setPreRefundStatus(order.getPreRefundStatus());
+            vo.setSellerPaymentConfigId(order.getSellerPaymentConfigId());
             vo.setCreateTime(order.getCreateTime());
 
             User buyer = userMap.get(order.getBuyerId());
@@ -527,6 +791,15 @@ public class OrderServiceImpl implements OrderService {
         vo.setGoodsTitle(item.getGoodsTitle());
         vo.setGoodsImage(item.getGoodsImage());
         vo.setPrice(item.getPrice());
+        vo.setQuantity(item.getQuantity());
         return vo;
+    }
+
+    private void safeInsertFundLog(FundLog fundLog) {
+        try {
+            fundLogMapper.insert(fundLog);
+        } catch (Exception e) {
+            log.warn("FundLog insert failed: {}", e.getMessage());
+        }
     }
 }

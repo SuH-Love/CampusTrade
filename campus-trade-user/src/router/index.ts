@@ -31,6 +31,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'following', name: 'Following', component: () => import('@/pages/Following.vue'), meta: { auth: true } },
       { path: 'cart', name: 'Cart', component: () => import('@/pages/Cart.vue'), meta: { auth: true } },
       { path: 'address', name: 'AddressManage', component: () => import('@/pages/AddressManage.vue'), meta: { auth: true } },
+      { path: 'payment-config', name: 'PaymentConfig', component: () => import('@/pages/PaymentConfig.vue'), meta: { auth: true } },
       { path: 'profile/:id?', name: 'Profile', component: () => import('@/pages/Profile.vue'), meta: { auth: true } },
       { path: 'order', name: 'Orders', component: () => import('@/pages/Orders.vue'), meta: { auth: true } },
       { path: 'order/:id', name: 'OrderDetail', component: () => import('@/pages/OrderDetail.vue'), meta: { auth: true } },

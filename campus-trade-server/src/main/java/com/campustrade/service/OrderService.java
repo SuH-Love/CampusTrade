@@ -13,6 +13,10 @@ public interface OrderService {
 
     Result<Void> payOrder(Long userId, Long orderId);
 
+    Result<String> createPayment(Long userId, Long orderId);
+
+    Result<Void> handlePayNotify(java.util.Map<String, String> params);
+
     Result<Void> shipOrder(Long userId, Long orderId, String trackingNo);
 
     Result<Void> finishOrder(Long userId, Long orderId);

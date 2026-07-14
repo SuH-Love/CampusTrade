@@ -85,5 +85,14 @@ file:
 cors:
   origins: http://localhost:*
 
+alipay:
+  app-id: ${ALIPAY_APP_ID:}
+  private-key: ${ALIPAY_PRIVATE_KEY:}
+  alipay-public-key: ${ALIPAY_PUBLIC_KEY:}
+  gateway: ${ALIPAY_GATEWAY:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
+  sign-type: RSA2
+  notify-url: ${ALIPAY_NOTIFY_URL:http://localhost/api/order/pay/notify}
+  return-url: ${ALIPAY_RETURN_URL:http://localhost:5173/order/}
+
 logging:
   config: classpath:log4j2.xml

@@ -62,6 +62,18 @@ const allRoutes: RouteRecordRaw[] = [
         name: 'LogCenter',
         component: () => import('@/pages/LogCenter.vue'),
         meta: { title: '日志中心', icon: 'Document', permission: 'log:manage' }
+      },
+      {
+        path: 'system-config',
+        name: 'SystemConfig',
+        component: () => import('@/pages/SystemConfig.vue'),
+        meta: { title: '系统配置', icon: 'Setting', permission: '' }
+      },
+      {
+        path: 'fund-log',
+        name: 'FundLogManage',
+        component: () => import('@/pages/FundLogManage.vue'),
+        meta: { title: '资金流水', icon: 'Coin', permission: '' }
       }
     ]
   },

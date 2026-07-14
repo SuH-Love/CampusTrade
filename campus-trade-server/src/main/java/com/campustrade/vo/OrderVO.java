@@ -26,6 +26,9 @@ public class OrderVO {
     private Integer deliveryMethod;
     private String address;
     private String trackingNo;
+    private String tradeNo;
+    private String preRefundStatus;
+    private Long sellerPaymentConfigId;
     private LocalDateTime createTime;
     private List<OrderItemVO> items;
 }

@@ -22,12 +22,15 @@ import com.campustrade.mapper.PermissionMapper;
 import com.campustrade.mapper.GoodsMapper;
 import com.campustrade.mapper.OrderMapper;
 import com.campustrade.mapper.SecurityLogMapper;
+import com.campustrade.mapper.FundLogMapper;
+import com.campustrade.entity.FundLog;
 import com.campustrade.entity.User;
 import com.campustrade.entity.Role;
 import com.campustrade.mapper.UserMapper;
 import com.campustrade.enum_.OrderStatus;
 import com.campustrade.enum_.GoodsStatus;
 import com.campustrade.service.NotificationService;
+import com.campustrade.service.SystemConfigService;
 import com.campustrade.util.SecurityUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -58,6 +61,9 @@ public class AdminController {
     private GoodsService goodsService;
 
     @Autowired
+    private SystemConfigService systemConfigService;
+
+    @Autowired
     private LogService logService;
 
     @Autowired
@@ -83,6 +89,9 @@ public class AdminController {
 
     @Autowired
     private SecurityLogMapper securityLogMapper;
+
+    @Autowired
+    private FundLogMapper fundLogMapper;
 
     @Autowired
 
@@ -284,5 +293,44 @@ public class AdminController {
             return "\"" + value.replace("\"", "\"\"") + "\"";
         }
         return value;
+    }
+
+    @ApiOperation("获取系统配置")
+    @GetMapping("/system-config")
+    public Result<List<com.campustrade.entity.SystemConfig>> listSystemConfig() {
+        return systemConfigService.listAll();
+    }
+
+    @ApiOperation("更新系统配置")
+    @PutMapping("/system-config")
+    public Result<Void> updateSystemConfig(@RequestBody List<com.campustrade.entity.SystemConfig> configs) {
+        return systemConfigService.batchUpdate(configs);
+    }
+
+    @ApiOperation("获取支付宝配置状态")
+    @GetMapping("/alipay-status")
+    public Result<Map<String, Object>> getAlipayStatus() {
+        Map<String, Object> status = new HashMap<>();
+        String appId = systemConfigService.getConfigValue("alipay.app_id");
+        String privateKey = systemConfigService.getDecryptedValue("alipay.private_key");
+        String alipayPublicKey = systemConfigService.getDecryptedValue("alipay.alipay_public_key");
+        status.put("configured", appId != null && !appId.isEmpty() && privateKey != null && !privateKey.isEmpty() && alipayPublicKey != null && !alipayPublicKey.isEmpty());
+        status.put("appId", appId != null && !appId.isEmpty() ? "已配置" : "未配置");
+        status.put("privateKey", privateKey != null && !privateKey.isEmpty() ? "已配置" : "未配置");
+        status.put("alipayPublicKey", alipayPublicKey != null && !alipayPublicKey.isEmpty() ? "已配置" : "未配置");
+        return Result.success(status);
+    }
+
+    @ApiOperation("资金流水列表")
+    @GetMapping("/fund-log")
+    public Result<PageResult<FundLog>> listFundLogs(
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Long orderId,
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "10") Integer pageSize) {
+        int offset = (pageNum - 1) * pageSize;
+        List<FundLog> list = fundLogMapper.selectAll(type, orderId, offset, pageSize);
+        Long total = fundLogMapper.selectCountAll(type, orderId);
+        return Result.success(new PageResult<>(list, total));
     }
 }
