@@ -336,6 +336,10 @@ onUnmounted(() => {
 .goods-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
 .goods-grid-item { min-width: 0; }
 
+@media (max-width: 1200px) { .goods-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 900px) { .goods-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .goods-grid { grid-template-columns: repeat(2, 1fr); } }
+
 
 @media (max-width: 768px) {
   .hero-slide { height: 200px; }

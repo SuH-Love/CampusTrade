@@ -103,6 +103,10 @@ onMounted(() => {
 .goods-grid-item { min-width: 0; }
 .list-pagination { margin-top: 20px; justify-content: center; }
 
+@media (max-width: 1200px) { .goods-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 900px) { .goods-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .goods-grid { grid-template-columns: repeat(2, 1fr); } }
+
 
 @media (max-width: 576px) {
   .goods-list { padding: 12px; }
