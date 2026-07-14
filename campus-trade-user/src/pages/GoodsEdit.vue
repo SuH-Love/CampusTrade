@@ -2,7 +2,12 @@
   <div class="goods-edit page-bg">
     <div class="page-container">
       <el-card>
-        <h2 class="section-title">编辑商品</h2>
+        <template #header>
+          <div class="detail-header">
+            <h3 class="m-0">编辑商品</h3>
+            <el-button @click="$router.back()">取消</el-button>
+          </div>
+        </template>
         <GoodsForm
           v-if="initialData"
           :initialData="initialData"
@@ -68,4 +73,5 @@ onMounted(async () => {
 .goods-edit {
   min-height: calc(100vh - 60px);
 }
+.detail-header { display: flex; justify-content: space-between; align-items: center; }
 </style>
