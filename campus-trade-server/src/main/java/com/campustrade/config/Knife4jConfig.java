@@ -29,7 +29,7 @@ public class Knife4jConfig {
 
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
-                .title("CampusTrade 校园二手交易平台 API文档")
+                .title("CampusTrade 校园贸易平台 API文档")
                 .description("CampusTrade 后端接口文档")
                 .contact(new Contact("CampusTrade", "", ""))
                 .version("1.0.0")

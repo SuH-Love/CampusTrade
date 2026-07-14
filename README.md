@@ -1,6 +1,6 @@
-# CampusTrade - 校园二手交易平台
+# CampusTrade - 校园贸易平台
 
-企业级前后端分离校园二手交易平台，基于 Spring Boot + Vue3 构建。
+企业级前后端分离校园贸易平台，基于 Spring Boot + Vue3 构建。
 
 ## 技术栈
 

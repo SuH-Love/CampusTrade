@@ -16,7 +16,7 @@
     <version>1.0.0</version>
     <packaging>jar</packaging>
     <name>campus-trade-server</name>
-    <description>CampusTrade - 校园二手交易平台</description>
+    <description>CampusTrade - 校园贸易平台</description>
 
     <properties>
         <java.version>11</java.version>

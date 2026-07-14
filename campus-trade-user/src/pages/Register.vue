@@ -1,5 +1,5 @@
 <template>
-  <AuthLayout subtitle="校园二手交易平台" :features="features">
+  <AuthLayout subtitle="校园贸易平台" :features="features">
     <h2>创建账号</h2>
     <p class="auth-subtitle">注册后即可发布和购买商品</p>
     <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleRegister" size="large">

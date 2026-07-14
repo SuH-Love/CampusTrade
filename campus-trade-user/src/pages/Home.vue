@@ -16,7 +16,7 @@
         <el-carousel-item v-if="banners.length === 0">
           <div class="hero-slide hero-default">
             <div class="hero-content">
-              <h1>校园二手交易平台</h1>
+              <h1>校园贸易平台</h1>
               <p>安全 · 便捷 · 值得信赖的校园闲置好物流转平台</p>
               <el-button type="primary" size="large" round @click="$router.push('/goods')">浏览商品</el-button>
             </div>

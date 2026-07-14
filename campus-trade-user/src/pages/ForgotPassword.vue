@@ -1,5 +1,5 @@
 <template>
-  <AuthLayout subtitle="校园二手交易平台">
+  <AuthLayout subtitle="校园贸易平台">
     <h2>重置密码</h2>
     <p class="auth-subtitle">通过用户名和注册手机号验证身份</p>
     <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleSubmit" size="large">

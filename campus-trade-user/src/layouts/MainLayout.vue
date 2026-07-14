@@ -104,7 +104,7 @@
           <router-link to="/goods/publish">发布商品</router-link>
           <router-link to="/about">关于我们</router-link>
         </div>
-        <div class="footer-copy">&copy; 2026 CampusTrade 校园二手交易平台 · 安全 · 便捷 · 值得信赖</div>
+        <div class="footer-copy">&copy; 2026 CampusTrade 校园贸易平台 · 安全 · 便捷 · 值得信赖</div>
       </div>
     </el-footer>
     <el-drawer v-model="drawerVisible" direction="ltr" size="260px" :show-close="false">
