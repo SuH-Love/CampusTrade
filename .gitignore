@@ -12,7 +12,7 @@ target/
 .arts/
 
 # Docs
-campus-trade-docs/
+
 *.iml
 *.iws
 *.ipr
