@@ -109,9 +109,6 @@ onMounted(loadData)
 .favorites-grid-item { min-width: 0; }
 .list-pagination { margin-top: 20px; justify-content: center; }
 
-@media (max-width: 1200px) { .favorites-grid { grid-template-columns: repeat(5, 1fr); } }
-@media (max-width: 900px) { .favorites-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 600px) { .favorites-grid { grid-template-columns: repeat(2, 1fr); } }
 
 @media (max-width: 576px) {
   .favorites-page { padding: 12px; }
