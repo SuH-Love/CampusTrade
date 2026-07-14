@@ -154,7 +154,7 @@ const props = withDefaults(defineProps<GoodsFormProps>(), {
 
 const emit = defineEmits<{
   submit: [data: GoodsCreateParams]
-  cancel: []
+
 }>()
 
 const formRef = ref<FormInstance>()
@@ -245,9 +245,6 @@ const prevStep = () => {
   }
 }
 
-const handleCancel = () => {
-  emit('cancel')
-}
 
 const handleSubmit = () => {
   if (form.price <= 0) {
