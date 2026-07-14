@@ -243,7 +243,7 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   align-items: center;
-  padding: 0 28px;
+  padding: 0 24px;
   gap: 8px;
 }
 
@@ -380,7 +380,7 @@ onUnmounted(() => {
 .footer-inner {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 28px 28px 20px;
+  padding: 28px 24px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
