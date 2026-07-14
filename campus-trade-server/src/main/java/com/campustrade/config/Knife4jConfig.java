@@ -30,9 +30,9 @@ public class Knife4jConfig {
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
                 .title("CampusTrade 校园贸易平台 API文档")
-                .description("CampusTrade 后端接口文档")
+                .description("CampusTrade 校园贸易平台后端接口文档，包含用户认证、商品管理、订单交易、支付宝担保支付、实时聊天、管理后台等全部接口")
                 .contact(new Contact("CampusTrade", "", ""))
-                .version("1.0.0")
+                .version("2.0.0")
                 .build();
     }
 }
