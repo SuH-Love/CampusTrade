@@ -7,7 +7,9 @@ import com.campustrade.constant.RedisConstant;
 import com.campustrade.dto.ChatSendDTO;
 import com.campustrade.entity.ChatMessage;
 import com.campustrade.entity.User;
+import com.campustrade.entity.UserBlacklist;
 import com.campustrade.mapper.ChatMessageMapper;
+import com.campustrade.mapper.UserBlacklistMapper;
 import com.campustrade.mapper.UserMapper;
 import com.campustrade.service.ChatService;
 import com.campustrade.vo.ChatMessageVO;
@@ -30,6 +32,9 @@ public class ChatServiceImpl implements ChatService {
     private ChatMessageMapper chatMessageMapper;
 
     @Autowired
+    private UserBlacklistMapper blacklistMapper;
+
+    @Autowired
     private UserMapper userMapper;
 
     @Autowired
@@ -43,6 +48,10 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public Result<Void> sendMessage(Long senderId, ChatSendDTO dto) {
+        UserBlacklist blocked = blacklistMapper.selectByUserAndBlocked(dto.getReceiverId(), senderId);
+        if (blocked != null) return Result.error(403, "对方已将你屏蔽");
+        UserBlacklist iBlocked = blacklistMapper.selectByUserAndBlocked(senderId, dto.getReceiverId());
+        if (iBlocked != null) return Result.error(403, "你已屏蔽对方，无法发送消息");
         ChatMessage message = new ChatMessage();
         message.setSenderId(senderId);
         message.setReceiverId(dto.getReceiverId());

@@ -8,7 +8,9 @@ import com.campustrade.mapper.UserMapper;
 import com.campustrade.util.SecurityUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -16,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Api(tags = "黑名单接口")
 @RestController
 @RequestMapping("/api/blacklist")
@@ -26,6 +29,9 @@ public class BlacklistController {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     @ApiOperation("屏蔽用户")
     @PostMapping("/{blockedId}")
@@ -42,6 +48,7 @@ public class BlacklistController {
         } catch (Exception e) {
             blacklistMapper.restoreByUserAndBlocked(userId, blockedId);
         }
+        pushBlockStatus(userId, blockedId, true);
         return Result.success();
     }
 
@@ -51,6 +58,7 @@ public class BlacklistController {
         Long userId = SecurityUtil.requireCurrentUserId();
         UserBlacklist existing = blacklistMapper.selectByUserAndBlocked(userId, blockedId);
         if (existing != null) blacklistMapper.deleteById(existing.getId());
+        pushBlockStatus(userId, blockedId, false);
         return Result.success();
     }
 
@@ -81,5 +89,27 @@ public class BlacklistController {
         Long userId = SecurityUtil.requireCurrentUserId();
         UserBlacklist existing = blacklistMapper.selectByUserAndBlocked(userId, blockedId);
         return Result.success(existing != null);
+    }
+
+    @ApiOperation("是否被对方屏蔽")
+    @GetMapping("/is-blocked-by/{userId}")
+    public Result<Boolean> isBlockedBy(@PathVariable Long userId) {
+        Long myId = SecurityUtil.requireCurrentUserId();
+        UserBlacklist existing = blacklistMapper.selectByUserAndBlocked(userId, myId);
+        return Result.success(existing != null);
+    }
+
+    private void pushBlockStatus(Long blockerId, Long blockedId, boolean blocked) {
+        String type = blocked ? "BLOCKED" : "UNBLOCKED";
+        try {
+            messagingTemplate.convertAndSendToUser(
+                    String.valueOf(blockerId), "/queue/chat",
+                    Map.of("type", type, "userId", blockedId));
+            messagingTemplate.convertAndSendToUser(
+                    String.valueOf(blockedId), "/queue/chat",
+                    Map.of("type", "BLOCKED_BY", "userId", blockerId, "blocked", blocked));
+        } catch (Exception e) {
+            log.warn("STOMP push block status failed: {}", e.getMessage());
+        }
     }
 }

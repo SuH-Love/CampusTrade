@@ -19,9 +19,7 @@
           <div class="contact-name" @click.stop="router.push(`/profile/${contact.userId}`)">{{ contact.name }}</div>
           <div class="contact-last">{{ contact.lastMessage }}</div>
         </div>
-        <el-button size="small" type="danger" plain round @click.stop="emit('block', contact)" title="屏蔽" class="block-btn">
-          <el-icon class="icon-mr-xs"><Close /></el-icon>屏蔽
-        </el-button>
+        <el-icon v-if="blockedSet.has(contact.userId)" class="blocked-icon" :size="20" title="已屏蔽"><Warning /></el-icon>
       </div>
     </div>
     <el-empty v-if="filteredContacts.length === 0" description="暂无会话" :image-size="60" />
@@ -31,6 +29,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { Warning } from '@element-plus/icons-vue'
 import type { ContactItem } from '@/types'
 
 const props = defineProps<{
@@ -39,12 +38,12 @@ const props = defineProps<{
   onlineUsers: Set<number>
   searchKeyword: string
   connected: boolean
+  blockedSet: Set<number>
 }>()
 
 const emit = defineEmits<{
   select: [contact: ContactItem]
   search: [keyword: string]
-  block: [contact: ContactItem]
 }>()
 
 const router = useRouter()
@@ -89,6 +88,5 @@ const filteredContacts = computed(() => {
 .contact-info { flex: 1; overflow: hidden; }
 .contact-name { font-weight: 600; font-size: 14px; cursor: pointer; }
 .contact-last { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
-.block-btn { flex-shrink: 0; font-size: 12px; }
-.icon-mr-xs { margin-right: 2px; }
+.blocked-icon { flex-shrink: 0; color: var(--danger); }
 </style>

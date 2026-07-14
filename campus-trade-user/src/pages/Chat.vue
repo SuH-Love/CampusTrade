@@ -7,9 +7,9 @@
         :online-users="onlineUsers"
         :search-keyword="sidebarSearchKeyword"
         :connected="connected"
+        :blocked-set="iBlockedSet"
         @select="selectContact"
         @search="sidebarSearchKeyword = $event"
-        @block="handleBlock"
       />
       <el-main class="chat-main">
         <template v-if="currentTarget">
@@ -18,8 +18,10 @@
             <span v-if="typingHint" class="header-typing">{{ typingHint }}</span>
             <span v-else-if="isOnline(currentTarget!)" class="header-online">在线</span>
             <span v-else class="header-offline">离线</span>
-            <div class="header-search">
+            <div class="header-actions">
               <el-button size="small" circle @click="toggleSearch"><el-icon><Search /></el-icon></el-button>
+              <el-button v-if="iBlockedTarget" size="small" type="warning" plain round @click="handleUnblock">解除屏蔽</el-button>
+              <el-button v-else size="small" type="danger" plain round @click="handleBlockCurrent">屏蔽</el-button>
             </div>
           </div>
           <div v-if="showSearch" class="search-bar">
@@ -98,13 +100,15 @@
           </div>
           <ChatInput
             :current-target="currentTarget"
-            :disabled="sending"
+            :disabled="sending || blockedByTarget || iBlockedTarget"
             @send="handleSendFromInput"
             @send-goods="showGoodsPicker = true"
             @send-order="showOrderPicker = true"
             @send-image="handleSendImage"
             @typing="handleTypingFromInput"
           />
+          <div v-if="blockedByTarget" class="blocked-hint">对方已将你屏蔽，无法发送消息</div>
+          <div v-else-if="iBlockedTarget" class="blocked-hint">你已屏蔽对方，<el-button type="primary" link @click="handleUnblock">解除屏蔽</el-button>后可继续聊天</div>
         </template>
         <div v-else class="chat-empty"><el-empty description="选择联系人开始聊天" /></div>
       </el-main>
@@ -153,7 +157,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getRecentContacts, getHistory, getUnreadCount, recallMessage } from '@/api/chat'
-import { blockUser } from '@/api/blacklist'
+import { blockUser, isBlocked, isBlockedBy, unblockUser, getBlacklist } from '@/api/blacklist'
 import { uploadImage } from '@/api/file'
 import { getGoodsList, type GoodsVO } from '@/api/goods'
 import { getBuyerOrders, type OrderVO } from '@/api/order'
@@ -221,6 +225,9 @@ let tempIdCounter = 0
 let recallTimer: ReturnType<typeof setInterval> | null = null
 
 const sidebarSearchKeyword = ref('')
+const blockedByTarget = ref(false)
+const iBlockedTarget = ref(false)
+const iBlockedSet = ref<Set<number>>(new Set())
 
 const contextMenu = ref<{ visible: boolean; x: number; y: number; msg: DisplayMessage | null; canRecall: boolean; canCopy: boolean }>({
   visible: false, x: 0, y: 0, msg: null, canRecall: false, canCopy: false
@@ -407,6 +414,13 @@ const loadContacts = async () => {
 
 const selectContact = async (contact: ContactItem) => {
   contact.unread = 0
+  try {
+    iBlockedTarget.value = !!(await isBlocked(contact.userId))
+    blockedByTarget.value = !!(await isBlockedBy(contact.userId))
+    const s = new Set(iBlockedSet.value)
+    if (iBlockedTarget.value) s.add(contact.userId); else s.delete(contact.userId)
+    iBlockedSet.value = s
+  } catch { iBlockedTarget.value = false; blockedByTarget.value = false }
   router.replace(`/chat/${contact.userId}`)
 }
 
@@ -464,6 +478,13 @@ const handleSendFromInput = async (text: string) => {
     sendStopTyping(targetId)
     lastTypingSent = false
     updateContactLastMessage(targetId, text, 1)
+  } catch (e: any) {
+    const msgIdx = messages.value.findIndex(m => m._tempId === tempMsg._tempId)
+    if (msgIdx > -1) messages.value.splice(msgIdx, 1)
+    if (e?.response?.data?.code === 403) {
+      blockedByTarget.value = true
+      ElMessage.warning(e.response.data.message || '无法发送消息')
+    }
   } finally {
     sending.value = false
   }
@@ -653,13 +674,29 @@ const handleRecall = async (msg: DisplayMessage) => {
   } catch (e) { console.error(e) }
 }
 
-const handleBlock = async (contact: ContactItem) => {
+const handleBlockCurrent = async () => {
+  if (!currentTarget.value) return
   try {
-    await ElMessageBox.confirm(`确定屏蔽「${contact.name}」？屏蔽后对方无法给你发消息`, '屏蔽用户', { type: 'warning' })
-    await blockUser(contact.userId)
+    await ElMessageBox.confirm(`确定屏蔽「${currentContactName.value}」？屏蔽后双方无法互相发消息`, '屏蔽用户', { type: 'warning' })
+    await blockUser(currentTarget.value)
+    iBlockedTarget.value = true
+    const s = new Set(iBlockedSet.value)
+    s.add(currentTarget.value)
+    iBlockedSet.value = s
     ElMessage.success('已屏蔽')
-    if (currentTarget.value === contact.userId) currentTarget.value = null
-    loadContacts()
+  } catch (e) { console.error(e) }
+}
+
+const handleUnblock = async () => {
+  if (!currentTarget.value) return
+  try {
+    await ElMessageBox.confirm(`确定解除屏蔽「${currentContactName.value}」？`, '解除屏蔽', { type: 'info' })
+    await unblockUser(currentTarget.value)
+    iBlockedTarget.value = false
+    const s = new Set(iBlockedSet.value)
+    s.delete(currentTarget.value)
+    iBlockedSet.value = s
+    ElMessage.success('已解除屏蔽')
   } catch (e) { console.error(e) }
 }
 
@@ -763,6 +800,18 @@ const removeWsHandler = onChatMessage((msg) => {
         m.isRead = 1
       }
     })
+  } else if (msg.type === 'BLOCKED' && msg.userId) {
+    iBlockedTarget.value = true
+    const s = new Set(iBlockedSet.value)
+    s.add(msg.userId)
+    iBlockedSet.value = s
+  } else if (msg.type === 'UNBLOCKED' && msg.userId) {
+    iBlockedTarget.value = false
+    const s = new Set(iBlockedSet.value)
+    s.delete(msg.userId)
+    iBlockedSet.value = s
+  } else if (msg.type === 'BLOCKED_BY' && msg.userId) {
+    blockedByTarget.value = !!msg.blocked
   }
 })
 
@@ -801,6 +850,13 @@ const switchToContact = async (userId: number): Promise<boolean> => {
     const name = userInfo.nickname || userInfo.username || `用户${userId}`
     currentTarget.value = userId
     currentContactName.value = name
+    try {
+      iBlockedTarget.value = !!(await isBlocked(userId))
+      blockedByTarget.value = !!(await isBlockedBy(userId))
+      const s = new Set(iBlockedSet.value)
+      if (iBlockedTarget.value) s.add(userId); else s.delete(userId)
+      iBlockedSet.value = s
+    } catch { iBlockedTarget.value = false; blockedByTarget.value = false }
     const existing = contacts.value.find(c => c.userId === userId)
     if (existing) {
       existing.unread = 0
@@ -832,6 +888,13 @@ onMounted(async () => {
 
   await loadContacts()
 
+  try {
+    const blList = await getBlacklist()
+    if (Array.isArray(blList)) {
+      iBlockedSet.value = new Set(blList.map((b: any) => b.blockedId))
+    }
+  } catch (e) { console.error(e) }
+
   if (queryTarget) {
     const ok = await switchToContact(queryTarget)
     if (!ok) {
@@ -860,9 +923,11 @@ onMounted(async () => {
         scrollToBottom()
         updateContactLastMessage(queryTarget, content, 3)
       } catch (e) { console.error(e) }
-    }
-    if (String(route.params.userId) !== String(queryTarget)) {
       router.replace(`/chat/${queryTarget}`)
+    } else {
+      if (String(route.params.userId) !== String(queryTarget)) {
+        router.replace(`/chat/${queryTarget}`)
+      }
     }
   }
 })
@@ -881,7 +946,7 @@ onUnmounted(() => {
 .chat-container { height: calc(100vh - 112px); }
 .chat-main { display: flex; flex-direction: column; padding: 0; background: var(--bg-card); border-radius: 0 var(--radius-lg) var(--radius-lg) 0; }
 .chat-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
-.header-search { margin-left: auto; }
+.header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .search-bar { padding: 8px 20px; border-bottom: 1px solid var(--border); background: var(--bg-hover); display: flex; align-items: center; }
 .search-nav { display: flex; align-items: center; gap: 2px; }
 .search-count { font-size: 12px; color: var(--text-muted); margin-right: 4px; white-space: nowrap; }
@@ -929,6 +994,7 @@ onUnmounted(() => {
 .picker-item-img { width: 48px; height: 48px; border-radius: 6px; flex-shrink: 0; }
 .date-separator { display: flex; align-items: center; justify-content: center; padding: 4px 0; }
 .date-separator-text { font-size: 12px; color: var(--text-muted); background: var(--bg-hover); padding: 4px 14px; border-radius: 12px; user-select: none; }
+.blocked-hint { text-align: center; padding: 8px; font-size: 13px; color: var(--text-muted); background: var(--bg-hover); border-top: 1px solid var(--border); }
 </style>
 
 <style lang="scss">

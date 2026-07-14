@@ -3,7 +3,9 @@ package com.campustrade.controller;
 import com.campustrade.dto.WsChatMessage;
 import com.campustrade.entity.ChatMessage;
 import com.campustrade.entity.User;
+import com.campustrade.entity.UserBlacklist;
 import com.campustrade.mapper.ChatMessageMapper;
+import com.campustrade.mapper.UserBlacklistMapper;
 import com.campustrade.mapper.UserMapper;
 import com.campustrade.security.StompPrincipal;
 import com.campustrade.vo.ChatMessageVO;
@@ -29,6 +31,9 @@ public class StompChatController {
     private ChatMessageMapper chatMessageMapper;
 
     @Autowired
+    private UserBlacklistMapper blacklistMapper;
+
+    @Autowired
     private UserMapper userMapper;
 
     @MessageMapping("/chat.send")
@@ -39,6 +44,11 @@ public class StompChatController {
         if (wsMsg.getReceiverId() == null || wsMsg.getContent() == null || wsMsg.getContent().trim().isEmpty()) {
             return;
         }
+
+        UserBlacklist blocked = blacklistMapper.selectByUserAndBlocked(wsMsg.getReceiverId(), senderId);
+        if (blocked != null) return;
+        UserBlacklist iBlocked = blacklistMapper.selectByUserAndBlocked(senderId, wsMsg.getReceiverId());
+        if (iBlocked != null) return;
 
         ChatMessage message = new ChatMessage();
         message.setSenderId(senderId);

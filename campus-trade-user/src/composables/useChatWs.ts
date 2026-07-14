@@ -6,10 +6,11 @@ import type { ChatMessageVO } from '@/api/chat'
 import type { NotificationVO } from '@/api/notification'
 
 export interface ChatWsMessage {
-  type: 'CHAT' | 'TYPING' | 'STOP_TYPING' | 'READ' | 'ONLINE_STATUS'
+  type: 'CHAT' | 'TYPING' | 'STOP_TYPING' | 'READ' | 'ONLINE_STATUS' | 'BLOCKED' | 'UNBLOCKED' | 'BLOCKED_BY'
   data?: ChatMessageVO
   userId?: number
   online?: boolean
+  blocked?: boolean
 }
 
 const connected = ref(false)
@@ -121,7 +122,8 @@ function subscribe(client: Client) {
           chatUnreadMap.value = m
         }
         chatHandlers.value.forEach(h => h({ type: 'CHAT', data: chatMsg }))
-      } else if (body.type === 'TYPING' || body.type === 'STOP_TYPING' || body.type === 'READ') {
+      } else if (body.type === 'TYPING' || body.type === 'STOP_TYPING' || body.type === 'READ'
+                 || body.type === 'BLOCKED' || body.type === 'UNBLOCKED' || body.type === 'BLOCKED_BY') {
         chatHandlers.value.forEach(h => h(body as ChatWsMessage))
       }
     } catch { /* ignore */ }

@@ -12,3 +12,4 @@ export const blockUser = (blockedId: number) => request.post(`/blacklist/${block
 export const unblockUser = (blockedId: number) => request.delete(`/blacklist/${blockedId}`)
 export const getBlacklist = () => request.get<never, BlacklistItem[]>('/blacklist')
 export const isBlocked = (blockedId: number) => request.get<never, boolean>(`/blacklist/is-blocked/${blockedId}`)
+export const isBlockedBy = (userId: number) => request.get<never, boolean>(`/blacklist/is-blocked-by/${userId}`)
