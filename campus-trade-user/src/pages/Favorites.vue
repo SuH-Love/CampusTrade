@@ -13,9 +13,9 @@
         </div>
       </div>
       <TransitionGroup name="list" tag="div" class="favorites-grid" v-loading="loading" @before-enter="onBeforeEnter" @enter="onEnter">
-        <el-col :xs="12" :sm="8" :md="6" v-for="(item, idx) in goodsList" :key="item.id" :data-idx="idx">
+        <div v-for="(item, idx) in goodsList" :key="item.id" class="favorites-grid-item" :data-idx="idx">
           <GoodsCard :goods="item" :clickable="item.status === 'ONLINE'" :show-meta="true" :show-unfav="true" @unfavorite="handleUnfavorite" />
-        </el-col>
+        </div>
       </TransitionGroup>
       <EmptyState v-if="goodsList.length === 0 && !loading" icon="❤️" title="暂无收藏" description="去逛逛商品列表，收藏你喜欢的宝贝吧" action-text="去逛逛" @action="$router.push('/goods')" />
       <el-pagination v-if="total > 0" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
@@ -105,7 +105,8 @@ onMounted(loadData)
 .filter-bar { display: flex; gap: 12px; align-items: center; }
 .search-input { width: 200px; }
 .status-select { width: 140px; }
-.favorites-grid { margin-top: 8px; }
+.favorites-grid { margin-top: 8px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.favorites-grid-item { min-width: 0; }
 .list-pagination { margin-top: 20px; justify-content: center; }
 
 @media (max-width: 576px) {

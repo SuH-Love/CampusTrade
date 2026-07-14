@@ -479,9 +479,9 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void alterOrderTableAddPaymentFields() {
-        try { jdbcTemplate.execute("ALTER TABLE t_order ADD COLUMN trade_no VARCHAR(64) DEFAULT NULL COMMENT '支付宝交易号' AFTER tracking_no"); } catch (Exception ignored) {}
-        try { jdbcTemplate.execute("ALTER TABLE t_order ADD COLUMN pre_refund_status VARCHAR(20) DEFAULT NULL COMMENT '退款前状态' AFTER trade_no"); } catch (Exception ignored) {}
-        try { jdbcTemplate.execute("ALTER TABLE t_order ADD COLUMN seller_payment_config_id BIGINT DEFAULT NULL COMMENT '卖家收款配置ID' AFTER pre_refund_status"); } catch (Exception ignored) {}
+        try { jdbcTemplate.execute("ALTER TABLE t_order ADD COLUMN trade_no VARCHAR(64) DEFAULT NULL COMMENT '支付宝交易号' AFTER tracking_no"); log.info("Added column trade_no to t_order"); } catch (Exception e) { log.info("Column trade_no already exists or add failed: {}", e.getMessage()); }
+        try { jdbcTemplate.execute("ALTER TABLE t_order ADD COLUMN pre_refund_status VARCHAR(20) DEFAULT NULL COMMENT '退款前状态' AFTER trade_no"); log.info("Added column pre_refund_status to t_order"); } catch (Exception e) { log.info("Column pre_refund_status already exists or add failed: {}", e.getMessage()); }
+        try { jdbcTemplate.execute("ALTER TABLE t_order ADD COLUMN seller_payment_config_id BIGINT DEFAULT NULL COMMENT '卖家收款配置ID' AFTER pre_refund_status"); log.info("Added column seller_payment_config_id to t_order"); } catch (Exception e) { log.info("Column seller_payment_config_id already exists or add failed: {}", e.getMessage()); }
     }
 
     private void createSystemConfigTableIfNeeded() {

@@ -7,7 +7,8 @@ export const moduleLabel = (mod: string): string => {
     SellerRating: '商家评价', NotificationPreference: '通知偏好',
     Banner: '横幅', OrderItem: '订单项', GoodsFavorite: '商品收藏',
     OperationLog: '操作日志', SecurityLog: '安全日志',
-    Announcement: '系统公告', UserBlacklist: '黑名单'
+    Announcement: '系统公告', UserBlacklist: '黑名单',
+    PaymentConfig: '收款配置', FundLog: '资金流水', SystemConfig: '系统配置'
   }
   return map[mod] || mod
 }
@@ -51,7 +52,12 @@ export const operationLabel = (op: string): string => {
     getActiveAnnouncements: '获取公告', listAnnouncements: '公告列表', createAnnouncement: '创建公告', updateAnnouncement: '编辑公告', deleteAnnouncement: '删除公告',
     exportUsers: '导出用户CSV', exportOrders: '导出订单CSV',
     recallMessage: '撤回消息', resetPassword: '重置密码',
-    createCategory: '创建分类', updateCategory: '编辑分类', deleteCategory: '删除分类'
+    createCategory: '创建分类', updateCategory: '编辑分类', deleteCategory: '删除分类',
+    createPayment: '创建支付', payNotify: '支付通知', payOrder: '模拟支付',
+    getDefault: '获取默认收款', setDefault: '设为默认收款',
+    listSystemConfig: '获取系统配置', updateSystemConfig: '更新系统配置',
+    getAlipayStatus: '支付宝配置状态', listFundLogs: '资金流水列表',
+    adminApproveRefund: '管理员同意退款', adminRejectRefund: '管理员拒绝退款'
   }
   return map[op] || op
 }
