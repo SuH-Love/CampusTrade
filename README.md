@@ -56,25 +56,20 @@ CampusTrade/
 
 ### 本地开发
 
-1. 创建数据库：
-```sql
-CREATE DATABASE campus_trade DEFAULT CHARACTER SET utf8mb4;
-```
-
-2. 启动后端（DataInitializer 自动建表和初始化数据）：
+1. 启动后端（数据库和表会自动创建，无需手动建库建表）：
 ```bash
 cd campus-trade-server
 # 修改 application.yml 中的数据库/Redis连接信息
 mvn spring-boot:run
 ```
 
-3. 启动用户端前端：
+2. 启动用户端前端：
 ```bash
 cd campus-trade-user
 npm install && npm run dev
 ```
 
-4. 启动管理端前端：
+3. 启动管理端前端：
 ```bash
 cd campus-trade-admin
 npm install && npm run dev
