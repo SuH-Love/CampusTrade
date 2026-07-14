@@ -615,7 +615,7 @@ public class DataInitializer implements CommandLineRunner {
         Long count = bannerMapper.selectCount();
         if (count == null || count == 0) {
             insertBanner("CampusTrade 校园贸易平台", "安全 · 便捷 · 值得信赖的校园闲置好物流转平台", null, "/goods", "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%)", "浏览商品", null, 1, 1);
-            insertBanner("闲置好物 低价淘", "学长学姐的优质好物，超值价格等你来", null, "/goods", "linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%)", "立即淘宝", null, 2, 1);
+            insertBanner("闲置好物 低价淘", "学长学姐的优质好物，超值价格等你来", null, "/goods", "linear-gradient(135deg, #ec4899, #8b5cf6)", "立即淘宝", null, 2, 1);
             insertBanner("发布闲置 轻松变现", "一键发布，快速找到买家，让闲置不再闲置", null, "/goods/publish", "linear-gradient(135deg, #dc2626 0%, #f97316 50%, #fbbf24 100%)", "发布商品", null, 3, 1);
             log.info("Default banners initialized");
         }
