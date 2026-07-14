@@ -154,6 +154,284 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void createTables() {
+        executeSql("CREATE TABLE IF NOT EXISTS t_user (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "username VARCHAR(50) NOT NULL," +
+            "password VARCHAR(100) NOT NULL," +
+            "nickname VARCHAR(50) DEFAULT NULL," +
+            "phone VARCHAR(20) DEFAULT NULL," +
+            "email VARCHAR(100) DEFAULT NULL," +
+            "avatar VARCHAR(255) DEFAULT NULL," +
+            "real_name VARCHAR(50) DEFAULT NULL," +
+            "student_id VARCHAR(50) DEFAULT NULL," +
+            "real_verified TINYINT DEFAULT 0," +
+            "status TINYINT DEFAULT 1," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted TINYINT DEFAULT 0," +
+            "version INT DEFAULT 0," +
+            "UNIQUE KEY uk_username (username)," +
+            "KEY idx_status (status)," +
+            "KEY idx_create_time (create_time)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_role (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "role_name VARCHAR(50) NOT NULL," +
+            "role_code VARCHAR(50) NOT NULL," +
+            "description VARCHAR(200) DEFAULT NULL," +
+            "status TINYINT DEFAULT 1," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted TINYINT DEFAULT 0," +
+            "version INT DEFAULT 0," +
+            "UNIQUE KEY uk_role_code (role_code)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_permission (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "permission_name VARCHAR(50) NOT NULL," +
+            "permission_code VARCHAR(50) NOT NULL," +
+            "resource_type TINYINT DEFAULT 1," +
+            "parent_id BIGINT DEFAULT 0," +
+            "sort_order INT DEFAULT 0," +
+            "status TINYINT DEFAULT 1," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted TINYINT DEFAULT 0," +
+            "version INT DEFAULT 0," +
+            "UNIQUE KEY uk_permission_code (permission_code)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_user_role (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "user_id BIGINT NOT NULL," +
+            "role_id BIGINT NOT NULL," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted TINYINT DEFAULT 0," +
+            "version INT DEFAULT 0," +
+            "KEY idx_user_id (user_id)," +
+            "KEY idx_role_id (role_id)," +
+            "UNIQUE KEY uk_user_role (user_id, role_id)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_role_permission (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "role_id BIGINT NOT NULL," +
+            "permission_id BIGINT NOT NULL," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted TINYINT DEFAULT 0," +
+            "version INT DEFAULT 0," +
+            "KEY idx_role_id (role_id)," +
+            "KEY idx_permission_id (permission_id)," +
+            "UNIQUE KEY uk_role_permission (role_id, permission_id)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_goods_category (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "category_name VARCHAR(50) NOT NULL," +
+            "parent_id BIGINT DEFAULT 0," +
+            "sort_order INT DEFAULT 0," +
+            "icon VARCHAR(255) DEFAULT NULL," +
+            "status TINYINT DEFAULT 1," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted TINYINT DEFAULT 0," +
+            "version INT DEFAULT 0," +
+            "KEY idx_parent_id (parent_id)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_goods (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "user_id BIGINT NOT NULL," +
+            "category_id BIGINT NOT NULL," +
+            "title VARCHAR(200) NOT NULL," +
+            "description TEXT," +
+            "price DECIMAL(10,2) NOT NULL," +
+            "original_price DECIMAL(10,2) DEFAULT NULL," +
+            "`condition` VARCHAR(20) DEFAULT NULL," +
+            "cover_image VARCHAR(255) DEFAULT NULL," +
+            "images TEXT," +
+            "status VARCHAR(20) NOT NULL DEFAULT 'DRAFT'," +
+            "reject_reason VARCHAR(500) DEFAULT NULL," +
+            "view_count INT DEFAULT 0," +
+            "favorite_count INT DEFAULT 0," +
+            "stock INT DEFAULT 1," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted TINYINT DEFAULT 0," +
+            "version INT DEFAULT 0," +
+            "KEY idx_user_id (user_id)," +
+            "KEY idx_category_id (category_id)," +
+            "KEY idx_status (status)," +
+            "KEY idx_create_time (create_time)," +
+            "KEY idx_user_status (user_id, status)," +
+            "KEY idx_goods_status (id, status)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_goods_favorite (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "user_id BIGINT NOT NULL," +
+            "goods_id BIGINT NOT NULL," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted TINYINT DEFAULT 0," +
+            "version INT DEFAULT 0," +
+            "KEY idx_user_id (user_id)," +
+            "KEY idx_goods_id (goods_id)," +
+            "UNIQUE KEY uk_user_goods (user_id, goods_id)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_order (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "order_no VARCHAR(64) NOT NULL," +
+            "buyer_id BIGINT NOT NULL," +
+            "seller_id BIGINT NOT NULL," +
+            "total_amount DECIMAL(10,2) NOT NULL," +
+            "status VARCHAR(20) NOT NULL DEFAULT 'PENDING_PAY'," +
+            "remark VARCHAR(500) DEFAULT NULL," +
+            "delivery_method TINYINT DEFAULT 1," +
+            "address VARCHAR(500) DEFAULT NULL," +
+            "tracking_no VARCHAR(64) DEFAULT NULL," +
+            "trade_no VARCHAR(64) DEFAULT NULL," +
+            "pre_refund_status VARCHAR(20) DEFAULT NULL," +
+            "seller_payment_config_id BIGINT DEFAULT NULL," +
+            "pay_time DATETIME DEFAULT NULL," +
+            "ship_time DATETIME DEFAULT NULL," +
+            "finish_time DATETIME DEFAULT NULL," +
+            "cancel_time DATETIME DEFAULT NULL," +
+            "cancel_reason VARCHAR(500) DEFAULT NULL," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted TINYINT DEFAULT 0," +
+            "version INT DEFAULT 0," +
+            "UNIQUE KEY uk_order_no (order_no)," +
+            "KEY idx_buyer_id (buyer_id)," +
+            "KEY idx_seller_id (seller_id)," +
+            "KEY idx_status (status)," +
+            "KEY idx_create_time (create_time)," +
+            "KEY idx_buyer_status (buyer_id, status)," +
+            "KEY idx_seller_status (seller_id, status)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_order_item (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "order_id BIGINT NOT NULL," +
+            "goods_id BIGINT NOT NULL," +
+            "goods_title VARCHAR(200) NOT NULL," +
+            "goods_image VARCHAR(255) DEFAULT NULL," +
+            "price DECIMAL(10,2) NOT NULL," +
+            "quantity INT DEFAULT 1," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted TINYINT DEFAULT 0," +
+            "version INT DEFAULT 0," +
+            "KEY idx_order_id (order_id)," +
+            "KEY idx_goods_id (goods_id)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_chat_message (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "sender_id BIGINT NOT NULL," +
+            "receiver_id BIGINT NOT NULL," +
+            "content TEXT NOT NULL," +
+            "message_type TINYINT DEFAULT 1," +
+            "is_read TINYINT DEFAULT 0," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted TINYINT DEFAULT 0," +
+            "version INT DEFAULT 0," +
+            "KEY idx_sender_id (sender_id)," +
+            "KEY idx_receiver_id (receiver_id)," +
+            "KEY idx_create_time (create_time)," +
+            "KEY idx_sender_receiver (sender_id, receiver_id)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_report (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "reporter_id BIGINT NOT NULL," +
+            "target_type TINYINT NOT NULL," +
+            "target_id BIGINT NOT NULL," +
+            "reason VARCHAR(500) NOT NULL," +
+            "description TEXT," +
+            "images TEXT," +
+            "status VARCHAR(20) NOT NULL DEFAULT 'PENDING'," +
+            "handler_id BIGINT DEFAULT NULL," +
+            "handle_result VARCHAR(500) DEFAULT NULL," +
+            "handle_time DATETIME DEFAULT NULL," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted TINYINT DEFAULT 0," +
+            "version INT DEFAULT 0," +
+            "KEY idx_reporter_id (reporter_id)," +
+            "KEY idx_target (target_type, target_id)," +
+            "KEY idx_status (status)," +
+            "KEY idx_create_time (create_time)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_notification (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "user_id BIGINT NOT NULL," +
+            "title VARCHAR(200) NOT NULL," +
+            "content TEXT," +
+            "notification_type VARCHAR(20) NOT NULL DEFAULT 'SYSTEM'," +
+            "related_id BIGINT DEFAULT NULL," +
+            "is_read TINYINT DEFAULT 0," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted TINYINT DEFAULT 0," +
+            "version INT DEFAULT 0," +
+            "KEY idx_user_id (user_id)," +
+            "KEY idx_status (is_read)," +
+            "KEY idx_create_time (create_time)," +
+            "KEY idx_user_read (user_id, is_read)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_operation_log (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "user_id BIGINT DEFAULT NULL," +
+            "username VARCHAR(50) DEFAULT NULL," +
+            "module VARCHAR(50) NOT NULL," +
+            "operation VARCHAR(200) NOT NULL," +
+            "method VARCHAR(200) DEFAULT NULL," +
+            "request_url VARCHAR(255) DEFAULT NULL," +
+            "request_params TEXT," +
+            "response_result TEXT," +
+            "ip VARCHAR(50) DEFAULT NULL," +
+            "duration BIGINT DEFAULT NULL," +
+            "status TINYINT DEFAULT 1," +
+            "error_msg TEXT," +
+            "trace_id VARCHAR(64) DEFAULT NULL," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted TINYINT DEFAULT 0," +
+            "version INT DEFAULT 0," +
+            "KEY idx_user_id (user_id)," +
+            "KEY idx_module (module)," +
+            "KEY idx_create_time (create_time)," +
+            "KEY idx_trace_id (trace_id)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_security_log (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "user_id BIGINT DEFAULT NULL," +
+            "username VARCHAR(50) DEFAULT NULL," +
+            "event_type VARCHAR(50) NOT NULL," +
+            "ip VARCHAR(50) DEFAULT NULL," +
+            "detail TEXT," +
+            "trace_id VARCHAR(64) DEFAULT NULL," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted TINYINT DEFAULT 0," +
+            "version INT DEFAULT 0," +
+            "KEY idx_user_id (user_id)," +
+            "KEY idx_event_type (event_type)," +
+            "KEY idx_create_time (create_time)," +
+            "KEY idx_trace_id (trace_id)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
         executeSql("CREATE TABLE IF NOT EXISTS t_banner (" +
             "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
             "title VARCHAR(200) NOT NULL," +
@@ -311,7 +589,7 @@ public class DataInitializer implements CommandLineRunner {
         addColumnIfNotExists("t_goods", "condition", "VARCHAR(20) DEFAULT NULL COMMENT '成色' AFTER original_price");
         addColumnIfNotExists("t_goods", "stock", "INT DEFAULT 1 COMMENT '库存' AFTER favorite_count");
         addColumnIfNotExists("t_order_item", "quantity", "INT DEFAULT 1 COMMENT '数量' AFTER price");
-        addColumnIfNotExists("t_order", "delivery_method", "TINYINT DEFAULT 1 COMMENT '配送方式1自取2配送' AFTER remark");
+        addColumnIfNotExists("t_order", "delivery_method", "TINYINT DEFAULT 1 COMMENT '配送方式' AFTER remark");
         addColumnIfNotExists("t_order", "address", "VARCHAR(500) DEFAULT NULL COMMENT '收货地址' AFTER delivery_method");
         addColumnIfNotExists("t_order", "tracking_no", "VARCHAR(64) DEFAULT NULL COMMENT '物流单号'");
         addColumnIfNotExists("t_order", "trade_no", "VARCHAR(64) DEFAULT NULL COMMENT '支付宝交易号'");
