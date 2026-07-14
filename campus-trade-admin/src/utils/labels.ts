@@ -53,8 +53,8 @@ export const operationLabel = (op: string): string => {
     exportUsers: '导出用户CSV', exportOrders: '导出订单CSV',
     recallMessage: '撤回消息', resetPassword: '重置密码',
     createCategory: '创建分类', updateCategory: '编辑分类', deleteCategory: '删除分类',
-    createPayment: '创建支付', payNotify: '支付通知', payOrder: '模拟支付',
-    getDefault: '获取默认收款', setDefault: '设为默认收款',
+    createPayment: '创建支付', payNotify: '支付通知',
+    getDefault: '获取默认收款', setDefaultPayment: '设为默认收款',
     listSystemConfig: '获取系统配置', updateSystemConfig: '更新系统配置',
     getAlipayStatus: '支付宝配置状态', listFundLogs: '资金流水列表',
     adminApproveRefund: '管理员同意退款', adminRejectRefund: '管理员拒绝退款'

@@ -61,8 +61,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getFundLogList } from '@/api/admin'
-import type { FundLogVO, PageQueryParams } from '@/types'
+import { getFundLogList, type FundLogVO } from '@/api/admin'
+import type { PageQueryParams } from '@/types'
 
 const list = ref<FundLogVO[]>([])
 const pageNum = ref(1)
