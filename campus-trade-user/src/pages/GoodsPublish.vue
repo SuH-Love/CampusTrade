@@ -3,7 +3,7 @@
     <div class="page-container">
       <el-card>
         <h2 class="section-title">发布商品</h2>
-        <GoodsForm ref="goodsFormRef" :loading="submitting" @submit="handleSubmit" />
+        <GoodsForm ref="goodsFormRef" :loading="submitting" @submit="handleSubmit" @cancel="handleCancel" />
       </el-card>
     </div>
   </div>
@@ -31,6 +31,10 @@ const handleSubmit = async (data: GoodsCreateParams) => {
   } finally {
     submitting.value = false
   }
+}
+
+const handleCancel = () => {
+  router.back()
 }
 </script>
 

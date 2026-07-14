@@ -8,6 +8,7 @@
           :initialData="initialData"
           :loading="submitting"
           @submit="handleSubmit"
+          @cancel="handleCancel"
         />
         <el-skeleton v-else :rows="10" animated />
       </el-card>
@@ -37,6 +38,10 @@ const handleSubmit = async (data: GoodsCreateParams) => {
   } finally {
     submitting.value = false
   }
+}
+
+const handleCancel = () => {
+  router.back()
 }
 
 onMounted(async () => {

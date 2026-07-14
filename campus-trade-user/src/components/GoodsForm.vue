@@ -115,6 +115,7 @@
     </div>
 
     <div class="step-actions">
+      <el-button @click="handleCancel">取消</el-button>
       <el-button v-if="currentStep > 0" @click="prevStep">上一步</el-button>
       <div class="step-actions-right">
         <span v-if="draftSaved" class="draft-saved-hint">已自动保存</span>
@@ -153,6 +154,7 @@ const props = withDefaults(defineProps<GoodsFormProps>(), {
 
 const emit = defineEmits<{
   submit: [data: GoodsCreateParams]
+  cancel: []
 }>()
 
 const formRef = ref<FormInstance>()
@@ -241,6 +243,10 @@ const prevStep = () => {
   if (currentStep.value > 0) {
     currentStep.value--
   }
+}
+
+const handleCancel = () => {
+  emit('cancel')
 }
 
 const handleSubmit = () => {
