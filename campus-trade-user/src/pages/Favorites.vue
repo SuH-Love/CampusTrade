@@ -105,9 +105,13 @@ onMounted(loadData)
 .filter-bar { display: flex; gap: 12px; align-items: center; }
 .search-input { width: 200px; }
 .status-select { width: 140px; }
-.favorites-grid { margin-top: 8px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.favorites-grid { margin-top: 8px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; }
 .favorites-grid-item { min-width: 0; }
 .list-pagination { margin-top: 20px; justify-content: center; }
+
+@media (max-width: 1200px) { .favorites-grid { grid-template-columns: repeat(5, 1fr); } }
+@media (max-width: 900px) { .favorites-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .favorites-grid { grid-template-columns: repeat(2, 1fr); } }
 
 @media (max-width: 576px) {
   .favorites-page { padding: 12px; }

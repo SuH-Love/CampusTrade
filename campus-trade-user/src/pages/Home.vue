@@ -85,16 +85,16 @@
           <h3 class="section-title mb-0">热门商品</h3>
           <el-button text type="primary" @click="$router.push('/goods')">查看更多 →</el-button>
         </div>
-        <el-row :gutter="16" v-if="hotGoods.length > 0">
-          <el-col :xs="12" :sm="8" :md="6" v-for="item in hotGoods" :key="item.id">
+        <div class="goods-grid" v-if="hotGoods.length > 0">
+          <div v-for="item in hotGoods" :key="item.id" class="goods-grid-item">
             <GoodsCard :goods="item" />
-          </el-col>
-        </el-row>
-        <el-row :gutter="16" v-else-if="homeLoading">
-          <el-col :xs="12" :sm="8" :md="6" v-for="i in 8" :key="'hs'+i">
+          </div>
+        </div>
+        <div class="goods-grid" v-else-if="homeLoading">
+          <div v-for="i in 10" :key="'hs'+i" class="goods-grid-item">
             <GoodsCardSkeleton />
-          </el-col>
-        </el-row>
+          </div>
+        </div>
         <EmptyState v-else icon="📦" title="暂无热门商品" description="去看看其他商品吧" action-text="浏览商品" @action="$router.push('/goods')" />
       </section>
 
@@ -103,16 +103,16 @@
           <h3 class="section-title mb-0">最新上架</h3>
           <el-button text type="primary" @click="$router.push('/goods')">查看更多 →</el-button>
         </div>
-        <el-row :gutter="16" v-if="recommendGoods.length > 0">
-          <el-col :xs="12" :sm="8" :md="6" v-for="item in recommendGoods" :key="item.id">
+        <div class="goods-grid" v-if="recommendGoods.length > 0">
+          <div v-for="item in recommendGoods" :key="item.id" class="goods-grid-item">
             <GoodsCard :goods="item" />
-          </el-col>
-        </el-row>
-        <el-row :gutter="16" v-else-if="homeLoading">
-          <el-col :xs="12" :sm="8" :md="6" v-for="i in 8" :key="'rs'+i">
+          </div>
+        </div>
+        <div class="goods-grid" v-else-if="homeLoading">
+          <div v-for="i in 10" :key="'rs'+i" class="goods-grid-item">
             <GoodsCardSkeleton />
-          </el-col>
-        </el-row>
+          </div>
+        </div>
         <EmptyState v-else icon="🆕" title="暂无推荐商品" description="成为第一个发布商品的人" action-text="去发布" @action="$router.push('/goods/publish')" />
       </section>
     </div>
@@ -219,13 +219,13 @@ const loadHotGoods = async () => {
     const res = await getHotGoods()
     let list = res.list || []
     if (selectedCategoryId.value) list = list.filter((g: GoodsVO) => g.categoryId === selectedCategoryId.value)
-    hotGoods.value = list.slice(0, 8)
+    hotGoods.value = list.slice(0, 10)
   } catch (e) { console.error(e) }
   finally { homeLoading.value = false }
 }
 
 const loadRecommendGoods = async () => {
-  try { const res = await getRecommendGoods(); recommendGoods.value = (res.list || []).slice(0, 8) } catch (e) { console.error(e) }
+  try { const res = await getRecommendGoods(); recommendGoods.value = (res.list || []).slice(0, 10) } catch (e) { console.error(e) }
 }
 
 const loadCategories = async () => {
@@ -332,6 +332,13 @@ onUnmounted(() => {
 .announcement-slide-leave-active { transition: all 0.3s ease; }
 .announcement-slide-enter-from { opacity: 0; transform: translateY(10px); }
 .announcement-slide-leave-to { opacity: 0; transform: translateY(-10px); }
+
+.goods-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+.goods-grid-item { min-width: 0; }
+
+@media (max-width: 1200px) { .goods-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 900px) { .goods-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .goods-grid { grid-template-columns: repeat(2, 1fr); } }
 
 @media (max-width: 768px) {
   .hero-slide { height: 200px; }

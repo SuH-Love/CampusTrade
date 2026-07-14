@@ -24,16 +24,16 @@
         </el-col>
       </el-row>
     </div>
-    <el-row :gutter="16" v-if="goodsList.length > 0" class="goods-grid">
-      <el-col :xs="12" :sm="8" :md="6" v-for="item in goodsList" :key="item.id">
-        <GoodsCard :goods="item" :show-desc="true" />
-      </el-col>
-    </el-row>
-    <el-row :gutter="16" v-else-if="loading" class="goods-grid">
-      <el-col :xs="12" :sm="8" :md="6" v-for="i in 12" :key="'sk'+i">
-        <GoodsCardSkeleton />
-      </el-col>
-    </el-row>
+    <div v-if="goodsList.length > 0" class="goods-grid">
+        <div v-for="item in goodsList" :key="item.id" class="goods-grid-item">
+          <GoodsCard :goods="item" :show-desc="true" />
+        </div>
+      </div>
+      <div v-else-if="loading" class="goods-grid">
+        <div v-for="i in 10" :key="'sk'+i" class="goods-grid-item">
+          <GoodsCardSkeleton />
+        </div>
+      </div>
     <EmptyState v-else icon="📦" title="暂无商品" description="还没有人发布商品，快来成为第一个吧" action-text="发布商品" @action="$router.push('/goods/publish')" />
     <el-pagination v-if="total > 0" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
     </div>
@@ -99,8 +99,13 @@ onMounted(() => {
 }
 .full-width { width: 100%; }
 .publish-col { text-align: right; }
-.goods-grid { margin-top: 20px; }
+.goods-grid { margin-top: 20px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+.goods-grid-item { min-width: 0; }
 .list-pagination { margin-top: 20px; justify-content: center; }
+
+@media (max-width: 1200px) { .goods-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 900px) { .goods-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .goods-grid { grid-template-columns: repeat(2, 1fr); } }
 
 @media (max-width: 576px) {
   .goods-list { padding: 12px; }
