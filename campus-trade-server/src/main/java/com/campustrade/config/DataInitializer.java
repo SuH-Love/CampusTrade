@@ -294,6 +294,9 @@ public class DataInitializer implements CommandLineRunner {
             insertBanner("发布闲置 轻松变现", "一键发布，快速找到买家，让闲置不再闲置", null, "/goods/publish", "linear-gradient(135deg, #dc2626 0%, #f97316 50%, #fbbf24 100%)", "发布商品", null, 3, 1);
             log.info("Default banners initialized");
         }
+        try {
+            jdbcTemplate.update("UPDATE t_banner SET title = '校园贸易平台' WHERE title = '校园二手交易平台'");
+        } catch (Exception ignored) {}
     }
 
     private void insertBanner(String title, String subtitle, String imageUrl, String linkUrl, String bgColor, String buttonText, String buttonColor, int sortOrder, int status) {
