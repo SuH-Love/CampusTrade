@@ -2,6 +2,7 @@
 -- 数据库：campus_trade
 -- 字符集：utf8mb4
 -- 时区由docker-compose MySQL命令 --default-time-zone='+08:00' 统一管理
+-- 注意：DataInitializer 会在后端启动时自动建表和初始化数据，此脚本仅用于 Docker 首次启动时创建数据库
 
 CREATE DATABASE IF NOT EXISTS campus_trade DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
@@ -11,7 +12,7 @@ USE campus_trade;
 -- 用户与权限
 -- ============================================================
 
-CREATE TABLE t_user (
+CREATE TABLE IF NOT EXISTS t_user (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     username VARCHAR(50) NOT NULL COMMENT '用户名',
     password VARCHAR(100) NOT NULL COMMENT '密码(BCrypt)',
@@ -28,13 +29,11 @@ CREATE TABLE t_user (
     deleted TINYINT DEFAULT 0 COMMENT '逻辑删除 0-未删除 1-已删除',
     version INT DEFAULT 0 COMMENT '乐观锁版本号',
     UNIQUE KEY uk_username (username),
-    UNIQUE KEY uk_phone (phone),
-    UNIQUE KEY uk_email (email),
     KEY idx_status (status),
     KEY idx_create_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
-CREATE TABLE t_role (
+CREATE TABLE IF NOT EXISTS t_role (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     role_name VARCHAR(50) NOT NULL COMMENT '角色名',
     role_code VARCHAR(50) NOT NULL COMMENT '角色编码',
@@ -47,7 +46,7 @@ CREATE TABLE t_role (
     UNIQUE KEY uk_role_code (role_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色表';
 
-CREATE TABLE t_permission (
+CREATE TABLE IF NOT EXISTS t_permission (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     permission_name VARCHAR(50) NOT NULL COMMENT '权限名',
     permission_code VARCHAR(50) NOT NULL COMMENT '权限编码',
@@ -62,7 +61,7 @@ CREATE TABLE t_permission (
     UNIQUE KEY uk_permission_code (permission_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='权限表';
 
-CREATE TABLE t_user_role (
+CREATE TABLE IF NOT EXISTS t_user_role (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     user_id BIGINT NOT NULL COMMENT '用户ID',
     role_id BIGINT NOT NULL COMMENT '角色ID',
@@ -75,7 +74,7 @@ CREATE TABLE t_user_role (
     UNIQUE KEY uk_user_role (user_id, role_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户角色关联表';
 
-CREATE TABLE t_role_permission (
+CREATE TABLE IF NOT EXISTS t_role_permission (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     role_id BIGINT NOT NULL COMMENT '角色ID',
     permission_id BIGINT NOT NULL COMMENT '权限ID',
@@ -92,7 +91,7 @@ CREATE TABLE t_role_permission (
 -- 商品
 -- ============================================================
 
-CREATE TABLE t_goods_category (
+CREATE TABLE IF NOT EXISTS t_goods_category (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     category_name VARCHAR(50) NOT NULL COMMENT '分类名',
     parent_id BIGINT DEFAULT 0 COMMENT '父分类ID',
@@ -106,7 +105,7 @@ CREATE TABLE t_goods_category (
     KEY idx_parent_id (parent_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品分类表';
 
-CREATE TABLE t_goods (
+CREATE TABLE IF NOT EXISTS t_goods (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     user_id BIGINT NOT NULL COMMENT '卖家用户ID',
     category_id BIGINT NOT NULL COMMENT '分类ID',
@@ -114,12 +113,14 @@ CREATE TABLE t_goods (
     description TEXT COMMENT '商品描述',
     price DECIMAL(10,2) NOT NULL COMMENT '售价',
     original_price DECIMAL(10,2) DEFAULT NULL COMMENT '原价',
+    `condition` VARCHAR(20) DEFAULT NULL COMMENT '成色',
     cover_image VARCHAR(255) DEFAULT NULL COMMENT '封面图',
     images TEXT COMMENT '图片列表(JSON)',
     status VARCHAR(20) NOT NULL DEFAULT 'DRAFT' COMMENT '状态 DRAFT/PENDING/APPROVED/REJECTED/ONLINE/OFFLINE/SOLD',
     reject_reason VARCHAR(500) DEFAULT NULL COMMENT '驳回原因',
     view_count INT DEFAULT 0 COMMENT '浏览量',
     favorite_count INT DEFAULT 0 COMMENT '收藏量',
+    stock INT DEFAULT 1 COMMENT '库存',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted TINYINT DEFAULT 0 COMMENT '逻辑删除',
@@ -132,7 +133,7 @@ CREATE TABLE t_goods (
     KEY idx_goods_status (id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='商品表';
 
-CREATE TABLE t_goods_favorite (
+CREATE TABLE IF NOT EXISTS t_goods_favorite (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     user_id BIGINT NOT NULL COMMENT '用户ID',
     goods_id BIGINT NOT NULL COMMENT '商品ID',
@@ -149,19 +150,25 @@ CREATE TABLE t_goods_favorite (
 -- 订单
 -- ============================================================
 
-CREATE TABLE t_order (
+CREATE TABLE IF NOT EXISTS t_order (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     order_no VARCHAR(64) NOT NULL COMMENT '订单号',
     buyer_id BIGINT NOT NULL COMMENT '买家ID',
     seller_id BIGINT NOT NULL COMMENT '卖家ID',
     total_amount DECIMAL(10,2) NOT NULL COMMENT '订单总金额',
-    status VARCHAR(20) NOT NULL DEFAULT 'PENDING_PAY' COMMENT '状态 PENDING_PAY/PAID/SHIPPING/FINISHED/CANCELLED/REFUND',
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING_PAY' COMMENT '状态 PENDING_PAY/PAID/SHIPPING/PENDING_REVIEW/FINISHED/CANCELLED/REFUND',
+    remark VARCHAR(500) DEFAULT NULL COMMENT '备注',
+    delivery_method TINYINT DEFAULT 1 COMMENT '配送方式 1-配送 2-自取',
+    address VARCHAR(500) DEFAULT NULL COMMENT '收货地址',
+    tracking_no VARCHAR(64) DEFAULT NULL COMMENT '物流单号',
+    trade_no VARCHAR(64) DEFAULT NULL COMMENT '支付宝交易号',
+    pre_refund_status VARCHAR(20) DEFAULT NULL COMMENT '退款前状态',
+    seller_payment_config_id BIGINT DEFAULT NULL COMMENT '卖家收款配置ID',
     pay_time DATETIME DEFAULT NULL COMMENT '支付时间',
     ship_time DATETIME DEFAULT NULL COMMENT '发货时间',
     finish_time DATETIME DEFAULT NULL COMMENT '完成时间',
     cancel_time DATETIME DEFAULT NULL COMMENT '取消时间',
     cancel_reason VARCHAR(500) DEFAULT NULL COMMENT '取消原因',
-    remark VARCHAR(500) DEFAULT NULL COMMENT '备注',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted TINYINT DEFAULT 0 COMMENT '逻辑删除',
@@ -175,13 +182,14 @@ CREATE TABLE t_order (
     KEY idx_seller_status (seller_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单表';
 
-CREATE TABLE t_order_item (
+CREATE TABLE IF NOT EXISTS t_order_item (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     order_id BIGINT NOT NULL COMMENT '订单ID',
     goods_id BIGINT NOT NULL COMMENT '商品ID',
     goods_title VARCHAR(200) NOT NULL COMMENT '商品标题(快照)',
     goods_image VARCHAR(255) DEFAULT NULL COMMENT '商品图片(快照)',
     price DECIMAL(10,2) NOT NULL COMMENT '成交价(快照)',
+    quantity INT DEFAULT 1 COMMENT '数量',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted TINYINT DEFAULT 0 COMMENT '逻辑删除',
@@ -191,15 +199,58 @@ CREATE TABLE t_order_item (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单明细表';
 
 -- ============================================================
+-- 支付与资金
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS t_payment_config (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    payment_type VARCHAR(20) NOT NULL DEFAULT 'ALIPAY' COMMENT '支付类型',
+    alipay_account VARCHAR(100) DEFAULT NULL COMMENT '支付宝账号',
+    real_name VARCHAR(50) DEFAULT NULL COMMENT '真实姓名',
+    is_default TINYINT DEFAULT 0 COMMENT '是否默认',
+    status VARCHAR(20) DEFAULT 'ACTIVE' COMMENT '状态',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除',
+    version INT DEFAULT 0 COMMENT '乐观锁版本号',
+    KEY idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='收款配置表';
+
+CREATE TABLE IF NOT EXISTS t_fund_log (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
+    order_id BIGINT NOT NULL COMMENT '订单ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    amount DECIMAL(10,2) NOT NULL COMMENT '金额',
+    type VARCHAR(20) NOT NULL COMMENT '类型 PAY/FREEZE/SETTLE/REFUND',
+    status VARCHAR(20) DEFAULT 'SUCCESS' COMMENT '状态',
+    trade_no VARCHAR(64) DEFAULT NULL COMMENT '交易号',
+    remark VARCHAR(500) DEFAULT NULL COMMENT '备注',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    KEY idx_order_id (order_id),
+    KEY idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='资金流水表';
+
+CREATE TABLE IF NOT EXISTS t_system_config (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
+    config_key VARCHAR(100) NOT NULL COMMENT '配置键',
+    config_value TEXT DEFAULT NULL COMMENT '配置值',
+    description VARCHAR(200) DEFAULT NULL COMMENT '描述',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY uk_config_key (config_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置表';
+
+-- ============================================================
 -- 聊天
 -- ============================================================
 
-CREATE TABLE t_chat_message (
+CREATE TABLE IF NOT EXISTS t_chat_message (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     sender_id BIGINT NOT NULL COMMENT '发送者ID',
     receiver_id BIGINT NOT NULL COMMENT '接收者ID',
     content TEXT NOT NULL COMMENT '消息内容',
-    message_type TINYINT DEFAULT 1 COMMENT '消息类型 1-文本 2-图片',
+    message_type TINYINT DEFAULT 1 COMMENT '消息类型 1-文本 2-图片 3-商品/订单卡片 4-已撤回',
     is_read TINYINT DEFAULT 0 COMMENT '是否已读 0-未读 1-已读',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -215,7 +266,7 @@ CREATE TABLE t_chat_message (
 -- 举报
 -- ============================================================
 
-CREATE TABLE t_report (
+CREATE TABLE IF NOT EXISTS t_report (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     reporter_id BIGINT NOT NULL COMMENT '举报人ID',
     target_type TINYINT NOT NULL COMMENT '举报对象类型 1-商品 2-用户 3-聊天',
@@ -241,7 +292,7 @@ CREATE TABLE t_report (
 -- 通知
 -- ============================================================
 
-CREATE TABLE t_notification (
+CREATE TABLE IF NOT EXISTS t_notification (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     user_id BIGINT NOT NULL COMMENT '接收用户ID',
     title VARCHAR(200) NOT NULL COMMENT '通知标题',
@@ -260,10 +311,10 @@ CREATE TABLE t_notification (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知表';
 
 -- ============================================================
--- 横幅
+-- 横幅与公告
 -- ============================================================
 
-CREATE TABLE t_banner (
+CREATE TABLE IF NOT EXISTS t_banner (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     title VARCHAR(200) NOT NULL COMMENT '标题',
     subtitle VARCHAR(500) DEFAULT NULL COMMENT '副标题',
@@ -282,11 +333,123 @@ CREATE TABLE t_banner (
     KEY idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='横幅表';
 
+CREATE TABLE IF NOT EXISTS t_announcement (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
+    title VARCHAR(200) NOT NULL COMMENT '标题',
+    content TEXT COMMENT '内容',
+    status TINYINT DEFAULT 1 COMMENT '状态 0-禁用 1-启用',
+    sort_order INT DEFAULT 0 COMMENT '排序',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除',
+    version INT DEFAULT 0 COMMENT '乐观锁版本号'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公告表';
+
+-- ============================================================
+-- 用户社交
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS t_user_follow (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
+    follower_id BIGINT NOT NULL COMMENT '关注者ID',
+    following_id BIGINT NOT NULL COMMENT '被关注者ID',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除',
+    version INT DEFAULT 0 COMMENT '乐观锁版本号',
+    KEY idx_follower_id (follower_id),
+    KEY idx_following_id (following_id),
+    UNIQUE KEY uk_follower_following (follower_id, following_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户关注表';
+
+CREATE TABLE IF NOT EXISTS t_user_blacklist (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    blocked_id BIGINT NOT NULL COMMENT '被屏蔽用户ID',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除',
+    version INT DEFAULT 0 COMMENT '乐观锁版本号',
+    KEY idx_user_id (user_id),
+    KEY idx_blocked_id (blocked_id),
+    UNIQUE KEY uk_user_blocked (user_id, blocked_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='黑名单表';
+
+-- ============================================================
+-- 评价
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS t_seller_rating (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
+    order_id BIGINT NOT NULL COMMENT '订单ID',
+    buyer_id BIGINT NOT NULL COMMENT '买家ID',
+    seller_id BIGINT NOT NULL COMMENT '卖家ID',
+    rating TINYINT NOT NULL COMMENT '评分 1-5',
+    comment VARCHAR(500) DEFAULT NULL COMMENT '评价内容',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除',
+    version INT DEFAULT 0 COMMENT '乐观锁版本号',
+    KEY idx_order_id (order_id),
+    KEY idx_seller_id (seller_id),
+    UNIQUE KEY uk_order_rating (order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='卖家评价表';
+
+-- ============================================================
+-- 购物车与地址
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS t_cart (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    goods_id BIGINT NOT NULL COMMENT '商品ID',
+    quantity INT DEFAULT 1 COMMENT '数量',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除',
+    version INT DEFAULT 0 COMMENT '乐观锁版本号',
+    KEY idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='购物车表';
+
+CREATE TABLE IF NOT EXISTS t_delivery_address (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    receiver_name VARCHAR(50) NOT NULL COMMENT '收件人姓名',
+    receiver_phone VARCHAR(20) NOT NULL COMMENT '收件人电话',
+    province VARCHAR(50) DEFAULT NULL COMMENT '省',
+    city VARCHAR(50) DEFAULT NULL COMMENT '市',
+    district VARCHAR(50) DEFAULT NULL COMMENT '区',
+    detail_address VARCHAR(200) NOT NULL COMMENT '详细地址',
+    is_default TINYINT DEFAULT 0 COMMENT '是否默认',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除',
+    version INT DEFAULT 0 COMMENT '乐观锁版本号',
+    KEY idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='收货地址表';
+
+-- ============================================================
+-- 通知偏好
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS t_notification_preference (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    notification_type VARCHAR(20) NOT NULL COMMENT '通知类型',
+    enabled TINYINT DEFAULT 1 COMMENT '是否启用',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted TINYINT DEFAULT 0 COMMENT '逻辑删除',
+    version INT DEFAULT 0 COMMENT '乐观锁版本号',
+    KEY idx_user_id (user_id),
+    UNIQUE KEY uk_user_type (user_id, notification_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知偏好表';
+
 -- ============================================================
 -- 日志
 -- ============================================================
 
-CREATE TABLE t_operation_log (
+CREATE TABLE IF NOT EXISTS t_operation_log (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     user_id BIGINT DEFAULT NULL COMMENT '操作用户ID',
     username VARCHAR(50) DEFAULT NULL COMMENT '操作用户名',
@@ -311,11 +474,11 @@ CREATE TABLE t_operation_log (
     KEY idx_trace_id (trace_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志表';
 
-CREATE TABLE t_security_log (
+CREATE TABLE IF NOT EXISTS t_security_log (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     user_id BIGINT DEFAULT NULL COMMENT '用户ID',
     username VARCHAR(50) DEFAULT NULL COMMENT '用户名',
-    event_type VARCHAR(50) NOT NULL COMMENT '事件类型 LOGIN_FAIL/ACCESS_DENIED/TOKEN_EXPIRED/RATE_LIMIT/MALICIOUS_INPUT',
+    event_type VARCHAR(50) NOT NULL COMMENT '事件类型',
     ip VARCHAR(50) DEFAULT NULL COMMENT 'IP地址',
     detail TEXT COMMENT '详细信息',
     trace_id VARCHAR(64) DEFAULT NULL COMMENT '追踪ID',
@@ -328,37 +491,3 @@ CREATE TABLE t_security_log (
     KEY idx_create_time (create_time),
     KEY idx_trace_id (trace_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='安全日志表';
-
--- ============================================================
--- 初始化数据
--- ============================================================
-
-INSERT INTO t_role (role_name, role_code, description) VALUES
-('超级管理员', 'ROLE_SUPER_ADMIN', '系统超级管理员'),
-('管理员', 'ROLE_ADMIN', '普通管理员'),
-('普通用户', 'ROLE_USER', '注册用户');
-
-INSERT INTO t_permission (permission_name, permission_code, resource_type, parent_id, sort_order) VALUES
-('商品管理', 'goods:manage', 1, 0, 1),
-('商品创建', 'goods:create', 2, 1, 1),
-('商品修改', 'goods:update', 2, 1, 2),
-('商品删除', 'goods:delete', 2, 1, 3),
-('商品审核', 'goods:audit', 2, 1, 4),
-('用户管理', 'user:manage', 1, 0, 2),
-('用户封禁', 'user:ban', 2, 5, 1),
-('举报管理', 'report:manage', 1, 0, 3),
-('举报审核', 'report:review', 2, 7, 1),
-('日志管理', 'log:manage', 1, 0, 4),
-('日志查看', 'log:view', 2, 9, 1);
-
-INSERT INTO t_role_permission (role_id, permission_id) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11),
-(2, 1), (2, 4), (2, 6), (2, 7), (2, 8), (2, 9), (2, 10), (2, 11);
-
-INSERT INTO t_goods_category (category_name, parent_id, sort_order) VALUES
-('数码电子', 0, 1),
-('书籍教材', 0, 2),
-('生活用品', 0, 3),
-('服装鞋帽', 0, 4),
-('运动户外', 0, 5),
-('其他', 0, 6);
