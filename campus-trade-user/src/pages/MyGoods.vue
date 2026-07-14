@@ -4,7 +4,7 @@
       <div class="my-goods-header">
         <h3 class="my-goods-title">我的商品</h3>
         <div class="filter-bar">
-          <el-button type="success" @click="$router.push('/goods/publish')">发布商品</el-button>
+          <el-button type="primary" round @click="$router.push('/goods/publish')">发布商品</el-button>
           <el-input v-model="searchKeyword" placeholder="搜索商品标题" clearable class="search-input" @keyup.enter="handleSearch" @clear="handleSearch" />
           <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch" class="status-select">
             <el-option label="草稿" value="DRAFT" />
