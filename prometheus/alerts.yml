@@ -1,0 +1,56 @@
+groups:
+  - name: campus-trade-alerts
+    rules:
+      - alert: BackendDown
+        expr: up{job="campus-trade-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "后端服务不可用"
+          description: "backend 已宕机超过 2 分钟"
+
+      - alert: HighJvmHeapUsage
+        expr: jvm_memory_used_bytes{area="heap"} / jvm_memory_max_bytes{area="heap"} > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM 堆内存占用过高"
+          description: "堆内存使用率持续超过 85%，存在 OOM 风险"
+
+      - alert: HighHttpErrorRate
+        expr: rate(http_server_requests_seconds_count{status="5xx"}[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "接口 5xx 错误率过高"
+          description: "5xx 错误速率在 5 分钟内超过 1 次/秒"
+
+      - alert: HighHttpLatency
+        expr: histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "接口 P99 延迟过高"
+          description: "P99 延迟持续超过 2 秒"
+
+      - alert: DatabaseConnectionPoolHigh
+        expr: hikaricp_connections_active >= hikaricp_connections_max * 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "数据库连接池使用率高"
+          description: "HikariCP 活跃连接占比持续超过 80%"
+
+      - alert: AiErrorRateHigh
+        expr: rate(ai_deepseek_errors_total[5m]) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "AI 接口出现错误"
+          description: "DeepSeek 调用在 10 分钟内出现错误"

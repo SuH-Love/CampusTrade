@@ -20,6 +20,8 @@ spring:
       max-lifetime: 1800000
       connection-timeout: 30000
       connection-init-sql: SET time_zone = '+08:00'
+      metrics:
+        enabled: true
 
   redis:
     host: localhost
@@ -93,6 +95,14 @@ alipay:
   sign-type: RSA2
   notify-url: ${ALIPAY_NOTIFY_URL:http://localhost/api/order/pay/notify}
   return-url: ${ALIPAY_RETURN_URL:http://localhost:5173/order/}
+
+ai:
+  enabled: ${AI_ENABLED:true}
+  deepseek:
+    api-key: ${AI_DEEPSEEK_API_KEY:}
+    base-url: ${AI_DEEPSEEK_BASE_URL:https://api.deepseek.com/v1}
+    model: ${AI_DEEPSEEK_MODEL:deepseek-chat}
+    timeout-ms: ${AI_DEEPSEEK_TIMEOUT_MS:30000}
 
 logging:
   config: classpath:log4j2.xml
