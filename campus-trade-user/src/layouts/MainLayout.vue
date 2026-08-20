@@ -143,6 +143,7 @@
         </template>
       </nav>
     </el-drawer>
+    <AiConsultant />
   </el-container>
 </template>
 
@@ -154,6 +155,7 @@ import { useCartStore } from '@/stores/cart'
 import { getUnreadCount as getNotifyUnread } from '@/api/notification'
 import { useChatWs } from '@/composables/useChatWs'
 import { Sunny, Moon, CreditCard, Lock } from '@element-plus/icons-vue'
+import AiConsultant from '@/components/AiConsultant.vue'
 
 const route = useRoute()
 const userStore = useUserStore()
