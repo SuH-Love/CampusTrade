@@ -76,7 +76,7 @@ services:
       JWT_ACCESS_EXPIRATION: ${JWT_ACCESS_EXPIRATION:-7200000}
       JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-604800000}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:81,http://localhost:5173,http://localhost:5174,http://61.139.2.140,http://61.139.2.140:81}
-      AI_DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:}
+      AI_DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
       AI_DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
       AI_DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
       AI_ENABLED: ${AI_ENABLED:-true}

@@ -83,10 +83,12 @@ public class MetricsAspect {
         int slash = trimmed.indexOf('/');
         String first = slash > 0 ? trimmed.substring(0, slash) : trimmed;
         if ("api".equals(first)) {
-            int second = trimmed.indexOf('/', slash > 0 ? slash + 1 : 0);
+            int firstSlash = trimmed.indexOf('/');
+            int second = trimmed.indexOf('/', firstSlash + 1);
             if (second > 0) {
-                return trimmed.substring(trimmed.indexOf('/') + 1, second);
+                return trimmed.substring(firstSlash + 1, second);
             }
+            return trimmed.substring(firstSlash + 1);
         }
         return first;
     }

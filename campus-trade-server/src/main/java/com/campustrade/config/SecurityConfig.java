@@ -65,6 +65,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers(HttpMethod.GET, "/api/goods-category/**").permitAll()
                 .antMatchers("/uploads/**").permitAll()
                 .antMatchers("/actuator/health").permitAll()
+                .antMatchers("/actuator/prometheus").permitAll()
+                .antMatchers("/actuator/info").permitAll()
                 .antMatchers("/api/order/pay/notify").permitAll()
                 .antMatchers("/actuator/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .antMatchers("/ws/**").permitAll()
