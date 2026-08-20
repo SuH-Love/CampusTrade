@@ -8,25 +8,21 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-campus_trade}
       MYSQL_CHARSET: utf8mb4
-    ports:
-      - "3306:3306"
     volumes:
       - /app/mysql:/var/lib/mysql
-
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci --character-set-client-handshake=FALSE --init-connect='SET NAMES utf8mb4' --default-time-zone='+08:00'
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
     networks:
       - campus-trade
 
   redis:
     image: redis/redis-stack-server:7.2.0-v10
     container_name: campus-trade-redis
-    ports:
-      - "6379:6379"
     command: redis-server --requirepass ${REDIS_PASSWORD:-redis123} --notify-keyspace-events Ex --appendonly yes --appendfsync everysec
     volumes:
       - /app/redis:/data
@@ -35,6 +31,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
     networks:
       - campus-trade
 
@@ -42,7 +39,6 @@ services:
     image: rabbitmq:3-management-alpine
     container_name: campus-trade-rabbitmq
     ports:
-      - "5672:5672"
       - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
@@ -52,6 +48,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    restart: unless-stopped
     networks:
       - campus-trade
 

@@ -58,6 +58,11 @@ public class DeepSeekClient {
 
     private static final Map<String, String> FALLBACK_ANSWERS = new ConcurrentHashMap<>();
 
+    static {
+        FALLBACK_ANSWERS.put("faq", "抱歉，AI 服务暂时不可用，请稍后再试。您也可以联系客服获取帮助。");
+        FALLBACK_ANSWERS.put("default", "AI 助手正在休息，请稍后再试。");
+    }
+
     @PostConstruct
     public void init() {
         requestCounter = Counter.builder("ai.deepseek.requests.total")
@@ -72,8 +77,6 @@ public class DeepSeekClient {
                 .description("DeepSeek request latency")
                 .tag("provider", "deepseek")
                 .register(meterRegistry);
-        FALLBACK_ANSWERS.put("faq", "抱歉，AI 服务暂时不可用，请稍后再试。您也可以联系客服获取帮助。");
-        FALLBACK_ANSWERS.put("default", "AI 助手正在休息，请稍后再试。");
     }
 
     public boolean isEnabled() {
@@ -98,14 +101,15 @@ public class DeepSeekClient {
         return CompletableFuture.supplyAsync(() -> {
             Timer.Sample sample = Timer.start(meterRegistry);
             requestCounter.increment();
+            HttpResponse response = null;
             try {
                 JSONObject payload = new JSONObject();
                 payload.set("model", model);
-                payload.set("messages", messages);
+                payload.set("messages", JSONUtil.parseArray(messages));
                 payload.set("stream", true);
                 payload.set("temperature", 0.7);
 
-                HttpResponse response = HttpRequest.post(baseUrl + "/chat/completions")
+                response = HttpRequest.post(baseUrl + "/chat/completions")
                         .header("Authorization", "Bearer " + apiKey)
                         .header("Content-Type", "application/json")
                         .body(payload.toString())
@@ -113,41 +117,44 @@ public class DeepSeekClient {
                         .execute();
 
                 int code = response.getStatus();
-                if (code != 200) {
+                if (code < 200 || code >= 300) {
                     errorCounter.increment();
                     throw new RuntimeException("DeepSeek API error: " + code + " " + response.body());
                 }
-                InputStream is = response.bodyStream();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
-                StringBuilder contentBuilder = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (!line.startsWith("data:")) continue;
-                    String data = line.substring(5).trim();
-                    if ("[DONE]".equals(data)) break;
-                    try {
-                        JSONObject obj = JSONUtil.parseObj(data);
-                        JSONArray choices = obj.getJSONArray("choices");
-                        if (choices == null || choices.isEmpty()) continue;
-                        JSONObject choice = choices.getJSONObject(0);
-                        JSONObject delta = choice.getJSONObject("delta");
-                        if (delta == null) continue;
-                        String token = delta.getStr("content");
-                        if (token != null && !token.isEmpty()) {
-                            contentBuilder.append(token);
-                            onToken.accept(token);
+                try (InputStream is = response.bodyStream();
+                     BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        if (!line.startsWith("data:")) continue;
+                        String data = line.substring(5).trim();
+                        if ("[DONE]".equals(data)) break;
+                        try {
+                            JSONObject obj = JSONUtil.parseObj(data);
+                            JSONArray choices = obj.getJSONArray("choices");
+                            if (choices == null || choices.isEmpty()) continue;
+                            JSONObject choice = choices.getJSONObject(0);
+                            JSONObject delta = choice.getJSONObject("delta");
+                            if (delta == null) continue;
+                            String token = delta.getStr("content");
+                            if (token != null && !token.isEmpty()) {
+                                onToken.accept(token);
+                            }
+                        } catch (Exception e) {
+                            log.warn("Failed to parse DeepSeek stream line: {}", data, e);
                         }
-                    } catch (Exception e) {
-                        log.warn("Failed to parse DeepSeek stream line: {}", data, e);
                     }
                 }
-                sample.stop(latencyTimer);
                 onDone.accept(null);
                 return null;
             } catch (Exception e) {
                 errorCounter.increment();
                 onError.accept(e);
-                throw new RuntimeException(e);
+                return null;
+            } finally {
+                sample.stop(latencyTimer);
+                if (response != null) {
+                    try { response.close(); } catch (Exception ignored) {}
+                }
             }
         }, aiTaskExecutor);
     }
@@ -172,7 +179,7 @@ public class DeepSeekClient {
                     .timeout(timeoutMs)
                     .execute();
             int code = response.getStatus();
-            if (code != 200) {
+            if (code < 200 || code >= 300) {
                 errorCounter.increment();
                 log.error("DeepSeek API error: code={}, body={}", code, response.body());
                 return FALLBACK_ANSWERS.get("faq");

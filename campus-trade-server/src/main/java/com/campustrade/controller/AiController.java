@@ -125,8 +125,12 @@ public class AiController {
                                  HttpServletRequest httpRequest) {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
 
-        String sid = sessionId != null ? sessionId : UUID.randomUUID().toString();
+        String sid = sessionId != null && !sessionId.isEmpty() ? sessionId : UUID.randomUUID().toString();
         String userMessage = message.trim();
+
+        try {
+            emitter.send(SseEmitter.event().name("session").data(sid));
+        } catch (Exception ignored) {}
 
         if (!safetyService.isInputSafe(userMessage)) {
             try {
@@ -160,17 +164,17 @@ public class AiController {
         deepSeekClient.chatStream(messages,
                 token -> {
                     try {
-                        String sanitized = safetyService.sanitizeOutput(token);
-                        emitter.send(SseEmitter.event().name("message").data(sanitized));
-                        fullResponse.append(sanitized);
+                        emitter.send(SseEmitter.event().name("message").data(token));
+                        fullResponse.append(token);
                     } catch (Exception e) {
                         log.warn("SSE send token failed: {}", e.getMessage());
                     }
                 },
                 done -> {
                     try {
+                        String sanitizedFull = safetyService.sanitizeOutput(fullResponse.toString());
                         sessionService.addMessage(sid, "user", userMessage);
-                        sessionService.addMessage(sid, "assistant", fullResponse.toString());
+                        sessionService.addMessage(sid, "assistant", sanitizedFull);
                         emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                         emitter.complete();
                     } catch (Exception e) {

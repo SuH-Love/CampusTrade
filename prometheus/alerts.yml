@@ -20,16 +20,16 @@ groups:
           description: "堆内存使用率持续超过 85%，存在 OOM 风险"
 
       - alert: HighHttpErrorRate
-        expr: rate(http_server_requests_seconds_count{status="5xx"}[5m]) > 1
+        expr: rate(http_server_requests_campus_total{status="error"}[5m]) > 1
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "接口 5xx 错误率过高"
-          description: "5xx 错误速率在 5 分钟内超过 1 次/秒"
+          summary: "接口错误率过高"
+          description: "Controller 错误速率在 5 分钟内超过 1 次/秒"
 
       - alert: HighHttpLatency
-        expr: histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket[5m])) by (le)) > 2
+        expr: http_server_requests_campus_seconds{quantile="0.99"} > 2
         for: 5m
         labels:
           severity: warning
@@ -47,7 +47,7 @@ groups:
           description: "HikariCP 活跃连接占比持续超过 80%"
 
       - alert: AiErrorRateHigh
-        expr: rate(ai_deepseek_errors_total[5m]) > 0
+        expr: rate(ai_deepseek_errors_total[5m]) > 0.1
         for: 10m
         labels:
           severity: warning

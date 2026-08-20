@@ -31,25 +31,32 @@ export function chatStream(
   sessionId: string | undefined,
   onMessage: (token: string) => void,
   onDone: () => void,
-  onError: (error: string) => void
+  onError: (error: string) => void,
+  onSession?: (sessionId: string) => void
 ): { close: () => void } {
   const params = new URLSearchParams({ message })
   if (sessionId) params.append('sessionId', sessionId)
 
   const eventSource = new EventSource(`/api/ai/chat/stream?${params.toString()}`)
+  let done = false
+
+  eventSource.addEventListener('session', (e: MessageEvent) => {
+    if (onSession) onSession(e.data)
+  })
 
   eventSource.addEventListener('message', (e: MessageEvent) => {
     onMessage(e.data)
   })
 
   eventSource.addEventListener('done', () => {
+    done = true
     eventSource.close()
     onDone()
   })
 
   eventSource.addEventListener('error', () => {
     eventSource.close()
-    onError('AI服务连接失败')
+    if (!done) onError('AI服务连接失败')
   })
 
   return {

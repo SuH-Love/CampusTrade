@@ -70,7 +70,7 @@
       </div>
     </transition>
 
-    <div v-if="!visible" class="float-btn" @click="visible = true">
+    <div v-if="!visible" class="float-btn" @click="visible = true; hasNewBadge = false">
       <el-badge :is-dot="hasNewBadge" type="primary">
         <el-icon :size="28"><ChatDotRound /></el-icon>
       </el-badge>
@@ -135,7 +135,7 @@ const sendMessage = async (text: string) => {
   }
 
   try {
-    const assistantIndex = messages.value.length - 1
+    const assistantMsg = messages.value[messages.value.length - 1]
     let accumulated = ''
 
     streamHandle = chatStream(
@@ -143,21 +143,24 @@ const sendMessage = async (text: string) => {
       sessionId.value,
       (token: string) => {
         accumulated += token
-        messages.value[assistantIndex].content = accumulated
-        messages.value[assistantIndex].loading = false
+        assistantMsg.content = accumulated
+        assistantMsg.loading = false
         scrollToBottom()
       },
       () => {
-        messages.value[assistantIndex].loading = false
+        assistantMsg.loading = false
         loading.value = false
         streamHandle = null
         scrollToBottom()
       },
       (error: string) => {
-        messages.value[assistantIndex].loading = false
-        messages.value[assistantIndex].content = error || 'AI服务暂时不可用，请稍后再试。'
+        assistantMsg.loading = false
+        assistantMsg.content = error || 'AI服务暂时不可用，请稍后再试。'
         loading.value = false
         streamHandle = null
+      },
+      (sid: string) => {
+        sessionId.value = sid
       }
     )
   } catch (e) {
@@ -174,6 +177,10 @@ const handleEnter = () => {
 }
 
 const handleClear = async () => {
+  if (streamHandle) {
+    streamHandle.close()
+    streamHandle = null
+  }
   if (sessionId.value) {
     try {
       await clearSession(sessionId.value)

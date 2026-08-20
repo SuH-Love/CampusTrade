@@ -143,7 +143,7 @@
         </template>
       </nav>
     </el-drawer>
-    <AiConsultant />
+    <AiConsultant v-if="userStore.token" />
   </el-container>
 </template>
 

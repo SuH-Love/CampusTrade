@@ -68,7 +68,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers("/actuator/prometheus").permitAll()
                 .antMatchers("/actuator/info").permitAll()
                 .antMatchers("/api/order/pay/notify").permitAll()
-                .antMatchers("/api/ai/**").permitAll()
+                .antMatchers("/api/ai/status").permitAll()
                 .antMatchers("/actuator/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                 .antMatchers("/ws/**").permitAll()
                 .antMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")

@@ -228,6 +228,7 @@ public class GoodsServiceImpl implements GoodsService {
         goods.setStatus(GoodsStatus.PENDING.getCode());
         int rows = goodsMapper.updateById(goods);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
+        redisTemplate.delete("mq:consumed:goods:audit:" + goodsId);
         rabbitTemplate.convertAndSend(MQConstant.GOODS_AUDIT_EXCHANGE, MQConstant.GOODS_AUDIT_KEY, goodsId);
         return Result.success();
     }
