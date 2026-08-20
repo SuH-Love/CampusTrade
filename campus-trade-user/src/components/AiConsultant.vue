@@ -38,7 +38,7 @@
             </div>
           </div>
 
-          <div v-for="(msg, i) in messages" :key="i" :class="['msg-row', msg.role]">
+          <div v-for="msg in messages" :key="msg.id" :class="['msg-row', msg.role]">
             <div class="msg-bubble">
               <span v-if="msg.role === 'assistant' && msg.loading" class="typing">
                 <span class="dot"></span><span class="dot"></span><span class="dot"></span>
@@ -85,6 +85,7 @@ import { ElMessage } from 'element-plus'
 import { chatStream, getAiStatus, clearSession } from '@/api/ai'
 
 interface Message {
+  id: number
   role: 'user' | 'assistant'
   content: string
   loading?: boolean
@@ -100,6 +101,7 @@ const aiEnabled = ref(true)
 const hasNewBadge = ref(true)
 const statusText = ref('在线')
 let streamHandle: { close: () => void } | null = null
+let msgIdCounter = 0
 
 const suggestions = [
   '如何发布商品？',
@@ -121,8 +123,8 @@ const sendMessage = async (text: string) => {
   if (!trimmed || loading.value) return
 
   inputText.value = ''
-  messages.value.push({ role: 'user', content: trimmed })
-  messages.value.push({ role: 'assistant', content: '', loading: true })
+  messages.value.push({ id: ++msgIdCounter, role: 'user', content: trimmed })
+  messages.value.push({ id: ++msgIdCounter, role: 'assistant', content: '', loading: true })
   loading.value = true
   scrollToBottom()
 

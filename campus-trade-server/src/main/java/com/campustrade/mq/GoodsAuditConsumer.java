@@ -23,6 +23,8 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class GoodsAuditConsumer {
 
+    private static final int MAX_RETRIES = 3;
+
     @Autowired
     private GoodsMapper goodsMapper;
 
@@ -102,8 +104,20 @@ public class GoodsAuditConsumer {
             channel.basicAck(deliveryTag, false);
         } catch (Exception e) {
             log.error("商品AI审核消息处理失败: goodsId={}", goodsId, e);
+            String retryKey = "mq:retry:goods:audit:" + goodsId;
             try {
-                channel.basicNack(deliveryTag, false, false);
+                Long retryCount = redisTemplate.opsForValue().increment(retryKey);
+                if (retryCount == null) retryCount = 1L;
+                redisTemplate.expire(retryKey, 24, TimeUnit.HOURS);
+
+                if (retryCount <= MAX_RETRIES) {
+                    redisTemplate.delete("mq:consumed:goods:audit:" + goodsId);
+                    channel.basicNack(deliveryTag, false, true);
+                    log.warn("商品审核消息重入队列: goodsId={}, retry={}/{}", goodsId, retryCount, MAX_RETRIES);
+                } else {
+                    log.error("商品审核消息达到最大重试次数，发送到死信队列: goodsId={}", goodsId);
+                    channel.basicNack(deliveryTag, false, false);
+                }
             } catch (Exception ex) {
                 log.error("NACK失败", ex);
             }

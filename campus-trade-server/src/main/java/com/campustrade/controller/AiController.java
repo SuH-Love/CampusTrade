@@ -1,6 +1,8 @@
 package com.campustrade.controller;
 
 import com.campustrade.common.Result;
+import com.campustrade.entity.Goods;
+import com.campustrade.mapper.GoodsMapper;
 import com.campustrade.service.ai.AiSafetyService;
 import com.campustrade.service.ai.DeepSeekClient;
 import com.campustrade.service.ai.FaqVectorService;
@@ -37,6 +39,9 @@ public class AiController {
 
     @Autowired
     private AiSafetyService safetyService;
+
+    @Autowired
+    private GoodsMapper goodsMapper;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -196,6 +201,13 @@ public class AiController {
     @ApiOperation("清除AI会话历史")
     @DeleteMapping("/session/{sessionId}")
     public Result<Void> clearSession(@PathVariable String sessionId) {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        if (currentUserId != null) {
+            String expectedPrefix = "user:" + currentUserId;
+            if (!sessionId.startsWith(expectedPrefix)) {
+                return Result.error(403, "无权操作其他用户的会话");
+            }
+        }
         sessionService.clearSession(sessionId);
         return Result.success();
     }
@@ -212,6 +224,13 @@ public class AiController {
     @ApiOperation("获取AI标题优化建议")
     @GetMapping("/suggestion/{goodsId}")
     public Result<Map<String, Object>> getSuggestion(@PathVariable Long goodsId) {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        if (currentUserId != null) {
+            Goods goods = goodsMapper.selectById(goodsId);
+            if (goods != null && !goods.getUserId().equals(currentUserId)) {
+                return Result.error(403, "无权查看其他用户的商品建议");
+            }
+        }
         Map<String, Object> suggestion = new LinkedHashMap<>();
         String key = "ai:suggestion:title:" + goodsId;
         Object cached = redisTemplate.opsForValue().get(key);

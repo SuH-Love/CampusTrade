@@ -25,24 +25,25 @@ public class SessionService {
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> getHistory(String sessionId) {
         String key = SESSION_PREFIX + sessionId;
-        Object cached = redisTemplate.opsForValue().get(key);
-        if (cached == null) {
+        List<Object> raw = redisTemplate.opsForList().range(key, 0, -1);
+        if (raw == null || raw.isEmpty()) {
             return new ArrayList<>();
         }
-        if (cached instanceof List) {
-            return new ArrayList<>((List<Map<String, Object>>) cached);
+        List<Map<String, Object>> result = new ArrayList<>(raw.size());
+        for (Object item : raw) {
+            if (item instanceof Map) {
+                result.add((Map<String, Object>) item);
+            }
         }
-        return new ArrayList<>();
+        return result;
     }
 
     public void addMessage(String sessionId, String role, String content) {
         String key = SESSION_PREFIX + sessionId;
-        List<Map<String, Object>> history = getHistory(sessionId);
-        history.add(Map.of("role", role, "content", content));
-        while (history.size() > MAX_HISTORY * 2) {
-            history.remove(0);
-        }
-        redisTemplate.opsForValue().set(key, history, SESSION_TTL_SECONDS, TimeUnit.SECONDS);
+        Map<String, Object> message = Map.of("role", role, "content", content);
+        redisTemplate.opsForList().rightPush(key, message);
+        redisTemplate.opsForList().trim(key, -MAX_HISTORY * 2, -1);
+        redisTemplate.expire(key, SESSION_TTL_SECONDS, TimeUnit.SECONDS);
     }
 
     public void clearSession(String sessionId) {

@@ -74,10 +74,8 @@ public class AiReviewService {
         }
 
         try {
-            String userContent = String.format(
-                    "商品标题：%s\n商品描述：%s\n价格：%s元\n分类：%s",
-                    title, description != null ? description : "无描述", price, categoryName
-            );
+            String userContent = "商品标题：" + title + "\n商品描述：" +
+                    (description != null ? description : "无描述") + "\n价格：" + price + "元\n分类：" + categoryName;
 
             List<Map<String, Object>> messages = Arrays.asList(
                     Map.of("role", "system", "content", MODERATION_SYSTEM_PROMPT),
@@ -93,7 +91,8 @@ public class AiReviewService {
                 result.setSuggestedTitle(optimizeTitle(title, description));
             } else if (aiResponse != null && aiResponse.toUpperCase().startsWith("REJECT")) {
                 result.setApproved(false);
-                int colonIdx = aiResponse.indexOf(":");
+                int colonIdx = aiResponse.indexOf("：");
+                if (colonIdx < 0) colonIdx = aiResponse.indexOf(":");
                 if (colonIdx > 0) {
                     String reason = aiResponse.substring(colonIdx + 1).trim();
                     int dashIdx = reason.indexOf("-");
@@ -124,13 +123,13 @@ public class AiReviewService {
             return null;
         }
         try {
-            String userContent = String.format("原标题：%s\n描述：%s", title, description != null ? description : "");
+            String userContent = "原标题：" + title + "\n描述：" + (description != null ? description : "");
             List<Map<String, Object>> messages = Arrays.asList(
                     Map.of("role", "system", "content", TITLE_OPTIMIZATION_PROMPT),
                     Map.of("role", "user", "content", userContent)
             );
             String optimized = deepSeekClient.chat(messages);
-            if (optimized != null && optimized.length() > 0 && optimized.length() <= 50) {
+            if (optimized != null && optimized.length() > 0 && optimized.length() <= 30) {
                 return optimized.trim();
             }
         } catch (Exception e) {

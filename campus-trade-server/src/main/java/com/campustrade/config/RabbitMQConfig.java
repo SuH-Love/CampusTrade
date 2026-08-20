@@ -1,6 +1,7 @@
 package com.campustrade.config;
 
 import com.campustrade.constant.MQConstant;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
@@ -10,6 +11,7 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+@Slf4j
 @Configuration
 public class RabbitMQConfig {
 
@@ -24,8 +26,14 @@ public class RabbitMQConfig {
         template.setMessageConverter(jsonMessageConverter());
         template.setMandatory(true);
         template.setReturnsCallback(returned -> {
+            log.warn("MQ消息被返回: replyCode={}, replyText={}, exchange={}, routingKey={}",
+                    returned.getReplyCode(), returned.getReplyText(),
+                    returned.getExchange(), returned.getRoutingKey());
         });
         template.setConfirmCallback((correlationData, ack, cause) -> {
+            if (!ack) {
+                log.warn("MQ消息未确认: cause={}", cause);
+            }
         });
         return template;
     }
