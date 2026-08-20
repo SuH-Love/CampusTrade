@@ -54,3 +54,30 @@ groups:
         annotations:
           summary: "AI 接口出现错误"
           description: "DeepSeek 调用在 10 分钟内出现错误"
+
+      - alert: HighHikariCPWait
+        expr: hikaricp_connections_pending > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "数据库连接池等待"
+          description: "HikariCP 有线程在等待连接超过 2 分钟"
+
+      - alert: HighGcPause
+        expr: rate(jvm_gc_pause_seconds_sum[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GC 停顿时间过长"
+          description: "JVM GC 停顿在 5 分钟内累计超过 0.5 秒"
+
+      - alert: HighThreadCount
+        expr: jvm_threads_live_threads > 200
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "JVM 线程数过高"
+          description: "活跃线程数持续超过 200"
