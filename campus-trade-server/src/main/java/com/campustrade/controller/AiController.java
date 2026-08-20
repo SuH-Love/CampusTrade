@@ -11,6 +11,7 @@ import io.swagger.annotations.ApiOperation;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -36,6 +37,9 @@ public class AiController {
 
     @Autowired
     private AiSafetyService safetyService;
+
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
 
     private static final String SYSTEM_PROMPT =
             "你是校园贸易平台的AI助手\"小校\"。你的职责是帮助在校师生解答关于校园二手交易的问题。" +
@@ -199,6 +203,17 @@ public class AiController {
         status.put("enabled", deepSeekClient.isEnabled());
         status.put("model", deepSeekClient.getModel());
         return Result.success(status);
+    }
+
+    @ApiOperation("获取AI标题优化建议")
+    @GetMapping("/suggestion/{goodsId}")
+    public Result<Map<String, Object>> getSuggestion(@PathVariable Long goodsId) {
+        Map<String, Object> suggestion = new LinkedHashMap<>();
+        String key = "ai:suggestion:title:" + goodsId;
+        Object cached = redisTemplate.opsForValue().get(key);
+        suggestion.put("suggestedTitle", cached);
+        suggestion.put("has", cached != null);
+        return Result.success(suggestion);
     }
 
     private String resolveSessionId(ChatRequest request) {

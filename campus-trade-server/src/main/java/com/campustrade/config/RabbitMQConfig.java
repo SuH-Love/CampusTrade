@@ -71,6 +71,11 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public DirectExchange goodsAuditExchange() {
+        return new DirectExchange(MQConstant.GOODS_AUDIT_EXCHANGE, true, false);
+    }
+
+    @Bean
     public Queue orderCreateQueue() {
         return QueueBuilder.durable(MQConstant.ORDER_CREATE_QUEUE)
                 .withArgument("x-dead-letter-exchange", MQConstant.DEAD_LETTER_EXCHANGE)
@@ -116,6 +121,14 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue goodsAuditQueue() {
+        return QueueBuilder.durable(MQConstant.GOODS_AUDIT_QUEUE)
+                .withArgument("x-dead-letter-exchange", MQConstant.DEAD_LETTER_EXCHANGE)
+                .withArgument("x-dead-letter-routing-key", MQConstant.DEAD_LETTER_KEY)
+                .build();
+    }
+
+    @Bean
     public Binding orderCreateBinding() {
         return BindingBuilder.bind(orderCreateQueue()).to(orderExchange()).with(MQConstant.ORDER_CREATE_KEY);
     }
@@ -143,5 +156,10 @@ public class RabbitMQConfig {
     @Bean
     public Binding deadLetterBinding() {
         return BindingBuilder.bind(deadLetterQueue()).to(deadLetterExchange()).with(MQConstant.DEAD_LETTER_KEY);
+    }
+
+    @Bean
+    public Binding goodsAuditBinding() {
+        return BindingBuilder.bind(goodsAuditQueue()).to(goodsAuditExchange()).with(MQConstant.GOODS_AUDIT_KEY);
     }
 }
