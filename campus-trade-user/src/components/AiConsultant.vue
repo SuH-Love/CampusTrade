@@ -139,23 +139,49 @@ const sendMessage = async (text: string) => {
   try {
     const assistantMsg = messages.value[messages.value.length - 1]
     let accumulated = ''
+    const tokenQueue: string[] = []
+    let rafId: number | null = null
+
+    const processQueue = () => {
+      if (tokenQueue.length > 0) {
+        accumulated += tokenQueue.shift()
+        assistantMsg.content = accumulated
+        assistantMsg.loading = false
+        scrollToBottom()
+        rafId = requestAnimationFrame(processQueue)
+      } else {
+        rafId = null
+      }
+    }
 
     streamHandle = chatStream(
       trimmed,
       sessionId.value,
       (token: string) => {
-        accumulated += token
-        assistantMsg.content = accumulated
-        assistantMsg.loading = false
-        scrollToBottom()
+        tokenQueue.push(token)
+        if (rafId === null) {
+          rafId = requestAnimationFrame(processQueue)
+        }
       },
       () => {
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId)
+          rafId = null
+        }
+        while (tokenQueue.length > 0) {
+          accumulated += tokenQueue.shift()
+        }
+        assistantMsg.content = accumulated
         assistantMsg.loading = false
         loading.value = false
         streamHandle = null
         scrollToBottom()
       },
       (error: string) => {
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId)
+          rafId = null
+        }
         assistantMsg.loading = false
         assistantMsg.content = error || 'AI服务暂时不可用，请稍后再试。'
         loading.value = false

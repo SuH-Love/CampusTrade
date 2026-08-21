@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -125,7 +126,11 @@ public class AiController {
     @GetMapping(value = "/chat/stream", produces = "text/event-stream;charset=UTF-8")
     public SseEmitter chatStream(@RequestParam String message,
                                  @RequestParam(required = false) String sessionId,
-                                 HttpServletRequest httpRequest) {
+                                 HttpServletRequest httpRequest,
+                                 HttpServletResponse httpResponse) {
+        httpResponse.setHeader("X-Accel-Buffering", "no");
+        httpResponse.setHeader("Cache-Control", "no-cache");
+
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
 
         String sid = sessionId != null && !sessionId.isEmpty() ? sessionId : UUID.randomUUID().toString();
