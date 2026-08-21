@@ -141,16 +141,25 @@ const sendMessage = async (text: string) => {
     let accumulated = ''
     const tokenQueue: string[] = []
     let rafId: number | null = null
+    let finished = false
+
+    const finishStream = () => {
+      assistantMsg.loading = false
+      loading.value = false
+      streamHandle = null
+      scrollToBottom()
+    }
 
     const processQueue = () => {
       if (tokenQueue.length > 0) {
-        accumulated += tokenQueue.shift()
+        accumulated += tokenQueue.shift()!
         assistantMsg.content = accumulated
         assistantMsg.loading = false
         scrollToBottom()
         rafId = requestAnimationFrame(processQueue)
       } else {
         rafId = null
+        if (finished) finishStream()
       }
     }
 
@@ -164,24 +173,17 @@ const sendMessage = async (text: string) => {
         }
       },
       () => {
-        if (rafId !== null) {
-          cancelAnimationFrame(rafId)
-          rafId = null
+        finished = true
+        if (rafId === null && tokenQueue.length === 0) {
+          finishStream()
         }
-        while (tokenQueue.length > 0) {
-          accumulated += tokenQueue.shift()
-        }
-        assistantMsg.content = accumulated
-        assistantMsg.loading = false
-        loading.value = false
-        streamHandle = null
-        scrollToBottom()
       },
       (error: string) => {
         if (rafId !== null) {
           cancelAnimationFrame(rafId)
           rafId = null
         }
+        tokenQueue.length = 0
         assistantMsg.loading = false
         assistantMsg.content = error || 'AI服务暂时不可用，请稍后再试。'
         loading.value = false
