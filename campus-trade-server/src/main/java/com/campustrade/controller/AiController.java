@@ -205,7 +205,7 @@ public class AiController {
     @DeleteMapping("/session/{sessionId}")
     public Result<Void> clearSession(@PathVariable String sessionId) {
         Long currentUserId = SecurityUtil.getCurrentUserId();
-        if (currentUserId != null) {
+        if (currentUserId != null && sessionId.startsWith("user:")) {
             String expectedPrefix = "user:" + currentUserId;
             if (!sessionId.startsWith(expectedPrefix)) {
                 return Result.error(403, "无权操作其他用户的会话");

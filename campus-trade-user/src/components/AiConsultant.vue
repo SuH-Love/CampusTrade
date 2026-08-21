@@ -214,7 +214,9 @@ const handleClear = async () => {
   if (sessionId.value) {
     try {
       await clearSession(sessionId.value)
-    } catch {}
+    } catch {
+      return
+    }
   }
   messages.value = []
   sessionId.value = undefined
