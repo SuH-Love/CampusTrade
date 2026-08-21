@@ -10,17 +10,18 @@
 2. [完整数据库文档](#2-完整数据库文档)
 3. [支付宝担保支付系统](#3-支付宝担保支付系统)
 4. [STOMP WebSocket实时通信](#4-stomp-websocket实时通信)
-5. [完整API文档](#5-完整api文档)
-6. [Redis Key文档](#6-redis-key文档)
-7. [MQ文档](#7-mq文档)
-8. [权限文档](#8-权限文档)
-9. [日志文档](#9-日志文档)
-10. [环境配置详解](#10-环境配置详解)
-11. [Docker部署文档](#11-docker部署文档)
-12. [安全注意事项](#12-安全注意事项)
-13. [测试报告](#13-测试报告)
-14. [性能优化报告](#14-性能优化报告)
-15. [常见问题排查](#15-常见问题排查)
+5. [AI助手系统](#5-ai助手系统)
+6. [完整API文档](#6-完整api文档)
+7. [Redis Key文档](#7-redis-key文档)
+8. [MQ文档](#8-mq文档)
+9. [权限文档](#9-权限文档)
+10. [日志文档](#10-日志文档)
+11. [环境配置详解](#11-环境配置详解)
+12. [Docker部署文档](#12-docker部署文档)
+13. [安全注意事项](#13-安全注意事项)
+14. [测试报告](#14-测试报告)
+15. [性能优化报告](#15-性能优化报告)
+16. [常见问题排查](#16-常见问题排查)
 
 ---
 
@@ -91,6 +92,12 @@ CampusTrade/
 │       │   ├── security/                  # JWT/认证/过滤器
 │       │   ├── service/                   # 13个Service接口
 │       │   ├── service/impl/              # 13个ServiceImpl
+│       │   ├── service/ai/                # AI助手服务(5个)
+│       │   │   ├── AiToolService.java     # 36个Function Calling工具
+│       │   │   ├── AiSafetyService.java   # Prompt Injection检测+敏感值脱敏
+│       │   │   ├── AiRateLimiter.java     # Lua脚本原子限流
+│       │   │   ├── SessionService.java    # Redis会话管理+上下文压缩
+│       │   │   └── DeepSeekClient.java    # DeepSeek API客户端+配置持久化
 │       │   ├── util/                      # 工具类(8个)
 │       │   └── vo/                        # 16个VO
 │       ├── main/resources/
@@ -104,8 +111,8 @@ CampusTrade/
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── src/
-│       ├── api/                           # 18个API模块
-│       ├── components/                    # 共享组件(GoodsCard/AuthLayout/GoodsForm子组件等)
+│       ├── api/                           # 18个API模块(含ai.ts AI助手SSE)
+│       ├── components/                    # 共享组件(GoodsCard/AuthLayout/AiConsultant等)
 │       ├── layouts/MainLayout.vue
 │       ├── pages/                         # 22个页面
 │       ├── router/index.ts
@@ -354,7 +361,198 @@ location /ws {
 
 ---
 
-## 5. 完整API文档
+## 5. AI助手系统
+
+### 5.1 架构概述
+
+AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling机制实现与业务系统的深度集成：
+
+```
+用户消息 → AiController → DeepSeekClient → DeepSeek API
+                ↓                              ↓
+          AiSafetyService              Function Calling
+          (Injection检测)                     ↓
+                ↓                    AiToolService.executeTool()
+          AiRateLimiter              (36个业务工具)
+          (Lua原子限流)                      ↓
+                ↓                    业务Service/Mapper
+          SessionService                     ↓
+          (Redis会话管理)              工具结果返回AI
+                ↓                              ↓
+          SseEmitter ← ← ← ← ← ← ← ← 流式SSE输出
+```
+
+### 5.2 SSE流式接口
+
+| 接口 | 方法 | 说明 | 鉴权 |
+|------|------|------|------|
+| /api/ai/chat/stream | GET | SSE流式对话（主接口） | 是 |
+| /api/ai/chat | POST | 非流式对话 | 是 |
+| /api/ai/config | GET | 获取AI配置状态 | ADMIN+ |
+| /api/ai/config | PUT | 修改AI配置（API Key/Model/Base URL） | ADMIN+ |
+| /api/ai/history/{sessionId} | GET | 获取会话历史 | 是 |
+| /api/ai/sessions | GET | 获取用户所有会话 | 是 |
+| /api/ai/session/{sessionId} | DELETE | 删除会话 | 是 |
+
+**SSE请求参数**（GET query string）：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| message | String | 用户消息内容 |
+| sessionId | String | 会话ID（可选，不传则新建） |
+
+**SSE事件类型**：
+
+| 事件 | data格式 | 说明 |
+|------|----------|------|
+| `session` | `{"sessionId":"xxx"}` | 会话ID（首个事件） |
+| `thinking` | `{"status":"thinking"}` | AI思考中状态 |
+| `message` | `{"content":"token"}` | AI回复内容（逐token推送） |
+| `tool_call` | `{"tool":"工具名","args":{参数}}` | 工具调用开始 |
+| `tool_result` | `{"tool":"工具名","result":结果}` | 工具调用结果 |
+| `done` | `{"content":"完整回复"}` | 回复完成 |
+| `error` | `{"error":"错误信息"}` | 错误 |
+
+> **重要**：`message` 事件的 data 是 JSON 格式 `{"content":"token"}`，不是纯文本。这是因为token中可能包含 `\n`，直接用SSE的 `data:` 写入会破坏SSE格式。前端需 `JSON.parse(e.data).content` 提取内容。
+
+### 5.3 Function Calling工具清单（36个）
+
+#### 商品工具（8个）
+
+| 工具名 | 说明 | 参数 |
+|--------|------|------|
+| searchGoods | 搜索商品 | keyword, page, limit(默认10,最大20) |
+| getGoodsDetail | 商品详情 | goodsId |
+| publishGoods | 发布商品 | title, description, price, categoryId, images |
+| editGoods | 编辑商品 | goodsId, title, description, price, categoryId |
+| submitForAudit | 提交审核 | goodsId |
+| takeOnline | 上架 | goodsId |
+| takeOffline | 下架 | goodsId |
+| recommendGoods | 推荐商品 | - |
+
+#### 订单工具（10个）
+
+| 工具名 | 说明 | 参数 |
+|--------|------|------|
+| getMyOrders | 我的订单 | role(buyer/seller), status, page |
+| getOrderDetail | 订单详情 | orderId |
+| createOrder | 创建订单 | goodsId, quantity, addressId |
+| payOrder | 支付订单 | orderId |
+| shipOrder | 发货 | orderId |
+| confirmReceive | 确认收货 | orderId |
+| requestRefund | 申请退款 | orderId, reason |
+| approveRefund | 同意退款 | orderId |
+| rejectRefund | 拒绝退款 | orderId, reason |
+| rateSeller | 评价卖家 | orderId, score, comment |
+
+#### 用户工具（8个）
+
+| 工具名 | 说明 | 参数 |
+|--------|------|------|
+| getUserInfo | 获取个人信息 | - |
+| updateUserInfo | 修改个人信息 | nickname, avatar, phone |
+| getAddresses | 地址列表 | - |
+| addAddress | 添加地址 | receiver, phone, province, city, district, detail |
+| updateAddress | 修改地址 | addressId, ... |
+| deleteAddress | 删除地址 | addressId |
+| followUser | 关注用户 | userId |
+| blacklistUser | 拉黑用户 | userId |
+
+#### 聊天工具（4个）
+
+| 工具名 | 说明 | 参数 |
+|--------|------|------|
+| sendMessage | 发送聊天消息 | receiverId, content, messageType |
+| getChatHistory | 聊天记录 | targetUserId, page |
+| getRecentContacts | 最近会话 | - |
+| getUnreadCount | 未读消息数 | senderId |
+
+#### 通知工具（3个）
+
+| 工具名 | 说明 | 参数 |
+|--------|------|------|
+| getNotifications | 通知列表 | page, unreadOnly |
+| markNotificationRead | 标记已读 | notificationId |
+| getNotificationPreference | 通知偏好 | - |
+
+#### 管理员工具（6个，仅ROLE_ADMIN/ROLE_SUPER_ADMIN可见）
+
+| 工具名 | 说明 | 参数 |
+|--------|------|------|
+| adminGetUsers | 用户列表 | page, keyword |
+| adminBanUser | 封禁用户 | userId, reason |
+| adminAuditGoods | 审核商品 | goodsId, approved, reason |
+| adminHandleReport | 处理举报 | reportId, action |
+| adminGetDashboardStats | 仪表盘统计 | - |
+| adminGetFundLogs | 资金流水 | page, startDate, endDate |
+
+> **安全过滤**：`AiToolService.getToolDefinitions()` 根据 `SecurityUtil.isAdmin()` 动态过滤管理员工具。普通用户只能看到30个工具，管理员可以看到全部36个。
+
+### 5.4 会话管理
+
+| 机制 | 说明 |
+|------|------|
+| 会话存储 | Redis List，Key: `ai:session:{userId}:{sessionId}` |
+| 上下文窗口 | 最近20条消息（约8000 token） |
+| 上下文压缩 | 超过20条时，旧消息通过AI摘要压缩后保留 |
+| 压缩原子化 | Redis pipeline：del + rpush + expire 原子执行 |
+| 会话隔离 | 每用户独立会话空间，Key含userId |
+| 会话TTL | 7天自动过期 |
+
+### 5.5 安全机制
+
+| 机制 | 实现 | 说明 |
+|------|------|------|
+| Prompt Injection检测 | `AiSafetyService.checkInput()` | 中英文双语模式匹配（12种中文+多种英文模式），预编译Pattern |
+| 敏感值脱敏 | `AiSafetyService.sanitizeOutput()` | 正则匹配实际敏感值（API Key/密码/手机号），只脱敏值部分 |
+| 管理员工具过滤 | `AiToolService.getToolDefinitions()` | 按角色动态过滤工具定义 |
+| AI配置修改鉴权 | `AiController.updateAiConfig()` | 仅ROLE_ADMIN/ROLE_SUPER_ADMIN可修改 |
+| 限流 | `AiRateLimiter.checkRate()` | Lua脚本原子化INCR+EXPIRE，每用户20次/分钟 |
+| API Key持久化 | `DeepSeekClient` | 配置修改同步写入Redis，重启后从Redis加载 |
+
+### 5.6 DeepSeek API配置
+
+| 配置项 | application.yml路径 | 默认值 | 说明 |
+|--------|---------------------|--------|------|
+| API Key | `ai.api-key` | sk-nmcq... | DeepSeek API密钥 |
+| Base URL | `ai.base-url` | https://api.siliconflow.cn/v1 | API基础URL |
+| Model | `ai.model` | deepseek-ai/DeepSeek-V4-Flash | 模型名称 |
+| System Prompt | `ai.system-prompt` | (内置) | 系统提示词 |
+| Max Tokens | `ai.max-tokens` | 2048 | 最大输出token数 |
+| Temperature | `ai.temperature` | 0.7 | 温度参数 |
+| 上下文窗口 | `ai.context-window` | 20 | 上下文消息条数 |
+| 限流次数 | `ai.rate-limit` | 20 | 每分钟请求限制 |
+
+> **热更新**：管理员可通过 `PUT /api/ai/config` 修改API Key/Model/Base URL，修改后立即生效并持久化到Redis，重启后自动加载。
+
+### 5.7 Agent Loop机制
+
+当用户消息命中工具关键词时，进入Agent Loop（多轮工具调用）：
+
+```
+1. 用户消息 → AI分析意图
+2. AI返回tool_calls → 执行工具 → 结果返回AI
+3. AI根据工具结果继续分析 → 可能再次调用工具
+4. 最多3轮工具调用 → AI生成最终回复
+5. 全程通过SSE推送 tool_call/tool_result 事件
+```
+
+**SSE超时**：300秒（Agent Loop最多3轮×60s=180s，预留缓冲）
+
+### 5.8 前端组件
+
+| 组件 | 文件 | 说明 |
+|------|------|------|
+| AI对话组件 | `AiConsultant.vue` | Markdown渲染、工具调用折叠卡片、中断/重试、时间戳/复制 |
+| AI API封装 | `api/ai.ts` | SSE解析、JSON解析message事件、tool_call/tool_result回调 |
+
+**Markdown渲染策略**：流式输出过程中用纯文本 `escapeHtml()` 显示（避免DOM重渲染导致逐字丢失），流式结束后才用 `renderMarkdown()` 渲染最终Markdown。
+
+**复制功能**：优先使用 `navigator.clipboard`（HTTPS环境），降级使用 `document.execCommand('copy')`（HTTP环境）。
+
+---
+
+## 6. 完整API文档
 
 启动后访问: `http://localhost:8080/doc.html` (Knife4j，仅开发环境启用)
 
@@ -469,6 +667,13 @@ location /ws {
 | | GET | /api/admin/alipay-status | 支付宝配置状态 | ADMIN+ | - |
 | | GET | /api/admin/export/users | 导出用户CSV | ADMIN+ | - |
 | | GET | /api/admin/export/orders | 导出订单CSV | ADMIN+ | - |
+| **AI助手** | GET | /api/ai/chat/stream | SSE流式对话 | 是 | @RateLimit |
+| | POST | /api/ai/chat | 非流式对话 | 是 | @RateLimit |
+| | GET | /api/ai/config | AI配置状态 | ADMIN+ | - |
+| | PUT | /api/ai/config | 修改AI配置 | ADMIN+ | - |
+| | GET | /api/ai/history/{sessionId} | 会话历史 | 是 | - |
+| | GET | /api/ai/sessions | 用户会话列表 | 是 | - |
+| | DELETE | /api/ai/session/{sessionId} | 删除会话 | 是 | - |
 
 ### 统一返回结构
 
@@ -509,7 +714,7 @@ location /ws {
 
 ---
 
-## 6. Redis Key文档
+## 7. Redis Key文档
 
 ### Key命名规范
 
@@ -535,6 +740,11 @@ location /ws {
 | `lock:pay:notify:{orderId}` | 支付通知处理分布式锁 | 30s | OrderServiceImpl |
 | `lock:refund:{orderId}` | 退款处理分布式锁 | 30s | OrderServiceImpl |
 | `order:pay:timeout:{orderId}` | 订单支付超时标记 | 300s | OrderServiceImpl |
+| `ai:session:{userId}:{sessionId}` | AI会话历史(List) | 604800s(7天) | SessionService |
+| `ai:rate:{userId}` | AI限流计数 | 60s | AiRateLimiter |
+| `ai:config:api-key` | AI API Key(热更新) | - | DeepSeekClient |
+| `ai:config:model` | AI模型(热更新) | - | DeepSeekClient |
+| `ai:config:base-url` | AI Base URL(热更新) | - | DeepSeekClient |
 
 ### 缓存防护
 
@@ -546,7 +756,7 @@ location /ws {
 
 ---
 
-## 7. MQ文档
+## 8. MQ文档
 
 ### 交换机
 
@@ -582,7 +792,7 @@ location /ws {
 
 ---
 
-## 8. 权限文档
+## 9. 权限文档
 
 ### RBAC模型
 
@@ -651,7 +861,7 @@ location /ws {
 
 ---
 
-## 9. 日志文档
+## 10. 日志文档
 
 ### 日志框架: Log4j2
 
@@ -690,9 +900,9 @@ location /ws {
 
 ---
 
-## 10. 环境配置详解
+## 11. 环境配置详解
 
-### 10.1 配置文件结构
+### 11.1 配置文件结构
 
 | 文件 | 环境 | 说明 |
 |------|------|------|
@@ -701,7 +911,7 @@ location /ws {
 | `.env.example` | Docker | 环境变量模板 |
 | `.env` | Docker | 实际环境变量(不提交到Git) |
 
-### 10.2 环境变量清单
+### 11.2 环境变量清单
 
 #### MySQL
 
@@ -760,7 +970,19 @@ location /ws {
 | `FRONTEND_USER_PORT` | 80 | 用户端Nginx端口 |
 | `FRONTEND_ADMIN_PORT` | 81 | 管理端Nginx端口 |
 
-### 10.3 开发环境配置
+#### AI助手
+
+| 变量名 | 默认值 | 说明 |
+|--------|--------|------|
+| `AI_API_KEY` | sk-nmcq... | **[必改]** DeepSeek API密钥 |
+| `AI_BASE_URL` | https://api.siliconflow.cn/v1 | DeepSeek API基础URL |
+| `AI_MODEL` | deepseek-ai/DeepSeek-V4-Flash | 模型名称 |
+| `AI_MAX_TOKENS` | 2048 | 最大输出token数 |
+| `AI_TEMPERATURE` | 0.7 | 温度参数 |
+| `AI_CONTEXT_WINDOW` | 20 | 上下文消息条数 |
+| `AI_RATE_LIMIT` | 20 | 每分钟请求限制 |
+
+### 11.3 开发环境配置
 
 开发环境使用 `application.yml`，关键配置：
 
@@ -785,7 +1007,7 @@ jwt.secret: CampusTradeSecretKey2026ForJwtTokenGenerationAndValidation
 knife4j.enable: true
 ```
 
-### 10.4 生产环境配置
+### 11.4 生产环境配置
 
 生产环境使用 `application-prod.yml`，所有敏感信息通过环境变量注入：
 
@@ -817,7 +1039,7 @@ management.endpoints.web.exposure.include: health,info,metrics
 
 > **支付宝配置**: 不在 yml 中配置，通过管理端"系统配置"页面设置，存储在 `t_system_config` 表中，私钥/公钥 AES 加密。
 
-### 10.5 HikariCP 连接池配置对比
+### 11.5 HikariCP 连接池配置对比
 
 | 参数 | 开发 | 生产 |
 |------|------|------|
@@ -827,7 +1049,7 @@ management.endpoints.web.exposure.include: health,info,metrics
 | max-lifetime | 1800000 | 1800000 |
 | leak-detection-threshold | - | 60000 |
 
-### 10.6 Redis Lettuce 连接池配置对比
+### 11.6 Redis Lettuce 连接池配置对比
 
 | 参数 | 开发 | 生产 |
 |------|------|------|
@@ -837,9 +1059,9 @@ management.endpoints.web.exposure.include: health,info,metrics
 
 ---
 
-## 11. Docker部署文档
+## 12. Docker部署文档
 
-### 11.1 环境要求
+### 12.1 环境要求
 
 | 依赖 | 最低版本 | 推荐版本 |
 |------|----------|----------|
@@ -849,7 +1071,7 @@ management.endpoints.web.exposure.include: health,info,metrics
 | Node.js | 16+ | 18+ |
 | JDK | 11 | 11 |
 
-### 11.2 一键部署
+### 12.2 一键部署
 
 ```bash
 # 1. 克隆项目
@@ -886,7 +1108,7 @@ docker-compose logs -f backend
 
 > **注意**: 无需手动创建数据库，JDBC URL 含 `createDatabaseIfNotExist=true`，DataInitializer 会自动建表和初始化数据。
 
-### 11.3 服务端口
+### 12.3 服务端口
 
 | 服务 | 容器内端口 | 宿主机端口 | 说明 |
 |------|------------|------------|------|
@@ -898,7 +1120,7 @@ docker-compose logs -f backend
 | Frontend-User | 80 | 80 | 用户端 |
 | Frontend-Admin | 80 | 81 | 管理端 |
 
-### 11.4 持久化挂载
+### 12.4 持久化挂载
 
 | 容器路径 | 宿主机路径 | 说明 |
 |----------|------------|------|
@@ -906,7 +1128,7 @@ docker-compose logs -f backend
 | /app/logs | /app/logs | 应用日志 |
 | /data/uploads | /app/upload | 上传文件 |
 
-### 11.5 MySQL 关键配置
+### 12.5 MySQL 关键配置
 
 Docker Compose 中 MySQL 的关键启动参数：
 
@@ -923,7 +1145,7 @@ command: >
 - `--character-set-client-handshake=FALSE` + `--init-connect`: 强制客户端使用 utf8mb4
 - HikariCP 连接池额外配置 `connection-init-sql: SET time_zone = '+08:00'` 确保连接时区正确
 
-### 11.6 Nginx 代理配置要点
+### 12.6 Nginx 代理配置要点
 
 用户端 Nginx (`user.conf`) 关键代理规则：
 
@@ -936,7 +1158,7 @@ command: >
 
 > **重要**: Nginx 代理 `/api/` 时必须设置 `proxy_set_header Origin ""` 清空 Origin 头，否则后端 CORS 校验会因 Origin 不匹配返回 403。
 
-### 11.7 服务依赖与启动顺序
+### 12.7 服务依赖与启动顺序
 
 ```
 MySQL (健康检查通过)
@@ -947,7 +1169,7 @@ MySQL (健康检查通过)
                  └→ Frontend-Admin
 ```
 
-### 11.8 健康检查
+### 12.8 健康检查
 
 | 服务 | 检查方式 | 间隔 | 超时 | 重试 |
 |------|----------|------|------|------|
@@ -956,7 +1178,7 @@ MySQL (健康检查通过)
 | RabbitMQ | `rabbitmq-diagnostics check_running` | 30s | 10s | 5 |
 | Backend | `curl /actuator/health` | 30s | 5s | 3 |
 
-### 11.9 常用运维命令
+### 12.9 常用运维命令
 
 ```bash
 # 停止所有服务
@@ -987,9 +1209,9 @@ docker-compose down -v
 
 ---
 
-## 12. 安全注意事项
+## 13. 安全注意事项
 
-### 12.1 生产环境必须修改的配置
+### 13.1 生产环境必须修改的配置
 
 | 配置项 | 风险等级 | 说明 |
 |--------|----------|------|
@@ -999,7 +1221,7 @@ docker-compose down -v
 | `RABBITMQ_USERNAME/PASSWORD` | **高** | 默认 guest/guest，必须替换 |
 | `CORS_ALLOWED_ORIGINS` | **高** | 生产环境必须限制为实际域名 |
 
-### 12.2 JWT密钥生成方法
+### 13.2 JWT密钥生成方法
 
 ```bash
 # 方法1: OpenSSL
@@ -1012,7 +1234,7 @@ java -e 'System.out.println(java.util.UUID.randomUUID().toString().replace("-","
 python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-### 12.3 安全机制清单
+### 13.3 安全机制清单
 
 | 机制 | 实现位置 | 说明 |
 |------|----------|------|
@@ -1034,8 +1256,14 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 | 支付分布式锁 | Redis `lock:pay:notify:{orderId}` | 防止并发重复处理 |
 | 支付配置加密 | `SystemConfigServiceImpl` | 私钥/公钥AES加密存储 |
 | 资金流水保护 | `safeInsertFundLog()` | 写入异常不影响主流程 |
+| AI Prompt Injection检测 | `AiSafetyService.checkInput()` | 中英文双语模式匹配(12种中文+多种英文)，预编译Pattern |
+| AI敏感值脱敏 | `AiSafetyService.sanitizeOutput()` | 正则匹配实际敏感值，只脱敏值部分 |
+| AI管理员工具过滤 | `AiToolService.getToolDefinitions()` | 按角色动态过滤工具定义 |
+| AI配置修改鉴权 | `AiController.updateAiConfig()` | 仅ADMIN+可修改AI配置 |
+| AI限流 | `AiRateLimiter` + Lua脚本 | 原子化INCR+EXPIRE，每用户20次/分钟 |
+| AI SSE超时保护 | `SseEmitter(300s)` | Agent Loop最多3轮×60s=180s，预留缓冲 |
 
-### 12.4 生产环境检查清单
+### 13.4 生产环境检查清单
 
 - [ ] 所有 `.env` 中 `[必改]` 变量已修改
 - [ ] JWT_SECRET 已替换为随机强密钥(≥32字符)
@@ -1050,10 +1278,12 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 - [ ] RabbitMQ端口(5672/15672)不对外暴露
 - [ ] 日志文件定期轮转和清理
 - [ ] 数据库定期备份
+- [ ] AI_API_KEY 已替换为有效的DeepSeek API密钥
+- [ ] AI限流配置合理（默认20次/分钟）
 
 ---
 
-## 13. 测试报告
+## 14. 测试报告
 
 ### 单元测试
 
@@ -1077,7 +1307,7 @@ mvn test
 
 ---
 
-## 14. 性能优化报告
+## 15. 性能优化报告
 
 ### 数据库层
 
@@ -1090,6 +1320,7 @@ mvn test
 | 批量查询 | `selectByIds` 替代循环单查(N+1修复) |
 | N+1查询优化 | GoodsMapper JOIN查询(selectListVO/selectHotGoodsVO/selectRecommendGoodsVO) |
 | N+1查询优化 | GoodsFavoriteMapper JOIN查询(selectFavoriteGoodsVOByUserId) |
+| N+1查询优化 | ChatMessageMapper selectUnreadCountGrouped批量查询(AI助手最近会话) |
 | 软删除表无UNIQUE KEY | INSERT失败时catch+restore，避免唯一约束冲突 |
 
 ### 缓存层
@@ -1132,6 +1363,20 @@ mvn test
 | 敏感词过滤 | 14个敏感词库 |
 | Token黑名单 | 退出/踢出立即失效 |
 
+### AI助手层
+
+| 优化项 | 实现方式 |
+|--------|----------|
+| Function Calling工具缓存 | 静态缓存+双检锁，避免重复构建工具定义 |
+| N+1查询优化 | selectUnreadCountGrouped批量查询最近会话未读数 |
+| 限流原子化 | Lua脚本INCR+EXPIRE原子执行，避免竞态条件 |
+| 会话压缩原子化 | Redis pipeline del+rpush+expire原子执行 |
+| API配置持久化 | Redis持久化API Key/Model/BaseURL，重启不丢失 |
+| SSE超时优化 | 300s超时匹配Agent Loop最大3轮×60s |
+| 流式输出优化 | 非Agent模式直接流式，Agent模式模拟流式(3字符+30ms延迟) |
+| 工具定义静态缓存 | 双检锁缓存工具定义JSON，避免每次请求重建 |
+| API重试 | chatWithTools加2次重试，与chat一致 |
+
 ### 日志层
 
 | 优化项 | 实现方式 |
@@ -1142,9 +1387,9 @@ mvn test
 
 ---
 
-## 15. 常见问题排查
+## 16. 常见问题排查
 
-### 15.1 后端启动失败
+### 16.1 后端启动失败
 
 | 现象 | 可能原因 | 解决方案 |
 |------|----------|----------|
@@ -1157,7 +1402,7 @@ mvn test
 | MySQL中文乱码 | 字符集配置缺失 | 确认 `--character-set-client-handshake=FALSE --init-connect='SET NAMES utf8mb4'` |
 | 时间差8小时 | MySQL时区默认UTC | 确认 `--default-time-zone='+08:00'` + HikariCP `connection-init-sql` |
 
-### 15.2 前端问题
+### 16.2 前端问题
 
 | 现象 | 可能原因 | 解决方案 |
 |------|----------|----------|
@@ -1169,7 +1414,7 @@ mvn test
 | WebSocket连接失败 | Nginx缺少/ws代理 | 确认nginx.conf中 `/ws` location + Upgrade头 |
 | el-tooltip定位偏移 | backdrop-filter创建新堆叠上下文 | 移除 `.el-card` 上的 `backdrop-filter: blur()` |
 
-### 15.3 Docker问题
+### 16.3 Docker问题
 
 | 现象 | 可能原因 | 解决方案 |
 |------|----------|----------|
@@ -1180,7 +1425,7 @@ mvn test
 | 健康检查超时 | 后端启动慢 | 增大 `start_period`（默认60s） |
 | Redis空密码报错 | `redis-cli -a ""` 不支持 | 设置实际密码或使用 `redis-cli ping` |
 
-### 15.4 支付问题
+### 16.4 支付问题
 
 | 现象 | 可能原因 | 解决方案 |
 |------|----------|----------|
@@ -1189,7 +1434,7 @@ mvn test
 | 退款失败 | 卖家未配置收款信息 | 卖家需在"收款管理"页面配置支付宝账号 |
 | 资金流水缺失 | t_fund_log表异常 | safeInsertFundLog()已保护，检查后端日志 |
 
-### 15.5 日志排查
+### 16.5 日志排查
 
 ```bash
 # 后端日志
@@ -1204,3 +1449,18 @@ docker exec -it campus-trade-redis redis-cli -a ${REDIS_PASSWORD} info clients
 # RabbitMQ队列状态
 # 访问 http://localhost:15672 → Queues Tab
 ```
+
+### 16.6 AI助手问题
+
+| 现象 | 可能原因 | 解决方案 |
+|------|----------|----------|
+| AI回复为空 | API Key无效/过期 | 管理端"系统配置"页面修改AI API Key |
+| AI回复缓慢 | 网络延迟/模型负载 | 检查网络连通性，稍后重试 |
+| SSE连接断开 | 超时(>300s)/网络中断 | 前端自动重试或手动点击重试按钮 |
+| 工具调用失败 | 业务接口异常 | 查看后端日志中工具执行错误 |
+| 逐字输出丢失 | 前端Markdown渲染问题 | 确认流式过程中用纯文本显示，结束后才渲染Markdown |
+| 复制功能失效 | HTTP环境clipboard不可用 | 已降级为document.execCommand('copy') |
+| 普通用户看到管理员工具 | 工具过滤未生效 | 确认SecurityUtil.isAdmin()正确判断角色 |
+| AI配置修改后重启丢失 | Redis持久化未生效 | 检查Redis连接，确认ai:config:* Key存在 |
+| 限流误触发 | Lua脚本计数异常 | 检查ai:rate:{userId} Key，必要时手动删除 |
+| Prompt Injection误判 | 安全检测过于严格 | 查看AiSafetyService日志，调整检测模式 |

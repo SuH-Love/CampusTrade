@@ -7,17 +7,20 @@
 ### 后端
 - Spring Boot 2.7 + Spring Security + JWT + RBAC
 - MyBatis + MySQL 8.0
-- Redis (缓存/限流/Token黑名单/幂等/分布式锁)
+- Redis (缓存/限流/Token黑名单/幂等/分布式锁/AI会话/AI限流)
 - RabbitMQ (异步消息/死信队列/手动ACK)
 - 支付宝沙箱 SDK (担保交易/退款)
 - Log4j2 (五文件日志/traceId全链路追踪)
 - Knife4j (API文档)
+- DeepSeek API (AI助手/Function Calling/多轮对话)
+- SseEmitter (AI流式输出/Server-Sent Events)
 
 ### 前端
 - Vue 3 + TypeScript + Pinia
 - Element Plus
 - STOMP WebSocket (实时聊天)
 - Vite
+- markdown-it (AI回复Markdown渲染)
 
 ### 部署
 - Docker Compose (MySQL/Redis/RabbitMQ/Nginx/后端)
@@ -29,8 +32,9 @@
 CampusTrade/
 ├── campus-trade-server/          # 后端 Spring Boot
 │   └── src/main/java/com/campustrade/
-│       ├── controller/           # REST Controller
+│       ├── controller/           # REST Controller (含AiController)
 │       ├── service/impl/         # 业务逻辑
+│       ├── service/ai/           # AI助手服务(AI工具/安全/限流/会话/DeepSeek客户端)
 │       ├── mapper/               # MyBatis Mapper
 │       ├── entity/               # 实体类
 │       ├── dto/                  # 请求DTO
@@ -39,8 +43,11 @@ CampusTrade/
 │       ├── security/             # JWT/XSS/安全头
 │       ├── mq/                   # RabbitMQ消费者
 │       ├── aspect/               # AOP操作日志切面
-│       └── util/                 # 工具类
+│       └── util/                 # 工具类(含SecurityUtil)
 ├── campus-trade-user/            # 用户端 Vue3
+│   └── src/
+│       ├── api/ai.ts             # AI助手SSE流式API
+│       └── components/AiConsultant.vue  # AI助手对话组件
 ├── campus-trade-admin/           # 管理端 Vue3
 ├── nginx/                        # Nginx配置
 └── docker-compose.yml
@@ -119,9 +126,33 @@ docker-compose up -d --build
 - 订单管理（退款审批/导出CSV）
 - 举报审核
 - 横幅管理/公告管理
-- 系统配置（支付宝沙箱密钥配置）
+- 系统配置（支付宝沙箱密钥配置/AI助手API配置）
 - 资金流水查看
 - 操作日志/安全日志
+
+### AI助手
+- **DeepSeek大模型接入**：基于DeepSeek-V4-Flash，支持多轮对话和上下文记忆
+- **SSE流式输出**：Server-Sent Events实时推送，逐字显示AI回复
+- **Function Calling工具调用**：36个内置工具，AI可自主调用业务接口
+  - 商品工具：搜索/详情/发布/上下架/收藏/推荐(8个)
+  - 订单工具：查询/创建/支付/发货/收货/退款/评价(10个)
+  - 用户工具：信息查询/修改/地址管理/关注/黑名单(8个)
+  - 聊天工具：发送消息/查询历史/最近会话(4个)
+  - 通知工具：查询/已读/偏好设置(3个)
+  - 管理员工具：用户管理/商品审核/举报处理/数据统计(6个，仅管理员可见)
+- **安全防护**：
+  - Prompt Injection检测（中英文双语模式匹配）
+  - 敏感值脱敏（API Key/密码/手机号等正则匹配脱敏）
+  - 管理员工具动态过滤（按用户角色过滤工具定义）
+  - API配置修改鉴权（仅管理员可修改AI配置）
+- **会话管理**：
+  - Redis持久化会话历史，支持上下文压缩（超长对话自动摘要）
+  - 原子化会话操作（Redis pipeline保证数据一致性）
+  - 会话隔离（每用户独立会话空间）
+- **限流防护**：Lua脚本原子化限流（每用户每分钟20次）
+- **Markdown渲染**：前端markdown-it渲染AI回复（代码块/列表/表格/链接等）
+- **工具调用展示**：折叠卡片展示工具名/参数/结果
+- **中断/重试**：支持发送中中断请求、错误时重试
 
 ### 支付系统
 - **担保交易模式**：买家支付 → 平台担保冻结 → 买家确认收货 → 平台结算给卖家
@@ -142,6 +173,7 @@ docker-compose up -d --build
 - 安全响应头(CSP/X-Frame-Options/HSTS等)
 - CORS可配置白名单
 - 操作日志 + 安全日志全记录
+- AI安全：Prompt Injection检测(中英文) + 敏感值脱敏 + 管理员工具过滤 + AI配置修改鉴权 + Lua原子限流
 
 ## API文档
 
