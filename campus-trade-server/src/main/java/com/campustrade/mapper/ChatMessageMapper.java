@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface ChatMessageMapper {
@@ -15,6 +16,8 @@ public interface ChatMessageMapper {
     List<ChatMessage> selectRecentContacts(@Param("userId") Long userId);
 
     Long selectUnreadCount(@Param("receiverId") Long receiverId, @Param("senderId") Long senderId);
+
+    List<Map<String, Object>> selectUnreadCountGrouped(@Param("receiverId") Long receiverId);
 
     int markAsRead(@Param("receiverId") Long receiverId, @Param("senderId") Long senderId);
 

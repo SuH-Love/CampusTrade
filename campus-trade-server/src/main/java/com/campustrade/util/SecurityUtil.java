@@ -23,4 +23,13 @@ public class SecurityUtil {
         }
         return userId;
     }
+
+    public static boolean isAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return false;
+        return auth.getAuthorities().stream().anyMatch(a -> {
+            String g = a.getAuthority();
+            return "ROLE_ADMIN".equals(g) || "ROLE_SUPER_ADMIN".equals(g);
+        });
+    }
 }

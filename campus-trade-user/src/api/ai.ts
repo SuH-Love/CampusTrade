@@ -29,13 +29,19 @@ export const getAiStatus = () =>
 export const getSessionHistory = (sessionId: string) =>
   request.get<never, Array<{ role: string; content: string }>>(`/ai/session/${sessionId}/history`)
 
+export const getGoodsSuggestion = (goodsId: number) =>
+  request.get<never, { suggestedTitle: string | null; has: boolean }>(`/ai/suggestion/${goodsId}`)
+
 export function chatStream(
   message: string,
   sessionId: string | undefined,
   onMessage: (token: string) => void,
   onDone: () => void,
   onError: (error: string) => void,
-  onSession?: (sessionId: string) => void
+  onSession?: (sessionId: string) => void,
+  onThinking?: (status: string) => void,
+  onToolCall?: (toolCall: { name: string; args: Record<string, unknown> }) => void,
+  onToolResult?: (toolResult: { name: string; result: string }) => void
 ): { close: () => void } {
   const params = new URLSearchParams({ message })
   if (sessionId) params.append('sessionId', sessionId)
@@ -58,10 +64,58 @@ export function chatStream(
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
+    let currentEvent = 'message'
+
+    const processLine = (line: string): boolean => {
+      if (line.startsWith('event:')) {
+        currentEvent = line.slice(6).trim()
+      } else if (line.startsWith('data:')) {
+        const data = line.slice(5).trim()
+        if (currentEvent === 'session' && onSession) {
+          onSession(data)
+        } else if (currentEvent === 'message') {
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed && typeof parsed.content === 'string') {
+              onMessage(parsed.content)
+            } else {
+              onMessage(data)
+            }
+          } catch {
+            onMessage(data)
+          }
+        } else if (currentEvent === 'thinking' && onThinking) {
+          onThinking(data)
+        } else if (currentEvent === 'tool_call' && onToolCall) {
+          try {
+            onToolCall(JSON.parse(data))
+          } catch {}
+        } else if (currentEvent === 'tool_result' && onToolResult) {
+          try {
+            onToolResult(JSON.parse(data))
+          } catch {}
+        } else if (currentEvent === 'done') {
+          done = true
+          reader.cancel()
+          onDone()
+          return false
+        } else if (currentEvent === 'error') {
+          onError(data || 'AI服务暂时不可用')
+          return false
+        }
+      } else if (line === '') {
+        currentEvent = 'message'
+      }
+      return true
+    }
 
     const pump = (): Promise<void> => {
       return reader.read().then(({ done: streamDone, value }) => {
         if (streamDone) {
+          if (buffer) {
+            processLine(buffer)
+            buffer = ''
+          }
           if (!done) { done = true; onDone() }
           return
         }
@@ -70,28 +124,8 @@ export function chatStream(
         const lines = buffer.split('\n')
         buffer = lines.pop() || ''
 
-        let currentEvent = 'message'
         for (const line of lines) {
-          if (line.startsWith('event:')) {
-            currentEvent = line.slice(6).trim()
-          } else if (line.startsWith('data:')) {
-            const data = line.slice(5)
-            if (currentEvent === 'session' && onSession) {
-              onSession(data)
-            } else if (currentEvent === 'message') {
-              onMessage(data)
-            } else if (currentEvent === 'done') {
-              done = true
-              reader.cancel()
-              onDone()
-              return
-            } else if (currentEvent === 'error') {
-              onError(data || 'AI服务暂时不可用')
-              return
-            }
-          } else if (line === '') {
-            currentEvent = 'message'
-          }
+          if (!processLine(line)) return
         }
         return pump()
       })
@@ -107,3 +141,4 @@ export function chatStream(
     close: () => controller.abort()
   }
 }
+

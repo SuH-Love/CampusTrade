@@ -3,6 +3,7 @@ package com.campustrade.service.ai;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -11,22 +12,50 @@ import java.util.regex.Pattern;
 @Service
 public class AiSafetyService {
 
-    private static final List<String> BLOCKED_PATTERNS = Arrays.asList(
-            "ignore previous instructions",
-            "ignore all previous",
-            "disregard the above",
-            "forget your instructions",
-            "you are now",
-            "act as",
-            "pretend you are",
-            "system prompt",
-            "reveal your prompt",
-            "show your instructions"
-    );
+    private static final List<Pattern> BLOCKED_PATTERNS = new ArrayList<>();
 
-    private static final List<String> SENSITIVE_OUTPUT_KEYWORDS = Arrays.asList(
-            "密码", "password", "token", "secret", "api key", "api-key",
-            "银行卡", "身份证号", "手机号码", "验证码"
+    static {
+        List<String> rawPatterns = Arrays.asList(
+                "ignore previous instructions",
+                "ignore all previous",
+                "disregard the above",
+                "forget your instructions",
+                "you are now",
+                "act as",
+                "pretend you are",
+                "system prompt",
+                "reveal your prompt",
+                "show your instructions",
+                "忽略.*指令",
+                "忽略.*提示",
+                "无视.*指令",
+                "忘记.*指令",
+                "你现在.*扮演",
+                "你现在是",
+                "请.*扮演",
+                "假装你是",
+                "系统提示词",
+                "透露.*提示词",
+                "显示.*指令",
+                "不要遵守.*规则",
+                "不受.*限制"
+        );
+        for (String p : rawPatterns) {
+            BLOCKED_PATTERNS.add(Pattern.compile(p, Pattern.CASE_INSENSITIVE));
+        }
+    }
+
+    private static final List<Pattern> SENSITIVE_VALUE_PATTERNS = Arrays.asList(
+            Pattern.compile("(?i)(api[_-]?key\\s*[:：]\\s*)[A-Za-z0-9_\\-]{8,}"),
+            Pattern.compile("(?i)(token\\s*[:：]\\s*)[A-Za-z0-9_\\-\\.]{8,}"),
+            Pattern.compile("(?i)(secret\\s*[:：]\\s*)[A-Za-z0-9_\\-]{8,}"),
+            Pattern.compile("(?i)(password\\s*[:：]\\s*)\\S+"),
+            Pattern.compile("(密码\\s*[:：]\\s*)\\S+"),
+            Pattern.compile("(银行卡\\s*[:：]\\s*)\\d[\\d\\s]{10,}"),
+            Pattern.compile("(身份证号?\\s*[:：]\\s*)\\d{17}[0-9Xx]"),
+            Pattern.compile("(验证码\\s*[:：]\\s*)\\d{4,6}"),
+            Pattern.compile("\\b1[3-9]\\d{9}\\b"),
+            Pattern.compile("\\b\\d{17}[0-9Xx]\\b")
     );
 
     private static final int MAX_INPUT_LENGTH = 500;
@@ -38,10 +67,9 @@ public class AiSafetyService {
         if (input.length() > MAX_INPUT_LENGTH) {
             return false;
         }
-        String lower = input.toLowerCase();
-        for (String pattern : BLOCKED_PATTERNS) {
-            if (lower.contains(pattern)) {
-                log.warn("Blocked prompt injection attempt: pattern={}", pattern);
+        for (Pattern pattern : BLOCKED_PATTERNS) {
+            if (pattern.matcher(input).find()) {
+                log.warn("Blocked prompt injection attempt: pattern={}", pattern.pattern());
                 return false;
             }
         }
@@ -53,10 +81,8 @@ public class AiSafetyService {
             return "";
         }
         String sanitized = output;
-        for (String keyword : SENSITIVE_OUTPUT_KEYWORDS) {
-            if (sanitized.toLowerCase().contains(keyword.toLowerCase())) {
-                sanitized = sanitized.replaceAll("(?i)" + Pattern.quote(keyword), "***");
-            }
+        for (Pattern p : SENSITIVE_VALUE_PATTERNS) {
+            sanitized = p.matcher(sanitized).replaceAll("$1***");
         }
         return sanitized;
     }

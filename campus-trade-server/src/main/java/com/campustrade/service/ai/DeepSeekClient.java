@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +23,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
@@ -58,13 +60,20 @@ public class DeepSeekClient {
     private MeterRegistry meterRegistry;
 
     @Autowired
-    private org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate;
+    private StringRedisTemplate stringRedisTemplate;
+
+    private static final String REDIS_KEY_APIKEY = "ai:config:apikey";
+    private static final String REDIS_KEY_MODEL = "ai:config:model";
+    private static final String REDIS_KEY_BASEURL = "ai:config:baseUrl";
+
 
     private Counter requestCounter;
     private Counter errorCounter;
     private Timer latencyTimer;
     private Semaphore concurrencyLimit;
     private volatile String currentApiKey;
+    private volatile String currentModel;
+    private volatile String currentBaseUrl;
 
     private static final Map<String, String> FALLBACK_ANSWERS = new ConcurrentHashMap<>();
 
@@ -77,6 +86,18 @@ public class DeepSeekClient {
     public void init() {
         concurrencyLimit = new Semaphore(maxConcurrent);
         currentApiKey = apiKey;
+        currentModel = model;
+        currentBaseUrl = baseUrl;
+        try {
+            String savedKey = stringRedisTemplate.opsForValue().get(REDIS_KEY_APIKEY);
+            String savedModel = stringRedisTemplate.opsForValue().get(REDIS_KEY_MODEL);
+            String savedUrl = stringRedisTemplate.opsForValue().get(REDIS_KEY_BASEURL);
+            if (savedKey != null && !savedKey.isEmpty()) currentApiKey = savedKey;
+            if (savedModel != null && !savedModel.isEmpty()) currentModel = savedModel;
+            if (savedUrl != null && !savedUrl.isEmpty()) currentBaseUrl = savedUrl;
+        } catch (Exception e) {
+            log.warn("Failed to load AI config from Redis, using defaults", e);
+        }
         requestCounter = Counter.builder("ai.deepseek.requests.total")
                 .description("DeepSeek request count")
                 .tag("provider", "deepseek")
@@ -92,29 +113,44 @@ public class DeepSeekClient {
     }
 
     public boolean isEnabled() {
-        refreshApiKeyFromRedis();
         return aiEnabled && currentApiKey != null && !currentApiKey.isEmpty();
     }
 
     public String getModel() {
-        return model;
+        return currentModel;
     }
 
     public void updateApiKey(String newKey) {
         if (newKey != null && !newKey.isEmpty()) {
             currentApiKey = newKey;
-            stringRedisTemplate.opsForValue().set("ai:config:api-key", newKey);
-            log.info("DeepSeek API key updated");
+            try { stringRedisTemplate.opsForValue().set(REDIS_KEY_APIKEY, newKey); } catch (Exception ignored) {}
+            log.info("DeepSeek API key updated and persisted");
         }
     }
 
-    private void refreshApiKeyFromRedis() {
-        try {
-            String redisKey = stringRedisTemplate.opsForValue().get("ai:config:api-key");
-            if (redisKey != null && !redisKey.isEmpty() && !redisKey.equals(currentApiKey)) {
-                currentApiKey = redisKey;
-            }
-        } catch (Exception ignored) {}
+    public void updateModel(String newModel) {
+        if (newModel != null && !newModel.isEmpty()) {
+            currentModel = newModel;
+            try { stringRedisTemplate.opsForValue().set(REDIS_KEY_MODEL, newModel); } catch (Exception ignored) {}
+            log.info("DeepSeek model updated and persisted: {}", newModel);
+        }
+    }
+
+    public void updateBaseUrl(String newUrl) {
+        if (newUrl != null && !newUrl.isEmpty()) {
+            currentBaseUrl = newUrl.replaceAll("/+$", "");
+            try { stringRedisTemplate.opsForValue().set(REDIS_KEY_BASEURL, currentBaseUrl); } catch (Exception ignored) {}
+            log.info("DeepSeek base URL updated and persisted: {}", currentBaseUrl);
+        }
+    }
+
+    public String getCurrentApiKeyMasked() {
+        if (currentApiKey == null || currentApiKey.length() < 8) return "";
+        return currentApiKey.substring(0, 4) + "****" + currentApiKey.substring(currentApiKey.length() - 4);
+    }
+
+    public String getCurrentBaseUrl() {
+        return currentBaseUrl;
     }
 
     public CompletableFuture<String> chatAsync(List<Map<String, Object>> messages) {
@@ -137,12 +173,12 @@ public class DeepSeekClient {
                     throw new RuntimeException("AI concurrent request limit reached");
                 }
                 JSONObject payload = new JSONObject();
-                payload.set("model", model);
+                payload.set("model", currentModel);
                 payload.set("messages", JSONUtil.parseArray(messages));
                 payload.set("stream", true);
                 payload.set("temperature", 0.7);
 
-                response = HttpRequest.post(baseUrl + "/chat/completions")
+                response = HttpRequest.post(currentBaseUrl + "/chat/completions")
                         .header("Authorization", "Bearer " + currentApiKey)
                         .header("Content-Type", "application/json")
                         .body(payload.toString())
@@ -197,6 +233,15 @@ public class DeepSeekClient {
         if (!isEnabled()) {
             return FALLBACK_ANSWERS.get("faq");
         }
+        for (int attempt = 0; attempt < 2; attempt++) {
+            String result = doChat(messages);
+            if (!FALLBACK_ANSWERS.get("faq").equals(result)) return result;
+            if (attempt == 0) log.info("Retrying DeepSeek chat after failure");
+        }
+        return FALLBACK_ANSWERS.get("faq");
+    }
+
+    private String doChat(List<Map<String, Object>> messages) {
         Timer.Sample sample = Timer.start(meterRegistry);
         requestCounter.increment();
         try {
@@ -204,12 +249,12 @@ public class DeepSeekClient {
                 return FALLBACK_ANSWERS.get("faq");
             }
             JSONObject payload = new JSONObject();
-            payload.set("model", model);
+            payload.set("model", currentModel);
             payload.set("messages", JSONUtil.parseArray(messages));
             payload.set("stream", false);
             payload.set("temperature", 0.7);
 
-            HttpResponse response = HttpRequest.post(baseUrl + "/chat/completions")
+            HttpResponse response = HttpRequest.post(currentBaseUrl + "/chat/completions")
                     .header("Authorization", "Bearer " + currentApiKey)
                     .header("Content-Type", "application/json")
                     .body(payload.toString())
@@ -231,6 +276,86 @@ public class DeepSeekClient {
             errorCounter.increment();
             log.error("DeepSeek API call failed", e);
             return FALLBACK_ANSWERS.get("faq");
+        } finally {
+            sample.stop(latencyTimer);
+            concurrencyLimit.release();
+        }
+    }
+
+    public Map<String, Object> chatWithTools(List<Map<String, Object>> messages, List<Map<String, Object>> tools) {
+        Map<String, Object> result = new HashMap<>();
+        if (!isEnabled()) {
+            result.put("content", FALLBACK_ANSWERS.get("faq"));
+            result.put("toolCalls", null);
+            return result;
+        }
+        for (int attempt = 0; attempt < 2; attempt++) {
+            result = doChatWithTools(messages, tools);
+            String content = (String) result.get("content");
+            if (content != null && !FALLBACK_ANSWERS.get("faq").equals(content)) {
+                return result;
+            }
+            if (attempt == 0) log.info("Retrying DeepSeek chatWithTools after failure");
+        }
+        return result;
+    }
+
+    private Map<String, Object> doChatWithTools(List<Map<String, Object>> messages, List<Map<String, Object>> tools) {
+        Map<String, Object> result = new HashMap<>();
+        if (!isEnabled()) {
+            result.put("content", FALLBACK_ANSWERS.get("faq"));
+            result.put("toolCalls", null);
+            return result;
+        }
+        Timer.Sample sample = Timer.start(meterRegistry);
+        requestCounter.increment();
+        try {
+            if (!concurrencyLimit.tryAcquire(timeoutMs, TimeUnit.MILLISECONDS)) {
+                result.put("content", FALLBACK_ANSWERS.get("faq"));
+                result.put("toolCalls", null);
+                return result;
+            }
+            JSONObject payload = new JSONObject();
+            payload.set("model", currentModel);
+            payload.set("messages", JSONUtil.parseArray(messages));
+            payload.set("stream", false);
+            payload.set("temperature", 0.7);
+            if (tools != null && !tools.isEmpty()) {
+                payload.set("tools", JSONUtil.parseArray(tools));
+            }
+
+            HttpResponse response = HttpRequest.post(currentBaseUrl + "/chat/completions")
+                    .header("Authorization", "Bearer " + currentApiKey)
+                    .header("Content-Type", "application/json")
+                    .body(payload.toString())
+                    .timeout(timeoutMs)
+                    .execute();
+            int code = response.getStatus();
+            if (code < 200 || code >= 300) {
+                errorCounter.increment();
+                log.error("DeepSeek API error: code={}, body={}", code, response.body());
+                result.put("content", FALLBACK_ANSWERS.get("faq"));
+                result.put("toolCalls", null);
+                return result;
+            }
+            JSONObject body = JSONUtil.parseObj(response.body());
+            JSONArray choices = body.getJSONArray("choices");
+            if (choices == null || choices.isEmpty()) {
+                result.put("content", FALLBACK_ANSWERS.get("faq"));
+                result.put("toolCalls", null);
+                return result;
+            }
+            JSONObject message = choices.getJSONObject(0).getJSONObject("message");
+            result.put("content", message.getStr("content"));
+            JSONArray toolCalls = message.getJSONArray("tool_calls");
+            result.put("toolCalls", toolCalls != null && !toolCalls.isEmpty() ? JSONUtil.toList(toolCalls, Map.class) : null);
+            return result;
+        } catch (Exception e) {
+            errorCounter.increment();
+            log.error("DeepSeek chatWithTools failed", e);
+            result.put("content", FALLBACK_ANSWERS.get("faq"));
+            result.put("toolCalls", null);
+            return result;
         } finally {
             sample.stop(latencyTimer);
             concurrencyLimit.release();

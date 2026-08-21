@@ -36,6 +36,12 @@
         WHERE receiver_id = #{receiverId} AND sender_id = #{senderId} AND is_read = 0 AND deleted = 0
     </select>
 
+    <select id="selectUnreadCountGrouped" resultType="java.util.Map">
+        SELECT sender_id AS senderId, COUNT(*) AS cnt FROM t_chat_message
+        WHERE receiver_id = #{receiverId} AND is_read = 0 AND deleted = 0
+        GROUP BY sender_id
+    </select>
+
     <update id="markAsRead">
         UPDATE t_chat_message SET is_read = 1
         WHERE receiver_id = #{receiverId} AND sender_id = #{senderId} AND is_read = 0 AND deleted = 0
