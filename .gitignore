@@ -55,3 +55,10 @@ uploads/
 *.bak
 *.tmp
 *.temp
+
+# Scripts (临时部署/测试脚本，含服务器凭据，不入库)
+scripts/
+
+# Python
+__pycache__/
+*.pyc
