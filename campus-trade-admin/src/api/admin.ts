@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import axios from 'axios'
 import type { PageResult, PageQueryParams, AdminUserVO, AdminGoodsVO, AdminOrderVO, AdminReportVO, OperationLogVO, SecurityLogVO, AdminLoginResult, DashboardStats, AdminInfoVO } from '@/types'
 
 export type { DashboardStats } from '@/types'
@@ -157,3 +158,23 @@ export const getAlipayStatus = () =>
 
 export const getFundLogList = (params: PageQueryParams & { type?: string; orderId?: number }) =>
   request.get<never, PageResult<FundLogVO>>('/admin/fund-log', { params })
+
+export interface AiConfigStatus {
+  enabled: boolean
+  model: string
+  apiKeyMasked: string
+  baseUrl: string
+}
+
+export const getAiConfigStatus = () =>
+  request.get<never, AiConfigStatus>('/ai/config/status')
+
+export const updateAiConfig = (data: { apiKey?: string; model?: string; baseUrl?: string }) =>
+  request.put<never, AiConfigStatus>('/ai/config', data)
+
+export const getAiHealth = async (): Promise<Record<string, unknown>> => {
+  const adminStore = (await import('@/stores/admin')).useAdminStore()
+  return axios.get('/actuator/health', {
+    headers: adminStore.token ? { Authorization: `Bearer ${adminStore.token}` } : {}
+  }).then(res => res.data)
+}

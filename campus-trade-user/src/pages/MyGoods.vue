@@ -66,6 +66,7 @@
             <el-button v-if="row.status === 'DRAFT' || row.status === 'REJECTED'" type="warning" size="small" @click="handleSubmitAudit(row.id)" :loading="actionLoading === row.id">提交审核</el-button>
             <el-button v-if="row.status === 'APPROVED' || row.status === 'OFFLINE'" type="success" size="small" @click="handleOnline(row.id)" :loading="actionLoading === row.id">上架</el-button>
             <el-button v-if="row.status === 'ONLINE'" type="info" size="small" @click="handleOffline(row.id)" :loading="actionLoading === row.id">下架</el-button>
+            <el-button v-if="row.status === 'APPROVED'" size="small" @click="handleShowSuggestion(row)" :loading="suggestionLoading === row.id">AI建议</el-button>
             <el-button v-if="row.status !== 'ONLINE'" type="danger" size="small" @click="handleDelete(row.id)" :loading="actionLoading === row.id">删除</el-button>
           </template>
         </el-table-column>
@@ -103,6 +104,7 @@
             <el-button v-if="row.status === 'DRAFT' || row.status === 'REJECTED'" type="warning" size="small" @click="handleSubmitAudit(row.id)" :loading="actionLoading === row.id">提交审核</el-button>
             <el-button v-if="row.status === 'APPROVED' || row.status === 'OFFLINE'" type="success" size="small" @click="handleOnline(row.id)" :loading="actionLoading === row.id">上架</el-button>
             <el-button v-if="row.status === 'ONLINE'" type="info" size="small" @click="handleOffline(row.id)" :loading="actionLoading === row.id">下架</el-button>
+            <el-button v-if="row.status === 'APPROVED'" size="small" @click="handleShowSuggestion(row)" :loading="suggestionLoading === row.id">AI建议</el-button>
             <el-button v-if="row.status !== 'ONLINE'" type="danger" size="small" @click="handleDelete(row.id)" :loading="actionLoading === row.id">删除</el-button>
           </div>
         </div>
@@ -111,19 +113,45 @@
       <EmptyState v-if="filteredGoods.length === 0 && !loading" icon="🏪" title="暂无发布的商品" description="发布你的闲置物品，让它们找到新主人" action-text="发布商品" @action="$router.push('/goods/publish')" />
       <el-pagination v-if="total > 0" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
     </div>
+
+    <el-dialog v-model="suggestionVisible" title="AI 标题优化建议" width="500">
+      <div v-if="suggestionLoading !== null" v-loading="true" style="min-height: 80px" />
+      <div v-else-if="suggestionText">
+        <el-alert type="success" :closable="false" show-icon style="margin-bottom: 16px">
+          AI 根据商品信息生成了更吸引人的标题建议
+        </el-alert>
+        <div class="suggestion-compare">
+          <div class="suggestion-row">
+            <span class="suggestion-label">当前标题</span>
+            <span class="suggestion-value">{{ suggestionRow?.title }}</span>
+          </div>
+          <div class="suggestion-row">
+            <span class="suggestion-label">建议标题</span>
+            <span class="suggestion-value suggestion-new">{{ suggestionText }}</span>
+          </div>
+        </div>
+      </div>
+      <el-empty v-else description="暂无AI优化建议" />
+      <template #footer>
+        <el-button @click="suggestionVisible = false">关闭</el-button>
+        <el-button v-if="suggestionText" type="primary" @click="handleApplySuggestion">应用并编辑</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getMyGoods, submitAudit, onlineGoods, offlineGoods, deleteGoods } from '@/api/goods'
+import { getGoodsSuggestion } from '@/api/ai'
 import EmptyState from '@/components/EmptyState.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { GoodsVO } from '@/api/goods'
 import { goodsStatusLabel, goodsStatusTagType } from '@/utils/labels'
 
 const route = useRoute()
+const $router = useRouter()
 
 const goodsList = ref<GoodsVO[]>([])
 const pageNum = ref(1)
@@ -131,6 +159,10 @@ const pageSize = ref(10)
 const total = ref(0)
 const loading = ref(false)
 const actionLoading = ref<number | null>(null)
+const suggestionLoading = ref<number | null>(null)
+const suggestionVisible = ref(false)
+const suggestionText = ref('')
+const suggestionRow = ref<GoodsVO | null>(null)
 const searchKeyword = ref('')
 const statusFilter = ref((route.query.status as string) || '')
 const isMobile = ref(window.innerWidth < 768)
@@ -195,6 +227,24 @@ const handleDelete = async (id: number) => {
   try { await deleteGoods(id); ElMessage.success('已删除'); loadData() } finally { actionLoading.value = null }
 }
 
+const handleShowSuggestion = async (row: GoodsVO) => {
+  suggestionRow.value = row
+  suggestionText.value = ''
+  suggestionVisible.value = true
+  suggestionLoading.value = row.id
+  try {
+    const res = await getGoodsSuggestion(row.id)
+    suggestionText.value = res.suggestedTitle || ''
+  } catch (e) { console.error(e) } finally { suggestionLoading.value = null }
+}
+
+const handleApplySuggestion = () => {
+  if (suggestionRow.value) {
+    $router.push(`/goods/edit/${suggestionRow.value.id}?suggestion=${encodeURIComponent(suggestionText.value)}`)
+  }
+  suggestionVisible.value = false
+}
+
 onMounted(() => { loadData(); window.addEventListener('resize', handleResize) })
 onUnmounted(() => { window.removeEventListener('resize', handleResize) })
 </script>
@@ -226,6 +276,11 @@ onUnmounted(() => { window.removeEventListener('resize', handleResize) })
 .status-tip { color: var(--text-muted); font-size: 12px; margin-top: 4px; }
 .reject-reason { color: var(--danger); font-size: 12px; margin-top: 4px; }
 .list-pagination { margin-top: 20px; justify-content: center; }
+.suggestion-compare { display: flex; flex-direction: column; gap: 12px; }
+.suggestion-row { display: flex; gap: 12px; align-items: flex-start; }
+.suggestion-label { font-size: 13px; color: var(--text-muted); min-width: 70px; flex-shrink: 0; }
+.suggestion-value { font-size: 14px; font-weight: 500; }
+.suggestion-new { color: var(--primary, #6366f1); }
 
 .goods-cards { display: flex; flex-direction: column; gap: 12px; }
 .goods-card {

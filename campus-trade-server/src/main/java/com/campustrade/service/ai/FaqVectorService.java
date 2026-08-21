@@ -38,7 +38,7 @@ public class FaqVectorService {
 
         public FaqItem() {}
 
-        FaqItem(String question, String answer, String category) {
+        public FaqItem(String question, String answer, String category) {
             this.question = question;
             this.answer = answer;
             this.category = category;
@@ -87,6 +87,37 @@ public class FaqVectorService {
         } catch (Exception e) {
             log.warn("Failed to save FAQ cache to Redis: {}", e.getMessage());
         }
+    }
+
+    public List<FaqItem> getAllFaqs() {
+        return new ArrayList<>(faqItems);
+    }
+
+    public void addFaq(FaqItem item) {
+        faqItems.add(item);
+        rebuildVectors();
+    }
+
+    public void updateFaq(int index, FaqItem item) {
+        if (index < 0 || index >= faqItems.size()) return;
+        faqItems.set(index, item);
+        rebuildVectors();
+    }
+
+    public void deleteFaq(int index) {
+        if (index < 0 || index >= faqItems.size()) return;
+        faqItems.remove(index);
+        rebuildVectors();
+    }
+
+    private void rebuildVectors() {
+        computeIdf();
+        faqVectors.clear();
+        for (FaqItem item : faqItems) {
+            faqVectors.add(computeTfIdfVector(item.question));
+        }
+        saveToRedis();
+        log.info("FAQ vectors rebuilt: {} items", faqItems.size());
     }
 
     private void loadFaqData() {

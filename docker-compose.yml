@@ -189,8 +189,10 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - /app/grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - prometheus
+      - loki
     restart: unless-stopped
     logging:
       driver: json-file

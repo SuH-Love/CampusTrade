@@ -197,17 +197,18 @@ public class GoodsServiceImpl implements GoodsService {
                 dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId());
 
         if (dto.getKeyword() != null && !dto.getKeyword().trim().isEmpty() && total > 0) {
-            int candidateLimit = Math.min((int)(long) total, dto.getPageSize() * 3);
+            int fetchSize = offset + dto.getPageSize() * 2;
+            int candidateLimit = Math.min((int)(long) total, fetchSize);
             List<GoodsVO> candidates = goodsMapper.selectListVO(dto.getCategoryId(), dto.getKeyword(),
                     dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId(), 0, candidateLimit);
-            vos = faqVectorService.rankBySimilarity(dto.getKeyword(), candidates,
+            int rankLimit = Math.min(offset + dto.getPageSize(), candidates.size());
+            List<GoodsVO> ranked = faqVectorService.rankBySimilarity(dto.getKeyword(), candidates,
                     vo -> (vo.getTitle() != null ? vo.getTitle() : "") + " " +
                          (vo.getDescription() != null ? vo.getDescription() : ""),
-                    dto.getPageSize());
-            if (offset > 0 && offset < candidates.size()) {
-                int end = Math.min(offset + dto.getPageSize(), candidates.size());
-                vos = candidates.subList(offset, end);
-            }
+                    rankLimit);
+            int start = Math.min(offset, ranked.size());
+            int end = Math.min(offset + dto.getPageSize(), ranked.size());
+            vos = ranked.subList(start, end);
         } else {
             vos = goodsMapper.selectListVO(dto.getCategoryId(), dto.getKeyword(),
                     dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId(), offset, dto.getPageSize());

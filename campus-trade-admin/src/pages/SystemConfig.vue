@@ -47,13 +47,57 @@
         <el-descriptions-item label="安全提示">私钥在数据库中AES加密存储，管理端仅显示掩码</el-descriptions-item>
       </el-descriptions>
     </el-card>
+
+    <el-card shadow="never" style="margin-top: 20px">
+      <template #header>
+        <div class="card-header">
+          <span>AI 助手配置</span>
+          <el-tag :type="aiConfig.enabled ? 'success' : 'danger'" size="small">
+            {{ aiConfig.enabled ? '在线' : '离线' }}
+          </el-tag>
+        </div>
+      </template>
+
+      <el-form label-width="140px" v-loading="aiLoading">
+        <el-form-item label="当前模型">
+          <el-input v-model="aiForm.model" placeholder="如 deepseek-ai/DeepSeek-V4-Flash" clearable />
+        </el-form-item>
+        <el-form-item label="API 地址">
+          <el-input v-model="aiForm.baseUrl" placeholder="如 https://api.siliconflow.cn/v1" clearable />
+        </el-form-item>
+        <el-form-item label="API Key">
+          <el-input :model-value="aiConfig.apiKeyMasked || '未配置'" disabled>
+            <template #append>
+              <el-button @click="showApiKeyInput = !showApiKeyInput">更新</el-button>
+            </template>
+          </el-input>
+        </el-form-item>
+        <el-form-item v-if="showApiKeyInput" label="新 API Key">
+          <el-input v-model="aiForm.apiKey" type="password" show-password placeholder="输入新的 API Key" clearable />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="aiSaving" @click="handleSaveAiConfig">保存配置</el-button>
+          <el-button @click="loadAiConfig">重置</el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-divider />
+      <el-descriptions title="配置说明" :column="1" border size="small">
+        <el-descriptions-item label="获取方式">
+          登录 <el-link type="primary" href="https://siliconflow.cn" target="_blank">硅基流动平台</el-link> → API Keys → 新建密钥
+        </el-descriptions-item>
+        <el-descriptions-item label="模型名称">如 deepseek-ai/DeepSeek-V4-Flash，在平台模型列表中查看</el-descriptions-item>
+        <el-descriptions-item label="API 地址">硅基流动: https://api.siliconflow.cn/v1</el-descriptions-item>
+        <el-descriptions-item label="热更新">所有配置更新后立即生效，无需重启服务</el-descriptions-item>
+      </el-descriptions>
+    </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getSystemConfig, updateSystemConfig, getAlipayStatus, type SystemConfigVO } from '@/api/admin'
+import { getSystemConfig, updateSystemConfig, getAlipayStatus, getAiConfigStatus, updateAiConfig, type SystemConfigVO, type AiConfigStatus } from '@/api/admin'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -66,6 +110,41 @@ const form = reactive<Record<string, string>>({
   'alipay.notify_url': '',
   'alipay.return_url': ''
 })
+
+const aiLoading = ref(false)
+const aiSaving = ref(false)
+const showApiKeyInput = ref(false)
+const aiConfig = ref<AiConfigStatus>({ enabled: false, model: '', apiKeyMasked: '', baseUrl: '' })
+const aiForm = reactive({ model: '', baseUrl: '', apiKey: '' })
+
+const loadAiConfig = async () => {
+  aiLoading.value = true
+  try {
+    aiConfig.value = await getAiConfigStatus()
+    aiForm.model = aiConfig.value.model
+    aiForm.baseUrl = aiConfig.value.baseUrl
+    aiForm.apiKey = ''
+    showApiKeyInput.value = false
+  } catch (e) { console.error(e) } finally { aiLoading.value = false }
+}
+
+const handleSaveAiConfig = async () => {
+  aiSaving.value = true
+  try {
+    const data: { apiKey?: string; model?: string; baseUrl?: string } = {}
+    if (aiForm.model !== aiConfig.value.model) data.model = aiForm.model
+    if (aiForm.baseUrl !== aiConfig.value.baseUrl) data.baseUrl = aiForm.baseUrl
+    if (showApiKeyInput.value && aiForm.apiKey.trim()) data.apiKey = aiForm.apiKey.trim()
+    if (Object.keys(data).length === 0) { ElMessage.info('无变更'); return }
+    const res = await updateAiConfig(data)
+    aiConfig.value = res
+    aiForm.model = res.model
+    aiForm.baseUrl = res.baseUrl
+    aiForm.apiKey = ''
+    showApiKeyInput.value = false
+    ElMessage.success('AI 配置已保存')
+  } catch (e) { console.error(e) } finally { aiSaving.value = false }
+}
 
 const loadData = async () => {
   loading.value = true
@@ -98,7 +177,7 @@ const handleSave = async () => {
   } catch (e) { console.error(e) } finally { saving.value = false }
 }
 
-onMounted(loadData)
+onMounted(() => { loadData(); loadAiConfig() })
 </script>
 
 <style scoped lang="scss">

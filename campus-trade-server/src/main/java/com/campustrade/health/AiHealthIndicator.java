@@ -24,6 +24,11 @@ public class AiHealthIndicator implements HealthIndicator {
     private volatile Health cachedHealth;
     private volatile long lastCheckTime;
 
+    public void clearCache() {
+        cachedHealth = null;
+        lastCheckTime = 0;
+    }
+
     @Override
     public Health health() {
         if (!deepSeekClient.isEnabled()) {

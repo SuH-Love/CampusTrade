@@ -8,7 +8,8 @@ export const moduleLabel = (mod: string): string => {
     Banner: '横幅', OrderItem: '订单项', GoodsFavorite: '商品收藏',
     OperationLog: '操作日志', SecurityLog: '安全日志',
     Announcement: '系统公告', UserBlacklist: '黑名单',
-    PaymentConfig: '收款配置', FundLog: '资金流水', SystemConfig: '系统配置'
+    PaymentConfig: '收款配置', FundLog: '资金流水', SystemConfig: '系统配置',
+    Ai: 'AI助手'
   }
   return map[mod] || mod
 }
@@ -57,7 +58,10 @@ export const operationLabel = (op: string): string => {
     getDefault: '获取默认收款', setDefaultPayment: '设为默认收款',
     listSystemConfig: '获取系统配置', updateSystemConfig: '更新系统配置',
     getAlipayStatus: '支付宝配置状态', listFundLogs: '资金流水列表',
-    adminApproveRefund: '管理员同意退款', adminRejectRefund: '管理员拒绝退款'
+    adminApproveRefund: '管理员同意退款', adminRejectRefund: '管理员拒绝退款',
+    chat: 'AI对话', chatStream: 'AI流式对话', clearSession: '清除AI会话',
+    status: 'AI服务状态', getSuggestion: 'AI标题建议', getSessionHistory: 'AI会话历史',
+    updateAiConfig: '更新AI配置', getConfigStatus: 'AI配置状态'
   }
   return map[op] || op
 }

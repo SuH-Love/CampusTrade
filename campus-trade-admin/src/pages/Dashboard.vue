@@ -40,6 +40,13 @@
               <el-icon class="todo-arrow"><ArrowRight /></el-icon>
             </div>
           </div>
+          <el-divider content-position="left">AI 服务</el-divider>
+          <div class="ai-health">
+            <el-tag :type="aiHealthStatus === 'UP' ? 'success' : 'danger'" size="small" effect="dark">
+              {{ aiHealthStatus === 'UP' ? '正常' : '异常' }}
+            </el-tag>
+            <span class="ai-health-text">{{ aiHealthDetail }}</span>
+          </div>
         </el-card>
       </el-col>
       <el-col :span="16">
@@ -66,7 +73,7 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { User, Sunny, Plus, Box, ShoppingCart, Tickets, ArrowRight } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
-import { getDashboardStats, getReportList, getOperationLogs } from '@/api/admin'
+import { getDashboardStats, getReportList, getOperationLogs, getAiHealth } from '@/api/admin'
 import { operationLabel, moduleLabel, goodsStatusLabel, orderStatusLabel } from '@/utils/labels'
 import type { OperationLogVO, PageQueryParams } from '@/types'
 
@@ -86,6 +93,8 @@ const todoItems = ref([
 ])
 
 const recentLogs = ref<OperationLogVO[]>([])
+const aiHealthStatus = ref('UP')
+const aiHealthDetail = ref('')
 const goodsChartRef = ref<HTMLElement>()
 const orderChartRef = ref<HTMLElement>()
 let goodsChart: echarts.ECharts | null = null
@@ -174,16 +183,36 @@ const loadRecentLogs = async () => {
   } catch (e) { console.error(e) }
 }
 
+const loadAiHealth = async () => {
+  try {
+    const res = await getAiHealth()
+    const components = res.components as Record<string, { status: string; details?: Record<string, unknown> }> | undefined
+    if (components?.ai) {
+      aiHealthStatus.value = components.ai.status
+      const details = components.ai.details as Record<string, unknown> | undefined
+      if (details) {
+        const reason = details['reason'] || details['error']
+        const model = details['model']
+        const status = details['status']
+        aiHealthDetail.value = reason ? String(reason) : `${model || 'unknown'} · ${status || ''}`
+      }
+    } else {
+      aiHealthDetail.value = '指标未暴露'
+    }
+  } catch { aiHealthStatus.value = 'UNKNOWN'; aiHealthDetail.value = '无法获取' }
+}
+
 const handleResize = () => {
   goodsChart?.resize()
   orderChart?.resize()
 }
 
-onMounted(() => { loadStats(); loadRecentLogs(); window.addEventListener('resize', handleResize) })
+onMounted(() => { loadStats(); loadRecentLogs(); loadAiHealth(); window.addEventListener('resize', handleResize) })
 onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeEventListener('resize', handleResize) })
 </script>
 
 <style scoped lang="scss">
+.mb-lg { margin-bottom: 20px; }
 .stat-card {
   background: var(--admin-card-bg);
   border-radius: 12px;
@@ -194,7 +223,7 @@ onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeE
   border-top: 3px solid;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   transition: all 0.25s;
-  margin-bottom: 12px;
+
   &:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.1); }
 }
 
@@ -220,4 +249,6 @@ onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeE
 
 .todo-info { display: flex; align-items: center; gap: 10px; }
 .todo-label { font-size: 13px; font-weight: 500; }
+.ai-health { display: flex; align-items: center; gap: 8px; }
+.ai-health-text { font-size: 13px; color: var(--admin-text-secondary); }
 </style>
