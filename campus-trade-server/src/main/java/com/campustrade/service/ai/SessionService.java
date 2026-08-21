@@ -1,12 +1,14 @@
 package com.campustrade.service.ai;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -20,19 +22,23 @@ public class SessionService {
     private static final long SESSION_TTL_SECONDS = 1800;
 
     @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
+    private StringRedisTemplate stringRedisTemplate;
 
-    @SuppressWarnings("unchecked")
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     public List<Map<String, Object>> getHistory(String sessionId) {
         String key = SESSION_PREFIX + sessionId;
-        List<Object> raw = redisTemplate.opsForList().range(key, 0, -1);
+        List<String> raw = stringRedisTemplate.opsForList().range(key, 0, -1);
         if (raw == null || raw.isEmpty()) {
             return new ArrayList<>();
         }
         List<Map<String, Object>> result = new ArrayList<>(raw.size());
-        for (Object item : raw) {
-            if (item instanceof Map) {
-                result.add((Map<String, Object>) item);
+        for (String json : raw) {
+            try {
+                Map<String, Object> msg = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+                result.add(msg);
+            } catch (Exception e) {
+                log.warn("Failed to parse session message: {}", json, e);
             }
         }
         return result;
@@ -40,28 +46,47 @@ public class SessionService {
 
     public void addMessage(String sessionId, String role, String content) {
         String key = SESSION_PREFIX + sessionId;
-        Map<String, Object> message = Map.of("role", role, "content", content);
-        redisTemplate.opsForList().rightPush(key, message);
-        redisTemplate.opsForList().trim(key, -MAX_HISTORY * 2, -1);
-        redisTemplate.expire(key, SESSION_TTL_SECONDS, TimeUnit.SECONDS);
+        try {
+            Map<String, Object> message = new HashMap<>();
+            message.put("role", role);
+            message.put("content", content);
+            String json = objectMapper.writeValueAsString(message);
+            stringRedisTemplate.opsForList().rightPush(key, json);
+            stringRedisTemplate.opsForList().trim(key, -MAX_HISTORY * 2, -1);
+            stringRedisTemplate.expire(key, SESSION_TTL_SECONDS, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.error("Failed to add session message: sessionId={}, role={}", sessionId, role, e);
+        }
     }
 
     public void clearSession(String sessionId) {
-        redisTemplate.delete(SESSION_PREFIX + sessionId);
+        stringRedisTemplate.delete(SESSION_PREFIX + sessionId);
     }
 
     public List<Map<String, Object>> buildMessages(String sessionId, String systemPrompt, String userMessage) {
         List<Map<String, Object>> messages = new ArrayList<>();
-        messages.add(Map.of("role", "system", "content", systemPrompt));
+        Map<String, Object> systemMsg = new HashMap<>();
+        systemMsg.put("role", "system");
+        systemMsg.put("content", systemPrompt);
+        messages.add(systemMsg);
         messages.addAll(getHistory(sessionId));
-        messages.add(Map.of("role", "user", "content", userMessage));
+        Map<String, Object> userMsg = new HashMap<>();
+        userMsg.put("role", "user");
+        userMsg.put("content", userMessage);
+        messages.add(userMsg);
         return messages;
     }
 
     public List<Map<String, Object>> buildMessages(String systemPrompt, String userMessage) {
         List<Map<String, Object>> messages = new ArrayList<>();
-        messages.add(Map.of("role", "system", "content", systemPrompt));
-        messages.add(Map.of("role", "user", "content", userMessage));
+        Map<String, Object> systemMsg = new HashMap<>();
+        systemMsg.put("role", "system");
+        systemMsg.put("content", systemPrompt);
+        messages.add(systemMsg);
+        Map<String, Object> userMsg = new HashMap<>();
+        userMsg.put("role", "user");
+        userMsg.put("content", userMessage);
+        messages.add(userMsg);
         return messages;
     }
 }
