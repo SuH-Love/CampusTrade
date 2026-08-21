@@ -20,6 +20,7 @@ public class SessionService {
     private static final String SESSION_PREFIX = "ai:session:";
     private static final int MAX_HISTORY = 20;
     private static final long SESSION_TTL_SECONDS = 1800;
+    private static final int MAX_CONTEXT_TOKENS = 4000;
 
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
@@ -69,12 +70,27 @@ public class SessionService {
         systemMsg.put("role", "system");
         systemMsg.put("content", systemPrompt);
         messages.add(systemMsg);
-        messages.addAll(getHistory(sessionId));
+        messages.addAll(truncateByTokens(getHistory(sessionId), MAX_CONTEXT_TOKENS));
         Map<String, Object> userMsg = new HashMap<>();
         userMsg.put("role", "user");
         userMsg.put("content", userMessage);
         messages.add(userMsg);
         return messages;
+    }
+
+    private List<Map<String, Object>> truncateByTokens(List<Map<String, Object>> history, int maxTokens) {
+        int totalTokens = 0;
+        int cutoff = history.size();
+        for (int i = history.size() - 1; i >= 0; i--) {
+            String content = (String) history.get(i).get("content");
+            int tokens = content != null ? content.length() / 2 + 1 : 0;
+            totalTokens += tokens;
+            if (totalTokens > maxTokens) {
+                cutoff = i + 1;
+                break;
+            }
+        }
+        return history.subList(cutoff, history.size());
     }
 
     public List<Map<String, Object>> buildMessages(String systemPrompt, String userMessage) {

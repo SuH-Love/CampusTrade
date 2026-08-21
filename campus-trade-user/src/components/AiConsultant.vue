@@ -79,10 +79,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { ChatDotRound, Close, Delete, Promotion } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { chatStream, getAiStatus, clearSession } from '@/api/ai'
+import { chatStream, getAiStatus, clearSession, getSessionHistory } from '@/api/ai'
 
 interface Message {
   id: number
@@ -222,6 +222,22 @@ const handleClear = async () => {
   sessionId.value = undefined
   ElMessage.success('对话已清空')
 }
+
+watch(visible, async (val) => {
+  if (val && sessionId.value && messages.value.length === 0) {
+    try {
+      const history = await getSessionHistory(sessionId.value)
+      if (history && history.length > 0) {
+        messages.value = history.map(msg => ({
+          id: ++msgIdCounter,
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content
+        }))
+        scrollToBottom()
+      }
+    } catch {}
+  }
+})
 
 onMounted(async () => {
   try {

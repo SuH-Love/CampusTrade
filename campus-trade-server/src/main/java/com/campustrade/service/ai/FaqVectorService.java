@@ -3,7 +3,9 @@ package com.campustrade.service.ai;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -22,6 +24,13 @@ public class FaqVectorService {
     private final Map<String, Double> idfMap = new HashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
+    private static final String REDIS_KEY_ITEMS = "ai:faq:items";
+    private static final String REDIS_KEY_IDF = "ai:faq:idf";
+    private static final String REDIS_KEY_VECTORS = "ai:faq:vectors";
+
     public static class FaqItem {
         public String question;
         public String answer;
@@ -38,12 +47,46 @@ public class FaqVectorService {
 
     @PostConstruct
     public void init() {
-        loadFaqData();
-        computeIdf();
-        for (FaqItem item : faqItems) {
-            faqVectors.add(computeTfIdfVector(item.question));
+        if (!loadFromRedis()) {
+            loadFaqData();
+            computeIdf();
+            for (FaqItem item : faqItems) {
+                faqVectors.add(computeTfIdfVector(item.question));
+            }
+            saveToRedis();
+            log.info("FaqVectorService initialized: {} FAQ items loaded", faqItems.size());
+        } else {
+            log.info("FaqVectorService initialized from Redis cache: {} FAQ items loaded", faqItems.size());
         }
-        log.info("FaqVectorService initialized: {} FAQ items loaded", faqItems.size());
+    }
+
+    private boolean loadFromRedis() {
+        try {
+            String itemsJson = stringRedisTemplate.opsForValue().get(REDIS_KEY_ITEMS);
+            String idfJson = stringRedisTemplate.opsForValue().get(REDIS_KEY_IDF);
+            String vectorsJson = stringRedisTemplate.opsForValue().get(REDIS_KEY_VECTORS);
+            if (itemsJson == null || idfJson == null || vectorsJson == null) return false;
+            faqItems.addAll(objectMapper.readValue(itemsJson, new TypeReference<List<FaqItem>>() {}));
+            idfMap.putAll(objectMapper.readValue(idfJson, new TypeReference<Map<String, Double>>() {}));
+            faqVectors.addAll(objectMapper.readValue(vectorsJson, new TypeReference<List<Map<String, Double>>>() {}));
+            return !faqItems.isEmpty();
+        } catch (Exception e) {
+            log.warn("Failed to load FAQ cache from Redis, will recompute: {}", e.getMessage());
+            faqItems.clear();
+            idfMap.clear();
+            faqVectors.clear();
+            return false;
+        }
+    }
+
+    private void saveToRedis() {
+        try {
+            stringRedisTemplate.opsForValue().set(REDIS_KEY_ITEMS, objectMapper.writeValueAsString(faqItems));
+            stringRedisTemplate.opsForValue().set(REDIS_KEY_IDF, objectMapper.writeValueAsString(idfMap));
+            stringRedisTemplate.opsForValue().set(REDIS_KEY_VECTORS, objectMapper.writeValueAsString(faqVectors));
+        } catch (Exception e) {
+            log.warn("Failed to save FAQ cache to Redis: {}", e.getMessage());
+        }
     }
 
     private void loadFaqData() {
@@ -152,5 +195,28 @@ public class FaqVectorService {
 
     public boolean hasRelevantFaq(String query) {
         return !search(query, 1).isEmpty();
+    }
+
+    public <T> List<T> rankBySimilarity(String query, List<T> candidates, java.util.function.Function<T, String> textExtractor, int topK) {
+        if (query == null || query.trim().isEmpty() || candidates == null || candidates.isEmpty()) {
+            return candidates;
+        }
+        Map<String, Double> queryVector = computeTfIdfVector(query);
+        List<Map.Entry<T, Double>> scored = new ArrayList<>();
+        for (T candidate : candidates) {
+            String text = textExtractor.apply(candidate);
+            if (text != null && !text.isEmpty()) {
+                double score = cosineSimilarity(queryVector, computeTfIdfVector(text));
+                scored.add(new AbstractMap.SimpleEntry<>(candidate, score));
+            } else {
+                scored.add(new AbstractMap.SimpleEntry<>(candidate, 0.0));
+            }
+        }
+        scored.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+        List<T> result = new ArrayList<>();
+        for (int i = 0; i < Math.min(topK, scored.size()); i++) {
+            result.add(scored.get(i).getKey());
+        }
+        return result;
     }
 }

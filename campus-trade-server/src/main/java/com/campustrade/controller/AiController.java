@@ -224,6 +224,19 @@ public class AiController {
         return Result.success(status);
     }
 
+    @ApiOperation("获取AI会话历史")
+    @GetMapping("/session/{sessionId}/history")
+    public Result<List<Map<String, Object>>> getSessionHistory(@PathVariable String sessionId) {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        if (currentUserId != null && sessionId.startsWith("user:")) {
+            String expectedPrefix = "user:" + currentUserId;
+            if (!sessionId.startsWith(expectedPrefix)) {
+                return Result.error(403, "无权查看其他用户的会话");
+            }
+        }
+        return Result.success(sessionService.getHistory(sessionId));
+    }
+
     @ApiOperation("获取AI标题优化建议")
     @GetMapping("/suggestion/{goodsId}")
     public Result<Map<String, Object>> getSuggestion(@PathVariable Long goodsId) {

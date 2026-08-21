@@ -21,6 +21,7 @@ import com.campustrade.mapper.UserFollowMapper;
 import com.campustrade.service.GoodsService;
 import com.campustrade.service.LogService;
 import com.campustrade.service.NotificationService;
+import com.campustrade.service.ai.FaqVectorService;
 import com.campustrade.vo.GoodsVO;
 import com.campustrade.util.IpUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -67,6 +68,9 @@ public class GoodsServiceImpl implements GoodsService {
 
     @Autowired
     private UserFollowMapper userFollowMapper;
+
+    @Autowired
+    private FaqVectorService faqVectorService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -188,10 +192,26 @@ public class GoodsServiceImpl implements GoodsService {
         if (status == null && dto.getUserId() == null) {
             status = GoodsStatus.ONLINE.getCode();
         }
-        List<GoodsVO> vos = goodsMapper.selectListVO(dto.getCategoryId(), dto.getKeyword(),
-                dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId(), offset, dto.getPageSize());
+        List<GoodsVO> vos;
         Long total = goodsMapper.selectCount(dto.getCategoryId(), dto.getKeyword(),
                 dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId());
+
+        if (dto.getKeyword() != null && !dto.getKeyword().trim().isEmpty() && total > 0) {
+            int candidateLimit = Math.min((int)(long) total, dto.getPageSize() * 3);
+            List<GoodsVO> candidates = goodsMapper.selectListVO(dto.getCategoryId(), dto.getKeyword(),
+                    dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId(), 0, candidateLimit);
+            vos = faqVectorService.rankBySimilarity(dto.getKeyword(), candidates,
+                    vo -> (vo.getTitle() != null ? vo.getTitle() : "") + " " +
+                         (vo.getDescription() != null ? vo.getDescription() : ""),
+                    dto.getPageSize());
+            if (offset > 0 && offset < candidates.size()) {
+                int end = Math.min(offset + dto.getPageSize(), candidates.size());
+                vos = candidates.subList(offset, end);
+            }
+        } else {
+            vos = goodsMapper.selectListVO(dto.getCategoryId(), dto.getKeyword(),
+                    dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId(), offset, dto.getPageSize());
+        }
         return Result.success(new PageResult<>(vos, total));
     }
 

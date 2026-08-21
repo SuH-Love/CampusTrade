@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 @Slf4j
@@ -45,6 +47,9 @@ public class DeepSeekClient {
     @Value("${ai.enabled:true}")
     private boolean aiEnabled;
 
+    @Value("${ai.deepseek.max-concurrent:5}")
+    private int maxConcurrent;
+
     @Autowired
     @Qualifier("aiTaskExecutor")
     private ThreadPoolTaskExecutor aiTaskExecutor;
@@ -52,9 +57,14 @@ public class DeepSeekClient {
     @Autowired
     private MeterRegistry meterRegistry;
 
+    @Autowired
+    private org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate;
+
     private Counter requestCounter;
     private Counter errorCounter;
     private Timer latencyTimer;
+    private Semaphore concurrencyLimit;
+    private volatile String currentApiKey;
 
     private static final Map<String, String> FALLBACK_ANSWERS = new ConcurrentHashMap<>();
 
@@ -65,6 +75,8 @@ public class DeepSeekClient {
 
     @PostConstruct
     public void init() {
+        concurrencyLimit = new Semaphore(maxConcurrent);
+        currentApiKey = apiKey;
         requestCounter = Counter.builder("ai.deepseek.requests.total")
                 .description("DeepSeek request count")
                 .tag("provider", "deepseek")
@@ -80,11 +92,29 @@ public class DeepSeekClient {
     }
 
     public boolean isEnabled() {
-        return aiEnabled && apiKey != null && !apiKey.isEmpty();
+        refreshApiKeyFromRedis();
+        return aiEnabled && currentApiKey != null && !currentApiKey.isEmpty();
     }
 
     public String getModel() {
         return model;
+    }
+
+    public void updateApiKey(String newKey) {
+        if (newKey != null && !newKey.isEmpty()) {
+            currentApiKey = newKey;
+            stringRedisTemplate.opsForValue().set("ai:config:api-key", newKey);
+            log.info("DeepSeek API key updated");
+        }
+    }
+
+    private void refreshApiKeyFromRedis() {
+        try {
+            String redisKey = stringRedisTemplate.opsForValue().get("ai:config:api-key");
+            if (redisKey != null && !redisKey.isEmpty() && !redisKey.equals(currentApiKey)) {
+                currentApiKey = redisKey;
+            }
+        } catch (Exception ignored) {}
     }
 
     public CompletableFuture<String> chatAsync(List<Map<String, Object>> messages) {
@@ -103,6 +133,9 @@ public class DeepSeekClient {
             requestCounter.increment();
             HttpResponse response = null;
             try {
+                if (!concurrencyLimit.tryAcquire(timeoutMs, TimeUnit.MILLISECONDS)) {
+                    throw new RuntimeException("AI concurrent request limit reached");
+                }
                 JSONObject payload = new JSONObject();
                 payload.set("model", model);
                 payload.set("messages", JSONUtil.parseArray(messages));
@@ -110,7 +143,7 @@ public class DeepSeekClient {
                 payload.set("temperature", 0.7);
 
                 response = HttpRequest.post(baseUrl + "/chat/completions")
-                        .header("Authorization", "Bearer " + apiKey)
+                        .header("Authorization", "Bearer " + currentApiKey)
                         .header("Content-Type", "application/json")
                         .body(payload.toString())
                         .timeout(timeoutMs)
@@ -152,6 +185,7 @@ public class DeepSeekClient {
                 return null;
             } finally {
                 sample.stop(latencyTimer);
+                concurrencyLimit.release();
                 if (response != null) {
                     try { response.close(); } catch (Exception ignored) {}
                 }
@@ -166,6 +200,9 @@ public class DeepSeekClient {
         Timer.Sample sample = Timer.start(meterRegistry);
         requestCounter.increment();
         try {
+            if (!concurrencyLimit.tryAcquire(timeoutMs, TimeUnit.MILLISECONDS)) {
+                return FALLBACK_ANSWERS.get("faq");
+            }
             JSONObject payload = new JSONObject();
             payload.set("model", model);
             payload.set("messages", JSONUtil.parseArray(messages));
@@ -173,7 +210,7 @@ public class DeepSeekClient {
             payload.set("temperature", 0.7);
 
             HttpResponse response = HttpRequest.post(baseUrl + "/chat/completions")
-                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Authorization", "Bearer " + currentApiKey)
                     .header("Content-Type", "application/json")
                     .body(payload.toString())
                     .timeout(timeoutMs)
@@ -196,6 +233,8 @@ public class DeepSeekClient {
             return FALLBACK_ANSWERS.get("faq");
         } finally {
             sample.stop(latencyTimer);
+            concurrencyLimit.release();
         }
     }
+
 }

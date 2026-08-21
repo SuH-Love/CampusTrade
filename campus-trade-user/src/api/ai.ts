@@ -26,6 +26,9 @@ export const clearSession = (sessionId: string) =>
 export const getAiStatus = () =>
   request.get<never, AiStatus>('/ai/status')
 
+export const getSessionHistory = (sessionId: string) =>
+  request.get<never, Array<{ role: string; content: string }>>(`/ai/session/${sessionId}/history`)
+
 export function chatStream(
   message: string,
   sessionId: string | undefined,
