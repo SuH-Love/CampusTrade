@@ -244,7 +244,8 @@ onUnmounted(() => {
 
 .sidebar {
   background: var(--admin-sidebar-bg);
-  transition: width 0.3s;
+  background-image: radial-gradient(ellipse at top, rgba(99,102,241,0.15) 0%, transparent 70%);
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -253,6 +254,7 @@ onUnmounted(() => {
 .sidebar-drawer {
   :deep(.el-drawer__body) {
     background: var(--admin-sidebar-bg);
+    background-image: radial-gradient(ellipse at top, rgba(99,102,241,0.15) 0%, transparent 70%);
     padding: 0;
   }
 }
@@ -262,18 +264,19 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   padding: 20px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
   overflow: hidden;
   white-space: nowrap;
 }
 
 .logo-icon {
   width: 36px; height: 36px;
-  background: linear-gradient(135deg, var(--admin-primary), var(--admin-primary-light));
+  background: linear-gradient(135deg, #6366f1, #3b82f6);
   border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-weight: 800; font-size: 18px;
   flex-shrink: 0;
+  box-shadow: 0 2px 12px rgba(99,102,241,0.4);
   &.small { width: 32px; height: 32px; font-size: 16px; border-radius: 8px; }
 }
 
@@ -290,12 +293,15 @@ onUnmounted(() => {
   .el-menu-item {
     color: var(--admin-sidebar-text) !important;
     height: 48px; line-height: 48px;
-    margin: 2px 8px; border-radius: 8px;
+    margin: 2px 10px; border-radius: 10px;
+    transition: all 0.2s ease;
     &.is-active {
       background: var(--admin-sidebar-active) !important;
       color: var(--admin-sidebar-active-text) !important;
+      box-shadow: 0 0 20px rgba(99,102,241,0.2);
+      font-weight: 600;
     }
-    &:hover { background: rgba(255,255,255,0.06) !important; }
+    &:hover { background: rgba(255,255,255,0.05) !important; transform: translateX(2px); }
   }
 }
 
@@ -310,11 +316,13 @@ onUnmounted(() => {
 
 .header {
   display: flex; align-items: center; justify-content: space-between;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--admin-header-bg);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
   border-bottom: 1px solid var(--admin-border-light);
   padding: 0 24px;
   height: 60px;
-  box-shadow: var(--admin-shadow);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
 }
 
 .header-left { display: flex; align-items: center; gap: 12px; }
@@ -322,7 +330,8 @@ onUnmounted(() => {
 .collapse-btn {
   cursor: pointer; font-size: 20px; color: var(--admin-text-secondary);
   transition: var(--admin-transition);
-  &:hover { color: var(--admin-primary); }
+  padding: 4px; border-radius: 6px;
+  &:hover { color: var(--admin-primary); background: rgba(99,102,241,0.08); }
 }
 
 .header-breadcrumb {

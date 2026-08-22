@@ -232,13 +232,16 @@ onUnmounted(() => {
 
 .header {
   background: var(--bg-glass);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   border-bottom: 1px solid var(--border);
   padding: 0;
   height: 64px;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: var(--transition-slow);
 }
 
 
@@ -259,8 +262,9 @@ onUnmounted(() => {
   cursor: pointer;
   margin-right: 28px;
   flex-shrink: 0;
-  transition: var(--transition);
-  &:hover { transform: scale(1.02); }
+  transition: var(--transition-spring);
+  &:hover { transform: scale(1.03); }
+  &:active { transform: scale(0.97); }
 }
 
 .logo-icon {
@@ -272,7 +276,9 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   color: #fff;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 2px 12px rgba(99, 102, 241, 0.35);
+  transition: var(--transition);
+  .logo:hover & { box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5); }
 }
 
 .logo-text {

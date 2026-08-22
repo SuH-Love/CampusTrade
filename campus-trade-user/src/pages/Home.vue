@@ -15,10 +15,14 @@
         </el-carousel-item>
         <el-carousel-item v-if="banners.length === 0">
           <div class="hero-slide hero-default">
+            <div class="hero-bg-particles">
+              <span v-for="i in 8" :key="i" class="hero-particle" :style="particleStyle(i)" />
+            </div>
             <div class="hero-content">
-              <h1>校园贸易平台</h1>
-              <p>安全 · 便捷 · 值得信赖的校园闲置好物流转平台</p>
-              <el-button type="primary" size="large" round @click="$router.push('/goods')">浏览商品</el-button>
+              <div class="hero-badge">校园闲置好物流转平台</div>
+              <h1>校园贸易<span class="gradient-text">新体验</span></h1>
+              <p>安全·便捷·值得信赖的校园闲置好物流转平台</p>
+              <el-button type="primary" size="large" round @click="$router.push('/goods')">立即探索</el-button>
             </div>
           </div>
         </el-carousel-item>
@@ -238,6 +242,20 @@ onMounted(() => {
   loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCategories(); loadAnnouncements(); loadHotKeywords()
 })
 
+const particleStyle = (i: number) => {
+  const colors = ['#818cf8', '#a78bfa', '#c4b5fd', '#60a5fa', '#93c5fd']
+  const sizes = [4, 6, 8, 10, 12]
+  return {
+    left: `${(i * 13 + 7) % 100}%`,
+    top: `${(i * 17 + 11) % 100}%`,
+    width: `${sizes[i % sizes.length]}px`,
+    height: `${sizes[i % sizes.length]}px`,
+    background: colors[i % colors.length],
+    animationDelay: `${i * 0.7}s`,
+    animationDuration: `${3 + i * 0.5}s`,
+  }
+}
+
 onUnmounted(() => {
   if (announcementTimer) clearInterval(announcementTimer)
 })
@@ -260,40 +278,94 @@ onUnmounted(() => {
   text-align: center;
   color: #fff;
   position: relative;
+  overflow: hidden;
 }
 
-.hero-default { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%); }
-:deep(.dark) .hero-default, .dark .hero-default { background: linear-gradient(135deg, #4338ca 0%, #6d28d9 50%, #7c3aed 100%); }
+.hero-default {
+  background: linear-gradient(135deg, #4338ca 0%, #6366f1 20%, #3b82f6 40%, #8b5cf6 60%, #7c3aed 80%, #4f46e5 100%);
+  background-size: 300% 300%;
+  animation: heroBgShift 8s ease-in-out infinite;
+}
+
+@keyframes heroBgShift {
+  0%, 100% { background-position: 0% 50%; }
+  25% { background-position: 100% 0%; }
+  50% { background-position: 100% 100%; }
+  75% { background-position: 0% 100%; }
+}
+
+:deep(.dark) .hero-default, .dark .hero-default {
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 20%, #1e3a5f 40%, #4c1d95 60%, #312e81 80%, #1e1b4b 100%);
+  background-size: 300% 300%;
+}
+
+.hero-bg-particles {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0;
+}
+
+.hero-particle {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0;
+  animation: particleFloat 4s ease-in-out infinite;
+}
+
+@keyframes particleFloat {
+  0%, 100% { opacity: 0; transform: translateY(0) scale(0.5); }
+  20% { opacity: 0.6; }
+  50% { opacity: 0.3; transform: translateY(-20px) scale(1.2); }
+  80% { opacity: 0.6; }
+}
 
 .hero-overlay {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.35) 100%);
+  background: linear-gradient(180deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.3) 100%);
 }
 .dark .hero-overlay {
-  background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.55) 100%);
+  background: linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.5) 100%);
 }
 
 .hero-content {
   position: relative; z-index: 1;
-  h1 { font-size: 36px; font-weight: 800; margin-bottom: 12px; letter-spacing: -0.5px; text-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-  p { font-size: 16px; opacity: 0.92; margin-bottom: 24px; text-shadow: 0 1px 4px rgba(0,0,0,0.1); }
-  .el-button { font-size: 16px; padding: 12px 32px; background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); color: #fff; &:hover { background: rgba(255,255,255,0.35); transform: translateY(-2px); } }
+  h1 { font-size: 40px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; text-shadow: 0 2px 12px rgba(0,0,0,0.2); line-height: 1.2; }
+  .gradient-text { background: linear-gradient(90deg, #fbbf24, #f59e0b); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  p { font-size: 16px; opacity: 0.9; margin-bottom: 24px; text-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+  .el-button {
+    font-size: 16px; padding: 14px 36px; height: auto;
+    background: rgba(255,255,255,0.2) !important; border: 1px solid rgba(255,255,255,0.4) !important; color: #fff !important;
+    backdrop-filter: blur(8px); font-weight: 600;
+    &:hover { background: rgba(255,255,255,0.35) !important; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+  }
+}
+
+.hero-badge {
+  display: inline-block;
+  padding: 4px 16px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  backdrop-filter: blur(8px);
+  letter-spacing: 0.5px;
 }
 
 .hero-bg-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(var(--img-brightness)); }
 
 .home-content {
   background: var(--bg-glass);
+  backdrop-filter: blur(10px);
   border-radius: 20px 20px 0 0;
   border: 1px solid var(--border);
   border-bottom: none;
   box-shadow: var(--shadow-sm);
   margin: var(--spacing-lg) var(--spacing-lg) 0;
-  padding: 20px;
+  padding: 24px;
 }
 
 .search-section { position: relative; max-width: 560px; margin: 0 auto; }
-.search-input { :deep(.el-input__wrapper) { border-radius: 24px; box-shadow: 0 2px 12px rgba(99,102,241,0.1); padding: 4px 20px; } }
+.search-input { :deep(.el-input__wrapper) { border-radius: 24px; box-shadow: 0 2px 16px rgba(99,102,241,0.12); padding: 6px 20px; transition: var(--transition); } :deep(.el-input__wrapper:hover) { box-shadow: 0 4px 20px rgba(99,102,241,0.2); } }
 .search-dropdown {
   position: absolute; top: 100%; left: 0; right: 0;
   background: var(--color-dropdown-bg); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);

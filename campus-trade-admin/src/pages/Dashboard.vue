@@ -2,7 +2,7 @@
   <div class="dashboard-page admin-page">
     <el-row :gutter="16" class="mb-lg">
       <el-col :xs="12" :sm="6" :md="4" v-for="item in stats" :key="item.label">
-        <div class="stat-card" :style="{ borderTopColor: item.color }">
+        <div class="stat-card">
           <div class="stat-icon" :style="{ background: item.color + '18', color: item.color }">
             <el-icon :size="22"><component :is="item.icon" /></el-icon>
           </div>
@@ -215,27 +215,39 @@ onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeE
 .mb-lg { margin-bottom: 20px; }
 .stat-card {
   background: var(--admin-card-bg);
-  border-radius: 12px;
-  padding: 18px 16px;
+  border-radius: var(--admin-radius);
+  padding: 20px 18px;
   display: flex;
   align-items: center;
   gap: 14px;
-  border-top: 3px solid;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-  transition: all 0.25s;
-
-  &:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.1); }
+  border: 1px solid var(--admin-border);
+  box-shadow: var(--admin-shadow);
+  transition: var(--admin-transition-slow);
+  position: relative;
+  overflow: hidden;
+  &::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, attr(data-color type(color)), transparent);
+  }
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--admin-shadow-lg);
+    .stat-icon { transform: scale(1.08); }
+  }
 }
 
 .stat-icon {
-  width: 48px; height: 48px;
+  width: 46px; height: 46px;
   border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  transition: var(--admin-transition);
 }
 
-.stat-value { font-size: 24px; font-weight: 700; color: var(--admin-text); line-height: 1.2; }
-.stat-label { font-size: 12px; color: var(--admin-text-secondary); margin-top: 2px; }
+.stat-value { font-size: 26px; font-weight: 800; color: var(--admin-text); line-height: 1.1; }
+.stat-label { font-size: 12px; color: var(--admin-text-secondary); margin-top: 3px; font-weight: 500; }
 
 .card-title { font-size: 15px; font-weight: 600; }
 
@@ -243,7 +255,7 @@ onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeE
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 0; border-bottom: 1px solid var(--admin-border);
   cursor: pointer; transition: all 0.2s;
-  &:hover { padding-left: 8px; background: rgba(99,102,241,0.03); }
+  &:hover { padding-left: 8px; background: rgba(99,102,241,0.03); border-radius: 6px; }
   &:last-child { border-bottom: none; }
 }
 
