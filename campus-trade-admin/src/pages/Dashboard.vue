@@ -1,8 +1,8 @@
 <template>
   <div class="dashboard-page admin-page">
-    <el-row :gutter="16" class="mb-lg">
-      <el-col :xs="12" :sm="6" :md="4" v-for="item in stats" :key="item.label">
-        <div class="stat-card">
+    <div class="bento-dashboard">
+      <div class="bento-stats">
+        <div v-for="(item, idx) in stats" :key="item.label" class="stat-card" :style="{ animationDelay: `${idx * 0.06}s`, borderLeftColor: item.color }">
           <div class="stat-icon" :style="{ background: item.color + '18', color: item.color }">
             <el-icon :size="22"><component :is="item.icon" /></el-icon>
           </div>
@@ -11,26 +11,22 @@
             <div class="stat-label">{{ item.label }}</div>
           </div>
         </div>
-      </el-col>
-    </el-row>
-    <el-row :gutter="20" class="mb-lg">
-      <el-col :span="12">
-        <el-card shadow="hover">
-          <template #header><span class="card-title">商品状态分布</span></template>
+      </div>
+
+      <div class="bento-charts">
+        <el-card shadow="hover" class="chart-card">
+          <template #header><span class="card-title">📊 商品状态分布</span></template>
           <div ref="goodsChartRef" class="chart-container" />
         </el-card>
-      </el-col>
-      <el-col :span="12">
-        <el-card shadow="hover">
-          <template #header><span class="card-title">订单状态分布</span></template>
+        <el-card shadow="hover" class="chart-card">
+          <template #header><span class="card-title">📈 订单状态分布</span></template>
           <div ref="orderChartRef" class="chart-container" />
         </el-card>
-      </el-col>
-    </el-row>
-    <el-row :gutter="20">
-      <el-col :span="8">
-        <el-card shadow="hover">
-          <template #header><span class="card-title">待处理事项</span></template>
+      </div>
+
+      <div class="bento-bottom">
+        <el-card shadow="hover" class="todo-card">
+          <template #header><span class="card-title">⏰ 待处理事项</span></template>
           <div class="todo-list">
             <div class="todo-item" v-for="item in todoItems" :key="item.label" @click="$router.push(item.path)">
               <div class="todo-info">
@@ -48,10 +44,9 @@
             <span class="ai-health-text">{{ aiHealthDetail }}</span>
           </div>
         </el-card>
-      </el-col>
-      <el-col :span="16">
-        <el-card shadow="hover">
-          <template #header><span class="card-title">最近操作日志</span></template>
+
+        <el-card shadow="hover" class="log-card">
+          <template #header><span class="card-title">📝 最近操作日志</span></template>
           <el-table :data="recentLogs" size="small" stripe>
             <el-table-column prop="username" label="操作人" min-width="90" />
             <el-table-column prop="operation" label="操作" show-overflow-tooltip min-width="120">
@@ -64,8 +59,8 @@
             <el-table-column prop="createTime" label="时间" min-width="170" />
           </el-table>
         </el-card>
-      </el-col>
-    </el-row>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -212,7 +207,14 @@ onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeE
 </script>
 
 <style scoped lang="scss">
-.mb-lg { margin-bottom: 20px; }
+.bento-dashboard { display: flex; flex-direction: column; gap: 20px; }
+
+.bento-stats {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+}
+
 .stat-card {
   background: var(--admin-card-bg);
   border-radius: var(--admin-radius);
@@ -221,20 +223,14 @@ onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeE
   align-items: center;
   gap: 14px;
   border: 1px solid var(--admin-border);
+  border-left: 3px solid;
   box-shadow: var(--admin-shadow);
   transition: var(--admin-transition-slow);
-  position: relative;
-  overflow: hidden;
-  &::before {
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, attr(data-color type(color)), transparent);
-  }
+  animation: fadeInUp 0.5s ease-out backwards;
   &:hover {
     transform: translateY(-4px);
     box-shadow: var(--admin-shadow-lg);
-    .stat-icon { transform: scale(1.08); }
+    .stat-icon { transform: scale(1.1); }
   }
 }
 
@@ -248,6 +244,19 @@ onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeE
 
 .stat-value { font-size: 26px; font-weight: 800; color: var(--admin-text); line-height: 1.1; }
 .stat-label { font-size: 12px; color: var(--admin-text-secondary); margin-top: 3px; font-weight: 500; }
+
+.bento-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.chart-card { min-height: 380px; }
+
+.bento-bottom {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 20px;
+}
 
 .card-title { font-size: 15px; font-weight: 600; }
 
@@ -263,4 +272,18 @@ onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeE
 .todo-label { font-size: 13px; font-weight: 500; }
 .ai-health { display: flex; align-items: center; gap: 8px; }
 .ai-health-text { font-size: 13px; color: var(--admin-text-secondary); }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 1200px) {
+  .bento-stats { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+  .bento-stats { grid-template-columns: repeat(2, 1fr); }
+  .bento-charts { grid-template-columns: 1fr; }
+  .bento-bottom { grid-template-columns: 1fr; }
+}
 </style>

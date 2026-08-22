@@ -358,9 +358,11 @@ onMounted(() => {
   padding: 20px;
 
   :deep(.el-card) {
-    border-radius: 16px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
+    transition: var(--transition-slow);
+    &:hover { box-shadow: var(--shadow-md); }
   }
 }
 .profile-card { text-align: center; }
@@ -370,10 +372,10 @@ onMounted(() => {
   @media (max-width: 768px) { grid-template-columns: repeat(2, 1fr); }
 }
 .stat-card {
-  background: var(--bg-card); border-radius: 16px; padding: 20px 14px;
+  background: var(--bg-card); border-radius: var(--radius-lg); padding: 20px 14px;
   border: 1px solid var(--border); text-align: center; cursor: pointer;
-  transition: var(--transition);
-  &:hover { border-color: var(--primary-light); box-shadow: 0 6px 20px rgba(99, 102, 241, 0.1); transform: translateY(-3px); }
+  transition: var(--transition-slow);
+  &:hover { border-color: var(--primary-light); box-shadow: var(--shadow-lg); transform: translateY(-4px); }
 }
 .stat-icon {
   width: 44px; height: 44px; border-radius: 12px;

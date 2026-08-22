@@ -338,6 +338,21 @@ onMounted(loadData)
 .goods-detail {
   padding: var(--spacing-lg);
   padding-bottom: 100px;
+  position: relative;
+}
+
+.goods-detail::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 300px;
+  background: radial-gradient(ellipse at top, rgba(99,102,241,0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dark .goods-detail::before {
+  background: radial-gradient(ellipse at top, rgba(129,140,248,0.06) 0%, transparent 70%);
 }
 
 .goods-detail-skeleton {
@@ -422,10 +437,26 @@ onMounted(loadData)
 }
 
 .detail-gallery {
-  border-radius: var(--radius-lg);
+
+  border-radius: var(--radius-xl);
   overflow: hidden;
   background: linear-gradient(135deg, var(--color-img-placeholder-from), var(--color-img-placeholder-to));
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 60%;
+    background: linear-gradient(180deg, rgba(99,102,241,0.08), transparent);
+    pointer-events: none; z-index: 1;
+  }
+}
+.gallery-img {
+  width: 100%;
+  height: 460px;
+  border-radius: var(--radius-xl);
+  filter: brightness(var(--img-brightness));
+  &.single { display: block; }
 }
 .gallery-img {
   width: 100%;
@@ -476,8 +507,12 @@ onMounted(loadData)
   gap: 10px;
   flex-wrap: wrap;
   padding: var(--spacing-md) 0;
-
   margin-top: 8px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-md);
 }
 
 .detail-tabs {

@@ -1,125 +1,125 @@
 <template>
   <div class="home-page">
-    <section class="hero">
-      <el-carousel :height="heroHeight" :interval="5000" arrow="hover" indicator-position="outside">
-        <el-carousel-item v-for="banner in banners" :key="banner.id">
-          <div class="hero-slide" :style="{ background: banner.imageUrl ? 'transparent' : (banner.bgColor || 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)') }">
-            <img v-if="banner.imageUrl" :src="banner.imageUrl" class="hero-bg-img" alt="轮播图" />
-            <div class="hero-overlay" v-if="banner.imageUrl" />
-            <div class="hero-content">
-              <h1 v-if="banner.title">{{ banner.title }}</h1>
-              <p v-if="banner.subtitle">{{ banner.subtitle }}</p>
-              <el-button v-if="banner.buttonText && banner.linkUrl" size="large" round :style="bannerButtonStyle(banner)" @click="$router.push(banner.linkUrl)">{{ banner.buttonText }}</el-button>
+    <HomeSkeleton v-if="homeLoading && hotGoods.length === 0" />
+    <template v-else>
+      <section class="hero">
+        <el-carousel :height="heroHeight" :interval="5000" arrow="hover" indicator-position="outside">
+          <el-carousel-item v-for="banner in banners" :key="banner.id">
+            <div class="hero-slide" :style="{ background: banner.imageUrl ? 'transparent' : (banner.bgColor || 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)') }">
+              <img v-if="banner.imageUrl" :src="banner.imageUrl" class="hero-bg-img" alt="轮播图" />
+              <div class="hero-overlay" v-if="banner.imageUrl" />
+              <div class="hero-content">
+                <h1 v-if="banner.title">{{ banner.title }}</h1>
+                <p v-if="banner.subtitle">{{ banner.subtitle }}</p>
+                <el-button v-if="banner.buttonText && banner.linkUrl" size="large" round :style="bannerButtonStyle(banner)" @click="$router.push(banner.linkUrl)">{{ banner.buttonText }}</el-button>
+              </div>
             </div>
-          </div>
-        </el-carousel-item>
-        <el-carousel-item v-if="banners.length === 0">
-          <div class="hero-slide hero-default">
-            <div class="hero-bg-particles">
-              <span v-for="i in 8" :key="i" class="hero-particle" :style="particleStyle(i)" />
+          </el-carousel-item>
+          <el-carousel-item v-if="banners.length === 0">
+            <div class="hero-slide hero-default">
+              <div class="hero-bg-particles">
+                <span v-for="i in 8" :key="i" class="hero-particle" :style="particleStyle(i)" />
+              </div>
+              <div class="hero-content">
+                <div class="hero-badge">校园闲置好物流转平台</div>
+                <h1>校园贸易<span class="gradient-text">新体验</span></h1>
+                <p>安全·便捷·值得信赖的校园闲置好物流转平台</p>
+                <el-button type="primary" size="large" round @click="$router.push('/goods')">立即探索</el-button>
+              </div>
             </div>
-            <div class="hero-content">
-              <div class="hero-badge">校园闲置好物流转平台</div>
-              <h1>校园贸易<span class="gradient-text">新体验</span></h1>
-              <p>安全·便捷·值得信赖的校园闲置好物流转平台</p>
-              <el-button type="primary" size="large" round @click="$router.push('/goods')">立即探索</el-button>
-            </div>
-          </div>
-        </el-carousel-item>
-      </el-carousel>
-    </section>
-
-    <div class="home-content">
-      <div class="search-section">
-        <el-input
-          v-model="searchKeyword"
-          placeholder="搜索你想要的宝贝..."
-          size="large"
-          clearable
-          prefix-icon="Search"
-          @keyup.enter="handleSearch"
-          @input="handleSearchInput"
-          @focus="showSearchDropdown = true"
-          @blur="hideSearchDropdown"
-          class="search-input"
-        />
-        <div class="search-dropdown" v-if="showSearchDropdown && (searchHistory.length > 0 || hotKeywords.length > 0)">
-          <div class="search-dropdown-section" v-if="searchHistory.length > 0">
-            <div class="search-dropdown-header">
-              <span>搜索历史</span>
-              <el-button link type="info" size="small" @click="clearSearchHistory">清空</el-button>
-            </div>
-            <div class="search-tags">
-              <el-tag v-for="(kw, idx) in searchHistory" :key="idx" size="small" round effect="plain" @mousedown.prevent="searchFromHistory(kw)" class="search-tag-btn">{{ kw }}</el-tag>
-            </div>
-          </div>
-          <div class="search-dropdown-section" v-if="hotKeywords.length > 0">
-            <div class="search-dropdown-header"><span>智能推荐</span></div>
-            <div class="search-tags">
-              <el-tag v-for="(kw, idx) in hotKeywords" :key="idx" size="small" round type="danger" effect="plain" @mousedown.prevent="searchFromHistory(kw)" class="search-tag-btn">{{ kw }}</el-tag>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="category-bar">
-        <div class="category-scroll">
-          <div
-            v-for="cat in categories" :key="cat.id"
-            class="category-chip"
-            :class="{ active: selectedCategoryId === cat.id }"
-            @click="toggleCategory(cat.id)"
-          >{{ cat.categoryName }}</div>
-        </div>
-      </div>
-
-      <div class="announcement-bar" v-if="announcements.length > 0">
-        <el-icon class="announcement-icon"><Bell /></el-icon>
-        <div class="announcement-scroll">
-          <transition name="announcement-slide" mode="out-in">
-            <div :key="currentAnnouncementIdx" class="announcement-text">
-              <strong>{{ announcements[currentAnnouncementIdx]?.title }}</strong>：{{ announcements[currentAnnouncementIdx]?.content }}
-            </div>
-          </transition>
-        </div>
-      </div>
-
-      <section class="mt-lg">
-        <div class="flex-between mb-md">
-          <h3 class="section-title mb-0">热门商品</h3>
-          <el-button text type="primary" @click="$router.push('/goods')">查看更多 →</el-button>
-        </div>
-        <div class="goods-grid" v-if="hotGoods.length > 0">
-          <div v-for="item in hotGoods" :key="item.id" class="goods-grid-item">
-            <GoodsCard :goods="item" />
-          </div>
-        </div>
-        <div class="goods-grid" v-else-if="homeLoading">
-          <div v-for="i in 10" :key="'hs'+i" class="goods-grid-item">
-            <GoodsCardSkeleton />
-          </div>
-        </div>
-        <EmptyState v-else icon="📦" title="暂无热门商品" description="去看看其他商品吧" action-text="浏览商品" @action="$router.push('/goods')" />
+          </el-carousel-item>
+        </el-carousel>
       </section>
 
-      <section class="mt-lg">
-        <div class="flex-between mb-md">
-          <h3 class="section-title mb-0">最新上架</h3>
-          <el-button text type="primary" @click="$router.push('/goods')">查看更多 →</el-button>
-        </div>
-        <div class="goods-grid" v-if="recommendGoods.length > 0">
-          <div v-for="item in recommendGoods" :key="item.id" class="goods-grid-item">
-            <GoodsCard :goods="item" />
+      <div class="bento-container">
+        <div class="bento-grid">
+          <div class="bento-card bento-search-card">
+            <el-input
+              v-model="searchKeyword"
+              placeholder="搜索你想要的宝贝..."
+              size="large"
+              clearable
+              prefix-icon="Search"
+              @keyup.enter="handleSearch"
+              @input="handleSearchInput"
+              @focus="showSearchDropdown = true"
+              @blur="hideSearchDropdown"
+              class="search-input"
+            />
+            <div class="search-dropdown" v-if="showSearchDropdown && (searchHistory.length > 0 || hotKeywords.length > 0)">
+              <div class="search-dropdown-section" v-if="searchHistory.length > 0">
+                <div class="search-dropdown-header">
+                  <span>搜索历史</span>
+                  <el-button link type="info" size="small" @click="clearSearchHistory">清空</el-button>
+                </div>
+                <div class="search-tags">
+                  <el-tag v-for="(kw, idx) in searchHistory" :key="idx" size="small" round effect="plain" @mousedown.prevent="searchFromHistory(kw)" class="search-tag-btn">{{ kw }}</el-tag>
+                </div>
+              </div>
+              <div class="search-dropdown-section" v-if="hotKeywords.length > 0">
+                <div class="search-dropdown-header"><span>智能推荐</span></div>
+                <div class="search-tags">
+                  <el-tag v-for="(kw, idx) in hotKeywords" :key="idx" size="small" round type="danger" effect="plain" @mousedown.prevent="searchFromHistory(kw)" class="search-tag-btn">{{ kw }}</el-tag>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bento-card bento-category-card">
+            <div class="bento-card-head">
+              <h3>快速分类</h3>
+              <el-button text type="primary" size="small" @click="$router.push('/goods')">全部分类 →</el-button>
+            </div>
+            <div class="category-chips">
+              <div
+                v-for="cat in categories.slice(0, 8)" :key="cat.id"
+                class="category-chip"
+                :class="{ active: selectedCategoryId === cat.id }"
+                @click="toggleCategory(cat.id)"
+              >{{ cat.categoryName }}</div>
+            </div>
+          </div>
+
+          <div class="bento-card bento-announce-card" v-if="announcements.length > 0">
+            <div class="bento-card-head">
+              <h3>📢 平台公告</h3>
+            </div>
+            <div class="announce-list">
+              <div v-for="(ann, idx) in announcements.slice(0, 3)" :key="ann.id" class="announce-item" :style="{ animationDelay: `${idx * 0.1}s` }">
+                <div class="announce-title">{{ ann.title }}</div>
+                <div class="announce-content">{{ ann.content }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bento-card bento-hot-card">
+            <div class="bento-card-head">
+              <h3 class="bento-title-gradient">🔥 热门商品</h3>
+              <el-button text type="primary" @click="$router.push('/goods')">查看更多 →</el-button>
+            </div>
+            <div class="goods-grid" v-if="hotGoods.length > 0">
+              <div v-for="(item, idx) in hotGoods" :key="item.id" class="goods-grid-item" :style="{ animationDelay: `${idx * 0.05}s` }">
+                <GoodsCard :goods="item" />
+              </div>
+            </div>
+            <EmptyState v-else icon="📦" title="暂无热门商品" description="去看看其他商品吧" action-text="浏览商品" @action="$router.push('/goods')" />
+          </div>
+
+          <div class="bento-card bento-new-card">
+            <div class="bento-card-head">
+              <h3 class="bento-title-gradient">✨ 最新上架</h3>
+              <el-button text type="primary" @click="$router.push('/goods')">查看更多 →</el-button>
+            </div>
+            <div class="goods-grid" v-if="recommendGoods.length > 0">
+              <div v-for="(item, idx) in recommendGoods" :key="item.id" class="goods-grid-item" :style="{ animationDelay: `${idx * 0.05}s` }">
+                <GoodsCard :goods="item" />
+              </div>
+            </div>
+            <EmptyState v-else icon="🆕" title="暂无推荐商品" description="成为第一个发布商品的人" action-text="去发布" @action="$router.push('/goods/publish')" />
           </div>
         </div>
-        <div class="goods-grid" v-else-if="homeLoading">
-          <div v-for="i in 10" :key="'rs'+i" class="goods-grid-item">
-            <GoodsCardSkeleton />
-          </div>
-        </div>
-        <EmptyState v-else icon="🆕" title="暂无推荐商品" description="成为第一个发布商品的人" action-text="去发布" @action="$router.push('/goods/publish')" />
-      </section>
-    </div>
+      </div>
+    </template>
     <BackToTop />
   </div>
 </template>
@@ -132,7 +132,7 @@ import { getCategoryList } from '@/api/category'
 import { getActiveBanners } from '@/api/banner'
 import { getActiveAnnouncements, type AnnouncementVO } from '@/api/announcement'
 import GoodsCard from '@/components/GoodsCard.vue'
-import GoodsCardSkeleton from '@/components/GoodsCardSkeleton.vue'
+import HomeSkeleton from '@/components/HomeSkeleton.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import BackToTop from '@/components/BackToTop.vue'
 import { debounce } from '@/utils/labels'
@@ -155,7 +155,7 @@ const homeLoading = ref(true)
 const currentAnnouncementIdx = ref(0)
 let announcementTimer: ReturnType<typeof setInterval> | null = null
 
-const heroHeight = computed(() => window.innerWidth < 768 ? '200px' : '300px')
+const heroHeight = computed(() => window.innerWidth < 768 ? '220px' : '340px')
 
 const handleSearchInput = debounce(() => {}, 300)
 
@@ -270,7 +270,7 @@ onUnmounted(() => {
 }
 
 .hero-slide {
-  height: 300px;
+  height: 340px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -327,7 +327,7 @@ onUnmounted(() => {
 
 .hero-content {
   position: relative; z-index: 1;
-  h1 { font-size: 40px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; text-shadow: 0 2px 12px rgba(0,0,0,0.2); line-height: 1.2; }
+  h1 { font-size: 42px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; text-shadow: 0 2px 12px rgba(0,0,0,0.2); line-height: 1.2; }
   .gradient-text { background: linear-gradient(90deg, #fbbf24, #f59e0b); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
   p { font-size: 16px; opacity: 0.9; margin-bottom: 24px; text-shadow: 0 1px 4px rgba(0,0,0,0.1); }
   .el-button {
@@ -353,18 +353,37 @@ onUnmounted(() => {
 
 .hero-bg-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(var(--img-brightness)); }
 
-.home-content {
-  background: var(--bg-glass);
-  backdrop-filter: blur(10px);
-  border-radius: 20px 20px 0 0;
-  border: 1px solid var(--border);
-  border-bottom: none;
-  box-shadow: var(--shadow-sm);
-  margin: var(--spacing-lg) var(--spacing-lg) 0;
-  padding: 24px;
+
+.bento-container {
+  padding: var(--spacing-lg);
+  max-width: 1280px;
+  margin: 0 auto;
 }
 
-.search-section { position: relative; max-width: 560px; margin: 0 auto; }
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.bento-card {
+  background: var(--bg-glass);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-slow);
+  animation: fadeInUp 0.5s ease-out backwards;
+  &:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+}
+
+.bento-search-card {
+  grid-column: span 4;
+  padding: 16px 20px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+}
 .search-input { :deep(.el-input__wrapper) { border-radius: 24px; box-shadow: 0 2px 16px rgba(99,102,241,0.12); padding: 6px 20px; transition: var(--transition); } :deep(.el-input__wrapper:hover) { box-shadow: 0 4px 20px rgba(99,102,241,0.2); } }
 .search-dropdown {
   position: absolute; top: 100%; left: 0; right: 0;
@@ -376,47 +395,67 @@ onUnmounted(() => {
 .search-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .search-tag-btn { cursor: pointer; }
 
-.category-bar { margin-top: var(--spacing-md); overflow: hidden; }
-.category-scroll {
-  display: flex; gap: 8px; overflow-x: auto; justify-content: center;
-  padding-bottom: 4px; scrollbar-width: none; &::-webkit-scrollbar { display: none; }
+.bento-category-card { grid-column: span 3; }
+.bento-announce-card { grid-column: span 1; }
+.bento-hot-card, .bento-new-card { grid-column: span 4; }
+
+.bento-card-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px;
+  h3 { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+}
+.bento-title-gradient {
+  background: var(--primary-gradient-gloss);
+  background-size: 200% auto;
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
+.category-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .category-chip {
-  padding: 6px 18px; border-radius: 20px; background: var(--color-chip-bg);
+  padding: 8px 18px; border-radius: 20px; background: var(--color-chip-bg);
   border: 1px solid var(--color-chip-border); font-size: 13px; font-weight: 500;
   color: var(--text-secondary); cursor: pointer; transition: all 0.2s ease;
-  white-space: nowrap; flex-shrink: 0;
-  &:hover { border-color: var(--primary); color: var(--primary); }
-  &.active { background: var(--primary-gradient); color: #fff; border-color: transparent; box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3); }
+  white-space: nowrap;
+  &:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-1px); }
+  &.active { background: var(--primary-gradient); color: #fff; border-color: transparent; box-shadow: 0 2px 12px rgba(99, 102, 241, 0.3); }
 }
 
-.announcement-bar {
-  display: flex; align-items: center; gap: 8px; padding: 8px 16px;
-  margin-top: 14px; background: linear-gradient(135deg, var(--color-announcement-from), var(--color-announcement-to));
-  border-radius: 10px; border: 1px solid var(--color-announcement-border); overflow: hidden;
+.announce-list { display: flex; flex-direction: column; gap: 12px; }
+.announce-item {
+  padding: 10px 12px;
+  background: linear-gradient(135deg, var(--color-announcement-from), var(--color-announcement-to));
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-announcement-border);
+  animation: fadeInUp 0.4s ease-out backwards;
+  .announce-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+  .announce-content { font-size: 12px; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 }
-.announcement-scroll { flex: 1; overflow: hidden; white-space: nowrap; font-size: 12px; color: var(--text-secondary); }
-.announcement-icon { color: var(--primary); font-size: 16px; flex-shrink: 0; }
-.announcement-text { display: inline; }
-
-.announcement-slide-enter-active { transition: all 0.4s ease; }
-.announcement-slide-leave-active { transition: all 0.3s ease; }
-.announcement-slide-enter-from { opacity: 0; transform: translateY(10px); }
-.announcement-slide-leave-to { opacity: 0; transform: translateY(-10px); }
 
 .goods-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
-.goods-grid-item { min-width: 0; }
+.goods-grid-item { min-width: 0; animation: fadeInUp 0.4s ease-out backwards; }
 
-@media (max-width: 1200px) { .goods-grid { grid-template-columns: repeat(4, 1fr); } }
-@media (max-width: 900px) { .goods-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 600px) { .goods-grid { grid-template-columns: repeat(2, 1fr); } }
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
-
-@media (max-width: 768px) {
-  .hero-slide { height: 200px; }
+@media (max-width: 1200px) {
+  .goods-grid { grid-template-columns: repeat(4, 1fr); }
+  .bento-category-card { grid-column: span 4; }
+  .bento-announce-card { grid-column: span 4; }
+}
+@media (max-width: 900px) {
+  .goods-grid { grid-template-columns: repeat(3, 1fr); }
+  .hero-slide { height: 280px; }
+  .hero-content h1 { font-size: 32px; }
+}
+@media (max-width: 600px) {
+  .goods-grid { grid-template-columns: repeat(2, 1fr); }
+  .bento-container { padding: var(--spacing-md); }
+  .hero { margin: 0 var(--spacing-md); }
+  .hero-slide { height: 220px; }
   .hero-content h1 { font-size: 24px; }
   .hero-content p { font-size: 14px; }
-  .home-content { margin: var(--spacing-md) var(--spacing-md) 0; padding: var(--spacing-md); }
 }
 </style>

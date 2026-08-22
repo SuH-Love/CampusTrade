@@ -82,35 +82,18 @@ const handleClick = () => {
 <style scoped lang="scss">
 .goods-card {
   background: var(--bg-card);
-  border-radius: var(--radius-md);
+  border-radius: 14px;
   overflow: hidden;
   border: 1px solid var(--border);
   margin-bottom: 16px;
-  transition: var(--transition-slow);
-  transform-style: preserve-3d;
-  perspective: 800px;
-  position: relative;
-  &::after {
-    content: '';
-    position: absolute; top: 0; left: -100%;
-    width: 50%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
-    transform: skewX(-20deg);
-    transition: none;
-    z-index: 3; pointer-events: none;
-  }
+  transition: var(--transition);
   &.is-clickable { cursor: pointer; }
   &.is-clickable:not(.is-sold):not(.is-offline):hover {
-    transform: translateY(-6px) rotateX(2deg);
-    box-shadow: var(--shadow-xl);
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-lg);
     border-color: var(--primary-lighter);
-    &::after { animation: shimmer 0.8s ease-out forwards; }
   }
   &.is-sold, &.is-offline { opacity: 0.75; }
-}
-
-.dark .goods-card::after {
-  background: linear-gradient(90deg, transparent, rgba(129,140,248,0.06), transparent);
 }
 
 .goods-img-wrap {
