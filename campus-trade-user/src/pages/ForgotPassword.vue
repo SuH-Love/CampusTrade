@@ -65,7 +65,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import AuthLayout from '@/components/AuthLayout.vue'
 import { sendResetCode, resetPassword } from '@/api/auth'
 
@@ -160,11 +160,8 @@ const handleSendCode = async () => {
     ElMessage.success('验证码已发送')
     step.value = 1
     startCountdown()
-  } catch (e: any) {
-    const msg = e?.message || ''
-    if (msg.includes('邮件服务未配置')) {
-      await ElMessageBox.alert(msg, '提示', { type: 'warning', confirmButtonText: '我知道了' })
-    }
+  } catch (e) {
+    console.error(e)
   } finally {
     loading.value = false
   }
