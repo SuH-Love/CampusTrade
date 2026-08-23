@@ -99,6 +99,7 @@ public class GoodsServiceImpl implements GoodsService {
         Goods goods = goodsMapper.selectById(goodsId);
         if (goods == null) return Result.error(ResultCode.GOODS_NOT_FOUND);
         if (!goods.getUserId().equals(userId)) return Result.error(ResultCode.GOODS_NOT_OWNER);
+        String oldStatus = goods.getStatus();
         if (dto.getCategoryId() != null) goods.setCategoryId(dto.getCategoryId());
         if (dto.getTitle() != null) goods.setTitle(dto.getTitle());
         if (dto.getDescription() != null) goods.setDescription(dto.getDescription());
@@ -106,9 +107,28 @@ public class GoodsServiceImpl implements GoodsService {
         if (dto.getOriginalPrice() != null) goods.setOriginalPrice(dto.getOriginalPrice());
         if (dto.getCoverImage() != null) goods.setCoverImage(dto.getCoverImage());
         if (dto.getImages() != null) goods.setImages(dto.getImages());
+
+        boolean needReaudit = GoodsStatus.ONLINE.getCode().equals(oldStatus)
+                || GoodsStatus.OFFLINE.getCode().equals(oldStatus)
+                || GoodsStatus.APPROVED.getCode().equals(oldStatus);
+        if (needReaudit) {
+            goods.setStatus(GoodsStatus.PENDING.getCode());
+        }
+
         int rows = goodsMapper.updateById(goods);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
         redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + goodsId);
+
+        if (needReaudit) {
+            redisTemplate.delete("mq:consumed:goods:audit:" + goodsId);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    rabbitTemplate.convertAndSend(MQConstant.GOODS_AUDIT_EXCHANGE, MQConstant.GOODS_AUDIT_KEY, goodsId);
+                }
+            });
+        }
+
         return Result.success(toVO(goods));
     }
 
