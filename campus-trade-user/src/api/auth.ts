@@ -28,12 +28,12 @@ export const refreshToken = (refreshToken: string) => request.post<never, TokenV
 
 export interface SendCodeParams {
   username: string
-  phone: string
+  email: string
 }
 
 export interface ResetPasswordParams {
   username: string
-  phone: string
+  email: string
   code: string
   newPassword: string
 }

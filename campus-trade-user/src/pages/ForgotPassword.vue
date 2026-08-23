@@ -1,7 +1,7 @@
 <template>
   <AuthLayout subtitle="校园贸易平台">
     <h2>重置密码</h2>
-    <p class="auth-subtitle">通过手机号验证码安全重置密码</p>
+    <p class="auth-subtitle">通过邮箱验证码安全重置密码</p>
 
     <el-steps :active="step" align-center class="reset-steps">
       <el-step title="验证身份" />
@@ -14,8 +14,8 @@
       <el-form-item prop="username">
         <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" />
       </el-form-item>
-      <el-form-item prop="phone">
-        <el-input v-model="form.phone" placeholder="注册时绑定的手机号" prefix-icon="Phone" maxlength="11" />
+      <el-form-item prop="email">
+        <el-input v-model="form.email" placeholder="注册时绑定的邮箱" prefix-icon="Message" />
       </el-form-item>
       <el-form-item>
         <el-button type="primary" class="w-full" :loading="loading" native-type="submit" round>发送验证码</el-button>
@@ -26,7 +26,7 @@
     <el-form v-else-if="step === 1" :model="form" :rules="rules2" ref="formRef2" @submit.prevent="handleVerifyCode" size="large">
       <el-form-item>
         <el-alert type="info" :closable="false" show-icon>
-          验证码已发送至手机 {{ maskedPhone }}，请查收（5分钟内有效）
+          验证码已发送至邮箱 {{ maskedEmail }}，请查收（5分钟内有效）
         </el-alert>
       </el-form-item>
       <el-form-item prop="code">
@@ -79,22 +79,24 @@ const formRef3 = ref<{ validate: () => Promise<void> } | null>(null)
 
 const form = reactive({
   username: '',
-  phone: '',
+  email: '',
   code: '',
   newPassword: '',
   confirmPassword: ''
 })
 
-const maskedPhone = computed(() => {
-  if (!form.phone || form.phone.length < 7) return form.phone
-  return form.phone.slice(0, 3) + '****' + form.phone.slice(-4)
+const maskedEmail = computed(() => {
+  if (!form.email || !form.email.includes('@')) return form.email
+  const [name, domain] = form.email.split('@')
+  if (name.length <= 2) return form.email
+  return name.slice(0, 2) + '***@' + domain
 })
 
 const rules1 = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  phone: [
-    { required: true, message: '请输入手机号', trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
   ]
 }
 
@@ -154,7 +156,7 @@ const handleSendCode = async () => {
   await formRef1.value.validate()
   loading.value = true
   try {
-    await sendResetCode({ username: form.username, phone: form.phone })
+    await sendResetCode({ username: form.username, email: form.email })
     ElMessage.success('验证码已发送')
     step.value = 1
     startCountdown()
@@ -168,7 +170,7 @@ const handleSendCode = async () => {
 const handleResendCode = async () => {
   loading.value = true
   try {
-    await sendResetCode({ username: form.username, phone: form.phone })
+    await sendResetCode({ username: form.username, email: form.email })
     ElMessage.success('验证码已重新发送')
     startCountdown()
   } catch (e) {
@@ -191,7 +193,7 @@ const handleResetPassword = async () => {
   try {
     await resetPassword({
       username: form.username,
-      phone: form.phone,
+      email: form.email,
       code: form.code,
       newPassword: form.newPassword
     })

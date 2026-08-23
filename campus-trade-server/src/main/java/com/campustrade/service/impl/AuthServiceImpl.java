@@ -62,6 +62,9 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private LogService logService;
 
+    @Autowired
+    private com.campustrade.service.EmailService emailService;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<TokenVO> register(RegisterDTO dto) {
@@ -254,52 +257,37 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public Result<Void> resetPassword(String username, String phone, String newPassword) {
-        if (username == null || username.trim().isEmpty()) {
-            return Result.error(ResultCode.PARAM_ERROR.getCode(), "用户名不能为空");
-        }
-        if (phone == null || phone.trim().isEmpty()) {
-            return Result.error(ResultCode.PARAM_ERROR.getCode(), "手机号不能为空");
-        }
-        if (newPassword == null || newPassword.length() < 6 || newPassword.length() > 20) {
-            return Result.error(ResultCode.PARAM_ERROR.getCode(), "密码长度需为6-20位");
-        }
-        User user = userMapper.selectByUsername(username.trim());
-        if (user == null) {
-            return Result.error(ResultCode.NOT_FOUND.getCode(), "用户不存在");
-        }
-        if (!phone.trim().equals(user.getPhone())) {
-            return Result.error(ResultCode.PARAM_ERROR.getCode(), "手机号与注册时不匹配");
-        }
-        user.setPassword(passwordEncoder.encode(newPassword));
-        userMapper.updateById(user);
-        redisTemplate.delete(RedisConstant.TOKEN_PREFIX + user.getId());
-        redisTemplate.delete(RedisConstant.REFRESH_PREFIX + user.getId());
-        return Result.success();
-    }
 
-    @Override
     public Result<Void> sendResetCode(SendCodeDTO dto) {
         String username = dto.getUsername().trim();
-        String phone = dto.getPhone().trim();
+        String email = dto.getEmail().trim();
         User user = userMapper.selectByUsername(username);
         if (user == null) {
             return Result.error(ResultCode.NOT_FOUND.getCode(), "用户不存在");
         }
-        if (user.getPhone() == null || !phone.equals(user.getPhone())) {
-            return Result.error(ResultCode.PARAM_ERROR.getCode(), "手机号与注册时不匹配");
+        if (user.getEmail() == null || !email.equals(user.getEmail())) {
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "邮箱与注册时不匹配");
+        }
+        if (!emailService.isConfigured()) {
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "邮件服务未配置，请联系管理员");
         }
         String code = String.valueOf((int) ((Math.random() * 900000) + 100000));
         String key = RedisConstant.CAPTCHA_PREFIX + "reset:" + username;
         redisTemplate.opsForValue().set(key, code, RedisConstant.CAPTCHA_TTL, java.util.concurrent.TimeUnit.SECONDS);
-        log.info("Reset password code for user [{}]: {} (phone: {})", username, code, phone);
+        try {
+            emailService.sendVerificationCode(email, code);
+            log.info("Reset password code sent to email for user [{}]", username);
+        } catch (Exception e) {
+            redisTemplate.delete(key);
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "验证码发送失败：" + e.getMessage());
+        }
         return Result.success();
     }
 
     @Override
     public Result<Void> resetPassword(ResetPasswordDTO dto) {
         String username = dto.getUsername().trim();
-        String phone = dto.getPhone().trim();
+        String email = dto.getEmail().trim();
         String code = dto.getCode().trim();
         String newPassword = dto.getNewPassword();
 
@@ -311,8 +299,8 @@ public class AuthServiceImpl implements AuthService {
         if (user == null) {
             return Result.error(ResultCode.NOT_FOUND.getCode(), "用户不存在");
         }
-        if (user.getPhone() == null || !phone.equals(user.getPhone())) {
-            return Result.error(ResultCode.PARAM_ERROR.getCode(), "手机号与注册时不匹配");
+        if (user.getEmail() == null || !email.equals(user.getEmail())) {
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "邮箱与注册时不匹配");
         }
 
         String key = RedisConstant.CAPTCHA_PREFIX + "reset:" + username;

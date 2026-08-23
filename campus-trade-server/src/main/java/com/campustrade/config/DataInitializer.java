@@ -684,7 +684,13 @@ public class DataInitializer implements CommandLineRunner {
             {"alipay.alipay_public_key", "", "支付宝公钥"},
             {"alipay.gateway", "https://openapi-sandbox.dl.alipaydev.com/gateway.do", "支付宝网关"},
             {"alipay.notify_url", "", "支付宝异步通知URL"},
-            {"alipay.return_url", "", "支付宝同步跳转URL"}
+            {"alipay.return_url", "", "支付宝同步跳转URL"},
+            {"mail.host", "smtp.qq.com", "SMTP服务器地址"},
+            {"mail.port", "465", "SMTP服务器端口"},
+            {"mail.username", "", "发件人邮箱地址"},
+            {"mail.password", "", "发件人邮箱授权码"},
+            {"mail.from", "CampusTrade校园贸易", "发件人显示名称"},
+            {"mail.ssl", "true", "是否启用SSL"}
         };
         for (String[] item : defaults) {
             try {

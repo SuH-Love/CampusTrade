@@ -16,7 +16,6 @@ public interface AuthService {
 
     Result<TokenVO> refreshToken(RefreshTokenDTO dto);
 
-    Result<Void> resetPassword(String username, String phone, String newPassword);
 
     Result<Void> sendResetCode(SendCodeDTO dto);
 

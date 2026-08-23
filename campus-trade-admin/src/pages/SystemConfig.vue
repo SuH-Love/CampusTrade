@@ -51,6 +51,55 @@
     <el-card shadow="never" style="margin-top: 20px">
       <template #header>
         <div class="card-header">
+          <span>邮件服务配置（QQ邮箱）</span>
+          <el-tag :type="mailConfigured ? 'success' : 'danger'" size="small">
+            {{ mailConfigured ? '已配置' : '未配置' }}
+          </el-tag>
+        </div>
+      </template>
+
+      <el-alert v-if="!mailConfigured" title="邮件服务未配置，重置密码功能不可用" type="warning" :closable="false" show-icon style="margin-bottom: 20px" />
+
+      <el-form label-width="140px" v-loading="loading">
+        <el-form-item label="SMTP 服务器">
+          <el-input v-model="form['mail.host']" placeholder="smtp.qq.com" clearable />
+        </el-form-item>
+        <el-form-item label="SMTP 端口">
+          <el-input v-model="form['mail.port']" placeholder="465（SSL）或 587（TLS）" clearable />
+        </el-form-item>
+        <el-form-item label="发件人邮箱">
+          <el-input v-model="form['mail.username']" placeholder="你的QQ邮箱地址，如 123456@qq.com" clearable />
+        </el-form-item>
+        <el-form-item label="邮箱授权码">
+          <el-input v-model="form['mail.password']" type="password" show-password placeholder="QQ邮箱授权码（已配置显示为******，重新输入覆盖）" clearable />
+        </el-form-item>
+        <el-form-item label="发件人名称">
+          <el-input v-model="form['mail.from']" placeholder="如 CampusTrade校园贸易" clearable />
+        </el-form-item>
+        <el-form-item label="启用SSL">
+          <el-switch v-model="mailSslEnabled" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="saving" @click="handleSave">保存配置</el-button>
+          <el-button @click="loadData">重置</el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-divider />
+      <el-descriptions title="配置说明" :column="1" border size="small">
+        <el-descriptions-item label="获取授权码">
+          登录 <el-link type="primary" href="https://mail.qq.com" target="_blank">QQ邮箱</el-link> → 设置 → 账户 → POP3/SMTP服务 → 开启 → 生成授权码
+        </el-descriptions-item>
+        <el-descriptions-item label="授权码说明">授权码不是QQ密码，是QQ邮箱生成的16位独立密码</el-descriptions-item>
+        <el-descriptions-item label="端口选择">465（SSL加密，推荐）或 587（STARTTLS）</el-descriptions-item>
+        <el-descriptions-item label="热更新">配置更新后立即生效，无需重启服务</el-descriptions-item>
+        <el-descriptions-item label="安全提示">授权码在数据库中AES加密存储，管理端仅显示掩码</el-descriptions-item>
+      </el-descriptions>
+    </el-card>
+
+    <el-card shadow="never" style="margin-top: 20px">
+      <template #header>
+        <div class="card-header">
           <span>AI 助手配置</span>
           <el-tag :type="aiConfig.enabled ? 'success' : 'danger'" size="small">
             {{ aiConfig.enabled ? '在线' : '离线' }}
@@ -102,13 +151,21 @@ import { getSystemConfig, updateSystemConfig, getAlipayStatus, getAiConfigStatus
 const loading = ref(false)
 const saving = ref(false)
 const alipayConfigured = ref(false)
+const mailConfigured = ref(false)
+const mailSslEnabled = ref(true)
 const form = reactive<Record<string, string>>({
   'alipay.app_id': '',
   'alipay.private_key': '',
   'alipay.alipay_public_key': '',
   'alipay.gateway': '',
   'alipay.notify_url': '',
-  'alipay.return_url': ''
+  'alipay.return_url': '',
+  'mail.host': '',
+  'mail.port': '',
+  'mail.username': '',
+  'mail.password': '',
+  'mail.from': '',
+  'mail.ssl': ''
 })
 
 const aiLoading = ref(false)
@@ -159,12 +216,15 @@ const loadData = async () => {
     }
     const status = await getAlipayStatus()
     alipayConfigured.value = !!status?.configured
+    mailSslEnabled.value = form['mail.ssl'] !== 'false'
+    mailConfigured.value = !!(form['mail.username'] && form['mail.password'] && form['mail.password'] !== '')
   } catch (e) { console.error(e) } finally { loading.value = false }
 }
 
 const handleSave = async () => {
   saving.value = true
   try {
+    form['mail.ssl'] = mailSslEnabled.value ? 'true' : 'false'
     const configs: SystemConfigVO[] = Object.entries(form).map(([key, value]) => ({
       id: 0,
       configKey: key,

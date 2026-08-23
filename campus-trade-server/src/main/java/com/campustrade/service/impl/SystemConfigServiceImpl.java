@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SystemConfigServiceImpl implements SystemConfigService {
 
     private static final String AES_KEY = "CampusTrade2026!";
-    private static final Set<String> SENSITIVE_KEYS = Set.of("alipay.private_key", "alipay.alipay_public_key");
+    private static final Set<String> SENSITIVE_KEYS = Set.of("alipay.private_key", "alipay.alipay_public_key", "mail.password");
 
     @Autowired
     private SystemConfigMapper systemConfigMapper;
