@@ -54,10 +54,12 @@
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="提交时间" min-width="150" />
-        <el-table-column label="操作" min-width="180" fixed="right">
+        <el-table-column label="操作" min-width="200" fixed="right">
           <template #default="{ row }">
-            <el-button v-if="row.status === 'PENDING'" v-permission="'goods:audit'" type="success" size="small" @click="handleAudit(row.id, 'APPROVED')">通过</el-button>
-            <el-button v-if="row.status === 'PENDING'" v-permission="'goods:audit'" type="danger" size="small" @click="openRejectDialog(row.id)">拒绝</el-button>
+            <el-button v-if="row.status === 'PENDING'" v-permission="'goods:audit'" type="success" size="small" @click="handleAudit(row.id, 'APPROVED', row.status)">通过</el-button>
+            <el-button v-if="row.status === 'REJECTED'" v-permission="'goods:audit'" type="warning" size="small" @click="handleAudit(row.id, 'APPROVED', row.status)">复审通过</el-button>
+            <el-button v-if="row.status === 'PENDING'" v-permission="'goods:audit'" type="danger" size="small" @click="openRejectDialog(row.id, row.status)">拒绝</el-button>
+            <el-button v-if="row.status === 'APPROVED'" v-permission="'goods:audit'" type="warning" size="small" @click="openRejectDialog(row.id, row.status)">复审拒绝</el-button>
             <el-button size="small" @click="handleViewDetail(row)">查看</el-button>
           </template>
         </el-table-column>
@@ -106,10 +108,10 @@
 
     <ReasonDialog
       v-model="rejectDialogVisible"
-      title="拒绝审核"
+      :title="rejectCurrentStatus === 'APPROVED' ? '复审拒绝' : '拒绝审核'"
       label="拒绝原因"
       placeholder="请输入拒绝原因"
-      confirm-text="确认拒绝"
+      :confirm-text="rejectCurrentStatus === 'APPROVED' ? '确认复审拒绝' : '确认拒绝'"
       btn-type="danger"
       :loading="rejectLoading"
       @confirm="handleReject"
@@ -142,6 +144,7 @@ const rejectDialogVisible = ref(false)
 const rejectGoodsId = ref<number>(0)
 
 const rejectLoading = ref(false)
+const rejectCurrentStatus = ref('')
 
 const statusTagMap: Record<string, string> = { DRAFT: 'info', PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger', ONLINE: '', OFFLINE: 'info', SOLD: 'success' }
 const statusLabel = (status: string) => goodsStatusLabel(status)
@@ -185,27 +188,34 @@ const handleSizeChange = () => {
   loadData()
 }
 
-const handleAudit = async (id: number, status: string) => {
+const handleAudit = async (id: number, status: string, currentStatus: string) => {
+  const isReaudit = currentStatus === 'REJECTED'
   try {
-    await ElMessageBox.confirm('确认通过该商品审核？', '审核确认', { type: 'warning' })
+    await ElMessageBox.confirm(
+      isReaudit ? '该商品已被审核拒绝，确认复审改为通过？' : '确认通过该商品审核？',
+      isReaudit ? '复审确认' : '审核确认',
+      { type: 'warning' }
+    )
   } catch { return }
   try {
     await auditGoods(id, { status })
-    ElMessage.success('审核通过')
+    ElMessage.success(isReaudit ? '复审已通过' : '审核通过')
     loadData()
   } catch (e) { console.error(e) }
 }
 
-const openRejectDialog = (id: number) => {
+const openRejectDialog = (id: number, currentStatus: string) => {
   rejectGoodsId.value = id
+  rejectCurrentStatus.value = currentStatus
   rejectDialogVisible.value = true
 }
 
 const handleReject = async (reason: string) => {
+  const isReaudit = rejectCurrentStatus.value === 'APPROVED'
   rejectLoading.value = true
   try {
     await auditGoods(rejectGoodsId.value, { status: 'REJECTED', rejectReason: reason })
-    ElMessage.success('已拒绝')
+    ElMessage.success(isReaudit ? '复审已拒绝' : '已拒绝')
     rejectDialogVisible.value = false
     loadData()
   } finally {
