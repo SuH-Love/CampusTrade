@@ -116,7 +116,12 @@ public class SessionService {
         systemMsg.put("role", "system");
         systemMsg.put("content", systemPrompt);
         messages.add(systemMsg);
-        messages.addAll(truncateByTokens(getHistory(sessionId), MAX_CONTEXT_TOKENS));
+        for (Map<String, Object> msg : truncateByTokens(getHistory(sessionId), MAX_CONTEXT_TOKENS)) {
+            Map<String, Object> clean = new HashMap<>();
+            clean.put("role", msg.get("role"));
+            clean.put("content", msg.get("content"));
+            messages.add(clean);
+        }
         Map<String, Object> userMsg = new HashMap<>();
         userMsg.put("role", "user");
         userMsg.put("content", userMessage);
@@ -179,7 +184,7 @@ public class SessionService {
 
     private List<Map<String, Object>> truncateByTokens(List<Map<String, Object>> history, int maxTokens) {
         int totalTokens = 0;
-        int cutoff = history.size();
+        int cutoff = 0;
         for (int i = history.size() - 1; i >= 0; i--) {
             String content = (String) history.get(i).get("content");
             int tokens = content != null ? estimateTokens(content) : 0;

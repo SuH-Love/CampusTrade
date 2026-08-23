@@ -316,8 +316,7 @@ const restoreSession = () => {
   const saved = localStorage.getItem(STORAGE_KEY)
   if (saved && !saved.startsWith('user:')) {
     sessionId.value = saved
-  } else {
-    localStorage.removeItem(STORAGE_KEY)
+
   }
 }
 

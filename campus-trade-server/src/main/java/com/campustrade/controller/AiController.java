@@ -344,6 +344,9 @@ public class AiController {
                     },
                     error -> {
                         try {
+                            String partial = fullResponse.toString();
+                            String saveContent = partial.isEmpty() ? "AI服务暂时不可用" : safetyService.sanitizeOutput(partial);
+                            sessionService.addMessagePair(sid, userMessage, saveContent);
                             emitter.send(SseEmitter.event().name("error").data("AI服务暂时不可用"));
                             emitter.complete();
                         } catch (Exception ignored) {}
@@ -447,7 +450,7 @@ public class AiController {
             }
         }
 
-        if (!toolsUsed && nonStreamAnswer != null) {
+        if (nonStreamAnswer != null && !nonStreamAnswer.isEmpty()) {
             String content = safetyService.sanitizeOutput(nonStreamAnswer);
             try {
                 emitter.send(SseEmitter.event().name("message").data(jsonContent(content)));
@@ -485,6 +488,9 @@ public class AiController {
                 },
                 error -> {
                     try {
+                        String partial = fullResponse.toString();
+                        String saveContent = partial.isEmpty() ? "AI服务暂时不可用" : safetyService.sanitizeOutput(partial);
+                        sessionService.addMessagePair(sid, userMessage, saveContent);
                         emitter.send(SseEmitter.event().name("error").data("AI服务暂时不可用"));
                         emitter.complete();
                     } catch (Exception ignored) {}
