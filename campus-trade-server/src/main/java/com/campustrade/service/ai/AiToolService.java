@@ -150,8 +150,10 @@ public class AiToolService {
             null));
 
         base.add(tool("get_my_goods",
-            "查询我发布的商品列表（含状态：在售/下架/审核中）。当用户问'我发布的商品'、'我的商品'、'我有哪些在卖'时调用。",
-            null));
+            "查询我发布的商品列表（含状态、发布时间）。支持按状态过滤和仅看今日发布。当用户问'我发布的商品'、'我的商品'、'我今天发布了什么'、'我审核通过的商品'、'通过了几 个'时调用。",
+            props(
+                "status", propEnum("string", "商品状态过滤（可选）", Arrays.asList("ONLINE", "OFFLINE", "PENDING_AUDIT", "REJECTED", "SOLD_OUT")),
+                "todayOnly", prop("boolean", "是否只看今日发布的商品（可选，默认false）"))));
 
         base.add(tool("get_goods_detail",
             "查询商品详情（价格、库存、描述、卖家、浏览数、收藏数）。当用户问'这个商品多少钱'、'商品详情'、'ID为xxx的商品'时调用。",
@@ -346,7 +348,7 @@ public class AiToolService {
                 case "search_goods": return executeSearchGoods(arguments);
                 case "get_user_profile": return executeGetUserProfile();
                 case "get_user_stats": return executeGetUserStats();
-                case "get_my_goods": return executeGetMyGoods();
+                case "get_my_goods": return executeGetMyGoods(arguments);
                 case "get_goods_detail": return executeGetGoodsDetail(arguments);
                 case "get_favorites": return executeGetFavorites();
                 case "get_cart": return executeGetCart();
@@ -493,28 +495,44 @@ public class AiToolService {
 
         Long goodsCount = goodsMapper.selectCountByStatusAndUserId(null, userId);
         Long onlineCount = goodsMapper.selectCountByStatusAndUserId("ONLINE", userId);
+        Long todayGoodsCount = goodsMapper.selectCount(null, null, null, null, null, userId, true);
+        Long pendingAuditCount = goodsMapper.selectCountByStatusAndUserId("PENDING_AUDIT", userId);
+        Long rejectedCount = goodsMapper.selectCountByStatusAndUserId("REJECTED", userId);
         Long buyerOrderCount = orderMapper.selectCountByBuyerId(userId, null);
         Long sellerOrderCount = orderMapper.selectCountBySellerId(userId, null);
         BigDecimal totalSpent = orderMapper.selectTotalSpentByBuyerId(userId);
         BigDecimal totalEarned = orderMapper.selectTotalEarnedBySellerId(userId);
 
-        return String.format("您的统计信息：\n- 发布商品: %d件（在售%d件）\n- 买家订单: %d笔\n- 卖家订单: %d笔\n- 总消费: ¥%.2f\n- 总收入: ¥%.2f",
+        return String.format("您的统计信息：\n- 发布商品: %d件（在售%d件、待审核%d件、审核拒绝%d件）\n- 今日发布: %d件\n- 买家订单: %d笔\n- 卖家订单: %d笔\n- 总消费: ¥%.2f\n- 总收入: ¥%.2f",
                 goodsCount != null ? goodsCount : 0, onlineCount != null ? onlineCount : 0,
+                pendingAuditCount != null ? pendingAuditCount : 0, rejectedCount != null ? rejectedCount : 0,
+                todayGoodsCount != null ? todayGoodsCount : 0,
                 buyerOrderCount != null ? buyerOrderCount : 0,
                 sellerOrderCount != null ? sellerOrderCount : 0,
                 totalSpent != null ? totalSpent.doubleValue() : 0,
                 totalEarned != null ? totalEarned.doubleValue() : 0);
     }
 
-    private String executeGetMyGoods() {
+    private String executeGetMyGoods(Map<String, Object> arguments) {
         Long userId = SecurityUtil.getCurrentUserId();
         if (userId == null) return "请先登录";
-        List<Goods> goods = goodsMapper.selectList(null, null, null, null, null, userId, 0, 10);
-        if (goods == null || goods.isEmpty()) return "您还没有发布任何商品";
-        StringBuilder sb = new StringBuilder("我的商品列表：\n");
-        for (Goods g : goods) {
-            sb.append(formatGoods(g)).append("\n");
+        String status = arguments != null && arguments.get("status") != null ? arguments.get("status").toString() : null;
+        boolean todayOnly = arguments != null && arguments.get("todayOnly") != null && Boolean.parseBoolean(arguments.get("todayOnly").toString());
+        Long total = goodsMapper.selectCount(null, null, null, null, status, userId, todayOnly ? true : null);
+        if (total == null || total == 0) {
+            String scope = (todayOnly ? "今日" : "") + (status != null ? GOODS_STATUS_MAP.getOrDefault(status, status) : "");
+            return "您还没有" + (scope.isEmpty() ? "" : scope) + "发布的商品";
         }
+        List<com.campustrade.vo.GoodsVO> goods = goodsMapper.selectListVO(null, null, null, null, status, userId, 0, 20, todayOnly ? true : null, null);
+        StringBuilder sb = new StringBuilder();
+        sb.append("查询结果：共").append(total).append("件商品");
+        if (todayOnly) sb.append("（今日发布）");
+        if (status != null) sb.append("（").append(GOODS_STATUS_MAP.getOrDefault(status, status)).append("）");
+        sb.append("\n");
+        for (com.campustrade.vo.GoodsVO g : goods) {
+            sb.append(formatGoodsVO(g)).append("\n");
+        }
+        if (total > 20) sb.append("（仅显示前20条）\n");
         return sb.toString();
     }
 
@@ -1035,10 +1053,20 @@ public class AiToolService {
     }
 
     private String formatGoods(Goods g) {
-        return String.format("商品ID:%d | %s | ¥%.2f | 库存%d | 状态:%s",
+        return String.format("商品ID:%d | %s | ¥%.2f | 库存%d | 状态:%s | 发布:%s",
                 g.getId(), g.getTitle(),
                 g.getPrice() != null ? g.getPrice().doubleValue() : 0,
                 g.getStock(),
-                GOODS_STATUS_MAP.getOrDefault(g.getStatus(), g.getStatus()));
+                GOODS_STATUS_MAP.getOrDefault(g.getStatus(), g.getStatus()),
+                g.getCreateTime() != null ? g.getCreateTime().toLocalDate() : "未知");
+    }
+
+    private String formatGoodsVO(com.campustrade.vo.GoodsVO g) {
+        return String.format("商品ID:%d | %s | ¥%.2f | 库存%d | 状态:%s | 发布:%s",
+                g.getId(), g.getTitle(),
+                g.getPrice() != null ? g.getPrice().doubleValue() : 0,
+                g.getStock(),
+                GOODS_STATUS_MAP.getOrDefault(g.getStatus(), g.getStatus()),
+                g.getCreateTime() != null ? g.getCreateTime().toLocalDate() : "未知");
     }
 }
