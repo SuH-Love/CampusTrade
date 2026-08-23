@@ -18,5 +18,6 @@ public class RegisterDTO {
 
     private String phone;
 
+    @NotBlank(message = "邮箱不能为空")
     private String email;
 }

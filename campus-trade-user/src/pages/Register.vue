@@ -13,10 +13,10 @@
         <el-input v-model="form.confirmPassword" type="password" placeholder="确认密码" prefix-icon="Lock" show-password autocomplete="new-password" />
       </el-form-item>
       <el-form-item prop="phone">
-        <el-input v-model="form.phone" placeholder="手机号（用于找回密码）" autocomplete="tel" maxlength="11" />
+        <el-input v-model="form.phone" placeholder="手机号（选填）" autocomplete="tel" maxlength="11" />
       </el-form-item>
       <el-form-item prop="email">
-        <el-input v-model="form.email" placeholder="邮箱（选填）" autocomplete="email" />
+        <el-input v-model="form.email" placeholder="邮箱（用于重置密码）" autocomplete="email" />
       </el-form-item>
       <el-form-item>
         <el-button type="primary" class="w-full" :loading="loading" native-type="submit" round>注册</el-button>
@@ -83,6 +83,7 @@ const rules = {
     { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
   ],
   email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
   ]
 }
