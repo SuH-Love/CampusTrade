@@ -31,16 +31,17 @@
         <el-table-column prop="createTime" label="时间" min-width="150" />
       </el-table>
       <el-empty v-if="!loading && logs.length === 0" description="暂无日志" />
-      <div class="pagination-wrapper">
-        <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="total, prev, pager, next, sizes" :page-sizes="[10, 15, 30, 50]" @current-change="loadData" @size-change="handleSizeChange" />
+      <div class="pagination-wrapper" v-if="total > pageSize">
+        <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="total, prev, pager, next, sizes" :page-sizes="[10, 20, 50, 100]" @current-change="loadData" @size-change="handleSizeChange" />
       </div>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { getOperationLogs, getSecurityLogs } from '@/api/admin'
+import { useDebounceSearch } from '@/composables/useDebounceSearch'
 import { operationLabel, moduleLabel, eventTypeLabel } from '@/utils/labels'
 import type { OperationLogVO, SecurityLogVO, PageQueryParams } from '@/types'
 
@@ -49,7 +50,7 @@ type LogItem = OperationLogVO | SecurityLogVO
 const activeTab = ref('operation')
 const logs = ref<LogItem[]>([])
 const pageNum = ref(1)
-const pageSize = ref(15)
+const pageSize = ref(10)
 const total = ref(0)
 const loading = ref(false)
 const searchKeyword = ref('')
@@ -77,11 +78,7 @@ const handleSearch = () => {
   loadData()
 }
 
-let searchTimer: ReturnType<typeof setTimeout> | null = null
-watch(searchKeyword, () => {
-  if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(handleSearch, 300)
-})
+useDebounceSearch(searchKeyword, handleSearch)
 
 const handleSizeChange = (size: number) => {
   pageSize.value = size

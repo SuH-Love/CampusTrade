@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Set;
 
 @Slf4j
@@ -140,17 +141,63 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void initCategories() {
-        Long count = categoryMapper.selectCountAll();
-        if (count == null || count == 0) {
-            String[][] cats = {{"数码电子", "1"}, {"书籍教材", "2"}, {"生活用品", "3"}, {"服装鞋帽", "4"}, {"运动户外", "5"}, {"其他", "6"}};
-            for (String[] cat : cats) {
+        String[][] renames = {
+            {"数码电子", "电脑整机"}, {"手机周边", "手机平板"},
+            {"运动户外", "运动健身"},
+            {"自行车电动车", "代步工具"},
+            {"游戏设备", "游戏外设"}, {"书籍教材", "教材书籍"},
+            {"学习资料", "考试资料"}, {"乐器音响", "乐器"},
+            {"生活日用", "生活用品"}, {"箱包", "箱包配饰"},
+            {"票券卡券", "虚拟票券"}
+        };
+        String[] toDelete = {"食品零食", "宿舍家电", "宿舍用品", "饰品配件", "虚拟商品"};
+        String[][] cats = {
+            {"电脑整机", "1"}, {"电脑配件", "2"}, {"手机平板", "3"},
+            {"数码配件", "4"}, {"影音设备", "5"}, {"游戏外设", "6"},
+            {"教材书籍", "7"}, {"考试资料", "8"}, {"文具用品", "9"},
+            {"生活用品", "10"}, {"服装鞋帽", "11"}, {"美妆护肤", "12"},
+            {"箱包配饰", "13"}, {"运动健身", "14"}, {"户外露营", "15"},
+            {"代步工具", "16"}, {"乐器", "17"}, {"游戏娱乐", "18"},
+            {"手工艺品", "19"}, {"收藏爱好", "20"}, {"植物宠物", "21"},
+            {"虚拟票券", "22"}, {"技能服务", "23"}, {"跑腿代办", "24"},
+            {"家教辅导", "25"}, {"搬家服务", "26"}, {"租房转租", "27"},
+            {"课外读物", "28"}, {"打印复印", "29"}, {"其他", "30"}
+        };
+        List<GoodsCategory> existing = categoryMapper.selectAll();
+        java.util.Map<String, GoodsCategory> existingMap = new java.util.HashMap<>();
+        for (GoodsCategory c : existing) existingMap.put(c.getCategoryName(), c);
+        for (String[] rename : renames) {
+            GoodsCategory old = existingMap.get(rename[0]);
+            if (old != null) {
+                jdbcTemplate.update("UPDATE t_goods_category SET category_name=? WHERE id=?", rename[1], old.getId());
+                old.setCategoryName(rename[1]);
+                existingMap.remove(rename[0]);
+                existingMap.put(rename[1], old);
+            }
+        }
+        for (String delName : toDelete) {
+            GoodsCategory del = existingMap.get(delName);
+            if (del != null) {
+                jdbcTemplate.update("UPDATE t_goods_category SET deleted=1 WHERE id=?", del.getId());
+                existingMap.remove(delName);
+            }
+        }
+        int added = 0;
+        for (String[] cat : cats) {
+            int sortOrder = Integer.parseInt(cat[1]);
+            GoodsCategory existingCat = existingMap.get(cat[0]);
+            if (existingCat == null) {
                 GoodsCategory c = new GoodsCategory();
                 c.setCategoryName(cat[0]); c.setParentId(0L);
-                c.setSortOrder(Integer.parseInt(cat[1])); c.setStatus(1);
+                c.setSortOrder(sortOrder); c.setStatus(1);
                 categoryMapper.insert(c);
+                added++;
+            } else if (existingCat.getSortOrder() == null || existingCat.getSortOrder() != sortOrder) {
+                jdbcTemplate.update("UPDATE t_goods_category SET sort_order=? WHERE id=?", sortOrder, existingCat.getId());
+                existingCat.setSortOrder(sortOrder);
             }
-            log.info("Goods categories initialized");
         }
+        if (added > 0) log.info("Goods categories initialized: added {} new categories (total {})", added, cats.length);
     }
 
     private void createTables() {

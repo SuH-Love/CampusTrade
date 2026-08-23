@@ -132,6 +132,10 @@ public class GoodsServiceImpl implements GoodsService {
                 return Result.error(ResultCode.GOODS_NOT_FOUND);
             }
             GoodsVO vo = (GoodsVO) cached;
+            if (vo.getCategoryName() == null && vo.getCategoryId() != null) {
+                GoodsCategory cat = categoryMapper.selectById(vo.getCategoryId());
+                if (cat != null) vo.setCategoryName(cat.getCategoryName());
+            }
             if (currentUserId != null) {
                 GoodsFavorite fav = favoriteMapper.selectByUserAndGoods(currentUserId, goodsId);
                 vo.setIsFavorited(fav != null);
@@ -161,6 +165,11 @@ public class GoodsServiceImpl implements GoodsService {
                     goodsMapper.incrementViewCount(goodsId);
                     Goods updated = goodsMapper.selectById(goodsId);
                     GoodsVO vo = toVO(updated != null ? updated : goods);
+
+                    if (vo.getCategoryId() != null) {
+                        GoodsCategory cat = categoryMapper.selectById(vo.getCategoryId());
+                        if (cat != null) vo.setCategoryName(cat.getCategoryName());
+                    }
 
                     User seller = userMapper.selectById(goods.getUserId());
                     if (seller != null) {
@@ -192,15 +201,33 @@ public class GoodsServiceImpl implements GoodsService {
         if (status == null && dto.getUserId() == null) {
             status = GoodsStatus.ONLINE.getCode();
         }
+
+        // 特殊关键词处理
+        if (dto.getKeyword() != null) {
+            String kw = dto.getKeyword().trim();
+            if ("今日上新".equals(kw)) {
+                dto.setTodayOnly(true);
+                dto.setKeyword(null);
+            } else if ("低价好物".equals(kw)) {
+                dto.setSortBy("price_asc");
+                dto.setKeyword(null);
+                List<java.math.BigDecimal> prices = goodsMapper.selectOnlinePrices();
+                if (!prices.isEmpty()) {
+                    dto.setMaxPrice(prices.get(prices.size() / 2));
+                }
+            }
+        }
+
         List<GoodsVO> vos;
         Long total = goodsMapper.selectCount(dto.getCategoryId(), dto.getKeyword(),
-                dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId());
+                dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId(), dto.getTodayOnly());
 
         if (dto.getKeyword() != null && !dto.getKeyword().trim().isEmpty() && total > 0) {
             int fetchSize = offset + dto.getPageSize() * 2;
             int candidateLimit = Math.min((int)(long) total, fetchSize);
             List<GoodsVO> candidates = goodsMapper.selectListVO(dto.getCategoryId(), dto.getKeyword(),
-                    dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId(), 0, candidateLimit);
+                    dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId(), 0, candidateLimit,
+                    dto.getTodayOnly(), dto.getSortBy());
             int rankLimit = Math.min(offset + dto.getPageSize(), candidates.size());
             List<GoodsVO> ranked = faqVectorService.rankBySimilarity(dto.getKeyword(), candidates,
                     vo -> (vo.getTitle() != null ? vo.getTitle() : "") + " " +
@@ -211,7 +238,8 @@ public class GoodsServiceImpl implements GoodsService {
             vos = ranked.subList(start, end);
         } else {
             vos = goodsMapper.selectListVO(dto.getCategoryId(), dto.getKeyword(),
-                    dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId(), offset, dto.getPageSize());
+                    dto.getMinPrice(), dto.getMaxPrice(), status, dto.getUserId(), offset, dto.getPageSize(),
+                    dto.getTodayOnly(), dto.getSortBy());
         }
         return Result.success(new PageResult<>(vos, total));
     }
@@ -270,12 +298,14 @@ public class GoodsServiceImpl implements GoodsService {
         if (goods == null) return Result.error(ResultCode.GOODS_NOT_FOUND);
         if (GoodsStatus.APPROVED.getCode().equals(status)) {
             goods.setStatus(GoodsStatus.APPROVED.getCode());
+            goods.setRejectReason(null);
         } else {
             goods.setStatus(status);
         }
         if (GoodsStatus.REJECTED.getCode().equals(status)) goods.setRejectReason(rejectReason);
         int rows = goodsMapper.updateById(goods);
         if (rows == 0) return Result.error(ResultCode.DATA_VERSION_ERROR);
+        if (GoodsStatus.APPROVED.getCode().equals(status)) goodsMapper.clearRejectReason(goodsId);
         redisTemplate.delete(RedisConstant.GOODS_DETAIL_PREFIX + goodsId);
         redisTemplate.delete(RedisConstant.GOODS_HOT_KEY);
         redisTemplate.delete(RedisConstant.GOODS_RECOMMEND_KEY);
@@ -366,9 +396,10 @@ public class GoodsServiceImpl implements GoodsService {
     public Result<PageResult<GoodsVO>> listGoodsByAdmin(GoodsQueryDTO dto) {
         int offset = (dto.getPageNum() - 1) * dto.getPageSize();
         List<GoodsVO> vos = goodsMapper.selectListVO(dto.getCategoryId(), dto.getKeyword(),
-                dto.getMinPrice(), dto.getMaxPrice(), dto.getStatus(), dto.getUserId(), offset, dto.getPageSize());
+                dto.getMinPrice(), dto.getMaxPrice(), dto.getStatus(), dto.getUserId(), offset, dto.getPageSize(),
+                dto.getTodayOnly(), dto.getSortBy());
         Long total = goodsMapper.selectCount(dto.getCategoryId(), dto.getKeyword(),
-                dto.getMinPrice(), dto.getMaxPrice(), dto.getStatus(), dto.getUserId());
+                dto.getMinPrice(), dto.getMaxPrice(), dto.getStatus(), dto.getUserId(), dto.getTodayOnly());
         return Result.success(new PageResult<>(vos, total));
     }
 

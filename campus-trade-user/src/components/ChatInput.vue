@@ -1,6 +1,7 @@
 <template>
   <div class="chat-input-area">
-    <div v-if="showPlusPanel" class="plus-panel">
+    <Transition name="plus-slide">
+      <div v-if="showPlusPanel" class="plus-panel">
       <div class="plus-item" @click="handleImageClick">
         <div class="plus-icon"><el-icon><Picture /></el-icon></div>
         <span>图片</span>
@@ -13,7 +14,8 @@
         <div class="plus-icon"><el-icon><Goods /></el-icon></div>
         <span>商品</span>
       </div>
-    </div>
+      </div>
+    </Transition>
     <div class="chat-input">
       <el-button size="large" round @click="showPlusPanel = !showPlusPanel" :type="showPlusPanel ? 'primary' : 'default'"><el-icon><Plus /></el-icon></el-button>
       <el-input v-model="inputText" placeholder="输入消息..." @keyup.enter="handleSend" @input="handleInput" size="large" @focus="showPlusPanel = false" />
@@ -86,4 +88,7 @@ const handleImageClick = () => {
 }
 .plus-item span { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
 .chat-input { display: flex; gap: 10px; padding: 16px 20px; }
+
+.plus-slide-enter-active, .plus-slide-leave-active { transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+.plus-slide-enter-from, .plus-slide-leave-to { opacity: 0; transform: translateY(8px); }
 </style>

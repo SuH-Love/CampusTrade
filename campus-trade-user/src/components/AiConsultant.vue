@@ -39,63 +39,65 @@
           </div>
 
           <div v-for="msg in messages" :key="msg.id" :class="['msg-row', msg.role]">
-            <div class="msg-bubble">
-              <span v-if="msg.role === 'assistant' && msg.loading && !msg.content" class="typing">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-              <template v-else>
-                <div v-if="msg.toolCalls.length > 0" class="tool-calls">
-                  <div
-                    v-for="tc in msg.toolCalls"
-                    :key="tc.id"
-                    class="tool-call-card"
-                  >
-                    <div class="tool-call-header" @click="tc.expanded = !tc.expanded">
-                      <el-icon :size="14"><Tools /></el-icon>
-                      <span class="tool-name">{{ toolDisplayName(tc.name) }}</span>
-                      <el-icon :size="12" class="expand-icon">
-                        <ArrowDown v-if="!tc.expanded" />
-                        <ArrowUp v-else />
-                      </el-icon>
-                    </div>
-                    <div v-if="tc.expanded" class="tool-call-body">
-                      <div v-if="tc.args && Object.keys(tc.args).length > 0" class="tool-args">
-                        <span class="tool-label">参数：</span>
-                        <code>{{ JSON.stringify(tc.args) }}</code>
+            <div class="msg-wrapper">
+              <div class="msg-bubble">
+                <span v-if="msg.role === 'assistant' && msg.loading && !msg.content" class="typing">
+                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                </span>
+                <template v-else>
+                  <div v-if="msg.toolCalls.length > 0" class="tool-calls">
+                    <div
+                      v-for="tc in msg.toolCalls"
+                      :key="tc.id"
+                      class="tool-call-card"
+                    >
+                      <div class="tool-call-header" @click="tc.expanded = !tc.expanded">
+                        <el-icon :size="14"><Tools /></el-icon>
+                        <span class="tool-name">{{ toolDisplayName(tc.name) }}</span>
+                        <el-icon :size="12" class="expand-icon">
+                          <ArrowDown v-if="!tc.expanded" />
+                          <ArrowUp v-else />
+                        </el-icon>
                       </div>
-                      <div v-if="tc.result" class="tool-result">
-                        <span class="tool-label">结果：</span>
-                        <pre>{{ tc.result }}</pre>
+                      <div v-if="tc.expanded" class="tool-call-body">
+                        <div v-if="tc.args && Object.keys(tc.args).length > 0" class="tool-args">
+                          <span class="tool-label">参数：</span>
+                          <code>{{ JSON.stringify(tc.args) }}</code>
+                        </div>
+                        <div v-if="tc.result" class="tool-result">
+                          <span class="tool-label">结果：</span>
+                          <pre>{{ tc.result }}</pre>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div
-                  v-if="msg.content"
-                  class="msg-content"
-                  v-html="msg.role === 'assistant' && !msg.streaming ? renderMarkdown(msg.content) : escapeHtml(msg.content)"
-                ></div>
-                <div v-if="msg.thinkingStatus" class="thinking-status">
-                  <el-icon :size="12" class="is-loading"><Loading /></el-icon>
-                  {{ msg.thinkingStatus }}
-                </div>
-                <div v-if="msg.error" class="msg-error">
-                  <span>{{ msg.content }}</span>
-                  <el-button size="small" text @click="retryLastMessage">重试</el-button>
-                </div>
-                <div v-if="msg.content && !msg.loading" class="msg-footer">
-                  <span class="msg-time">{{ formatTime(msg.timestamp) }}</span>
-                  <el-button
-                    v-if="msg.role === 'assistant'"
-                    size="small"
-                    text
-                    class="copy-btn"
-                    @click="copyMessage(msg.content)"
-                  >
-                    <el-icon :size="12"><CopyDocument /></el-icon>
-                  </el-button>
-                </div>
-              </template>
+                  <div
+                    v-if="msg.content"
+                    class="msg-content"
+                    v-html="msg.role === 'assistant' && !msg.streaming ? renderMarkdown(msg.content) : escapeHtml(msg.content)"
+                  ></div>
+                  <div v-if="msg.thinkingStatus" class="thinking-status">
+                    <el-icon :size="12" class="is-loading"><Loading /></el-icon>
+                    {{ msg.thinkingStatus }}
+                  </div>
+                  <div v-if="msg.error" class="msg-error">
+                    <span>{{ msg.content }}</span>
+                    <el-button size="small" text @click="retryLastMessage">重试</el-button>
+                  </div>
+                </template>
+              </div>
+              <div v-if="msg.content && !msg.loading && msg.timestamp" class="msg-footer">
+                <span class="msg-time">{{ formatTime(msg.timestamp) }}</span>
+                <el-button
+                  v-if="msg.role === 'assistant'"
+                  size="small"
+                  text
+                  class="copy-btn"
+                  @click="copyMessage(msg.content)"
+                >
+                  <el-icon :size="12"><CopyDocument /></el-icon>
+                </el-button>
+              </div>
             </div>
           </div>
         </div>
@@ -127,7 +129,12 @@
       </div>
     </transition>
 
-    <div v-if="!visible" class="float-btn" @click="visible = true; hasNewBadge = false">
+    <div v-if="!visible" class="float-btn"
+      :class="{ snapping: !isDragging }"
+      :style="{ left: btnPos.x + 'px', top: btnPos.y + 'px', right: 'auto', bottom: 'auto' }"
+      @mousedown="onDragStart"
+      @touchstart="onDragStart"
+    >
       <el-badge :is-dot="hasNewBadge" type="primary">
         <el-icon :size="28"><ChatDotRound /></el-icon>
       </el-badge>
@@ -243,6 +250,52 @@ let msgIdCounter = 0
 let toolCallIdCounter = 0
 let lastUserMessage = ''
 
+const btnPos = ref({ x: window.innerWidth - 80, y: window.innerHeight - 80 })
+const isDragging = ref(false)
+let dragStart = { x: 0, y: 0, bx: 0, by: 0, moved: false }
+
+const onDragStart = (e: MouseEvent | TouchEvent) => {
+  const point = 'touches' in e ? e.touches[0] : e
+  dragStart = { x: point.clientX, y: point.clientY, bx: btnPos.value.x, by: btnPos.value.y, moved: false }
+  isDragging.value = true
+  document.addEventListener('mousemove', onDragMove)
+  document.addEventListener('mouseup', onDragEnd)
+  document.addEventListener('touchmove', onDragMove, { passive: false })
+  document.addEventListener('touchend', onDragEnd)
+}
+
+const onDragMove = (e: MouseEvent | TouchEvent) => {
+  const point = 'touches' in e ? e.touches[0] : e
+  const dx = point.clientX - dragStart.x
+  const dy = point.clientY - dragStart.y
+  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragStart.moved = true
+  const nx = Math.max(16, Math.min(window.innerWidth - 72, dragStart.bx + dx))
+  const ny = Math.max(16, Math.min(window.innerHeight - 72, dragStart.by + dy))
+  btnPos.value = { x: nx, y: ny }
+  if ('touches' in e) e.preventDefault()
+}
+
+const onDragEnd = () => {
+  document.removeEventListener('mousemove', onDragMove)
+  document.removeEventListener('mouseup', onDragEnd)
+  document.removeEventListener('touchmove', onDragMove)
+  document.removeEventListener('touchend', onDragEnd)
+  isDragging.value = false
+  if (!dragStart.moved) {
+    visible.value = true
+    hasNewBadge.value = false
+    return
+  }
+  const centerX = btnPos.value.x + 28
+  const clampedY = Math.max(16, Math.min(window.innerHeight - 72, btnPos.value.y))
+  if (centerX < window.innerWidth / 2) {
+    btnPos.value = { x: 16, y: clampedY }
+  } else {
+    btnPos.value = { x: window.innerWidth - 72, y: clampedY }
+  }
+  localStorage.setItem('ai:btnPos', JSON.stringify(btnPos.value))
+}
+
 const userStore = useUserStore()
 const STORAGE_KEY = 'ai:sessionId'
 
@@ -278,10 +331,10 @@ const loadHistory = async () => {
         role: msg.role as 'user' | 'assistant',
         content: msg.content,
         toolCalls: [],
-        timestamp: Date.now()
+        timestamp: msg.timestamp || 0
       }))
       if (history.length > 10) {
-        messages.value.unshift({ id: ++msgIdCounter, role: 'assistant', content: `（已加载最近10条，共${history.length}条历史对话）`, toolCalls: [], timestamp: Date.now() })
+        messages.value.unshift({ id: ++msgIdCounter, role: 'assistant', content: `（已加载最近10条，共${history.length}条历史对话）`, toolCalls: [], timestamp: 0 })
       }
       scrollToBottom()
     }
@@ -507,7 +560,30 @@ watch(() => userStore.userInfo, async () => {
   }
 })
 
+const onResize = () => {
+  const clampedY = Math.max(16, Math.min(window.innerHeight - 72, btnPos.value.y))
+  const centerX = btnPos.value.x + 28
+  if (centerX < window.innerWidth / 2) {
+    btnPos.value = { x: 16, y: clampedY }
+  } else {
+    btnPos.value = { x: window.innerWidth - 72, y: clampedY }
+  }
+  localStorage.setItem('ai:btnPos', JSON.stringify(btnPos.value))
+}
+
 onMounted(async () => {
+  const savedPos = localStorage.getItem('ai:btnPos')
+  if (savedPos) {
+    try {
+      const p = JSON.parse(savedPos)
+      const clampedY = Math.max(16, Math.min(window.innerHeight - 72, p.y))
+      const centerX = p.x + 28
+      btnPos.value = centerX < window.innerWidth / 2
+        ? { x: 16, y: clampedY }
+        : { x: window.innerWidth - 72, y: clampedY }
+    } catch {}
+  }
+  window.addEventListener('resize', onResize)
   try {
     const status = await getAiStatus()
     aiEnabled.value = status.enabled
@@ -524,382 +600,134 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (streamHandle) streamHandle.close()
+  window.removeEventListener('resize', onResize)
 })
 </script>
 
 <style scoped lang="scss">
 .ai-consultant {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
   z-index: 200;
 }
 
 .float-btn {
+  position: fixed;
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: var(--el-color-primary);
+  background: var(--primary-gradient);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  cursor: grab;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.35);
   transition: transform 0.2s, box-shadow 0.2s;
-
-  &:hover {
-    transform: scale(1.08);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
-  }
+  user-select: none;
+  &:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(99, 102, 241, 0.45); }
+  &:active { cursor: grabbing; transform: scale(0.95); }
+  &.snapping { transition: transform 0.2s, box-shadow 0.2s, left 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 }
 
 .chat-panel {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 380px;
-  height: 560px;
-  max-height: calc(100vh - 48px);
-  background: var(--el-bg-color);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 400px;
+  height: 600px;
+  max-height: calc(100vh - 120px);
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 20px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.18);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--el-border-color-lighter);
+  border: 1px solid var(--border);
 }
 
 .chat-header {
-  padding: 12px 16px;
-  background: var(--el-color-primary);
+  padding: 14px 18px;
+  background: var(--primary-gradient);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
 
-  .header-info {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
+  .header-info { display: flex; align-items: center; gap: 10px; }
   .avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
+    width: 38px; height: 38px; border-radius: 50%;
     background: rgba(255, 255, 255, 0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
   }
-
-  .header-text {
-    display: flex;
-    flex-direction: column;
-
-    .title {
-      font-size: 15px;
-      font-weight: 600;
-    }
-
-    .subtitle {
-      font-size: 12px;
-      opacity: 0.8;
-    }
-  }
-
+  .header-text { display: flex; flex-direction: column; .title { font-size: 15px; font-weight: 700; } .subtitle { font-size: 12px; opacity: 0.85; } }
   .header-actions {
-    display: flex;
-    gap: 4px;
-
+    display: flex; gap: 4px;
     :deep(.el-button) {
-      color: #fff;
-      background: rgba(255, 255, 255, 0.15);
-      border: none;
-
-      &:hover {
-        background: rgba(255, 255, 255, 0.25);
-      }
+      color: #fff; background: rgba(255, 255, 255, 0.15); border: none;
+      &:hover { background: rgba(255, 255, 255, 0.3); }
     }
   }
 }
 
 .chat-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex: 1; overflow-y: auto; padding: 16px;
+  display: flex; flex-direction: column; gap: 12px;
+  background: linear-gradient(180deg, var(--bg-card), var(--bg-hover));
 }
 
 .welcome {
-  text-align: center;
-  padding: 24px 0;
-
-  .welcome-icon {
-    color: var(--el-color-primary);
-    margin-bottom: 12px;
-  }
-
-  .welcome-title {
-    font-size: 18px;
-    font-weight: 700;
-    margin: 0 0 4px;
-  }
-
-  .welcome-desc {
-    font-size: 13px;
-    color: var(--el-text-color-secondary);
-    margin: 0 0 16px;
-  }
-
-  .suggestions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    justify-content: center;
-  }
+  text-align: center; padding: 28px 0;
+  .welcome-icon { color: var(--primary); margin-bottom: 12px; }
+  .welcome-title { font-size: 20px; font-weight: 800; margin: 0 0 4px; background: var(--primary-gradient-gloss); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .welcome-desc { font-size: 13px; color: var(--text-secondary); margin: 0 0 18px; }
+  .suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 }
 
-.msg-row {
-  display: flex;
+.msg-row { display: flex; &.user { justify-content: flex-end; } &.assistant { justify-content: flex-start; } }
 
-  &.user {
-    justify-content: flex-end;
-  }
-
-  &.assistant {
-    justify-content: flex-start;
-  }
-}
+.msg-wrapper { display: flex; flex-direction: column; max-width: 85%; .user & { align-items: flex-end; } .assistant & { align-items: flex-start; } }
 
 .msg-bubble {
-  max-width: 85%;
-  padding: 10px 14px;
-  border-radius: 12px;
-  font-size: 14px;
-  line-height: 1.6;
-  word-break: break-word;
-
-  .user & {
-    background: var(--el-color-primary);
-    color: #fff;
-    border-bottom-right-radius: 4px;
-  }
-
-  .assistant & {
-    background: var(--el-fill-color-light);
-    color: var(--el-text-color-primary);
-    border-bottom-left-radius: 4px;
-  }
+  padding: 10px 14px; border-radius: 14px;
+  font-size: 14px; line-height: 1.6; word-break: break-word;
+  .user & { background: var(--primary-gradient); color: #fff; border-bottom-right-radius: 4px; box-shadow: 0 2px 8px rgba(99,102,241,0.25); }
+  .assistant & { background: var(--bg-card); color: var(--text-primary); border-bottom-left-radius: 4px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-light); }
 }
 
 .msg-content {
-  :deep(p) {
-    margin: 0 0 8px;
-    &:last-child { margin-bottom: 0; }
-  }
-  :deep(ul), :deep(ol) {
-    margin: 4px 0 8px;
-    padding-left: 20px;
-  }
-  :deep(li) {
-    margin: 2px 0;
-  }
-  :deep(code) {
-    background: rgba(0, 0, 0, 0.06);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 13px;
-  }
-  :deep(pre) {
-    background: rgba(0, 0, 0, 0.06);
-    padding: 8px 12px;
-    border-radius: 8px;
-    overflow-x: auto;
-    margin: 4px 0;
-    code {
-      background: none;
-      padding: 0;
-    }
-  }
-  :deep(table) {
-    border-collapse: collapse;
-    margin: 4px 0;
-    th, td {
-      border: 1px solid var(--el-border-color);
-      padding: 4px 8px;
-    }
-    th {
-      background: rgba(0, 0, 0, 0.04);
-    }
-  }
-  :deep(strong) {
-    font-weight: 700;
-  }
-  :deep(a) {
-    color: var(--el-color-primary);
-    text-decoration: none;
-    &:hover { text-decoration: underline; }
-  }
+  :deep(p) { margin: 0 0 8px; &:last-child { margin-bottom: 0; } }
+  :deep(ul), :deep(ol) { margin: 4px 0 8px; padding-left: 20px; }
+  :deep(li) { margin: 2px 0; }
+  :deep(code) { background: rgba(0, 0, 0, 0.06); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+  :deep(pre) { background: rgba(0, 0, 0, 0.06); padding: 8px 12px; border-radius: 8px; overflow-x: auto; margin: 4px 0; code { background: none; padding: 0; } }
+  :deep(table) { border-collapse: collapse; margin: 4px 0; th, td { border: 1px solid var(--border); padding: 4px 8px; } th { background: var(--bg-hover); } }
+  :deep(strong) { font-weight: 700; }
+  :deep(a) { color: var(--primary); text-decoration: none; &:hover { text-decoration: underline; } }
 }
 
-.tool-calls {
-  margin-bottom: 8px;
-}
+.tool-calls { margin-bottom: 8px; }
+.tool-call-card { background: var(--bg-hover); border-radius: 8px; margin-bottom: 4px; overflow: hidden; font-size: 12px; }
+.tool-call-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer; color: var(--text-secondary); .tool-name { font-weight: 600; color: var(--primary); } .expand-icon { margin-left: auto; } &:hover { background: var(--primary-lighter); } }
+.tool-call-body { padding: 6px 10px; border-top: 1px solid var(--border-light); }
+.tool-args, .tool-result { margin: 4px 0; .tool-label { color: var(--text-secondary); font-weight: 600; } code { background: var(--bg-hover); padding: 2px 4px; border-radius: 3px; font-size: 11px; } pre { background: var(--bg-hover); padding: 6px 8px; border-radius: 4px; overflow-x: auto; margin: 4px 0; font-size: 11px; white-space: pre-wrap; max-height: 120px; overflow-y: auto; } }
+.thinking-status { display: flex; align-items: center; gap: 4px; color: var(--text-secondary); font-size: 12px; margin-top: 4px; .is-loading { animation: rotating 1.5s linear infinite; } }
+@keyframes rotating { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.msg-error { display: flex; align-items: center; gap: 8px; color: var(--danger); }
+.msg-footer { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 0 4px; opacity: 0.6; }
+.msg-time { font-size: 11px; color: var(--text-secondary); }
+.copy-btn { padding: 2px; min-height: auto; }
+.typing { display: inline-flex; gap: 4px; align-items: center; .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-secondary); animation: typing-bounce 1.4s infinite ease-in-out; &:nth-child(2) { animation-delay: 0.2s; } &:nth-child(3) { animation-delay: 0.4s; } } }
+@keyframes typing-bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
 
-.tool-call-card {
-  background: rgba(0, 0, 0, 0.04);
-  border-radius: 8px;
-  margin-bottom: 4px;
-  overflow: hidden;
-  font-size: 12px;
-}
+.chat-footer { padding: 12px; border-top: 1px solid var(--border-light); flex-shrink: 0; background: var(--bg-glass); backdrop-filter: blur(8px); }
 
-.tool-call-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  cursor: pointer;
-  color: var(--el-text-color-secondary);
-
-  .tool-name {
-    font-weight: 600;
-    color: var(--el-color-primary);
-  }
-
-  .expand-icon {
-    margin-left: auto;
-  }
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.06);
-  }
-}
-
-.tool-call-body {
-  padding: 6px 10px;
-  border-top: 1px solid var(--el-border-color-lighter);
-}
-
-.tool-args, .tool-result {
-  margin: 4px 0;
-
-  .tool-label {
-    color: var(--el-text-color-secondary);
-    font-weight: 600;
-  }
-
-  code {
-    background: rgba(0, 0, 0, 0.06);
-    padding: 2px 4px;
-    border-radius: 3px;
-    font-size: 11px;
-  }
-
-  pre {
-    background: rgba(0, 0, 0, 0.06);
-    padding: 6px 8px;
-    border-radius: 4px;
-    overflow-x: auto;
-    margin: 4px 0;
-    font-size: 11px;
-    white-space: pre-wrap;
-    max-height: 120px;
-    overflow-y: auto;
-  }
-}
-
-.thinking-status {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--el-text-color-secondary);
-  font-size: 12px;
-  margin-top: 4px;
-
-  .is-loading {
-    animation: rotating 1.5s linear infinite;
-  }
-}
-
-@keyframes rotating {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.msg-error {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--el-color-danger);
-}
-
-.msg-footer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-  opacity: 0.6;
-}
-
-.msg-time {
-  font-size: 11px;
-  color: var(--el-text-color-secondary);
-}
-
-.copy-btn {
-  padding: 2px;
-  min-height: auto;
-}
-
-.typing {
-  display: inline-flex;
-  gap: 4px;
-  align-items: center;
-
-  .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--el-text-color-secondary);
-    animation: typing-bounce 1.4s infinite ease-in-out;
-
-    &:nth-child(2) { animation-delay: 0.2s; }
-    &:nth-child(3) { animation-delay: 0.4s; }
-  }
-}
-
-@keyframes typing-bounce {
-  0%, 60%, 100% { transform: translateY(0); }
-  30% { transform: translateY(-6px); }
-}
-
-.chat-footer {
-  padding: 12px;
-  border-top: 1px solid var(--el-border-color-lighter);
-  flex-shrink: 0;
-}
-
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: opacity 0.3s, transform 0.3s;
-}
-
-.slide-up-enter-from,
-.slide-up-leave-to {
-  opacity: 0;
-  transform: translateY(20px);
-}
+.slide-up-enter-active, .slide-up-leave-active { transition: opacity 0.3s, transform 0.3s; }
+.slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(20px); }
 
 @media (max-width: 480px) {
-  .chat-panel {
-    width: calc(100vw - 48px);
-    height: calc(100vh - 120px);
-  }
+  .chat-panel { width: calc(100vw - 32px); height: calc(100vh - 120px); bottom: 16px; right: 16px; }
 }
 </style>

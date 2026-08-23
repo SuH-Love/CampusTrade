@@ -15,10 +15,12 @@ import com.campustrade.vo.GoodsVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Api(tags = "商品接口")
@@ -34,6 +36,12 @@ public class GoodsController {
 
     @Autowired
     private GoodsCategoryMapper categoryMapper;
+
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
+    private static final String SEARCH_KEYWORDS_KEY = "search:keywords";
+    private static final String VIEWED_TITLES_KEY = "search:viewed_titles";
 
     @ApiOperation("发布商品")
     @PostMapping
@@ -56,13 +64,69 @@ public class GoodsController {
     @ApiOperation("商品详情")
     @GetMapping("/{id}")
     public Result<GoodsVO> getGoodsDetail(@PathVariable Long id) {
-        return goodsService.getGoodsDetail(id, SecurityUtil.getCurrentUserId());
+        Result<GoodsVO> result = goodsService.getGoodsDetail(id, SecurityUtil.getCurrentUserId());
+        if (result.getData() != null && result.getData().getTitle() != null) {
+            try {
+                String title = result.getData().getTitle().trim();
+                if (title.length() >= 2 && title.length() <= 20) {
+                    stringRedisTemplate.opsForZSet().incrementScore(VIEWED_TITLES_KEY, title, 1);
+                    stringRedisTemplate.expire(VIEWED_TITLES_KEY, 7, TimeUnit.DAYS);
+                }
+            } catch (Exception ignored) {}
+        }
+        return result;
     }
 
     @ApiOperation("商品列表")
     @GetMapping
     public Result<PageResult<GoodsVO>> listGoods(GoodsQueryDTO dto) {
+        if (dto.getKeyword() != null && !dto.getKeyword().trim().isEmpty()) {
+            try {
+                String kw = dto.getKeyword().trim();
+                if (kw.length() >= 1 && kw.length() <= 20) {
+                    stringRedisTemplate.opsForZSet().incrementScore(SEARCH_KEYWORDS_KEY, kw, 1);
+                    stringRedisTemplate.expire(SEARCH_KEYWORDS_KEY, 7, TimeUnit.DAYS);
+                }
+            } catch (Exception ignored) {}
+        }
         return goodsService.listGoods(dto);
+    }
+
+    @ApiOperation("搜索联想")
+    @GetMapping("/suggest")
+    public Result<List<String>> suggest(@RequestParam String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) return Result.success(List.of());
+        String kw = keyword.trim();
+        Set<String> suggestions = new LinkedHashSet<>();
+
+        List<GoodsVO> goods = goodsMapper.selectHotGoodsVO(100);
+        for (GoodsVO g : goods) {
+            if (g.getTitle() != null && g.getTitle().toLowerCase().contains(kw.toLowerCase())) {
+                suggestions.add(g.getTitle());
+            }
+            if (g.getUsername() != null && g.getUsername().toLowerCase().contains(kw.toLowerCase())) {
+                suggestions.add(g.getUsername());
+            }
+            if (suggestions.size() >= 8) break;
+        }
+
+        List<GoodsCategory> cats = categoryMapper.selectAll();
+        for (GoodsCategory cat : cats) {
+            if (cat.getCategoryName() != null && cat.getCategoryName().toLowerCase().contains(kw.toLowerCase())) {
+                suggestions.add(cat.getCategoryName());
+            }
+        }
+
+        try {
+            Set<String> topSearched = stringRedisTemplate.opsForZSet().reverseRange(SEARCH_KEYWORDS_KEY, 0, 49);
+            if (topSearched != null) {
+                for (String s : topSearched) {
+                    if (s.toLowerCase().contains(kw.toLowerCase())) suggestions.add(s);
+                }
+            }
+        } catch (Exception ignored) {}
+
+        return Result.success(suggestions.stream().limit(10).collect(Collectors.toList()));
     }
 
     @ApiOperation("热门商品")
@@ -133,53 +197,65 @@ public class GoodsController {
 
     @ApiOperation("热门搜索词")
     @GetMapping("/hot-keywords")
-    public Result<List<String>> hotKeywords() {
-        Set<String> keywords = new LinkedHashSet<>();
+    public Result<List<Map<String, Object>>> hotKeywords() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
 
-        List<GoodsCategory> cats = categoryMapper.selectAll();
-        for (GoodsCategory cat : cats) {
-            if (cat.getCategoryName() != null && cat.getCategoryName().length() >= 2) {
-                keywords.add(cat.getCategoryName());
+        // 1. 真实用户搜索词（带分数，区分热门/新趋势）
+        try {
+            var topWithScores = stringRedisTemplate.opsForZSet()
+                    .reverseRangeWithScores(SEARCH_KEYWORDS_KEY, 0, 14);
+            if (topWithScores != null) {
+                int rank = 0;
+                for (var tuple : topWithScores) {
+                    String kw = tuple.getValue();
+                    if (kw == null || seen.contains(kw)) continue;
+                    seen.add(kw);
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("keyword", kw);
+                    item.put("type", rank < 3 ? "hot" : "new");
+                    result.add(item);
+                    rank++;
+                }
             }
-        }
+        } catch (Exception ignored) {}
 
-        List<Goods> hotGoods = goodsMapper.selectHotGoods(50);
-        Map<String, Integer> freq = new HashMap<>();
-        Set<String> stopWords = new HashSet<>(Arrays.asList(
-                "的", "了", "是", "在", "和", "与", "及", "等", "可", "用", "有", "无",
-                "不", "很", "都", "还", "就", "要", "会", "对", "中", "为", "到", "把",
-                "被", "让", "给", "从", "上", "下", "出", "入", "个", "只", "这", "那",
-                "我", "你", "他", "她", "它", "一", "二", "三", "四", "五", "六",
-                "七", "八", "九", "十", "百", "千", "万", "元", "块", "毛", "分",
-                "新", "旧", "好", "坏", "大", "小", "多", "少", "高", "低", "长", "短",
-                "出", "售", "转", "卖", "买", "急", "优", "超", "最", "特", "自", "非"
-        ));
-        for (Goods g : hotGoods) {
-            if (g.getTitle() == null) continue;
-            String title = g.getTitle().replaceAll("[^\\u4e00-\\u9fa5a-zA-Z0-9]", " ").trim();
-            for (int len = 2; len <= 4; len++) {
-                String[] parts = title.split("\\s+");
-                for (String part : parts) {
-                    if (part.length() < len) continue;
-                    for (int i = 0; i <= part.length() - len; i++) {
-                        String word = part.substring(i, i + len);
-                        if (stopWords.contains(word)) continue;
-                        boolean allStop = true;
-                        for (char c : word.toCharArray()) {
-                            if (!stopWords.contains(String.valueOf(c))) { allStop = false; break; }
+        // 2. 高频浏览商品标题提取关键词
+        try {
+            Set<String> topViewed = stringRedisTemplate.opsForZSet()
+                    .reverseRange(VIEWED_TITLES_KEY, 0, 19);
+            if (topViewed != null) {
+                for (String title : topViewed) {
+                    if (result.size() >= 8) break;
+                    String clean = title.replaceAll("[^\\u4e00-\\u9fa5a-zA-Z0-9]", " ").trim();
+                    for (String part : clean.split("\\s+")) {
+                        if (part.length() >= 2 && part.length() <= 6 && !seen.contains(part) && result.size() < 8) {
+                            seen.add(part);
+                            Map<String, Object> item = new HashMap<>();
+                            item.put("keyword", part);
+                            item.put("type", "");
+                            result.add(item);
                         }
-                        if (allStop) continue;
-                        freq.merge(word, 1, Integer::sum);
                     }
                 }
             }
-        }
-        freq.entrySet().stream()
-                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
-                .limit(20)
-                .map(Map.Entry::getKey)
-                .forEach(keywords::add);
+        } catch (Exception ignored) {}
 
-        return Result.success(keywords.stream().limit(10).collect(Collectors.toList()));
+        // 3. 分类名兜底
+        if (result.size() < 5) {
+            List<GoodsCategory> cats = categoryMapper.selectAll();
+            for (GoodsCategory cat : cats) {
+                if (result.size() >= 8) break;
+                if (cat.getCategoryName() != null && cat.getCategoryName().length() >= 2 && !seen.contains(cat.getCategoryName())) {
+                    seen.add(cat.getCategoryName());
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("keyword", cat.getCategoryName());
+                    item.put("type", "");
+                    result.add(item);
+                }
+            }
+        }
+
+        return Result.success(result.stream().limit(10).collect(Collectors.toList()));
     }
 }

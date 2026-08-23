@@ -46,13 +46,22 @@
     </select>
 
     <select id="selectCount" resultType="java.lang.Long">
-        SELECT COUNT(*) FROM t_goods WHERE deleted = 0
-        <if test="categoryId != null">AND category_id = #{categoryId}</if>
-        <if test="keyword != null and keyword != ''">AND title LIKE CONCAT('%', #{keyword}, '%')</if>
-        <if test="minPrice != null">AND price &gt;= #{minPrice}</if>
-        <if test="maxPrice != null">AND price &lt;= #{maxPrice}</if>
-        <if test="status != null and status != ''">AND status = #{status}</if>
-        <if test="userId != null">AND user_id = #{userId}</if>
+        SELECT COUNT(*) FROM t_goods g
+        LEFT JOIN t_user u ON g.user_id = u.id AND u.deleted = 0
+        LEFT JOIN t_goods_category c ON g.category_id = c.id AND c.deleted = 0
+        WHERE g.deleted = 0
+        <if test="categoryId != null">AND g.category_id = #{categoryId}</if>
+        <if test="keyword != null and keyword != ''">
+            AND (g.title LIKE CONCAT('%', #{keyword}, '%')
+                 OR g.description LIKE CONCAT('%', #{keyword}, '%')
+                 OR IFNULL(u.nickname, u.username) LIKE CONCAT('%', #{keyword}, '%')
+                 OR c.category_name LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="minPrice != null">AND g.price &gt;= #{minPrice}</if>
+        <if test="maxPrice != null">AND g.price &lt;= #{maxPrice}</if>
+        <if test="status != null and status != ''">AND g.status = #{status}</if>
+        <if test="userId != null">AND g.user_id = #{userId}</if>
+        <if test="todayOnly != null and todayOnly">AND g.create_time &gt;= CURDATE()</if>
     </select>
 
     <select id="selectHotGoods" resultMap="BaseResultMap">
@@ -93,6 +102,10 @@
         UPDATE t_goods SET deleted = 1 WHERE id = #{id}
     </update>
 
+    <update id="clearRejectReason">
+        UPDATE t_goods SET reject_reason = NULL WHERE id = #{id}
+    </update>
+
     <update id="incrementViewCount">
         UPDATE t_goods SET view_count = view_count + 1 WHERE id = #{id} AND deleted = 0
     </update>
@@ -121,6 +134,14 @@
         SELECT COUNT(*) FROM t_goods WHERE deleted = 0 AND status = #{status} AND user_id = #{userId}
     </select>
 
+    <select id="selectAvgOnlinePrice" resultType="java.math.BigDecimal">
+        SELECT IFNULL(AVG(price), 999999) FROM t_goods WHERE deleted = 0 AND status = 'ONLINE'
+    </select>
+
+    <select id="selectOnlinePrices" resultType="java.math.BigDecimal">
+        SELECT price FROM t_goods WHERE deleted = 0 AND status = 'ONLINE' ORDER BY price ASC
+    </select>
+
     <select id="selectListVO" resultType="com.campustrade.vo.GoodsVO">
         SELECT g.id, g.user_id, g.category_id, g.title, g.description, g.price, g.original_price,
                g.`condition`, g.cover_image, g.images, g.status, g.reject_reason,
@@ -132,12 +153,21 @@
         LEFT JOIN t_goods_category c ON g.category_id = c.id AND c.deleted = 0
         WHERE g.deleted = 0
         <if test="categoryId != null">AND g.category_id = #{categoryId}</if>
-        <if test="keyword != null and keyword != ''">AND (g.title LIKE CONCAT('%', #{keyword}, '%') OR g.description LIKE CONCAT('%', #{keyword}, '%'))</if>
+        <if test="keyword != null and keyword != ''">
+            AND (g.title LIKE CONCAT('%', #{keyword}, '%')
+                 OR g.description LIKE CONCAT('%', #{keyword}, '%')
+                 OR IFNULL(u.nickname, u.username) LIKE CONCAT('%', #{keyword}, '%')
+                 OR c.category_name LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
         <if test="minPrice != null">AND g.price &gt;= #{minPrice}</if>
         <if test="maxPrice != null">AND g.price &lt;= #{maxPrice}</if>
         <if test="status != null and status != ''">AND g.status = #{status}</if>
         <if test="userId != null">AND g.user_id = #{userId}</if>
-        ORDER BY g.create_time DESC
+        <if test="todayOnly != null and todayOnly">AND g.create_time &gt;= CURDATE()</if>
+        <choose>
+            <when test="sortBy == 'price_asc'">ORDER BY g.price ASC, g.view_count DESC</when>
+            <otherwise>ORDER BY g.create_time DESC</otherwise>
+        </choose>
         LIMIT #{offset}, #{pageSize}
     </select>
 

@@ -6,19 +6,6 @@ declare module '*.vue' {
   export default component
 }
 
-declare module 'element-plus' {
-  const ElementPlus: any
-  export default ElementPlus
-  export const ElMessage: any
-  export const ElMessageBox: any
-  export const ElNotification: any
-  export const ElLoading: any
-}
-
-declare module 'element-plus/es/locale/lang/zh-cn' {
-  const zhCn: any
-  export default zhCn
-}
 
 declare module 'echarts' {
   export interface ECharts {

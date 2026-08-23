@@ -26,7 +26,7 @@
         </span>
       </div>
     </div>
-    <div class="seller-actions">
+    <div class="seller-actions" v-if="!isOwn">
       <el-button size="small" @click.stop="emit('chat')" round>聊天</el-button>
       <el-button size="small" type="primary" @click.stop="emit('chat')" round plain>咨询商品</el-button>
       <el-button :type="isFollowed ? 'warning' : 'default'" size="small" @click.stop="emit('follow')" :loading="followLoading" round>
@@ -48,6 +48,7 @@ defineProps<{
   followCounts: { following: number; followers: number } | null
   isFollowed: boolean
   followLoading: boolean
+  isOwn?: boolean
 }>()
 
 const emit = defineEmits<{

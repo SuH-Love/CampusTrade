@@ -54,4 +54,8 @@ export const getFavoriteList = (params: GoodsQueryParams) => request.get<never, 
 export const getMyGoods = (params: { pageNum: number; pageSize: number; status?: string }) =>
   request.get<never, PageResult<GoodsVO>>('/goods/mine', { params })
 
-export const getHotKeywords = () => request.get<never, string[]>('/goods/hot-keywords')
+export interface HotKeywordVO { keyword: string; type: string }
+
+export const getHotKeywords = () => request.get<never, HotKeywordVO[]>('/goods/hot-keywords')
+
+export const getSuggest = (keyword: string) => request.get<never, string[]>('/goods/suggest', { params: { keyword } })

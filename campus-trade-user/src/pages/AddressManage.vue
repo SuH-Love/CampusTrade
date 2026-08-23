@@ -199,4 +199,9 @@ onMounted(loadList)
 .receiver-phone { color: var(--text-secondary); font-size: 14px; }
 .address-detail { color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
 .address-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+@media (max-width: 768px) {
+  .address-card { flex-direction: column; gap: 12px; }
+  .address-actions { width: 100%; justify-content: flex-end; }
+}
 </style>

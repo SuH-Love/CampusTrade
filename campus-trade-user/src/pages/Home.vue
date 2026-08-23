@@ -1,104 +1,128 @@
 <template>
-  <div class="home-page">
+  <div class="home-page page-bg">
     <HomeSkeleton v-if="homeLoading && hotGoods.length === 0" />
     <template v-else>
       <section class="hero">
-        <el-carousel :height="heroHeight" :interval="5000" arrow="hover" indicator-position="outside">
-          <el-carousel-item v-for="banner in banners" :key="banner.id">
-            <div class="hero-slide" :style="{ background: banner.imageUrl ? 'transparent' : (banner.bgColor || 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)') }">
+        <el-carousel :height="heroHeight" :interval="5000" arrow="hover">
+          <el-carousel-item v-for="banner in allBanners" :key="banner.id || 'default'">
+            <div class="hero-slide" :class="{ 'hero-default': !banner.id }" :style="banner.id ? { background: banner.imageUrl ? 'transparent' : (banner.bgColor || 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)') } : {}">
               <img v-if="banner.imageUrl" :src="banner.imageUrl" class="hero-bg-img" alt="轮播图" />
               <div class="hero-overlay" v-if="banner.imageUrl" />
-              <div class="hero-content">
+              <template v-if="!banner.id">
+                <div class="hero-bg-particles">
+                  <span v-for="i in 4" :key="i" class="hero-particle" :style="particleStyle(i)" />
+                </div>
+                <div class="hero-content">
+                  <div class="hero-badge">校园闲置好物流转平台</div>
+                  <h1>校园贸易<span class="gradient-text">新体验</span></h1>
+                  <p>安全·便捷·值得信赖的校园闲置好物流转平台</p>
+                  <el-button type="primary" size="large" round @click="$router.push('/goods')">立即探索</el-button>
+                </div>
+              </template>
+              <div v-else class="hero-content">
                 <h1 v-if="banner.title">{{ banner.title }}</h1>
                 <p v-if="banner.subtitle">{{ banner.subtitle }}</p>
                 <el-button v-if="banner.buttonText && banner.linkUrl" size="large" round :style="bannerButtonStyle(banner)" @click="$router.push(banner.linkUrl)">{{ banner.buttonText }}</el-button>
               </div>
             </div>
           </el-carousel-item>
-          <el-carousel-item v-if="banners.length === 0">
-            <div class="hero-slide hero-default">
-              <div class="hero-bg-particles">
-                <span v-for="i in 8" :key="i" class="hero-particle" :style="particleStyle(i)" />
-              </div>
-              <div class="hero-content">
-                <div class="hero-badge">校园闲置好物流转平台</div>
-                <h1>校园贸易<span class="gradient-text">新体验</span></h1>
-                <p>安全·便捷·值得信赖的校园闲置好物流转平台</p>
-                <el-button type="primary" size="large" round @click="$router.push('/goods')">立即探索</el-button>
-              </div>
-            </div>
-          </el-carousel-item>
         </el-carousel>
+        <div v-if="announcements.length > 0" class="hero-announce-bar">
+          <el-icon><BellFilled /></el-icon>
+          <div class="announce-marquee">
+            <transition name="announce-slide" mode="out-in">
+              <span :key="currentAnnouncementIdx" class="announce-marquee-text">{{ announcements[currentAnnouncementIdx]?.title }}：{{ announcements[currentAnnouncementIdx]?.content }}</span>
+            </transition>
+          </div>
+        </div>
       </section>
 
       <div class="bento-container">
         <div class="bento-grid">
           <div class="bento-card bento-search-card">
-            <el-input
-              v-model="searchKeyword"
-              placeholder="搜索你想要的宝贝..."
-              size="large"
-              clearable
-              prefix-icon="Search"
-              @keyup.enter="handleSearch"
-              @input="handleSearchInput"
-              @focus="showSearchDropdown = true"
-              @blur="hideSearchDropdown"
-              class="search-input"
-            />
-            <div class="search-dropdown" v-if="showSearchDropdown && (searchHistory.length > 0 || hotKeywords.length > 0)">
-              <div class="search-dropdown-section" v-if="searchHistory.length > 0">
-                <div class="search-dropdown-header">
-                  <span>搜索历史</span>
-                  <el-button link type="info" size="small" @click="clearSearchHistory">清空</el-button>
+            <div class="search-wrap">
+              <el-input
+                v-model="searchKeyword"
+                placeholder="搜索你想要的宝贝..."
+                size="large"
+                clearable
+                prefix-icon="Search"
+                @keyup.enter="handleSearch"
+                @input="handleSearchInput"
+                @focus="showSearchDropdown = true"
+                @blur="hideSearchDropdown"
+                class="search-input"
+              />
+              <div class="search-dropdown" v-if="showSearchDropdown">
+                <!-- 实时联想 -->
+                <div class="search-dropdown-section" v-if="suggestList.length > 0">
+                  <div class="search-dropdown-header"><span>猜你想找</span></div>
+                  <div class="search-tags">
+                    <el-tag v-for="(kw, idx) in suggestList" :key="'s'+idx" size="small" round effect="plain" @mousedown.prevent="searchFromHistory(kw, $event)" class="search-tag-btn">{{ kw }}</el-tag>
+                  </div>
                 </div>
-                <div class="search-tags">
-                  <el-tag v-for="(kw, idx) in searchHistory" :key="idx" size="small" round effect="plain" @mousedown.prevent="searchFromHistory(kw)" class="search-tag-btn">{{ kw }}</el-tag>
+                <!-- 搜索历史分组 -->
+                <div class="search-dropdown-section" v-if="todayHistory.length > 0">
+                  <div class="search-dropdown-header"><span>今天</span><el-button link type="info" size="small" @click="clearSearchHistory">清空</el-button></div>
+                  <div class="search-tags">
+                    <el-tag v-for="(item, idx) in todayHistory" :key="'t'+idx" size="small" round effect="plain" @mousedown.prevent="searchFromHistory(item.kw, $event)" class="search-tag-btn" closable @close="removeHistoryItem(idx, 'today')">{{ item.kw }}</el-tag>
+                  </div>
                 </div>
-              </div>
-              <div class="search-dropdown-section" v-if="hotKeywords.length > 0">
-                <div class="search-dropdown-header"><span>智能推荐</span></div>
-                <div class="search-tags">
-                  <el-tag v-for="(kw, idx) in hotKeywords" :key="idx" size="small" round type="danger" effect="plain" @mousedown.prevent="searchFromHistory(kw)" class="search-tag-btn">{{ kw }}</el-tag>
+                <div class="search-dropdown-section" v-if="yesterdayHistory.length > 0">
+                  <div class="search-dropdown-header"><span>昨天</span></div>
+                  <div class="search-tags">
+                    <el-tag v-for="(item, idx) in yesterdayHistory" :key="'y'+idx" size="small" round effect="plain" @mousedown.prevent="searchFromHistory(item.kw, $event)" class="search-tag-btn" closable @close="removeHistoryItem(idx, 'yesterday')">{{ item.kw }}</el-tag>
+                  </div>
+                </div>
+                <div class="search-dropdown-section" v-if="earlierHistory.length > 0">
+                  <div class="search-dropdown-header"><span>更早</span></div>
+                  <div class="search-tags">
+                    <el-tag v-for="(item, idx) in earlierHistory" :key="'e'+idx" size="small" round effect="plain" @mousedown.prevent="searchFromHistory(item.kw, $event)" class="search-tag-btn" closable @close="removeHistoryItem(idx, 'earlier')">{{ item.kw }}</el-tag>
+                  </div>
+                </div>
+                <!-- 智能推荐（带热门/新趋势标记） -->
+                <div class="search-dropdown-section" v-if="hotKeywords.length > 0">
+                  <div class="search-dropdown-header"><span>智能推荐</span></div>
+                  <div class="search-tags">
+                    <el-tag v-for="(item, idx) in hotKeywords" :key="'h'+idx" size="small" round :type="item.type === 'hot' ? 'danger' : 'warning'" effect="plain" @mousedown.prevent="searchFromHistory(item.keyword, $event)" class="search-tag-btn">
+                      {{ item.keyword }}<span v-if="item.type === 'hot'" class="kw-type-text">hot</span><span v-else-if="item.type === 'new'" class="kw-type-text">new</span>
+                    </el-tag>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="bento-card bento-category-card">
-            <div class="bento-card-head">
-              <h3>快速分类</h3>
-              <el-button text type="primary" size="small" @click="$router.push('/goods')">全部分类 →</el-button>
-            </div>
-            <div class="category-chips">
+            <div class="category-chips" v-if="!categoryExpanded">
               <div
-                v-for="cat in categories.slice(0, 8)" :key="cat.id"
+                v-for="cat in categories.slice(0, 12)" :key="cat.id"
                 class="category-chip"
-                :class="{ active: selectedCategoryId === cat.id }"
+                :class="{ active: selectedCategoryId === cat.id, 'cat-empty': !cat.goodsCount }"
                 @click="toggleCategory(cat.id)"
-              >{{ cat.categoryName }}</div>
+              >{{ cat.categoryName }}<span v-if="cat.goodsCount" class="chip-count">{{ cat.goodsCount }}</span></div>
+              <div class="category-expand-icon" @click="categoryExpanded = true">
+                <el-icon><ArrowRight /></el-icon>
+              </div>
             </div>
-          </div>
-
-          <div class="bento-card bento-announce-card" v-if="announcements.length > 0">
-            <div class="bento-card-head">
-              <h3>📢 平台公告</h3>
-            </div>
-            <div class="announce-list">
-              <div v-for="(ann, idx) in announcements.slice(0, 3)" :key="ann.id" class="announce-item" :style="{ animationDelay: `${idx * 0.1}s` }">
-                <div class="announce-title">{{ ann.title }}</div>
-                <div class="announce-content">{{ ann.content }}</div>
+            <div class="category-expanded-strip" v-else>
+              <div
+                v-for="cat in categories" :key="cat.id"
+                class="category-chip"
+                :class="{ active: selectedCategoryId === cat.id, 'cat-empty': !cat.goodsCount }"
+                @click="toggleCategory(cat.id)"
+              >{{ cat.categoryName }}<span v-if="cat.goodsCount" class="chip-count">{{ cat.goodsCount }}</span></div>
+              <div class="category-expand-icon collapse" @click="categoryExpanded = false">
+                <el-icon><ArrowLeft /></el-icon>
               </div>
             </div>
           </div>
 
           <div class="bento-card bento-hot-card">
             <div class="bento-card-head">
-              <h3 class="bento-title-gradient">🔥 热门商品</h3>
-              <el-button text type="primary" @click="$router.push('/goods')">查看更多 →</el-button>
+              <h3><span class="title-emoji">🔥</span> <span class="bento-title-gradient">热门商品</span></h3>
+              <el-button text type="primary" @click="$router.push('/goods')">查看更多 <el-icon class="more-arrow"><ArrowRight /></el-icon></el-button>
             </div>
             <div class="goods-grid" v-if="hotGoods.length > 0">
-              <div v-for="(item, idx) in hotGoods" :key="item.id" class="goods-grid-item" :style="{ animationDelay: `${idx * 0.05}s` }">
+              <div v-for="(item, idx) in hotGoods" :key="item.id" class="goods-grid-item" :style="idx < 8 ? { animationDelay: `${idx * 0.05}s` } : undefined">
                 <GoodsCard :goods="item" />
               </div>
             </div>
@@ -107,11 +131,11 @@
 
           <div class="bento-card bento-new-card">
             <div class="bento-card-head">
-              <h3 class="bento-title-gradient">✨ 最新上架</h3>
-              <el-button text type="primary" @click="$router.push('/goods')">查看更多 →</el-button>
+              <h3><span class="title-emoji">✨</span> <span class="bento-title-gradient">最新上架</span></h3>
+              <el-button text type="primary" @click="$router.push('/goods')">查看更多 <el-icon class="more-arrow"><ArrowRight /></el-icon></el-button>
             </div>
             <div class="goods-grid" v-if="recommendGoods.length > 0">
-              <div v-for="(item, idx) in recommendGoods" :key="item.id" class="goods-grid-item" :style="{ animationDelay: `${idx * 0.05}s` }">
+              <div v-for="(item, idx) in recommendGoods" :key="item.id" class="goods-grid-item" :style="idx < 8 ? { animationDelay: `${idx * 0.05}s` } : undefined">
                 <GoodsCard :goods="item" />
               </div>
             </div>
@@ -127,7 +151,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getHotGoods, getRecommendGoods, getHotKeywords } from '@/api/goods'
+import { BellFilled, ArrowRight, ArrowLeft } from '@element-plus/icons-vue'
+import { getHotGoods, getRecommendGoods, getHotKeywords, getSuggest, type HotKeywordVO } from '@/api/goods'
 import { getCategoryList } from '@/api/category'
 import { getActiveBanners } from '@/api/banner'
 import { getActiveAnnouncements, type AnnouncementVO } from '@/api/announcement'
@@ -148,16 +173,48 @@ const categories = ref<GoodsCategory[]>([])
 const selectedCategoryId = ref<number | undefined>(undefined)
 const searchKeyword = ref('')
 const showSearchDropdown = ref(false)
-const searchHistory = ref<string[]>([])
-const hotKeywords = ref<string[]>([])
+const categoryExpanded = ref(false)
+const searchHistory = ref<{ kw: string; ts: number }[]>([])
+const hotKeywords = ref<HotKeywordVO[]>([])
+const suggestList = ref<string[]>([])
 const announcements = ref<AnnouncementVO[]>([])
 const homeLoading = ref(true)
 const currentAnnouncementIdx = ref(0)
 let announcementTimer: ReturnType<typeof setInterval> | null = null
+const windowWidth = ref(window.innerWidth)
 
-const heroHeight = computed(() => window.innerWidth < 768 ? '220px' : '340px')
+const heroHeight = computed(() => windowWidth.value < 768 ? '220px' : '340px')
 
-const handleSearchInput = debounce(() => {}, 300)
+const allBanners = computed(() => {
+  const defaultBanner = { id: 0, title: '', subtitle: '', buttonText: '', linkUrl: '' }
+  return [defaultBanner, ...banners.value]
+})
+
+const onResize = () => { windowWidth.value = window.innerWidth }
+
+const handleSearchInput = debounce(() => {
+  const kw = searchKeyword.value.trim()
+  if (kw.length >= 1) {
+    getSuggest(kw).then(res => { suggestList.value = res || [] }).catch(() => {})
+  } else {
+    suggestList.value = []
+  }
+}, 300)
+
+const todayHistory = computed(() => {
+  const today = new Date().setHours(0,0,0,0)
+  return searchHistory.value.filter(h => h.ts >= today)
+})
+const yesterdayHistory = computed(() => {
+  const today = new Date().setHours(0,0,0,0)
+  const yesterday = today - 86400000
+  return searchHistory.value.filter(h => h.ts >= yesterday && h.ts < today)
+})
+const earlierHistory = computed(() => {
+  const yesterday = new Date().setHours(0,0,0,0) - 86400000
+  return searchHistory.value.filter(h => h.ts < yesterday)
+})
+
 
 const loadHotKeywords = async () => {
   try { hotKeywords.value = await getHotKeywords() || [] } catch (e) { console.error(e) }
@@ -168,24 +225,35 @@ const handleSearch = () => {
   if (!kw) return
   addSearchHistory(kw)
   showSearchDropdown.value = false
-  router.push({ path: '/goods', query: { keyword: kw } })
+  sessionStorage.setItem('goodsSearchKeyword', kw)
+  router.push('/goods')
 }
 
-const searchFromHistory = (kw: string) => {
+const searchFromHistory = (kw: string, e?: MouseEvent) => {
+  if (e && (e.target as HTMLElement).closest('.el-tag__close')) return
   searchKeyword.value = kw
   handleSearch()
 }
 
 const addSearchHistory = (kw: string) => {
-  const list = searchHistory.value.filter(k => k !== kw)
-  list.unshift(kw)
-  searchHistory.value = list.slice(0, 10)
+  const list = searchHistory.value.filter(k => k.kw !== kw)
+  list.unshift({ kw, ts: Date.now() })
+  searchHistory.value = list.slice(0, 20)
   localStorage.setItem('searchHistory', JSON.stringify(searchHistory.value))
 }
 
 const clearSearchHistory = () => {
   searchHistory.value = []
   localStorage.removeItem('searchHistory')
+}
+
+const removeHistoryItem = (idx: number, group: string) => {
+  const arr = group === 'today' ? todayHistory.value : group === 'yesterday' ? yesterdayHistory.value : earlierHistory.value
+  const item = arr[idx]
+  if (item) {
+    searchHistory.value = searchHistory.value.filter(h => h.kw !== item.kw)
+    localStorage.setItem('searchHistory', JSON.stringify(searchHistory.value))
+  }
 }
 
 const hideSearchDropdown = () => {
@@ -198,7 +266,7 @@ const loadAnnouncements = async () => {
     if (announcements.value.length > 1) {
       announcementTimer = setInterval(() => {
         currentAnnouncementIdx.value = (currentAnnouncementIdx.value + 1) % announcements.value.length
-      }, 4000)
+      }, 6000)
     }
   } catch (e) { console.error(e) }
 }
@@ -233,12 +301,24 @@ const loadRecommendGoods = async () => {
 }
 
 const loadCategories = async () => {
-  try { const res = await getCategoryList(); categories.value = res || [] } catch (e) { console.error(e) }
+  try {
+    const res = await getCategoryList()
+    const list = res || []
+    const withCount = list.filter(c => c.goodsCount).sort((a, b) => (b.goodsCount || 0) - (a.goodsCount || 0))
+    const withoutCount = list.filter(c => !c.goodsCount).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+    categories.value = [...withCount, ...withoutCount]
+  } catch (e) { console.error(e) }
 }
 
 onMounted(() => {
+  window.addEventListener('resize', onResize)
   const saved = localStorage.getItem('searchHistory')
-  if (saved) { try { searchHistory.value = JSON.parse(saved) } catch (e) { console.error(e) } }
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved)
+      searchHistory.value = parsed.map((item: any) => typeof item === 'string' ? { kw: item, ts: 0 } : item)
+    } catch (e) { console.error(e) }
+  }
   loadBanners(); loadHotGoods(); loadRecommendGoods(); loadCategories(); loadAnnouncements(); loadHotKeywords()
 })
 
@@ -257,6 +337,7 @@ const particleStyle = (i: number) => {
 }
 
 onUnmounted(() => {
+  window.removeEventListener('resize', onResize)
   if (announcementTimer) clearInterval(announcementTimer)
 })
 </script>
@@ -267,7 +348,37 @@ onUnmounted(() => {
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-md);
+  position: relative;
+  transform: translateZ(0);
+  clip-path: inset(0 0 0 0 round 0 0 var(--radius-lg) var(--radius-lg));
+  :deep(.el-carousel) { overflow: hidden; }
+  :deep(.el-carousel__container) { overflow: hidden; }
+  :deep(.el-carousel__item) { overflow: hidden; width: 100%; }
+  :deep(.el-carousel__track) { overflow: hidden; }
 }
+
+.hero-announce-bar {
+  display: flex; align-items: center; gap: 4px;
+  padding: 10px 24px;
+  background: linear-gradient(90deg, rgba(99,102,241,0.08), rgba(139,92,246,0.06), rgba(99,102,241,0.08));
+
+  border-top: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  font-size: 14px;
+  .el-icon { color: var(--primary); flex-shrink: 0; }
+}
+.announce-marquee {
+  flex: 1; overflow: hidden; white-space: nowrap; padding: 0 8px;
+}
+.announce-marquee-text {
+  display: inline-block;
+  font-weight: 500;
+}
+.announce-slide-enter-active, .announce-slide-leave-active {
+  transition: all 0.4s ease;
+}
+.announce-slide-enter-from { opacity: 0; transform: translateX(20px); }
+.announce-slide-leave-to { opacity: 0; transform: translateX(-20px); }
 
 .hero-slide {
   height: 340px;
@@ -284,7 +395,7 @@ onUnmounted(() => {
 .hero-default {
   background: linear-gradient(135deg, #4338ca 0%, #6366f1 20%, #3b82f6 40%, #8b5cf6 60%, #7c3aed 80%, #4f46e5 100%);
   background-size: 300% 300%;
-  animation: heroBgShift 8s ease-in-out infinite;
+  animation: heroBgShift 16s ease-in-out infinite;
 }
 
 @keyframes heroBgShift {
@@ -356,7 +467,7 @@ onUnmounted(() => {
 
 .bento-container {
   padding: var(--spacing-lg);
-  max-width: 1280px;
+  max-width: 1480px;
   margin: 0 auto;
 }
 
@@ -368,13 +479,11 @@ onUnmounted(() => {
 
 .bento-card {
   background: var(--bg-glass);
-  backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 20px;
   box-shadow: var(--shadow-sm);
-  transition: var(--transition-slow);
-  animation: fadeInUp 0.5s ease-out backwards;
+  transition: var(--transition);
   &:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 }
 
@@ -382,21 +491,27 @@ onUnmounted(() => {
   grid-column: span 4;
   padding: 16px 20px;
   background: var(--bg-glass);
-  backdrop-filter: blur(12px);
+  position: relative;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
+.search-wrap { position: relative; }
+
 .search-input { :deep(.el-input__wrapper) { border-radius: 24px; box-shadow: 0 2px 16px rgba(99,102,241,0.12); padding: 6px 20px; transition: var(--transition); } :deep(.el-input__wrapper:hover) { box-shadow: 0 4px 20px rgba(99,102,241,0.2); } }
 .search-dropdown {
   position: absolute; top: 100%; left: 0; right: 0;
-  background: var(--color-dropdown-bg); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-  z-index: 100; padding: 12px 16px; margin-top: 4px;
+  background: var(--color-dropdown-bg); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  z-index: 200; padding: 12px 16px; margin-top: 4px;
+  border: 1px solid var(--border);
 }
 .search-dropdown-section { margin-bottom: 10px; &:last-child { margin-bottom: 0; } }
 .search-dropdown-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600; }
 .search-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .search-tag-btn { cursor: pointer; }
+.kw-type-text { font-size: 10px; font-weight: 700; margin-left: 4px; padding: 0 4px; border-radius: 4px; opacity: 0.85; }
 
-.bento-category-card { grid-column: span 3; }
-.bento-announce-card { grid-column: span 1; }
 .bento-hot-card, .bento-new-card { grid-column: span 4; }
 
 .bento-card-head {
@@ -406,34 +521,45 @@ onUnmounted(() => {
 }
 .bento-title-gradient {
   background: var(--primary-gradient-gloss);
-  background-size: 200% auto;
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+.title-emoji { font-size: 20px; }
+.more-arrow { margin-left: 2px; transition: transform 0.2s ease; }
+:deep(.el-button:hover .more-arrow) { transform: translateX(3px); }
 
-.category-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.category-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; }
+.category-expanded-strip {
+  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;
+  align-items: center;
+  &::-webkit-scrollbar { height: 6px; }
+  &::-webkit-scrollbar-track { background: var(--bg-hover); border-radius: 3px; }
+  &::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 3px; }
+  .category-expand-icon { position: sticky; right: 0; flex-shrink: 0; z-index: 2; }
+}
 .category-chip {
   padding: 8px 18px; border-radius: 20px; background: var(--color-chip-bg);
   border: 1px solid var(--color-chip-border); font-size: 13px; font-weight: 500;
   color: var(--text-secondary); cursor: pointer; transition: all 0.2s ease;
-  white-space: nowrap;
+  white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
   &:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-1px); }
-  &.active { background: var(--primary-gradient); color: #fff; border-color: transparent; box-shadow: 0 2px 12px rgba(99, 102, 241, 0.3); }
+  &.active { background: var(--primary-gradient); color: #fff; border-color: transparent; box-shadow: 0 2px 12px rgba(99, 102, 241, 0.3); .chip-count { background: rgba(255,255,255,0.3); color: #fff; } }
+  &.cat-empty { opacity: 0.5; }
 }
+.chip-count { font-size: 11px; background: var(--bg-hover); color: var(--text-muted); padding: 1px 6px; border-radius: 10px; font-weight: 600; }
 
-.announce-list { display: flex; flex-direction: column; gap: 12px; }
-.announce-item {
-  padding: 10px 12px;
-  background: linear-gradient(135deg, var(--color-announcement-from), var(--color-announcement-to));
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-announcement-border);
-  animation: fadeInUp 0.4s ease-out backwards;
-  .announce-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
-  .announce-content { font-size: 12px; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.category-expand-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--color-chip-bg); border: 1px solid var(--color-chip-border);
+  color: var(--text-secondary); cursor: pointer; flex-shrink: 0;
+  transition: all 0.3s ease;
+  &:hover { background: var(--primary); color: #fff; border-color: var(--primary); transform: translateX(6px); box-shadow: 0 2px 12px rgba(99,102,241,0.3); }
+  &.collapse { &:hover { transform: translateX(-6px); } }
 }
 
 .goods-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
-.goods-grid-item { min-width: 0; animation: fadeInUp 0.4s ease-out backwards; }
+.goods-grid-item { min-width: 0; animation: fadeInUp 0.4s ease-out backwards; contain: layout style; }
 
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(16px); }
@@ -442,8 +568,6 @@ onUnmounted(() => {
 
 @media (max-width: 1200px) {
   .goods-grid { grid-template-columns: repeat(4, 1fr); }
-  .bento-category-card { grid-column: span 4; }
-  .bento-announce-card { grid-column: span 4; }
 }
 @media (max-width: 900px) {
   .goods-grid { grid-template-columns: repeat(3, 1fr); }

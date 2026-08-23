@@ -23,12 +23,14 @@ public interface GoodsMapper {
 
     Long selectCount(@Param("categoryId") Long categoryId, @Param("keyword") String keyword,
                      @Param("minPrice") BigDecimal minPrice, @Param("maxPrice") BigDecimal maxPrice,
-                     @Param("status") String status, @Param("userId") Long userId);
+                     @Param("status") String status, @Param("userId") Long userId,
+                     @Param("todayOnly") Boolean todayOnly);
 
     List<GoodsVO> selectListVO(@Param("categoryId") Long categoryId, @Param("keyword") String keyword,
                                @Param("minPrice") BigDecimal minPrice, @Param("maxPrice") BigDecimal maxPrice,
                                @Param("status") String status, @Param("userId") Long userId,
-                               @Param("offset") Integer offset, @Param("pageSize") Integer pageSize);
+                               @Param("offset") Integer offset, @Param("pageSize") Integer pageSize,
+                               @Param("todayOnly") Boolean todayOnly, @Param("sortBy") String sortBy);
 
     List<GoodsVO> selectHotGoodsVO(@Param("limit") Integer limit);
 
@@ -44,6 +46,8 @@ public interface GoodsMapper {
 
     int logicDeleteById(@Param("id") Long id);
 
+    int clearRejectReason(@Param("id") Long id);
+
     int incrementViewCount(@Param("id") Long id);
 
     int incrementFavoriteCount(@Param("id") Long id);
@@ -57,6 +61,10 @@ public interface GoodsMapper {
     Long selectCountByStatus(@Param("status") String status);
 
     Long selectCountByStatusAndUserId(@Param("status") String status, @Param("userId") Long userId);
+
+    java.math.BigDecimal selectAvgOnlinePrice();
+
+    List<java.math.BigDecimal> selectOnlinePrices();
 
     List<Goods> selectOnlineByCategoryIds(@Param("categoryIds") List<Long> categoryIds,
                                           @Param("excludeIds") java.util.Set<Long> excludeIds,

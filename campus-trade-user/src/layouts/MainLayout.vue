@@ -71,9 +71,7 @@
                   <el-dropdown-item @click="$router.push('/address')">
                     <el-icon><Location /></el-icon>收货地址
                   </el-dropdown-item>
-                  <el-dropdown-item @click="$router.push('/payment-config')">
-                    <el-icon><CreditCard /></el-icon>收款管理
-                  </el-dropdown-item>
+
                   <el-dropdown-item @click="$router.push('/blacklist')">
                     <el-icon><Lock /></el-icon>黑名单管理
                   </el-dropdown-item>
@@ -154,7 +152,7 @@ import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
 import { getUnreadCount as getNotifyUnread } from '@/api/notification'
 import { useChatWs } from '@/composables/useChatWs'
-import { Sunny, Moon, CreditCard, Lock } from '@element-plus/icons-vue'
+import { Sunny, Moon, Lock } from '@element-plus/icons-vue'
 import AiConsultant from '@/components/AiConsultant.vue'
 
 const route = useRoute()
@@ -243,7 +241,7 @@ onUnmounted(() => {
 
 
 .header-inner {
-  max-width: 1280px;
+  max-width: 1480px;
   margin: 0 auto;
   height: 100%;
   display: flex;
@@ -383,7 +381,7 @@ onUnmounted(() => {
 }
 
 .footer-inner {
-  max-width: 1280px;
+  max-width: 1480px;
   margin: 0 auto;
   padding: 28px 24px 20px;
   display: flex;

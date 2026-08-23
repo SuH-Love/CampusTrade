@@ -63,7 +63,7 @@
         </el-table-column>
         <template #empty><el-empty description="暂无商品" :image-size="60" /></template>
       </el-table>
-      <div class="pagination-wrapper">
+      <div class="pagination-wrapper" v-if="total > pageSize">
         <el-pagination
           v-model:current-page="pageNum"
           v-model:page-size="pageSize"
@@ -104,24 +104,25 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="rejectDialogVisible" title="拒绝审核" width="460px" :close-on-click-modal="false">
-      <el-form label-position="top">
-        <el-form-item label="拒绝原因" required>
-          <el-input v-model="rejectReason" type="textarea" :rows="4" placeholder="请输入拒绝原因" maxlength="200" show-word-limit />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="rejectDialogVisible = false">取消</el-button>
-        <el-button type="danger" @click="handleReject" :loading="rejectLoading">确认拒绝</el-button>
-      </template>
-    </el-dialog>
+    <ReasonDialog
+      v-model="rejectDialogVisible"
+      title="拒绝审核"
+      label="拒绝原因"
+      placeholder="请输入拒绝原因"
+      confirm-text="确认拒绝"
+      btn-type="danger"
+      :loading="rejectLoading"
+      @confirm="handleReject"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getGoodsList, auditGoods, getCategoryList } from '@/api/admin'
 import type { CategoryVO } from '@/api/admin'
+import { useDebounceSearch } from '@/composables/useDebounceSearch'
+import ReasonDialog from '@/components/ReasonDialog.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { AdminGoodsVO, PageQueryParams } from '@/types'
 import { goodsStatusLabel } from '@/utils/labels'
@@ -139,7 +140,7 @@ const currentGoods = ref<AdminGoodsVO | null>(null)
 const loading = ref(false)
 const rejectDialogVisible = ref(false)
 const rejectGoodsId = ref<number>(0)
-const rejectReason = ref('')
+
 const rejectLoading = ref(false)
 
 const statusTagMap: Record<string, string> = { DRAFT: 'info', PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger', ONLINE: '', OFFLINE: 'info', SOLD: 'success' }
@@ -177,11 +178,7 @@ const handleSearch = () => {
   loadData()
 }
 
-let searchTimer: ReturnType<typeof setTimeout> | null = null
-watch(searchKeyword, () => {
-  if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(handleSearch, 300)
-})
+useDebounceSearch(searchKeyword, handleSearch)
 
 const handleSizeChange = () => {
   pageNum.value = 1
@@ -201,18 +198,13 @@ const handleAudit = async (id: number, status: string) => {
 
 const openRejectDialog = (id: number) => {
   rejectGoodsId.value = id
-  rejectReason.value = ''
   rejectDialogVisible.value = true
 }
 
-const handleReject = async () => {
-  if (!rejectReason.value.trim()) {
-    ElMessage.warning('请输入拒绝原因')
-    return
-  }
+const handleReject = async (reason: string) => {
   rejectLoading.value = true
   try {
-    await auditGoods(rejectGoodsId.value, { status: 'REJECTED', rejectReason: rejectReason.value })
+    await auditGoods(rejectGoodsId.value, { status: 'REJECTED', rejectReason: reason })
     ElMessage.success('已拒绝')
     rejectDialogVisible.value = false
     loadData()

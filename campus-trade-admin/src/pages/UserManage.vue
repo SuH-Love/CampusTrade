@@ -63,13 +63,13 @@
         <el-table-column label="操作" min-width="160" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewDetail(row)">详情</el-button>
-            <el-button v-if="row.status === 1" v-permission="'user:ban'" type="danger" size="small" @click="openBanDialog(row.id)">封禁</el-button>
-            <el-button v-else v-permission="'user:ban'" type="success" size="small" @click="handleUnban(row.id)">解封</el-button>
+            <el-button v-if="row.status === 1" v-permission="'user:manage'" type="danger" size="small" @click="openBanDialog(row.id)">封禁</el-button>
+            <el-button v-else v-permission="'user:manage'" type="success" size="small" @click="handleUnban(row.id)">解封</el-button>
           </template>
         </el-table-column>
         <template #empty><el-empty description="暂无用户" :image-size="60" /></template>
       </el-table>
-      <div class="pagination-wrapper">
+      <div class="pagination-wrapper" v-if="total > pageSize">
         <el-pagination
           v-model:current-page="pageNum"
           v-model:page-size="pageSize"
@@ -101,24 +101,25 @@
       </el-descriptions>
     </el-dialog>
 
-    <el-dialog v-model="banDialogVisible" title="封禁用户" width="460px" :close-on-click-modal="false">
-      <el-form label-position="top">
-        <el-form-item label="封禁原因" required>
-          <el-input v-model="banReason" type="textarea" :rows="4" placeholder="请输入封禁原因" maxlength="200" show-word-limit />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="banDialogVisible = false">取消</el-button>
-        <el-button type="danger" @click="handleBan" :loading="banLoading">确认封禁</el-button>
-      </template>
-    </el-dialog>
+    <ReasonDialog
+      v-model="banDialogVisible"
+      title="封禁用户"
+      label="封禁原因"
+      placeholder="请输入封禁原因"
+      confirm-text="确认封禁"
+      btn-type="danger"
+      :loading="banLoading"
+      @confirm="handleBan"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { getUserList, banUser, unbanUser } from '@/api/admin'
-import request from '@/utils/request'
+import { downloadCsv } from '@/utils/download'
+import { useDebounceSearch } from '@/composables/useDebounceSearch'
+import ReasonDialog from '@/components/ReasonDialog.vue'
 import { ElMessage } from 'element-plus'
 import type { AdminUserVO, PageQueryParams } from '@/types'
 
@@ -133,7 +134,7 @@ const detailVisible = ref(false)
 const currentUser = ref<AdminUserVO | null>(null)
 const banDialogVisible = ref(false)
 const banUserId = ref<number>(0)
-const banReason = ref('')
+
 const banLoading = ref(false)
 
 const loadData = async () => {
@@ -155,11 +156,7 @@ const handleSearch = () => {
   loadData()
 }
 
-let searchTimer: ReturnType<typeof setTimeout> | null = null
-watch(searchKeyword, () => {
-  if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(handleSearch, 300)
-})
+useDebounceSearch(searchKeyword, handleSearch)
 
 const handleSizeChange = () => {
   pageNum.value = 1
@@ -173,18 +170,13 @@ const handleViewDetail = (row: AdminUserVO) => {
 
 const openBanDialog = (id: number) => {
   banUserId.value = id
-  banReason.value = ''
   banDialogVisible.value = true
 }
 
-const handleBan = async () => {
-  if (!banReason.value.trim()) {
-    ElMessage.warning('请输入封禁原因')
-    return
-  }
+const handleBan = async (reason: string) => {
   banLoading.value = true
   try {
-    await banUser(banUserId.value, banReason.value)
+    await banUser(banUserId.value, reason)
     ElMessage.success('已封禁')
     banDialogVisible.value = false
     loadData()
@@ -201,21 +193,9 @@ const handleUnban = async (id: number) => {
 
 onMounted(loadData)
 
-const handleExportUsers = async () => {
-  try {
-    const res = await request.get('/admin/export/users', { responseType: 'blob' }) as unknown as Blob
-    const url = window.URL.createObjectURL(new Blob([res], { type: 'text/csv;charset=utf-8' }))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'users.csv'
-    link.click()
-    window.URL.revokeObjectURL(url)
-  } catch (e) { console.error(e) }
-}
+const handleExportUsers = () => downloadCsv('/admin/export/users', 'users.csv')
 </script>
 
 <style scoped lang="scss">
-.filter-input { width: 220px; }
-.filter-select { width: 120px; }
 
 </style>

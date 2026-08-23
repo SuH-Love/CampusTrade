@@ -34,7 +34,7 @@
         </el-table-column>
         <template #empty><el-empty description="暂无横幅" /></template>
       </el-table>
-      <div class="pagination-wrapper">
+      <div class="pagination-wrapper" v-if="total > pageSize">
         <el-pagination
           v-model:current-page="pageNum"
           v-model:page-size="pageSize"
@@ -42,7 +42,7 @@
           :total="total"
           layout="total, prev, pager, next, sizes"
           @current-change="loadData"
-          @size-change="loadData"
+          @size-change="handleSizeChange"
         />
       </div>
     </el-card>
@@ -229,6 +229,11 @@ const handleUpload = async (file: File) => {
 }
 
 onMounted(loadData)
+
+const handleSizeChange = () => {
+  pageNum.value = 1
+  loadData()
+}
 </script>
 
 <style scoped lang="scss">

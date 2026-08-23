@@ -1,10 +1,12 @@
 <template>
   <div class="following-page page-bg">
-    <div class="following-inner">
-      <div class="following-header">
-        <h3 class="following-title">我的关注</h3>
-        <el-input v-model="searchKeyword" placeholder="搜索用户名" clearable class="search-input" prefix-icon="Search" @keyup.enter="handleSearch" @clear="handleSearch" />
-      </div>
+    <el-card>
+      <template #header>
+        <div class="following-header">
+          <h3 class="following-title">我的关注</h3>
+          <el-input v-model="searchKeyword" placeholder="搜索用户名" clearable class="search-input" prefix-icon="Search" @keyup.enter="handleSearch" @clear="handleSearch" />
+        </div>
+      </template>
       <div v-if="filteredFollowing.length === 0 && !loading">
         <EmptyState icon="👥" title="暂无关注" description="去发现有趣的卖家，关注他们获取最新动态" action-text="去逛逛" @action="$router.push('/goods')" />
       </div>
@@ -28,8 +30,8 @@
           <el-button class="unfollow-btn" size="small" @click="handleUnfollow(item.id)" :loading="unfollowing === item.id" round>取消关注</el-button>
         </div>
       </div>
-      <el-pagination v-if="total > 0" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
-    </div>
+      <el-pagination v-if="total > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
+    </el-card>
   </div>
 </template>
 
@@ -93,17 +95,17 @@ onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
-.following-page { padding: 20px; }
-.following-inner {
-  background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
-  padding: 24px;
+.following-page {
+  padding: 20px;
+
+  :deep(.el-card) {
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+  }
 }
-.following-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
-.following-title { margin: 0; }
+.following-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.following-title { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-primary); }
 .search-input { width: 240px; }
 .following-list { max-height: 600px; overflow-y: auto; }
 .following-item {
@@ -139,7 +141,7 @@ onMounted(loadData)
 
 @media (max-width: 576px) {
   .following-page { padding: 12px; }
-  .following-inner { padding: 16px; }
+
   .following-header { flex-direction: column; align-items: flex-start; }
   .search-input { width: 100%; }
   .following-item { padding: 14px 16px; gap: 12px; }

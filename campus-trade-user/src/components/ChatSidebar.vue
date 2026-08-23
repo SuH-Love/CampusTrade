@@ -1,5 +1,5 @@
 <template>
-  <el-aside width="300px" class="chat-sidebar">
+  <el-aside class="chat-sidebar">
     <div class="sidebar-header">
       <span>消息</span>
       <el-tag v-if="connected" type="success" size="small" effect="dark">在线</el-tag>
@@ -57,11 +57,19 @@ const filteredContacts = computed(() => {
 
 <style scoped lang="scss">
 .chat-sidebar {
+  width: 280px;
+  flex-shrink: 0;
   background: var(--bg-glass);
   backdrop-filter: blur(12px);
   border-right: 1px solid var(--border);
   border-radius: var(--radius-lg) 0 0 var(--radius-lg);
   overflow-y: auto;
+  @media (max-width: 768px) {
+    width: 200px;
+  }
+  @media (max-width: 576px) {
+    width: 160px;
+  }
 }
 .sidebar-header {
   padding: 20px;
@@ -71,16 +79,22 @@ const filteredContacts = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  @media (max-width: 576px) {
+    padding: 14px 12px;
+    font-size: 15px;
+  }
 }
 .sidebar-search {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
+  @media (max-width: 576px) { padding: 8px 10px; }
 }
 .contact-list { padding: 4px 0; }
 .contact-item {
   display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; transition: var(--transition-fast);
   &:hover { background: var(--bg-hover); }
   &.active { background: var(--primary-lighter); }
+  @media (max-width: 576px) { padding: 10px 10px; gap: 8px; }
 }
 .avatar-wrap { position: relative; flex-shrink: 0; }
 .online-dot { position: absolute; bottom: 1px; right: 1px; width: 10px; height: 10px; background: var(--color-online); border: 2px solid var(--bg-card); border-radius: 50%; }
@@ -89,4 +103,8 @@ const filteredContacts = computed(() => {
 .contact-name { font-weight: 600; font-size: 14px; cursor: pointer; }
 .contact-last { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
 .blocked-icon { flex-shrink: 0; color: var(--danger); }
+@media (max-width: 576px) {
+  .contact-name { font-size: 13px; }
+  .contact-last { font-size: 11px; }
+}
 </style>

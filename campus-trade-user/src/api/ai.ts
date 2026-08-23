@@ -27,7 +27,7 @@ export const getAiStatus = () =>
   request.get<never, AiStatus>('/ai/status')
 
 export const getSessionHistory = (sessionId: string) =>
-  request.get<never, Array<{ role: string; content: string }>>(`/ai/session/${sessionId}/history`)
+  request.get<never, Array<{ role: string; content: string; timestamp?: number }>>(`/ai/session/${sessionId}/history`)
 
 export const getGoodsSuggestion = (goodsId: number) =>
   request.get<never, { suggestedTitle: string | null; has: boolean }>(`/ai/suggestion/${goodsId}`)

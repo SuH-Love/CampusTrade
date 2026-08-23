@@ -53,8 +53,8 @@ onMounted(loadList)
 </script>
 
 <style scoped lang="scss">
-.blacklist-page { min-height: 100vh; }
-.blacklist-inner { max-width: 720px; margin: 0 auto; padding: 32px 24px; }
+.blacklist-page { min-height: calc(100vh - 112px); padding: var(--spacing-lg); }
+.blacklist-inner { max-width: 720px; margin: 0 auto; }
 .page-header { margin-bottom: 24px; h2 { font-size: 22px; font-weight: 700; } }
 .blacklist-list { display: flex; flex-direction: column; gap: 12px; }
 .blacklist-card {

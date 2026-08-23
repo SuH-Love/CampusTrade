@@ -14,6 +14,8 @@ export interface GoodsQueryParams extends PageQueryParams {
   categoryId?: number
   status?: string
   sortBy?: string
+  minPrice?: number
+  maxPrice?: number
 }
 
 export interface GoodsCreateParams {

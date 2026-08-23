@@ -5,7 +5,7 @@
         <div class="admin-card-header">
           <h3>分类管理</h3>
           <div class="header-actions">
-            <el-input v-model="searchKeyword" placeholder="搜索分类名称" clearable class="filter-input" @clear="handleSearch">
+            <el-input v-model="searchKeyword" placeholder="搜索分类名称" clearable class="filter-input">
               <template #prefix><el-icon><Search /></el-icon></template>
             </el-input>
             <el-button type="primary" @click="handleAdd">新增分类</el-button>
@@ -90,9 +90,6 @@ const loadData = async () => {
   } catch (e) { console.error(e) } finally { loading.value = false }
 }
 
-const handleSearch = () => {
-  // filteredCategories is computed, auto-updates
-}
 
 const handleAdd = () => {
   editingId.value = null

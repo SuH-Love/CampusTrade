@@ -1,5 +1,5 @@
 <template>
-  <div class="order-detail-page">
+  <div class="order-detail-page page-bg">
     <el-card v-loading="loading">
       <template #header>
         <div class="detail-header">
@@ -325,5 +325,10 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer) })
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   :deep(.el-rate) { --el-rate-primary-color: var(--primary); }
+}
+
+@media (max-width: 768px) {
+  :deep(.el-descriptions) { --el-descriptions-item-bordered-label-width: 80px !important; }
+  .rating-section { padding: 16px; }
 }
 </style>

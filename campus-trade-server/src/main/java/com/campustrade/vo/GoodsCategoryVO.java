@@ -11,4 +11,5 @@ public class GoodsCategoryVO {
     private String icon;
     private Integer status;
     private String createTime;
+    private Integer goodsCount;
 }

@@ -11,7 +11,10 @@
         <span v-if="goods.condition" class="goods-condition-tag">{{ goods.condition }}</span>
         <span v-if="goods.originalPrice && goods.originalPrice > goods.price" class="goods-discount-tag">折扣</span>
       </div>
-      <el-avatar v-if="goods.userAvatar" :size="28" :src="goods.userAvatar" class="goods-seller-avatar" />
+      <div class="goods-seller" v-if="goods.userAvatar || goods.username">
+        <el-avatar v-if="goods.userAvatar" :size="24" :src="goods.userAvatar" class="goods-seller-avatar" />
+        <span v-if="goods.username" class="goods-seller-name">{{ goods.username }}</span>
+      </div>
       <div v-if="isSold" class="sold-overlay">
         <el-tag type="info" effect="dark" size="large">已售出</el-tag>
       </div>
@@ -85,7 +88,7 @@ const handleClick = () => {
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid var(--border);
-  margin-bottom: 16px;
+  contain: layout style;
   transition: var(--transition);
   &.is-clickable { cursor: pointer; }
   &.is-clickable:not(.is-sold):not(.is-offline):hover {
@@ -159,12 +162,27 @@ const handleClick = () => {
   border-radius: 10px;
 }
 
-.goods-seller-avatar {
+.goods-seller {
   position: absolute;
-  bottom: 10px;
-  right: 10px;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 70%;
+  padding: 2px 8px 2px 2px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 14px;
+  backdrop-filter: blur(4px);
+}
+.goods-seller-avatar { border: 1px solid rgba(255, 255, 255, 0.6); flex-shrink: 0; }
+.goods-seller-name {
+  font-size: 11px;
+  color: #fff;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sold-overlay {

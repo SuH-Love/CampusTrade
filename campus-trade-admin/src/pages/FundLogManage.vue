@@ -44,7 +44,7 @@
         <el-table-column prop="createTime" label="时间" width="170" />
         <template #empty><el-empty description="暂无资金流水" :image-size="60" /></template>
       </el-table>
-      <div class="pagination-wrapper">
+      <div class="pagination-wrapper" v-if="total > pageSize">
         <el-pagination
           v-model:current-page="pageNum"
           v-model:page-size="pageSize"
@@ -62,6 +62,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getFundLogList, type FundLogVO } from '@/api/admin'
+import { fundTypeLabel, fundTypeTag, fundStatusLabel } from '@/utils/labels'
 import type { PageQueryParams } from '@/types'
 
 const list = ref<FundLogVO[]>([])
@@ -71,18 +72,6 @@ const total = ref(0)
 const loading = ref(false)
 const typeFilter = ref('')
 
-const fundTypeLabel = (type: string): string => {
-  const map: Record<string, string> = { PAY: '买家支付', FREEZE: '担保冻结', SETTLE: '结算给卖家', REFUND: '退款' }
-  return map[type] || type
-}
-const fundTypeTag = (type: string): string => {
-  const map: Record<string, string> = { PAY: '', FREEZE: 'warning', SETTLE: 'success', REFUND: 'danger' }
-  return map[type] || 'info'
-}
-const fundStatusLabel = (status: string): string => {
-  const map: Record<string, string> = { SUCCESS: '成功', PENDING: '处理中', FAILED: '失败' }
-  return map[status] || status
-}
 
 const loadData = async () => {
   loading.value = true
@@ -111,6 +100,6 @@ onMounted(() => loadData())
 </script>
 
 <style scoped lang="scss">
-.amount-in { color: var(--admin-price-color, #10b981); }
-.amount-out { color: var(--admin-price-color, #ef4444); }
+.amount-in { color: #10b981; }
+.amount-out { color: #ef4444; }
 </style>

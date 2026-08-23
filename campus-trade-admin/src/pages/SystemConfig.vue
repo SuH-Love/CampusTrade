@@ -1,5 +1,5 @@
 <template>
-  <div class="system-config-page">
+  <div class="admin-page">
     <el-card shadow="never">
       <template #header>
         <div class="card-header">
@@ -181,6 +181,6 @@ onMounted(() => { loadData(); loadAiConfig() })
 </script>
 
 <style scoped lang="scss">
-.system-config-page { padding: 20px; }
+
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 </style>

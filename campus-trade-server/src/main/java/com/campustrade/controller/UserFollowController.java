@@ -78,7 +78,7 @@ public class UserFollowController {
             vo.setAvatar(u.getAvatar());
             vo.setFollowersCount(userFollowMapper.selectFollowerCount(u.getId()));
             vo.setFollowingCount(userFollowMapper.selectFollowingCount(u.getId()));
-            vo.setGoodsCount(goodsMapper.selectCount(null, null, null, null, "ONLINE", u.getId()));
+            vo.setGoodsCount(goodsMapper.selectCount(null, null, null, null, "ONLINE", u.getId(), null));
             vo.setSoldCount(goodsMapper.selectCountByStatusAndUserId("SOLD", u.getId()));
             Double avg = sellerRatingMapper.selectAvgRatingBySellerId(u.getId());
             vo.setAvgRating(avg != null ? avg : 0.0);

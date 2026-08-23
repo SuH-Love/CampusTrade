@@ -115,7 +115,7 @@
       </div>
 
       <EmptyState v-if="filteredOrders.length === 0 && !loading" icon="📦" title="暂无订单" description="快去挑选心仪的商品吧" action-text="去购物" @action="$router.push('/goods')" />
-      <el-pagination v-if="total > 0" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="order-pagination" />
+      <el-pagination v-if="total > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="order-pagination" />
     </el-card>
   </div>
 </template>
@@ -342,7 +342,7 @@ onUnmounted(() => {
   }
 }
 .orders-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-.orders-heading { margin: 0; }
+.orders-heading { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-primary); }
 .filter-bar { display: flex; gap: 12px; align-items: center; }
 .search-input { width: 200px; }
 .status-select { width: 140px; }

@@ -211,4 +211,9 @@ onMounted(async () => {
 .report-list-card { margin-top: 20px; }
 .evidence-img { width: 80px; height: 80px; border-radius: 10px; }
 .text-muted { color: var(--text-muted); }
+
+@media (max-width: 768px) {
+  .report-form { max-width: 100%; }
+  .evidence-img { width: 60px; height: 60px; }
+}
 </style>

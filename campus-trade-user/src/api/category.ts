@@ -6,6 +6,7 @@ export interface GoodsCategory {
   parentId: number
   sortOrder: number
   icon: string
+  goodsCount?: number
 }
 
 export const getCategoryList = () => request.get<never, GoodsCategory[]>('/goods-category')

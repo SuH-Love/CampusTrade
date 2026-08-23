@@ -132,3 +132,18 @@ export function debounce<T extends (...args: unknown[]) => void>(fn: T, delay: n
     timer = setTimeout(() => fn(...args), delay)
   }) as T
 }
+
+export const fundTypeLabel = (type: string): string => {
+  const map: Record<string, string> = { PAY: '买家支付', FREEZE: '担保冻结', SETTLE: '结算给卖家', REFUND: '退款' }
+  return map[type] || type
+}
+
+export const fundTypeTag = (type: string): string => {
+  const map: Record<string, string> = { PAY: '', FREEZE: 'warning', SETTLE: 'success', REFUND: 'danger' }
+  return map[type] || 'info'
+}
+
+export const fundStatusLabel = (status: string): string => {
+  const map: Record<string, string> = { SUCCESS: '成功', PENDING: '处理中', FAILED: '失败' }
+  return map[status] || status
+}

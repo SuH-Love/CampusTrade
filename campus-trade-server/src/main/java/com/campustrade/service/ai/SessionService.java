@@ -53,7 +53,11 @@ public class SessionService {
     public void addMessage(String sessionId, String role, String content) {
         String key = SESSION_PREFIX + sessionId;
         try {
-            String json = objectMapper.writeValueAsString(Map.of("role", role, "content", content));
+            Map<String, Object> msg = new HashMap<>();
+            msg.put("role", role);
+            msg.put("content", content);
+            msg.put("timestamp", System.currentTimeMillis());
+            String json = objectMapper.writeValueAsString(msg);
             stringRedisTemplate.opsForList().rightPush(key, json);
             stringRedisTemplate.opsForList().trim(key, -maxHistory * 2L, -1);
             stringRedisTemplate.expire(key, sessionTtlHours, TimeUnit.HOURS);
@@ -65,8 +69,17 @@ public class SessionService {
     public void addMessagePair(String sessionId, String userMessage, String assistantMessage) {
         String key = SESSION_PREFIX + sessionId;
         try {
-            String userJson = objectMapper.writeValueAsString(Map.of("role", "user", "content", userMessage));
-            String assistantJson = objectMapper.writeValueAsString(Map.of("role", "assistant", "content", assistantMessage));
+            long now = System.currentTimeMillis();
+            Map<String, Object> userMsg = new HashMap<>();
+            userMsg.put("role", "user");
+            userMsg.put("content", userMessage);
+            userMsg.put("timestamp", now);
+            Map<String, Object> assistantMsg = new HashMap<>();
+            assistantMsg.put("role", "assistant");
+            assistantMsg.put("content", assistantMessage);
+            assistantMsg.put("timestamp", now);
+            String userJson = objectMapper.writeValueAsString(userMsg);
+            String assistantJson = objectMapper.writeValueAsString(assistantMsg);
             stringRedisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
                 byte[] rawKey = stringRedisTemplate.getStringSerializer().serialize(key);
                 connection.rPush(rawKey, stringRedisTemplate.getStringSerializer().serialize(userJson));

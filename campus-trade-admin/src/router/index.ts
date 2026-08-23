@@ -43,7 +43,7 @@ const allRoutes: RouteRecordRaw[] = [
         path: 'banner',
         name: 'BannerManage',
         component: () => import('@/pages/BannerManage.vue'),
-        meta: { title: '横幅管理', icon: 'Picture', permission: '' }
+        meta: { title: '横幅管理', icon: 'Picture', permission: 'banner:manage' }
       },
       {
         path: 'category',
@@ -67,13 +67,13 @@ const allRoutes: RouteRecordRaw[] = [
         path: 'system-config',
         name: 'SystemConfig',
         component: () => import('@/pages/SystemConfig.vue'),
-        meta: { title: '系统配置', icon: 'Setting', permission: '' }
+        meta: { title: '系统配置', icon: 'Setting', permission: 'system:config' }
       },
       {
         path: 'fund-log',
         name: 'FundLogManage',
         component: () => import('@/pages/FundLogManage.vue'),
-        meta: { title: '资金流水', icon: 'Coin', permission: '' }
+        meta: { title: '资金流水', icon: 'Coin', permission: 'fund:manage' }
       }
     ]
   },

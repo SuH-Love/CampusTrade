@@ -7,6 +7,7 @@ import com.campustrade.enum_.GoodsStatus;
 import com.campustrade.mapper.GoodsCategoryMapper;
 import com.campustrade.mapper.GoodsMapper;
 import com.campustrade.service.ai.AiReviewService;
+import com.campustrade.service.NotificationService;
 import com.rabbitmq.client.Channel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -33,6 +34,9 @@ public class GoodsAuditConsumer {
 
     @Autowired
     private AiReviewService aiReviewService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -88,7 +92,10 @@ public class GoodsAuditConsumer {
             if (result.isApproved()) {
                 goods.setStatus(GoodsStatus.APPROVED.getCode());
                 goodsMapper.updateById(goods);
+                goodsMapper.clearRejectReason(goodsId);
                 log.info("AI审核通过: goodsId={}, suggestedTitle={}", goodsId, result.getSuggestedTitle());
+                notificationService.sendNotification(goods.getUserId(), "商品审核通过",
+                        "您的商品「" + goods.getTitle() + "」已通过AI审核，可上架出售", "GOODS", goodsId);
 
                 if (result.getSuggestedTitle() != null && !result.getSuggestedTitle().isEmpty()) {
                     String suggestionKey = "ai:suggestion:title:" + goodsId;
@@ -99,6 +106,8 @@ public class GoodsAuditConsumer {
                 goods.setRejectReason(result.getReason());
                 goodsMapper.updateById(goods);
                 log.info("AI审核拒绝: goodsId={}, reason={}", goodsId, result.getReason());
+                notificationService.sendNotification(goods.getUserId(), "商品审核未通过",
+                        "您的商品「" + goods.getTitle() + "」未通过AI审核，原因：" + (result.getReason() != null ? result.getReason() : "无"), "GOODS", goodsId);
             }
 
             channel.basicAck(deliveryTag, false);

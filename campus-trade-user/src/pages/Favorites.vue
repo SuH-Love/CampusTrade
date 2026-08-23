@@ -1,25 +1,27 @@
 <template>
   <div class="favorites-page page-bg">
-    <div class="favorites-inner">
-      <div class="favorites-header">
-        <h3 class="favorites-title">我的收藏</h3>
-        <div class="filter-bar">
-          <el-input v-model="searchKeyword" placeholder="搜索商品标题" clearable class="search-input" @clear="handleSearch" />
-          <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch" class="status-select">
-            <el-option label="在售" value="ONLINE" />
-            <el-option label="已下架" value="OFFLINE" />
-            <el-option label="已售出" value="SOLD" />
-          </el-select>
+    <el-card>
+      <template #header>
+        <div class="favorites-header">
+          <h3 class="favorites-title">我的收藏</h3>
+          <div class="filter-bar">
+            <el-input v-model="searchKeyword" placeholder="搜索商品标题" clearable class="search-input" @clear="handleSearch" />
+            <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch" class="status-select">
+              <el-option label="在售" value="ONLINE" />
+              <el-option label="已下架" value="OFFLINE" />
+              <el-option label="已售出" value="SOLD" />
+            </el-select>
+          </div>
         </div>
-      </div>
+      </template>
       <TransitionGroup name="list" tag="div" class="favorites-grid" v-loading="loading" @before-enter="onBeforeEnter" @enter="onEnter">
         <div v-for="(item, idx) in goodsList" :key="item.id" class="favorites-grid-item" :data-idx="idx">
           <GoodsCard :goods="item" :clickable="item.status === 'ONLINE'" :show-meta="true" :show-unfav="true" @unfavorite="handleUnfavorite" />
         </div>
       </TransitionGroup>
       <EmptyState v-if="goodsList.length === 0 && !loading" icon="❤️" title="暂无收藏" description="去逛逛商品列表，收藏你喜欢的宝贝吧" action-text="去逛逛" @action="$router.push('/goods')" />
-      <el-pagination v-if="total > 0" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
-    </div>
+      <el-pagination v-if="total > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
+    </el-card>
   </div>
 </template>
 
@@ -91,17 +93,17 @@ onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
-.favorites-page { padding: 20px; }
-.favorites-inner {
-  background: var(--bg-glass);
+.favorites-page {
+  padding: 20px;
 
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
-  padding: 24px;
+  :deep(.el-card) {
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+  }
 }
-.favorites-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
-.favorites-title { margin: 0; }
+.favorites-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.favorites-title { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-primary); }
 .filter-bar { display: flex; gap: 12px; align-items: center; }
 .search-input { width: 200px; }
 .status-select { width: 140px; }
@@ -116,7 +118,7 @@ onMounted(loadData)
 
 @media (max-width: 576px) {
   .favorites-page { padding: 12px; }
-  .favorites-inner { padding: 16px; }
+
   .favorites-header { flex-direction: column; align-items: flex-start; }
   .filter-bar { width: 100%; flex-wrap: wrap; }
   .search-input { width: 100%; }

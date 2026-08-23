@@ -78,7 +78,7 @@
         </el-table-column>
         <template #empty><el-empty description="暂无订单" :image-size="60" /></template>
       </el-table>
-      <div class="pagination-wrapper">
+      <div class="pagination-wrapper" v-if="total > pageSize">
         <el-pagination
           v-model:current-page="pageNum"
           v-model:page-size="pageSize"
@@ -93,13 +93,13 @@
 
     <el-dialog v-model="detailVisible" title="订单详情" width="680px">
       <template v-if="detailOrder">
-        <div v-if="detailOrder.goodsItems && detailOrder.goodsItems.length" class="order-goods-section">
+        <div v-if="detailOrder.items && detailOrder.items.length" class="order-goods-section">
           <h4 class="section-title">商品信息</h4>
           <div class="order-goods-list">
-            <div v-for="item in detailOrder.goodsItems" :key="item.goodsId" class="order-goods-item">
-              <el-image v-if="item.coverImage" :src="item.coverImage" fit="cover" class="order-goods-image" />
+            <div v-for="item in detailOrder.items" :key="item.goodsId" class="order-goods-item">
+              <el-image v-if="item.goodsImage" :src="item.goodsImage" fit="cover" class="order-goods-image" />
               <div class="order-goods-info">
-                <span class="order-goods-title">{{ item.title }}</span>
+                <span class="order-goods-title">{{ item.goodsTitle }}</span>
                 <span class="order-goods-price">¥{{ item.price }} × {{ item.quantity }}</span>
               </div>
             </div>
@@ -121,40 +121,43 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="rejectRefundDialogVisible" title="拒绝退款" width="460px" :close-on-click-modal="false">
-      <el-form label-position="top">
-        <el-form-item label="拒绝原因" required>
-          <el-input v-model="rejectRefundReason" type="textarea" :rows="4" placeholder="请输入拒绝原因" maxlength="200" show-word-limit />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="rejectRefundDialogVisible = false">取消</el-button>
-        <el-button type="danger" @click="handleRejectRefund" :loading="rejectRefundLoading">确认拒绝</el-button>
-      </template>
-    </el-dialog>
+    <ReasonDialog
+      v-model="rejectRefundDialogVisible"
+      title="拒绝退款"
+      label="拒绝原因"
+      placeholder="请输入拒绝原因"
+      confirm-text="确认拒绝"
+      btn-type="danger"
+      :loading="rejectRefundLoading"
+      @confirm="handleRejectRefund"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { getOrderList, approveRefund, rejectRefund } from '@/api/admin'
-import request from '@/utils/request'
+import { downloadCsv } from '@/utils/download'
+import { useDebounceSearch } from '@/composables/useDebounceSearch'
+import ReasonDialog from '@/components/ReasonDialog.vue'
 import type { AdminOrderVO, PageQueryParams } from '@/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { orderStatusLabel, deliveryMethodLabel } from '@/utils/labels'
 
-interface OrderGoodsItem {
+interface OrderItemVO {
   goodsId: number
-  title: string
+  goodsTitle: string
+  goodsImage: string
   price: number
   quantity: number
-  coverImage: string
 }
 
 interface AdminOrderDetailVO extends AdminOrderVO {
-  goodsItems?: OrderGoodsItem[]
+  items?: OrderItemVO[]
 }
 
+const route = useRoute()
 const orders = ref<AdminOrderVO[]>([])
 const searchOrderNo = ref('')
 const statusFilter = ref('')
@@ -167,7 +170,7 @@ const detailVisible = ref(false)
 const detailOrder = ref<AdminOrderDetailVO | null>(null)
 const rejectRefundDialogVisible = ref(false)
 const rejectRefundOrderId = ref<number>(0)
-const rejectRefundReason = ref('')
+
 const rejectRefundLoading = ref(false)
 
 const statusTagMap: Record<string, string> = {
@@ -199,18 +202,18 @@ const handleSearch = () => {
   loadData()
 }
 
-let searchTimer: ReturnType<typeof setTimeout> | null = null
-watch(searchOrderNo, () => {
-  if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(handleSearch, 300)
-})
+useDebounceSearch(searchOrderNo, handleSearch)
 
 const handleSizeChange = () => {
   pageNum.value = 1
   loadData()
 }
 
-onMounted(loadData)
+onMounted(() => {
+  const queryStatus = route.query.status as string
+  if (queryStatus) statusFilter.value = queryStatus
+  loadData()
+})
 
 const handleApproveRefund = async (id: number) => {
   try {
@@ -225,18 +228,13 @@ const handleApproveRefund = async (id: number) => {
 
 const openRejectRefundDialog = (id: number) => {
   rejectRefundOrderId.value = id
-  rejectRefundReason.value = ''
   rejectRefundDialogVisible.value = true
 }
 
-const handleRejectRefund = async () => {
-  if (!rejectRefundReason.value.trim()) {
-    ElMessage.warning('请输入拒绝原因')
-    return
-  }
+const handleRejectRefund = async (reason: string) => {
   rejectRefundLoading.value = true
   try {
-    await rejectRefund(rejectRefundOrderId.value, rejectRefundReason.value)
+    await rejectRefund(rejectRefundOrderId.value, reason)
     ElMessage.success('已拒绝退款')
     rejectRefundDialogVisible.value = false
     loadData()
@@ -250,17 +248,7 @@ const showDetail = (row: AdminOrderVO) => {
   detailVisible.value = true
 }
 
-const handleExportOrders = async () => {
-  try {
-    const res = await request.get('/admin/export/orders', { responseType: 'blob' }) as unknown as Blob
-    const url = window.URL.createObjectURL(new Blob([res], { type: 'text/csv;charset=utf-8' }))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'orders.csv'
-    link.click()
-    window.URL.revokeObjectURL(url)
-  } catch (e) { console.error(e) }
-}
+const handleExportOrders = () => downloadCsv('/admin/export/orders', 'orders.csv')
 </script>
 
 <style scoped lang="scss">

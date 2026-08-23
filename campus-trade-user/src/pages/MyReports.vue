@@ -55,7 +55,7 @@
       </el-table>
 
       <EmptyState v-if="reports.length === 0 && !loading" icon="🛡️" title="暂无举报记录" description="如果遇到违规行为，可以随时举报" />
-      <el-pagination v-if="total > 0" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
+      <el-pagination v-if="total > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
     </div>
 
     <el-dialog v-model="detailVisible" title="举报详情" width="560px" class="report-detail-dialog" destroy-on-close>

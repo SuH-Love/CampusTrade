@@ -20,19 +20,37 @@
     <el-row :gutter="32">
       <el-col :xs="24" :md="12">
         <div class="detail-gallery">
-          <el-carousel height="420px" indicator-position="outside" v-if="imageList.length > 1">
-            <el-carousel-item v-for="(img, idx) in imageList" :key="idx">
-              <el-image :src="img" fit="cover" class="gallery-img" :preview-src-list="imageList" :initial-index="idx" />
-            </el-carousel-item>
-          </el-carousel>
-          <el-image v-else :src="goods.coverImage || '/default-cover.svg'" fit="cover" class="gallery-img single" :preview-src-list="imageList" :initial-index="0" />
+          <el-image
+            :src="imageList[currentIdx] || goods.coverImage || '/default-cover.svg'"
+            fit="cover"
+            class="gallery-img"
+            :preview-src-list="imageList"
+            :initial-index="currentIdx"
+            preview-teleported
+            hide-on-click-modal
+            zoom-rate="1.2"
+            :max-scale="7"
+            :min-scale="0.2"
+          />
+          <div v-if="imageList.length > 1" class="gallery-thumbs">
+            <div
+              v-for="(img, idx) in imageList"
+              :key="idx"
+              class="gallery-thumb"
+              :class="{ active: idx === currentIdx }"
+              @click="currentIdx = idx"
+            >
+              <img :src="img" loading="lazy" />
+            </div>
+          </div>
         </div>
+
       </el-col>
       <el-col :xs="24" :md="12">
         <div class="detail-info">
           <div class="detail-status">
             <el-tag :type="goodsStatusTagType(goods.status)" effect="dark" round>{{ goodsStatusLabel(goods.status) }}</el-tag>
-            <el-tag round>{{ goods.categoryName }}</el-tag>
+            <el-tag type="info" round>{{ goods.categoryName }}</el-tag>
             <el-tag v-if="goods.condition" type="warning" round>{{ goods.condition }}</el-tag>
           </div>
           <h1 class="detail-title">{{ goods.title }}</h1>
@@ -50,31 +68,39 @@
           </div>
 
           <SellerCard
-            v-if="userStore.token && goods.userId !== userStore.userInfo?.id"
+            v-if="goods"
             :seller-info="goods"
             :seller-rating="sellerRating"
             :seller-public-info="sellerPublicInfo"
             :follow-counts="sellerFollowCounts"
             :is-followed="isFollowed"
             :follow-loading="followLoading"
+            :is-own="!userStore.token || goods.userId === userStore.userInfo?.id"
             @follow="handleToggleFollow"
             @chat="handleConsult"
             @view-profile="$router.push(`/profile/${goods.userId}`)"
           />
 
           <div class="action-bar-sticky">
-            <el-button type="primary" size="large" @click="handleBuy" :loading="buying" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id" round>
-              立即购买
-            </el-button>
-            <el-button size="large" :type="isInCart ? 'success' : 'default'" @click="handleAddToCart" :loading="addingToCart" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id" round>
-              {{ isInCart ? '已在购物车' : '加入购物车' }}
-            </el-button>
-            <el-button size="large" :type="goods.isFavorited ? 'warning' : 'default'" @click="handleFavorite" :loading="favoriting" round>
-              <el-icon><Star /></el-icon> {{ goods.isFavorited ? '已收藏' : '收藏' }}
-            </el-button>
-            <el-button size="large" @click="handleReport" v-if="userStore.token && goods.userId !== userStore.userInfo?.id" round>举报</el-button>
-            <el-button size="large" @click="handleShare" round>分享</el-button>
-          </div>
+            <div class="action-price-compact">
+              <span class="price-label">合计</span>
+              <span class="price-value">¥{{ goods.price }}</span>
+            </div>
+            <div class="action-buttons">
+              <el-button type="primary" size="large" @click="handleBuy" :loading="buying" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id" round>
+                立即购买
+              </el-button>
+              <el-button size="large" :type="isInCart ? 'success' : 'default'" @click="handleAddToCart" :loading="addingToCart" :disabled="!userStore.token || goods.userId === userStore.userInfo?.id" round class="btn-secondary">
+                {{ isInCart ? '已在购物车' : '加入购物车' }}
+              </el-button>
+              <el-button size="large" :type="goods.isFavorited ? 'warning' : 'default'" @click="handleFavorite" :loading="favoriting" round class="btn-secondary">
+                <el-icon><Star /></el-icon> {{ goods.isFavorited ? '已收藏' : '收藏' }}
+              </el-button>
+              <el-button size="large" @click="handleReport" v-if="userStore.token && goods.userId !== userStore.userInfo?.id" round class="btn-secondary">举报</el-button>
+              <el-button size="large" @click="handleShare" round class="btn-secondary">分享</el-button>
+            </div>
+
+        </div>
         </div>
       </el-col>
      </el-row>
@@ -121,7 +147,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getGoodsDetail, getGoodsList, favoriteGoods, unfavoriteGoods } from '@/api/goods'
 import { createOrder } from '@/api/order'
@@ -167,6 +193,10 @@ const sellerPublicInfo = ref<UserVO | null>(null)
 const sellerFollowCounts = ref<{ following: number; followers: number } | null>(null)
 const similarGoods = ref<GoodsVO[]>([])
 const similarLoading = ref(false)
+const currentIdx = ref(0)
+const windowWidth = ref(window.innerWidth)
+const galleryHeight = computed(() => windowWidth.value < 768 ? '280px' : '420px')
+const onResize = () => { windowWidth.value = window.innerWidth }
 
 const buyDialogVisible = ref(false)
 const buyAddressList = ref<DeliveryAddressVO[]>([])
@@ -188,6 +218,8 @@ const loadData = async () => {
     goods.value = await getGoodsDetail(Number(route.params.id))
     if (goods.value && userStore.token && goods.value.userId !== userStore.userInfo?.id) {
       try { isFollowed.value = await isFollowing(goods.value.userId) } catch (e) { console.error(e) }
+    }
+    if (goods.value) {
       try { sellerRating.value = await getAverageRating(goods.value.userId) } catch (e) { console.error(e) }
       try { sellerPublicInfo.value = await getUserPublicInfo(goods.value.userId) } catch (e) { console.error(e) }
       try { sellerFollowCounts.value = await getFollowCounts(goods.value.userId) } catch (e) { console.error(e) }
@@ -212,8 +244,15 @@ const loadSimilarGoods = async () => {
   if (!goods.value) return
   similarLoading.value = true
   try {
-    const res = await getGoodsList({ pageNum: 1, pageSize: 10, categoryId: goods.value.categoryId })
-    similarGoods.value = (res.list || []).filter((g: GoodsVO) => g.id !== goods.value!.id && g.status === 'ONLINE').slice(0, 8)
+    const excludeId = goods.value.id
+    const isOnline = (g: GoodsVO) => g.status === 'ONLINE' && g.id !== excludeId
+
+    const res = await getGoodsList({ pageNum: 1, pageSize: 50, categoryId: goods.value.categoryId, status: 'ONLINE' })
+    let pool = (res.list || []).filter(isOnline)
+
+    pool.sort(() => Math.random() - 0.5)
+
+    similarGoods.value = pool.slice(0, 8)
   } catch (e) {
     console.error(e)
   } finally {
@@ -331,14 +370,17 @@ const loadReviews = async () => {
   } catch (e) { console.error(e) }
 }
 
-onMounted(loadData)
+onMounted(() => { loadData(); window.addEventListener('resize', onResize) })
+onUnmounted(() => { window.removeEventListener('resize', onResize) })
 </script>
 
 <style scoped lang="scss">
 .goods-detail {
   padding: var(--spacing-lg);
-  padding-bottom: 100px;
+  padding-bottom: 20px;
   position: relative;
+  :deep(.el-row) { align-items: stretch; }
+  :deep(.el-col) { display: flex; }
 }
 
 .goods-detail::before {
@@ -437,12 +479,14 @@ onMounted(loadData)
 }
 
 .detail-gallery {
-
   border-radius: var(--radius-xl);
   overflow: hidden;
   background: linear-gradient(135deg, var(--color-img-placeholder-from), var(--color-img-placeholder-to));
   box-shadow: var(--shadow-lg);
   position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 500px;
   &::before {
     content: '';
     position: absolute; top: 0; left: 0; right: 0;
@@ -453,20 +497,41 @@ onMounted(loadData)
 }
 .gallery-img {
   width: 100%;
-  height: 460px;
-  border-radius: var(--radius-xl);
-  filter: brightness(var(--img-brightness));
-  &.single { display: block; }
-}
-.gallery-img {
-  width: 100%;
-  height: 420px;
+  flex: 1;
+  min-height: 0;
+  display: block;
   border-radius: var(--radius-lg);
   filter: brightness(var(--img-brightness));
-  &.single { display: block; }
+  cursor: pointer;
+  background: var(--bg-card);
+  :deep(.el-image__inner) { width: 100%; height: 100%; object-fit: cover; }
+  :deep(img) { width: 100% !important; height: 100% !important; object-fit: cover; }
+}
+.gallery-thumbs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  overflow-x: auto;
+  &::-webkit-scrollbar { height: 4px; }
+  &::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+}
+.gallery-thumb {
+  flex: 0 0 72px;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: var(--transition-fast);
+  border: 2px solid transparent;
+  &:hover { opacity: 1; }
+  &.active { opacity: 1; border-color: var(--primary); }
+  img { width: 100%; height: 100%; object-fit: cover; }
 }
 
-.detail-info { padding-top: 8px; }
+.detail-info { padding-top: 8px; display: flex; flex-direction: column; min-height: 420px; }
 .detail-status { display: flex; gap: 8px; margin-bottom: 14px; }
 .detail-title {
   font-size: 26px;
@@ -504,15 +569,23 @@ onMounted(loadData)
   bottom: 0;
   z-index: 10;
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: var(--spacing-md) 0;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
   margin-top: 8px;
   background: var(--bg-glass);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px) saturate(180%);
   border-radius: var(--radius-lg);
-  padding: 16px 20px;
   box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-light);
+}
+.action-price-compact {
+  display: flex; flex-direction: column; flex-shrink: 0;
+  .price-label { font-size: 12px; color: var(--text-muted); }
+  .price-value { font-size: 24px; font-weight: 800; color: var(--danger); letter-spacing: -0.5px; }
+}
+.action-buttons {
+  display: flex; gap: 10px; flex-wrap: wrap; flex: 1; justify-content: flex-end;
 }
 
 .detail-tabs {
@@ -573,7 +646,9 @@ onMounted(loadData)
     padding-bottom: 90px;
   }
 
-  .gallery-img { height: 280px; }
+  .detail-gallery { height: auto; }
+  .gallery-img { height: 320px !important; flex: none; }
+  .gallery-thumb { flex: 0 0 56px; width: 56px; height: 56px; }
 
   .detail-title { font-size: 20px; }
 
@@ -584,12 +659,25 @@ onMounted(loadData)
     left: 0;
     right: 0;
     bottom: 0;
-    background: transparent;
+    background: var(--bg-glass);
+    backdrop-filter: blur(16px) saturate(180%);
     border-top: 1px solid var(--border);
-    box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
-    padding: var(--spacing-sm) var(--spacing-md);
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+    padding: 10px 16px;
     margin-top: 0;
     z-index: 100;
+    border-radius: 0;
+    gap: 12px;
+  }
+
+  .action-price-compact {
+    .price-value { font-size: 20px; }
+  }
+
+  .action-buttons {
+    gap: 6px; flex-wrap: nowrap;
+    .btn-secondary { display: none; }
+    :deep(.el-button) { margin-left: 0 !important; }
   }
 
   .similar-card {

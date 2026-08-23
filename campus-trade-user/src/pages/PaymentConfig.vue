@@ -144,4 +144,8 @@ onMounted(loadData)
 .list-leave-active { transition: all 0.2s ease; }
 .list-enter-from { opacity: 0; transform: translateY(-10px); }
 .list-leave-to { opacity: 0; transform: translateX(20px); }
+
+@media (max-width: 768px) {
+  .payment-config-inner { padding: 16px; }
+}
 </style>

@@ -73,8 +73,8 @@ public class UserController {
     public Result<Map<String, Object>> getUserStats() {
         Long userId = SecurityUtil.requireCurrentUserId();
         Map<String, Object> stats = new HashMap<>();
-        stats.put("publishedGoods", goodsMapper.selectCount(null, null, null, null, null, userId));
-        stats.put("onlineGoods", goodsMapper.selectCount(null, null, null, null, "ONLINE", userId));
+        stats.put("publishedGoods", goodsMapper.selectCount(null, null, null, null, null, userId, null));
+        stats.put("onlineGoods", goodsMapper.selectCount(null, null, null, null, "ONLINE", userId, null));
         stats.put("buyerOrders", orderMapper.selectCountByBuyerId(userId, null));
         stats.put("sellerOrders", orderMapper.selectCountBySellerId(userId, "FINISHED"));
         stats.put("finishedOrders", orderMapper.selectCountByBuyerId(userId, "FINISHED"));

@@ -49,13 +49,13 @@
         <el-table-column label="操作" min-width="180" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="showDetail(row)">详情</el-button>
-            <el-button v-if="row.status === 'PENDING' || row.status === 'PROCESSING'" v-permission="'report:review'" type="success" size="small" @click="openResolveDialog(row.id)">处理</el-button>
-            <el-button v-if="row.status === 'PENDING' || row.status === 'PROCESSING'" v-permission="'report:review'" type="warning" size="small" @click="openDismissDialog(row.id)">驳回</el-button>
+            <el-button v-if="row.status === 'PENDING' || row.status === 'PROCESSING'" v-permission="'report:manage'" type="success" size="small" @click="openResolveDialog(row.id)">处理</el-button>
+            <el-button v-if="row.status === 'PENDING' || row.status === 'PROCESSING'" v-permission="'report:manage'" type="warning" size="small" @click="openDismissDialog(row.id)">驳回</el-button>
           </template>
         </el-table-column>
         <template #empty><el-empty description="暂无举报" :image-size="60" /></template>
       </el-table>
-      <div class="pagination-wrapper">
+      <div class="pagination-wrapper" v-if="total > pageSize">
         <el-pagination
           v-model:current-page="pageNum"
           v-model:page-size="pageSize"
@@ -97,35 +97,35 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="resolveDialogVisible" title="处理举报" width="460px" :close-on-click-modal="false">
-      <el-form label-position="top">
-        <el-form-item label="处理原因" required>
-          <el-input v-model="resolveReason" type="textarea" :rows="4" placeholder="请输入处理原因" maxlength="200" show-word-limit />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="resolveDialogVisible = false">取消</el-button>
-        <el-button type="success" @click="handleResolve" :loading="resolveLoading">确认处理</el-button>
-      </template>
-    </el-dialog>
+    <ReasonDialog
+      v-model="resolveDialogVisible"
+      title="处理举报"
+      label="处理原因"
+      placeholder="请输入处理原因"
+      confirm-text="确认处理"
+      btn-type="success"
+      :loading="resolveLoading"
+      @confirm="handleResolve"
+    />
 
-    <el-dialog v-model="dismissDialogVisible" title="驳回举报" width="460px" :close-on-click-modal="false">
-      <el-form label-position="top">
-        <el-form-item label="驳回原因" required>
-          <el-input v-model="dismissReason" type="textarea" :rows="4" placeholder="请输入驳回原因" maxlength="200" show-word-limit />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dismissDialogVisible = false">取消</el-button>
-        <el-button type="warning" @click="handleDismiss" :loading="dismissLoading">确认驳回</el-button>
-      </template>
-    </el-dialog>
+    <ReasonDialog
+      v-model="dismissDialogVisible"
+      title="驳回举报"
+      label="驳回原因"
+      placeholder="请输入驳回原因"
+      confirm-text="确认驳回"
+      btn-type="warning"
+      :loading="dismissLoading"
+      @confirm="handleDismiss"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { getReportList, resolveReport, dismissReport } from '@/api/admin'
+import { useDebounceSearch } from '@/composables/useDebounceSearch'
+import ReasonDialog from '@/components/ReasonDialog.vue'
 import { ElMessage } from 'element-plus'
 import type { AdminReportVO, PageQueryParams } from '@/types'
 import { reportStatusLabel } from '@/utils/labels'
@@ -141,11 +141,9 @@ const detailVisible = ref(false)
 const detailReport = ref<AdminReportVO | null>(null)
 const resolveDialogVisible = ref(false)
 const resolveReportId = ref<number>(0)
-const resolveReason = ref('')
 const resolveLoading = ref(false)
 const dismissDialogVisible = ref(false)
 const dismissReportId = ref<number>(0)
-const dismissReason = ref('')
 const dismissLoading = ref(false)
 
 const statusTagMap: Record<string, string> = { PENDING: 'warning', PROCESSING: 'primary', FINISHED: '', RESOLVED: 'success', DISMISSED: 'info' }
@@ -179,11 +177,7 @@ const handleSearch = () => {
   loadData()
 }
 
-let searchTimer: ReturnType<typeof setTimeout> | null = null
-watch(searchKeyword, () => {
-  if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(handleSearch, 300)
-})
+useDebounceSearch(searchKeyword, handleSearch)
 
 const handleSizeChange = () => {
   pageNum.value = 1
@@ -192,18 +186,13 @@ const handleSizeChange = () => {
 
 const openResolveDialog = (id: number) => {
   resolveReportId.value = id
-  resolveReason.value = ''
   resolveDialogVisible.value = true
 }
 
-const handleResolve = async () => {
-  if (!resolveReason.value.trim()) {
-    ElMessage.warning('请输入处理原因')
-    return
-  }
+const handleResolve = async (reason: string) => {
   resolveLoading.value = true
   try {
-    await resolveReport(resolveReportId.value, resolveReason.value)
+    await resolveReport(resolveReportId.value, reason)
     ElMessage.success('已处理')
     resolveDialogVisible.value = false
     loadData()
@@ -214,18 +203,13 @@ const handleResolve = async () => {
 
 const openDismissDialog = (id: number) => {
   dismissReportId.value = id
-  dismissReason.value = ''
   dismissDialogVisible.value = true
 }
 
-const handleDismiss = async () => {
-  if (!dismissReason.value.trim()) {
-    ElMessage.warning('请输入驳回原因')
-    return
-  }
+const handleDismiss = async (reason: string) => {
   dismissLoading.value = true
   try {
-    await dismissReport(dismissReportId.value, dismissReason.value)
+    await dismissReport(dismissReportId.value, reason)
     ElMessage.success('已驳回')
     dismissDialogVisible.value = false
     loadData()

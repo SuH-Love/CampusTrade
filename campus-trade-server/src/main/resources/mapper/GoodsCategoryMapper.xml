@@ -34,6 +34,28 @@
         SELECT COUNT(*) FROM t_goods_category WHERE deleted = 0
     </select>
 
+    <resultMap id="VOResultMap" type="com.campustrade.vo.GoodsCategoryVO">
+        <id column="id" property="id"/>
+        <result column="category_name" property="categoryName"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="icon" property="icon"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="goods_count" property="goodsCount"/>
+    </resultMap>
+
+    <select id="selectAllWithCount" resultMap="VOResultMap">
+        SELECT c.id, c.category_name, c.parent_id, c.sort_order, c.icon, c.status,
+               c.create_time,
+               COUNT(g.id) AS goods_count
+        FROM t_goods_category c
+        LEFT JOIN t_goods g ON g.category_id = c.id AND g.status = 'ONLINE' AND g.deleted = 0
+        WHERE c.deleted = 0 AND c.status = 1
+        GROUP BY c.id, c.category_name, c.parent_id, c.sort_order, c.icon, c.status, c.create_time
+        ORDER BY c.sort_order
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO t_goods_category (category_name, parent_id, sort_order, icon, status)
         VALUES (#{categoryName}, #{parentId}, #{sortOrder}, #{icon}, #{status})

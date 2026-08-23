@@ -23,7 +23,7 @@ public class GoodsCategoryServiceImpl implements GoodsCategoryService {
 
     @Override
     public List<GoodsCategoryVO> listAllVO() {
-        return categoryMapper.selectAll().stream().map(this::toVO).collect(Collectors.toList());
+        return categoryMapper.selectAllWithCount();
     }
 
     private GoodsCategoryVO toVO(GoodsCategory category) {

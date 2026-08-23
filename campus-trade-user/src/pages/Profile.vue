@@ -3,6 +3,9 @@
     <el-row :gutter="20">
       <el-col :xs="24" :sm="24" :md="8">
         <el-card class="profile-card">
+          <div class="profile-banner">
+            <div class="profile-banner-pattern" />
+          </div>
           <div class="avatar-section">
             <template v-if="isSelf">
               <el-upload action="/api/file/upload" :headers="uploadHeaders" :show-file-list="false" :on-success="handleAvatarSuccess" :before-upload="beforeAvatarUpload" accept="image/jpeg,image/png,image/gif,image/webp">
@@ -105,35 +108,82 @@
             </div>
           </div>
           <el-card class="edit-card">
-            <el-tabs v-model="activeTab">
-              <el-tab-pane label="编辑资料" name="info">
-                <el-form :model="infoForm" :rules="infoRules" ref="infoFormRef" label-width="80px" class="profile-form">
+            <div class="vertical-tabs">
+              <div class="vertical-tabs-sidebar">
+                <div class="vtab-item" :class="{ active: activeTab === 'info' }" @click="activeTab = 'info'">
+                  <el-icon><User /></el-icon>
+                  <span>编辑资料</span>
+                </div>
+                <div class="vtab-item" :class="{ active: activeTab === 'password' }" @click="activeTab = 'password'">
+                  <el-icon><Lock /></el-icon>
+                  <span>修改密码</span>
+                </div>
+                <div v-if="userStore.userInfo?.realVerified !== 1" class="vtab-item" :class="{ active: activeTab === 'verify' }" @click="activeTab = 'verify'">
+                  <el-icon><CircleCheck /></el-icon>
+                  <span>实名认证</span>
+                </div>
+                <div class="vtab-item" :class="{ active: activeTab === 'payment' }" @click="activeTab = 'payment'">
+                  <el-icon><CreditCard /></el-icon>
+                  <span>收款管理</span>
+                </div>
+              </div>
+              <div class="vertical-tabs-content">
+                <el-form v-if="activeTab === 'info'" :model="infoForm" :rules="infoRules" ref="infoFormRef" label-width="80px" class="profile-form">
                   <el-form-item label="昵称" prop="nickname"><el-input v-model="infoForm.nickname" placeholder="请输入昵称" /></el-form-item>
                   <el-form-item label="手机号" prop="phone"><el-input v-model="infoForm.phone" placeholder="请输入手机号" /></el-form-item>
                   <el-form-item label="邮箱" prop="email"><el-input v-model="infoForm.email" placeholder="请输入邮箱" /></el-form-item>
                   <el-form-item><el-button type="primary" @click="handleUpdateInfo" :loading="infoLoading" round>保存修改</el-button></el-form-item>
                 </el-form>
-              </el-tab-pane>
-              <el-tab-pane label="修改密码" name="password">
-                <el-form :model="pwdForm" :rules="pwdRules" ref="pwdFormRef" label-width="100px" class="profile-form">
+                <el-form v-else-if="activeTab === 'password'" :model="pwdForm" :rules="pwdRules" ref="pwdFormRef" label-width="100px" class="profile-form">
                   <el-form-item label="当前密码" prop="oldPassword"><el-input v-model="pwdForm.oldPassword" type="password" show-password placeholder="请输入当前密码" /></el-form-item>
                   <el-form-item label="新密码" prop="newPassword"><el-input v-model="pwdForm.newPassword" type="password" show-password placeholder="8-20位密码" /></el-form-item>
                   <el-form-item label="确认新密码" prop="confirmPassword"><el-input v-model="pwdForm.confirmPassword" type="password" show-password placeholder="再次输入新密码" /></el-form-item>
                   <el-form-item><el-button type="primary" @click="handleUpdatePwd" :loading="pwdLoading" round>修改密码</el-button></el-form-item>
                 </el-form>
-              </el-tab-pane>
-              <el-tab-pane label="实名认证" name="verify" v-if="userStore.userInfo?.realVerified !== 1">
-                <el-form :model="verifyForm" :rules="verifyRules" ref="verifyFormRef" label-width="80px" class="profile-form">
+                <el-form v-else-if="activeTab === 'verify'" :model="verifyForm" :rules="verifyRules" ref="verifyFormRef" label-width="80px" class="profile-form">
                   <el-form-item label="真实姓名" prop="realName"><el-input v-model="verifyForm.realName" placeholder="请输入真实姓名" /></el-form-item>
                   <el-form-item label="学号" prop="studentId"><el-input v-model="verifyForm.studentId" placeholder="请输入学号" /></el-form-item>
                   <el-form-item><el-button type="primary" @click="handleVerify" :loading="verifyLoading" round>提交认证</el-button></el-form-item>
                 </el-form>
-              </el-tab-pane>
-            </el-tabs>
+                <div v-else-if="activeTab === 'payment'" class="payment-tab" v-loading="payLoading">
+                  <div class="payment-tab-header">
+                    <el-button type="primary" size="small" round @click="openPayDialog()">添加收款账号</el-button>
+                  </div>
+                  <EmptyState v-if="payConfigs.length === 0 && !payLoading" icon="💳" title="暂无收款配置" description="添加支付宝收款账号，发布商品时自动关联" />
+                  <div v-else class="pay-config-list">
+                    <div v-for="config in payConfigs" :key="config.id" class="pay-config-card" :class="{ 'is-default': config.isDefault === 1 }">
+                      <div class="pay-config-info">
+                        <el-tag :type="config.isDefault === 1 ? 'primary' : 'info'" size="small">{{ config.isDefault === 1 ? '默认' : '支付宝' }}</el-tag>
+                        <div class="pay-config-detail">
+                          <div class="pay-config-account">{{ config.alipayAccount }}</div>
+                          <div class="pay-config-name">{{ config.realName }}</div>
+                        </div>
+                      </div>
+                      <div class="pay-config-actions">
+                        <el-button v-if="config.isDefault !== 1" size="small" @click="handlePaySetDefault(config.id)">设为默认</el-button>
+                        <el-button size="small" @click="openPayDialog(config)">编辑</el-button>
+                        <el-button size="small" type="danger" text @click="handlePayDelete(config.id)">删除</el-button>
+                      </div>
+                    </div>
+                  </div>
+                  <el-dialog v-model="payDialogVisible" :title="editingPayConfig ? '编辑收款账号' : '添加收款账号'" width="440px" append-to-body>
+                    <el-form :model="payForm" label-width="100px">
+                      <el-form-item label="支付宝账号" required><el-input v-model="payForm.alipayAccount" placeholder="请输入支付宝账号" /></el-form-item>
+                      <el-form-item label="真实姓名" required><el-input v-model="payForm.realName" placeholder="请输入真实姓名" /></el-form-item>
+                      <el-form-item label="设为默认"><el-switch v-model="payForm.isDefault" :active-value="1" :inactive-value="0" /></el-form-item>
+                    </el-form>
+                    <template #footer>
+                      <el-button @click="payDialogVisible = false">取消</el-button>
+                      <el-button type="primary" :loading="paySubmitting" @click="handlePaySubmit">确定</el-button>
+                    </template>
+                  </el-dialog>
+                </div>
+              </div>
+            </div>
           </el-card>
         </template>
         <template v-else>
-          <el-card>
+          <el-card class="other-goods-card">
             <h3 class="section-title">在售商品</h3>
             <el-row :gutter="16">
               <el-col :xs="12" :sm="8" :md="6" v-for="item in goodsList" :key="item.id">
@@ -157,9 +207,11 @@ import { updateUserInfo, updatePassword, realNameVerify, uploadAvatar, getUserPu
 import { getGoodsList } from '@/api/goods'
 import { getFollowCounts, toggleFollow, isFollowing } from '@/api/follow'
 import { getAverageRating } from '@/api/rating'
+import { getPaymentConfigs, createPaymentConfig, updatePaymentConfig, deletePaymentConfig, setDefaultPaymentConfig, type PaymentConfigVO } from '@/api/paymentConfig'
 import GoodsCard from '@/components/GoodsCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { User, Lock, CircleCheck, CreditCard } from '@element-plus/icons-vue'
 import type { FormInstance } from 'element-plus'
 import type { UserVO } from '@/api/user'
 import type { GoodsVO } from '@/api/goods'
@@ -332,6 +384,59 @@ const handleLogout = async () => {
   router.push('/login')
 }
 
+const payConfigs = ref<PaymentConfigVO[]>([])
+const payLoading = ref(false)
+const payDialogVisible = ref(false)
+const paySubmitting = ref(false)
+const editingPayConfig = ref<PaymentConfigVO | null>(null)
+const payForm = ref({ alipayAccount: '', realName: '', isDefault: 0 })
+
+const loadPayConfigs = async () => {
+  payLoading.value = true
+  try { payConfigs.value = await getPaymentConfigs() || [] } finally { payLoading.value = false }
+}
+
+const openPayDialog = (config?: PaymentConfigVO) => {
+  if (config) {
+    editingPayConfig.value = config
+    payForm.value = { alipayAccount: config.alipayAccount, realName: config.realName, isDefault: config.isDefault }
+  } else {
+    editingPayConfig.value = null
+    payForm.value = { alipayAccount: '', realName: '', isDefault: 0 }
+  }
+  payDialogVisible.value = true
+}
+
+const handlePaySubmit = async () => {
+  if (!payForm.value.alipayAccount.trim()) { ElMessage.warning('请输入支付宝账号'); return }
+  if (!payForm.value.realName.trim()) { ElMessage.warning('请输入真实姓名'); return }
+  paySubmitting.value = true
+  try {
+    if (editingPayConfig.value) {
+      await updatePaymentConfig(editingPayConfig.value.id, payForm.value.alipayAccount, payForm.value.realName, payForm.value.isDefault)
+      ElMessage.success('修改成功')
+    } else {
+      await createPaymentConfig(payForm.value.alipayAccount, payForm.value.realName, payForm.value.isDefault)
+      ElMessage.success('添加成功')
+    }
+    payDialogVisible.value = false
+    loadPayConfigs()
+  } finally { paySubmitting.value = false }
+}
+
+const handlePaySetDefault = async (id: number) => {
+  await setDefaultPaymentConfig(id)
+  ElMessage.success('已设为默认')
+  loadPayConfigs()
+}
+
+const handlePayDelete = async (id: number) => {
+  await ElMessageBox.confirm('确认删除该收款配置？', '删除确认', { type: 'warning' })
+  await deletePaymentConfig(id)
+  ElMessage.success('已删除')
+  loadPayConfigs()
+}
+
 watch(() => route.params.id, () => {
   if (route.params.id && !isSelf.value) loadOtherUser()
 })
@@ -344,6 +449,7 @@ onMounted(() => {
   }
   if (isSelf.value && userStore.token) {
     getUserStats().then(s => { stats.value = s }).catch((e) => { console.error(e) })
+    loadPayConfigs()
     if (userStore.userInfo?.id) {
       getFollowCounts(userStore.userInfo.id).then(c => { selfFollowCounts.value = c }).catch((e) => { console.error(e) })
       getAverageRating(userStore.userInfo.id).then(r => { selfAvgRating.value = r }).catch((e) => { console.error(e) })
@@ -356,7 +462,9 @@ onMounted(() => {
 <style scoped lang="scss">
 .profile-page {
   padding: 20px;
-
+  :deep(.el-row) { align-items: flex-start; }
+  :deep(.el-col) { display: flex; flex-direction: column; }
+  :deep(.el-col:last-child) { height: calc(100vh - 104px); }
   :deep(.el-card) {
     border-radius: var(--radius-lg);
     border: 1px solid var(--border);
@@ -365,10 +473,36 @@ onMounted(() => {
     &:hover { box-shadow: var(--shadow-md); }
   }
 }
-.profile-card { text-align: center; }
-.profile-name { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+.profile-card { text-align: center; display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 104px);
+  :deep(.el-card__body) { display: flex; flex-direction: column; flex: 1; padding: 0; overflow-y: auto; }
+}
+.profile-banner {
+  height: 120px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  &::before {
+    content: ''; position: absolute; width: 200px; height: 200px;
+    border-radius: 50%; top: -100px; right: -60px;
+    background: rgba(255,255,255,0.1);
+  }
+  &::after {
+    content: ''; position: absolute; width: 140px; height: 140px;
+    border-radius: 50%; bottom: -80px; left: -40px;
+    background: rgba(255,255,255,0.08);
+  }
+}
+.profile-banner-pattern {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(circle at 30% 40%, rgba(255,255,255,0.12) 0%, transparent 60%);
+}
+.dark .profile-banner {
+  background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 50%, #5b21b6 100%);
+}
+.profile-name { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; margin-top: 4px; }
 .stats-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; flex-shrink: 0;
   @media (max-width: 768px) { grid-template-columns: repeat(2, 1fr); }
 }
 .stat-card {
@@ -393,26 +527,85 @@ onMounted(() => {
 .stat-value { font-size: 28px; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
 .stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
 .avatar-section {
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
   position: relative;
+  padding: 0 20px;
+  margin-top: -55px;
+  margin-bottom: 8px;
+  :deep(.el-avatar) { border: 4px solid var(--bg-card); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
 }
-.avatar-clickable { cursor: pointer; }
+.avatar-clickable { cursor: pointer; position: relative; z-index: 1; }
 .avatar-overlay {
   position: absolute; top: 0; left: 50%; transform: translateX(-50%);
   width: 100px; height: 100px; border-radius: 50%;
   background: rgba(0,0,0,0.5); color: #fff; font-size: 12px;
   display: flex; align-items: center; justify-content: center;
   opacity: 0; transition: opacity 0.3s; cursor: pointer; pointer-events: none;
+  z-index: 2;
 }
 .avatar-section:hover .avatar-overlay { opacity: 1; }
-.profile-stats { color: var(--text-secondary); font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.profile-stats { color: var(--text-secondary); font-size: 13px; display: flex; align-items: center; gap: 6px; }
 .rate-inline { vertical-align: middle; }
 .text-muted-sm { font-size: 12px; color: var(--text-muted); }
-.follow-btn { margin-top: 8px; }
-.profile-desc { margin-top: 20px; }
-.edit-card { margin-top: 20px; }
+.follow-btn { margin-top: 4px; }
+.profile-desc { padding: 0 20px; margin-top: 4px; }
+.edit-card { margin-top: 20px; flex: 1; min-height: 0; overflow-y: auto; }
+.vertical-tabs {
+  display: flex; gap: 24px; min-height: 320px;
+  @media (max-width: 768px) { flex-direction: column; gap: 16px; }
+}
+.vertical-tabs-sidebar {
+  flex-shrink: 0; width: 180px; display: flex; flex-direction: column; gap: 4px;
+  padding: 8px; background: var(--bg-hover); border-radius: var(--radius-lg);
+  @media (max-width: 768px) { width: 100%; flex-direction: row; flex-wrap: wrap; }
+}
+.vtab-item {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+  border-radius: var(--radius-md); cursor: pointer; font-size: 14px; font-weight: 500;
+  color: var(--text-secondary); transition: all 0.25s; position: relative;
+  &:hover { background: var(--bg-card); color: var(--primary); transform: translateX(2px); }
+  &.active {
+    background: var(--bg-card); color: var(--primary); font-weight: 600;
+    box-shadow: var(--shadow-sm);
+    &::before {
+      content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+      width: 3px; height: 60%; border-radius: 2px; background: var(--primary-gradient);
+    }
+  }
+  @media (max-width: 768px) { flex: 1; justify-content: center; min-width: 100px; }
+}
+.vertical-tabs-content {
+  flex: 1; padding: 8px 4px;
+  animation: vtabIn 0.3s ease;
+}
+@keyframes vtabIn { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }
 .profile-form { max-width: 500px; }
 .section-title { margin: 0 0 16px; }
-.logout-btn { margin-top: 16px; width: 100%; }
+.logout-btn { margin: 12px 20px 0; width: calc(100% - 40px); align-self: center; }
 .goods-pagination { margin-top: 16px; justify-content: center; }
+.other-goods-card { flex: 1; min-height: 0; overflow-y: auto; }
+.payment-tab { max-width: 500px; }
+.payment-tab-header { margin-bottom: 16px; }
+.pay-config-list { display: flex; flex-direction: column; gap: 10px; }
+.pay-config-card {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 16px; border-radius: var(--radius-md);
+  border: 1px solid var(--border); background: var(--bg-card);
+  transition: var(--transition);
+  &.is-default { border-color: var(--primary-light); box-shadow: 0 0 0 1px var(--primary-lighter); }
+}
+.pay-config-info { display: flex; align-items: center; gap: 10px; }
+.pay-config-detail { display: flex; flex-direction: column; gap: 2px; }
+.pay-config-account { font-weight: 600; color: var(--text-primary); font-size: 14px; }
+.pay-config-name { font-size: 12px; color: var(--text-muted); }
+.pay-config-actions { display: flex; gap: 4px; }
+
+@media (max-width: 768px) {
+  .profile-page { height: auto; overflow: visible; }
+  :deep(.el-col) { display: block; }
+  :deep(.el-col:last-child) { height: auto; }
+  .profile-card { height: auto; }
+  .edit-card { flex: none; overflow-y: visible; }
+  .other-goods-card { flex: none; overflow-y: visible; }
+}
 </style>

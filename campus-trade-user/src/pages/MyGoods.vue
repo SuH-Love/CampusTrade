@@ -1,22 +1,24 @@
 <template>
   <div class="my-goods-page page-bg">
-    <div class="my-goods-inner">
-      <div class="my-goods-header">
-        <h3 class="my-goods-title">我的商品</h3>
-        <div class="filter-bar">
-          <el-button type="primary" round @click="$router.push('/goods/publish')">发布商品</el-button>
-          <el-input v-model="searchKeyword" placeholder="搜索商品标题" clearable class="search-input" @keyup.enter="handleSearch" @clear="handleSearch" />
-          <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch" class="status-select">
-            <el-option label="草稿" value="DRAFT" />
-            <el-option label="待审核" value="PENDING" />
-            <el-option label="审核通过" value="APPROVED" />
-            <el-option label="已拒绝" value="REJECTED" />
-            <el-option label="已上架" value="ONLINE" />
-            <el-option label="已下架" value="OFFLINE" />
-            <el-option label="已售出" value="SOLD" />
-          </el-select>
+    <el-card>
+      <template #header>
+        <div class="my-goods-header">
+          <h3 class="my-goods-title">我的商品</h3>
+          <div class="filter-bar">
+            <el-button type="primary" round @click="$router.push('/goods/publish')">发布商品</el-button>
+            <el-input v-model="searchKeyword" placeholder="搜索商品标题" clearable class="search-input" @keyup.enter="handleSearch" @clear="handleSearch" />
+            <el-select v-model="statusFilter" placeholder="状态筛选" clearable @change="handleSearch" class="status-select">
+              <el-option label="草稿" value="DRAFT" />
+              <el-option label="待审核" value="PENDING" />
+              <el-option label="审核通过" value="APPROVED" />
+              <el-option label="已拒绝" value="REJECTED" />
+              <el-option label="已上架" value="ONLINE" />
+              <el-option label="已下架" value="OFFLINE" />
+              <el-option label="已售出" value="SOLD" />
+            </el-select>
+          </div>
         </div>
-      </div>
+      </template>
 
       <el-table v-if="!isMobile" :data="filteredGoods" stripe v-loading="loading" class="goods-table">
         <el-table-column label="商品" min-width="250">
@@ -111,8 +113,8 @@
       </div>
 
       <EmptyState v-if="filteredGoods.length === 0 && !loading" icon="🏪" title="暂无发布的商品" description="发布你的闲置物品，让它们找到新主人" action-text="发布商品" @action="$router.push('/goods/publish')" />
-      <el-pagination v-if="total > 0" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
-    </div>
+      <el-pagination v-if="total > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
+    </el-card>
 
     <el-dialog v-model="suggestionVisible" title="AI 标题优化建议" width="500">
       <div v-if="suggestionLoading !== null" v-loading="true" style="min-height: 80px" />
@@ -250,17 +252,17 @@ onUnmounted(() => { window.removeEventListener('resize', handleResize) })
 </script>
 
 <style scoped lang="scss">
-.my-goods-page { padding: 20px; }
-.my-goods-inner {
-  background: var(--bg-glass);
+.my-goods-page {
+  padding: 20px;
 
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
-  padding: 24px;
+  :deep(.el-card) {
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+  }
 }
-.my-goods-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
-.my-goods-title { margin: 0; }
+.my-goods-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.my-goods-title { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-primary); }
 .filter-bar { display: flex; gap: 12px; align-items: center; }
 .search-input { width: 200px; }
 .status-select { width: 140px; }
@@ -301,7 +303,7 @@ onUnmounted(() => { window.removeEventListener('resize', handleResize) })
 
 @media (max-width: 576px) {
   .my-goods-page { padding: 12px; }
-  .my-goods-inner { padding: 16px; }
+
   .my-goods-header { flex-direction: column; align-items: flex-start; }
   .filter-bar { width: 100%; flex-wrap: wrap; }
   .search-input { width: 100%; }

@@ -1,15 +1,17 @@
 <template>
   <div class="notification-page page-bg">
-    <div class="notification-inner">
-      <div class="notification-header">
-        <h3 class="notification-title">通知中心</h3>
-        <div class="header-actions">
-          <el-button type="primary" size="small" @click="handleMarkAllRead" :disabled="unreadCount === 0">全部已读</el-button>
-          <el-button size="small" @click="handleBatchMarkRead" :disabled="selectedIds.length === 0">
-            批量标记已读 ({{ selectedIds.length }})
-          </el-button>
+    <el-card>
+      <template #header>
+        <div class="notification-header">
+          <h3 class="notification-title">通知中心</h3>
+          <div class="header-actions">
+            <el-button type="primary" @click="handleMarkAllRead" :disabled="unreadCount === 0">全部已读</el-button>
+            <el-button @click="handleBatchMarkRead" :disabled="selectedIds.length === 0">
+              批量标记已读 ({{ selectedIds.length }})
+            </el-button>
+          </div>
         </div>
-      </div>
+      </template>
       <div class="preference-section">
         <span class="preference-label">通知偏好：</span>
         <el-checkbox-group v-model="enabledTypes" @change="handlePreferenceChange">
@@ -47,8 +49,8 @@
           <el-button type="danger" size="small" text @click.stop="handleDelete(item.id)">删除</el-button>
         </div>
       </TransitionGroup>
-      <el-pagination v-if="total > 0" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
-    </div>
+      <el-pagination v-if="total > pageSize" v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadData" class="list-pagination" />
+    </el-card>
   </div>
 </template>
 
@@ -157,10 +159,11 @@ const handleBatchMarkRead = async () => {
   if (ids.length === 0) return
   const unreadIds = notifications.value.filter(n => ids.includes(n.id) && n.isRead === 0).map(n => n.id)
   if (unreadIds.length > 0) {
-    await markAllAsRead()
+    await Promise.all(unreadIds.map(id => markAsRead(id)))
+    unreadCount.value = Math.max(0, unreadCount.value - unreadIds.length)
+    notifyUnread.value = unreadCount.value
   }
   ElMessage.success(`已标记 ${ids.length} 条为已读`)
-  notifyUnread.value = 0
   loadData()
 }
 
@@ -199,18 +202,31 @@ onUnmounted(() => { removeNotifyHandler() })
 </script>
 
 <style scoped lang="scss">
-.notification-page { padding: 20px; }
-  .notification-inner {
-  background: var(--bg-glass);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-sm);
-  padding: 24px;
+.notification-page {
+  padding: 20px;
+
+  :deep(.el-card) {
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    height: calc(100vh - 104px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  :deep(.el-card__header) { flex-shrink: 0; }
+  :deep(.el-card__body) {
+    flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column;
+    &::-webkit-scrollbar { width: 6px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+    &::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    &::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+  }
 }
-.notification-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
-.notification-title { margin: 0; }
+.notification-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.notification-title { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-primary); }
 .header-actions { display: flex; gap: 8px; }
-.notification-list { max-height: 600px; overflow-y: auto; }
+.notification-list { flex: 1; min-height: 0; overflow-y: auto; }
 .notification-item {
   display: flex; align-items: flex-start; gap: 10px; padding: 16px; border-bottom: 1px solid var(--border-light); cursor: pointer;
   transition: var(--transition-fast);
@@ -225,19 +241,19 @@ onUnmounted(() => { removeNotifyHandler() })
 .notification-content { color: var(--text-secondary); margin: 6px 0; font-size: 14px; line-height: 1.6; }
 .notification-time { color: var(--text-muted); font-size: 12px; }
 .preference-section {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
   padding: 14px 18px; margin-bottom: 14px;
   background: var(--bg-glass);
-
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
 }
 .preference-label { font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
-.list-pagination { margin-top: 20px; justify-content: center; }
+.list-pagination { margin-top: 20px; justify-content: center; flex-shrink: 0; }
 
 @media (max-width: 576px) {
   .notification-page { padding: 12px; }
-  .notification-inner { padding: 16px; }
+  :deep(.el-card) { height: auto; max-height: none; overflow: visible; }
+  :deep(.el-card__body) { overflow-y: visible; }
   .notification-header { flex-direction: column; align-items: flex-start; }
   .preference-section { flex-wrap: wrap; }
 }

@@ -36,6 +36,7 @@ export const useAdminStore = defineStore('admin', () => {
     const data = await loginApi(params)
     setAuth(data.accessToken, data.refreshToken)
     username.value = params.username
+    await fetchAdminInfo()
   }
 
   const fetchAdminInfo = async () => {

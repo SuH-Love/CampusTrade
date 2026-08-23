@@ -16,4 +16,6 @@ public class GoodsQueryDTO extends PageRequest {
     private BigDecimal maxPrice;
     private String status;
     private Long userId;
+    private String sortBy;
+    private Boolean todayOnly;
 }

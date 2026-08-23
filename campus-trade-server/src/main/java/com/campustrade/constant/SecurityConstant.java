@@ -14,6 +14,7 @@ public class SecurityConstant {
             "/api/banner/active",
             "/api/rating/average/**",
             "/api/goods/hot-keywords",
+            "/api/goods/suggest",
             "/api/user/*",
             "/doc.html",
             "/webjars/**",
