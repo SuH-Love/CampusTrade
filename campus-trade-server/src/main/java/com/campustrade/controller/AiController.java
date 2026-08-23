@@ -124,7 +124,7 @@ public class AiController {
         String userMessage = request.getMessage().trim();
 
         String faqContext = faqVectorService.buildContext(userMessage);
-        String prompt = systemPrompt + buildDateHint();
+        String prompt = systemPrompt + buildPlatformKnowledge() + buildDateHint();
         if (!faqContext.isEmpty()) {
             prompt = prompt + "\n\n" + faqContext;
         }
@@ -254,7 +254,7 @@ public class AiController {
         }
 
         String faqContext = faqVectorService.buildContext(userMessage);
-        String prompt = systemPrompt + buildDateHint();
+        String prompt = systemPrompt + buildPlatformKnowledge() + buildDateHint();
         if (!faqContext.isEmpty()) {
             prompt = prompt + "\n\n" + faqContext;
         }
@@ -693,6 +693,39 @@ public class AiController {
             return faqContext.substring(answerStart + 3).trim();
         }
         return "AI助手暂时不可用，请稍后再试。";
+    }
+
+    private String buildPlatformKnowledge() {
+        return "\n\n## 平台知识（回答用户关于平台规则的问题时必须依据以下信息）\n" +
+               "### 密码与账号\n" +
+               "- 注册：需用户名+密码，可选绑定手机号和邮箱。密码要求8-50位，需包含大小写字母、数字、特殊字符中的三种。\n" +
+               "- 重置密码：在登录页点击\"忘记密码\"，需输入用户名和注册时绑定的**邮箱**（非手机号），系统发送6位验证码到邮箱，验证后设置新密码。验证码5分钟有效。\n" +
+               "- 登录安全：连续5次密码错误锁定账号30分钟。\n" +
+               "- 如果用户说忘记密码，引导其通过邮箱验证码重置，不要提到手机号。\n" +
+               "- 如果用户没有绑定邮箱，建议其联系管理员协助重置密码。\n\n" +
+               "### 商品发布与审核\n" +
+               "- 发布流程：创建商品（草稿）→ 提交审核 → AI自动审核 → 审核通过/拒绝 → 用户手动上架 → 在售。\n" +
+               "- AI审核：提交审核后AI自动审核内容合规性（违禁品、欺诈信息、联系方式绕过平台等），通过后状态变为\"已审核\"，拒绝则变为\"审核拒绝\"并附原因。\n" +
+               "- 管理员复审：管理员可在后台对AI审核结果进行复审改判（将通过的改为拒绝，或将拒绝的改为通过），防止AI误判。\n" +
+               "- 编辑重新审核：已审核通过/已上架/已下架的商品，编辑后需重新提交AI审核。\n" +
+               "- 商品状态：草稿(DRAFT)、待审核(PENDING)、已审核(APPROVED)、审核拒绝(REJECTED)、在售(ONLINE)、已下架(OFFLINE)、已售出(SOLD)。\n" +
+               "- 上架条件：只有\"已审核\"或\"已下架\"状态的商品才能上架。\n\n" +
+               "### 订单交易\n" +
+               "- 订单流程：待支付 → 已支付/待发货 → 配送中 → 待评价 → 已完成。可取消（待支付时）、退款（已支付后）。\n" +
+               "- 支付方式：支付宝担保交易，买家付款后资金冻结在平台，确认收货后结算给卖家。\n" +
+               "- 配送方式：快递配送或线下自提。\n" +
+               "- 评价：确认收货后可对卖家评价（1-5星+文字）。\n\n" +
+               "### 其他功能\n" +
+               "- 收藏：可收藏感兴趣的商品。\n" +
+               "- 购物车：可加入购物车后批量下单。\n" +
+               "- 关注：可关注其他用户，关注后其发布新商品会收到通知。\n" +
+               "- 聊天：买卖双方可在线聊天沟通。\n" +
+               "- 举报：可举报违规商品或用户。\n" +
+               "- 通知：订单状态变更、商品审核结果等会收到站内通知。\n" +
+               "- AI助手（小校）：可查询订单、商品、统计等数据，也可执行取消订单、确认收货、收藏等操作。\n\n" +
+               "### 回答要求\n" +
+               "- 当用户询问平台功能或规则时，根据以上知识准确回答，不要编造不存在的功能。\n" +
+               "- 涉及具体数据（订单、商品等）时，调用工具获取真实数据，不要凭空回答。";
     }
 
     private String buildDateHint() {
