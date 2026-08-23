@@ -20,7 +20,7 @@ const processPendingRequests = (token: string) => {
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const userStore = useUserStore()
-    const noAuthUrls = ['/auth/login', '/auth/register', '/auth/refresh']
+    const noAuthUrls = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/send-code', '/auth/reset-password']
     const isNoAuth = noAuthUrls.some(url => config.url?.includes(url))
     if (userStore.token && !isNoAuth) {
       config.headers.Authorization = `Bearer ${userStore.token}`

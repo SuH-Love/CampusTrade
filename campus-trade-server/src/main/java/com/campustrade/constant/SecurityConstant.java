@@ -11,6 +11,8 @@ public class SecurityConstant {
             "/api/auth/register",
             "/api/auth/refresh",
             "/api/auth/captcha",
+            "/api/auth/reset-password",
+            "/api/auth/send-code",
             "/api/banner/active",
             "/api/rating/average/**",
             "/api/goods/hot-keywords",

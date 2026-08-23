@@ -277,4 +277,72 @@ public class AuthServiceImpl implements AuthService {
         redisTemplate.delete(RedisConstant.REFRESH_PREFIX + user.getId());
         return Result.success();
     }
+
+    @Override
+    public Result<Void> sendResetCode(SendCodeDTO dto) {
+        String username = dto.getUsername().trim();
+        String phone = dto.getPhone().trim();
+        User user = userMapper.selectByUsername(username);
+        if (user == null) {
+            return Result.error(ResultCode.NOT_FOUND.getCode(), "用户不存在");
+        }
+        if (user.getPhone() == null || !phone.equals(user.getPhone())) {
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "手机号与注册时不匹配");
+        }
+        String code = String.valueOf((int) ((Math.random() * 900000) + 100000));
+        String key = RedisConstant.CAPTCHA_PREFIX + "reset:" + username;
+        redisTemplate.opsForValue().set(key, code, RedisConstant.CAPTCHA_TTL, java.util.concurrent.TimeUnit.SECONDS);
+        log.info("Reset password code for user [{}]: {} (phone: {})", username, code, phone);
+        return Result.success();
+    }
+
+    @Override
+    public Result<Void> resetPassword(ResetPasswordDTO dto) {
+        String username = dto.getUsername().trim();
+        String phone = dto.getPhone().trim();
+        String code = dto.getCode().trim();
+        String newPassword = dto.getNewPassword();
+
+        if (!PasswordUtil.isStrongPassword(newPassword)) {
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "密码需8-50位，且包含大小写字母、数字、特殊字符中的三种");
+        }
+
+        User user = userMapper.selectByUsername(username);
+        if (user == null) {
+            return Result.error(ResultCode.NOT_FOUND.getCode(), "用户不存在");
+        }
+        if (user.getPhone() == null || !phone.equals(user.getPhone())) {
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "手机号与注册时不匹配");
+        }
+
+        String key = RedisConstant.CAPTCHA_PREFIX + "reset:" + username;
+        Object storedCode = redisTemplate.opsForValue().get(key);
+        if (storedCode == null) {
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "验证码已过期，请重新发送");
+        }
+        if (!code.equals(storedCode.toString())) {
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "验证码错误");
+        }
+        redisTemplate.delete(key);
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userMapper.updateById(user);
+        redisTemplate.delete(RedisConstant.TOKEN_PREFIX + user.getId());
+        redisTemplate.delete(RedisConstant.REFRESH_PREFIX + user.getId());
+        redisTemplate.delete(RedisConstant.PERMISSIONS_PREFIX + user.getId());
+
+        try {
+            SecurityLog securityLog = new SecurityLog();
+            securityLog.setUserId(user.getId());
+            securityLog.setUsername(username);
+            securityLog.setEventType(SecurityEventType.PASSWORD_RESET.name());
+            securityLog.setDetail("密码重置成功");
+            logService.recordSecurityLog(securityLog);
+        } catch (Exception e) {
+            log.warn("Failed to record security log for password reset", e);
+        }
+
+        log.info("Password reset successfully for user: {}", username);
+        return Result.success();
+    }
 }

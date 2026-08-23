@@ -25,3 +25,19 @@ export const register = (data: RegisterParams) => request.post<never, TokenVO>('
 export const logout = () => request.post('/auth/logout')
 
 export const refreshToken = (refreshToken: string) => request.post<never, TokenVO>('/auth/refresh', { refreshToken })
+
+export interface SendCodeParams {
+  username: string
+  phone: string
+}
+
+export interface ResetPasswordParams {
+  username: string
+  phone: string
+  code: string
+  newPassword: string
+}
+
+export const sendResetCode = (data: SendCodeParams) => request.post('/auth/send-code', data)
+
+export const resetPassword = (data: ResetPasswordParams) => request.post('/auth/reset-password', data)

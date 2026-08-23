@@ -6,6 +6,8 @@ import com.campustrade.common.Result;
 import com.campustrade.dto.LoginDTO;
 import com.campustrade.dto.RefreshTokenDTO;
 import com.campustrade.dto.RegisterDTO;
+import com.campustrade.dto.SendCodeDTO;
+import com.campustrade.dto.ResetPasswordDTO;
 import com.campustrade.service.AuthService;
 import com.campustrade.util.SecurityUtil;
 import com.campustrade.vo.TokenVO;
@@ -54,10 +56,15 @@ public class AuthController {
     @ApiOperation("重置密码")
     @PostMapping("/reset-password")
     @RateLimit
-    public Result<Void> resetPassword(@RequestParam String username,
-                                       @RequestParam String phone,
-                                       @RequestParam String newPassword) {
-        return authService.resetPassword(username, phone, newPassword);
+    public Result<Void> resetPassword(@Validated @RequestBody ResetPasswordDTO dto) {
+        return authService.resetPassword(dto);
+    }
+
+    @ApiOperation("发送重置密码验证码")
+    @PostMapping("/send-code")
+    @RateLimit
+    public Result<Void> sendResetCode(@Validated @RequestBody SendCodeDTO dto) {
+        return authService.sendResetCode(dto);
     }
 
 }
