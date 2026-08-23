@@ -36,6 +36,14 @@ public class AiToolService {
     @Autowired private OrderService orderService;
     @Autowired private GoodsService goodsService;
     @Autowired private UserService userService;
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    private static final Set<String> WRITE_TOOLS = Set.of(
+        "cancel_order", "confirm_receipt", "ship_order", "request_refund", "rate_order",
+        "toggle_favorite", "add_to_cart", "toggle_follow_user", "online_offline_goods",
+        "add_address", "submit_report",
+        "admin_ban_user", "admin_audit_goods", "admin_handle_refund"
+    );
 
     private static final Map<String, String> STATUS_MAP = new LinkedHashMap<>();
     private static final Map<String, String> GOODS_STATUS_MAP = new LinkedHashMap<>();
@@ -303,6 +311,34 @@ public class AiToolService {
     }
 
     public String executeTool(String toolName, Map<String, Object> arguments) {
+        try {
+            String result = doExecuteTool(toolName, arguments);
+            if (WRITE_TOOLS.contains(toolName)) {
+                auditToolCall(toolName, arguments, result, true);
+            }
+            return result;
+        } catch (Exception e) {
+            log.error("Tool execution failed: {}", toolName, e);
+            if (WRITE_TOOLS.contains(toolName)) {
+                auditToolCall(toolName, arguments, "工具调用失败: " + e.getMessage(), false);
+            }
+            return "工具调用失败: " + e.getMessage();
+        }
+    }
+
+    private void auditToolCall(String toolName, Map<String, Object> args, String result, boolean success) {
+        try {
+            Long userId = SecurityUtil.getCurrentUserId();
+            String argsJson = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(args);
+            String truncatedResult = result != null && result.length() > 500 ? result.substring(0, 500) : result;
+            jdbcTemplate.update("INSERT INTO t_ai_audit_log (user_id, tool_name, arguments, result, success) VALUES (?, ?, ?, ?, ?)",
+                userId, toolName, argsJson, truncatedResult, success ? 1 : 0);
+        } catch (Exception e) {
+            log.warn("Failed to audit tool call: {}", toolName, e);
+        }
+    }
+
+    private String doExecuteTool(String toolName, Map<String, Object> arguments) {
         try {
             switch (toolName) {
                 case "get_order_status": return executeGetOrderStatus(arguments);

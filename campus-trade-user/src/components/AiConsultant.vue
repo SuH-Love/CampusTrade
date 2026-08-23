@@ -152,6 +152,7 @@ import MarkdownIt from 'markdown-it'
 
 interface ToolCallInfo {
   id: number
+  callId?: string
   name: string
   args: Record<string, unknown>
   result: string
@@ -459,9 +460,10 @@ const sendMessage = async (text: string) => {
           assistantMsg.thinkingStatus = status
         }
       },
-      (toolCall: { name: string; args: Record<string, unknown> }) => {
+      (toolCall: { id: string; name: string; args: Record<string, unknown> }) => {
         assistantMsg.toolCalls.push({
           id: ++toolCallIdCounter,
+          callId: toolCall.id,
           name: toolCall.name,
           args: toolCall.args,
           result: '',
@@ -470,8 +472,8 @@ const sendMessage = async (text: string) => {
         assistantMsg.thinkingStatus = `正在调用 ${toolDisplayName(toolCall.name)}...`
         scrollToBottom()
       },
-      (toolResult: { name: string; result: string }) => {
-        const tc = assistantMsg.toolCalls.find(t => t.name === toolResult.name && !t.result)
+      (toolResult: { id: string; name: string; result: string }) => {
+        const tc = assistantMsg.toolCalls.find(t => t.callId === toolResult.id && !t.result)
         if (tc) {
           tc.result = toolResult.result
         }

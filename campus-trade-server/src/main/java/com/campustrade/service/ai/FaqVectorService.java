@@ -27,11 +27,15 @@ public class FaqVectorService {
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
     private static final String REDIS_KEY_ITEMS = "ai:faq:items";
     private static final String REDIS_KEY_IDF = "ai:faq:idf";
     private static final String REDIS_KEY_VECTORS = "ai:faq:vectors";
 
     public static class FaqItem {
+        public Long id;
         public String question;
         public String answer;
         public String category;
@@ -57,6 +61,24 @@ public class FaqVectorService {
             log.info("FaqVectorService initialized: {} FAQ items loaded", faqItems.size());
         } else {
             log.info("FaqVectorService initialized from Redis cache: {} FAQ items loaded", faqItems.size());
+        }
+        syncToDatabaseIfEmpty();
+    }
+
+    private void syncToDatabaseIfEmpty() {
+        try {
+            Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM t_faq", Long.class);
+            if (count != null && count == 0 && !faqItems.isEmpty()) {
+                for (FaqItem item : faqItems) {
+                    try {
+                        jdbcTemplate.update("INSERT INTO t_faq (question, answer, category) VALUES (?, ?, ?)",
+                            item.question, item.answer, item.category);
+                    } catch (Exception ignored) {}
+                }
+                log.info("Synced {} FAQs to database", faqItems.size());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to sync FAQs to database: {}", e.getMessage());
         }
     }
 
@@ -94,18 +116,39 @@ public class FaqVectorService {
     }
 
     public void addFaq(FaqItem item) {
+        try {
+            jdbcTemplate.update("INSERT INTO t_faq (question, answer, category) VALUES (?, ?, ?)",
+                item.question, item.answer, item.category);
+            item.id = jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        } catch (Exception e) {
+            log.warn("Failed to insert FAQ to database: {}", e.getMessage());
+        }
         faqItems.add(item);
         rebuildVectors();
     }
 
     public void updateFaq(int index, FaqItem item) {
         if (index < 0 || index >= faqItems.size()) return;
+        FaqItem existing = faqItems.get(index);
+        try {
+            jdbcTemplate.update("UPDATE t_faq SET question=?, answer=?, category=? WHERE id=?",
+                item.question, item.answer, item.category, existing.id);
+        } catch (Exception e) {
+            log.warn("Failed to update FAQ in database: {}", e.getMessage());
+        }
+        item.id = existing.id;
         faqItems.set(index, item);
         rebuildVectors();
     }
 
     public void deleteFaq(int index) {
         if (index < 0 || index >= faqItems.size()) return;
+        FaqItem existing = faqItems.get(index);
+        try {
+            jdbcTemplate.update("DELETE FROM t_faq WHERE id=?", existing.id);
+        } catch (Exception e) {
+            log.warn("Failed to delete FAQ from database: {}", e.getMessage());
+        }
         faqItems.remove(index);
         rebuildVectors();
     }
@@ -121,11 +164,35 @@ public class FaqVectorService {
     }
 
     private void loadFaqData() {
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList("SELECT id, question, answer, category FROM t_faq ORDER BY sort_order, id");
+            if (!rows.isEmpty()) {
+                for (Map<String, Object> row : rows) {
+                    FaqItem item = new FaqItem();
+                    item.id = ((Number) row.get("id")).longValue();
+                    item.question = (String) row.get("question");
+                    item.answer = (String) row.get("answer");
+                    item.category = (String) row.get("category");
+                    faqItems.add(item);
+                }
+                log.info("Loaded {} FAQs from database", faqItems.size());
+                return;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to load FAQ from database: {}", e.getMessage());
+        }
         try (InputStream is = new ClassPathResource("faq-data.json").getInputStream()) {
             List<FaqItem> loaded = objectMapper.readValue(is, new TypeReference<List<FaqItem>>() {});
+            for (FaqItem item : loaded) {
+                try {
+                    jdbcTemplate.update("INSERT INTO t_faq (question, answer, category) VALUES (?, ?, ?)",
+                        item.question, item.answer, item.category);
+                } catch (Exception ignored) {}
+            }
             faqItems.addAll(loaded);
+            log.info("Loaded {} FAQs from json and inserted into database", loaded.size());
         } catch (Exception e) {
-            log.error("Failed to load faq-data.json, falling back to empty FAQ list", e);
+            log.error("Failed to load faq-data.json", e);
         }
     }
 

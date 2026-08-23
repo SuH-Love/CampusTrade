@@ -130,7 +130,7 @@ public class SessionService {
         return size != null && size > maxHistory * 2L - 4;
     }
 
-    public String summarizeAndCompact(String sessionId, String summaryPrompt) {
+    public String prepareSummaryContext(String sessionId, String summaryPrompt) {
         String key = SESSION_PREFIX + sessionId;
         Long size = stringRedisTemplate.opsForList().size(key);
         if (size == null || size <= maxHistory * 2L - 4) return null;
@@ -138,18 +138,24 @@ public class SessionService {
         List<Map<String, Object>> allHistory = getHistory(sessionId);
         int keepCount = Math.min(10, allHistory.size());
         List<Map<String, Object>> toSummarize = allHistory.subList(0, allHistory.size() - keepCount);
-        List<Map<String, Object>> toKeep = allHistory.subList(allHistory.size() - keepCount, allHistory.size());
 
         StringBuilder sb = new StringBuilder(summaryPrompt + "\n\n");
         for (Map<String, Object> msg : toSummarize) {
             sb.append(msg.get("role")).append(": ").append(msg.get("content")).append("\n");
         }
+        return sb.toString();
+    }
 
-        Map<String, Object> summaryMsg = new HashMap<>();
-        summaryMsg.put("role", "system");
-        summaryMsg.put("content", "之前的对话摘要：\n" + sb.toString());
+    public void applySummary(String sessionId, String summary) {
+        String key = SESSION_PREFIX + sessionId;
+        List<Map<String, Object>> allHistory = getHistory(sessionId);
+        int keepCount = Math.min(10, allHistory.size());
+        List<Map<String, Object>> toKeep = allHistory.subList(Math.max(0, allHistory.size() - keepCount), allHistory.size());
 
         try {
+            Map<String, Object> summaryMsg = new HashMap<>();
+            summaryMsg.put("role", "system");
+            summaryMsg.put("content", "之前的对话摘要：\n" + summary);
             String summaryJson = objectMapper.writeValueAsString(summaryMsg);
             List<String> keepJsons = new ArrayList<>(toKeep.size());
             for (Map<String, Object> msg : toKeep) {
@@ -167,9 +173,8 @@ public class SessionService {
                 return null;
             });
         } catch (Exception e) {
-            log.error("Failed to summarize and compact session: {}", sessionId, e);
+            log.error("Failed to apply summary: {}", sessionId, e);
         }
-        return sb.toString();
     }
 
     private List<Map<String, Object>> truncateByTokens(List<Map<String, Object>> history, int maxTokens) {

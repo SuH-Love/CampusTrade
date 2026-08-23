@@ -61,6 +61,12 @@ public class AiController {
     private String systemPrompt;
 
     private static final long SSE_TIMEOUT = 300_000L;
+    private static final java.util.concurrent.ScheduledExecutorService heartbeatScheduler =
+            java.util.concurrent.Executors.newScheduledThreadPool(1, r -> {
+                Thread t = new Thread(r, "sse-heartbeat");
+                t.setDaemon(true);
+                return t;
+            });
 
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
@@ -137,7 +143,7 @@ public class AiController {
 
         try {
             if (sessionService.shouldSummarize(sessionId)) {
-                String rawHistory = sessionService.summarizeAndCompact(sessionId, "请将以下对话历史总结为简洁的摘要，保留关键信息：");
+                String rawHistory = sessionService.prepareSummaryContext(sessionId, "请将以下对话历史总结为简洁的摘要，保留关键信息：");
                 if (rawHistory != null) {
                     List<Map<String, Object>> sumMsgs = new ArrayList<>();
                     Map<String, Object> sMsg = new HashMap<>();
@@ -145,7 +151,9 @@ public class AiController {
                     sMsg.put("content", rawHistory);
                     sumMsgs.add(sMsg);
                     String summary = deepSeekClient.chat(sumMsgs);
-                    sessionService.saveSummary(sessionId, summary);
+                    if (summary != null && !summary.isEmpty()) {
+                        sessionService.applySummary(sessionId, summary);
+                    }
                 }
             }
 
@@ -213,6 +221,12 @@ public class AiController {
         httpResponse.setHeader("Cache-Control", "no-cache");
 
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
+        java.util.concurrent.ScheduledFuture<?> heartbeat = heartbeatScheduler.scheduleAtFixedRate(() -> {
+            try { emitter.send(SseEmitter.event().comment("heartbeat")); } catch (Exception ignored) {}
+        }, 15, 15, java.util.concurrent.TimeUnit.SECONDS);
+        emitter.onCompletion(() -> heartbeat.cancel(false));
+        emitter.onTimeout(() -> heartbeat.cancel(false));
+        emitter.onError((e) -> heartbeat.cancel(false));
 
         String sid = sessionId != null && !sessionId.isEmpty() ? sessionId : UUID.randomUUID().toString();
         String userMessage = message.trim();
@@ -259,7 +273,7 @@ public class AiController {
 
         try {
             if (sessionService.shouldSummarize(sid)) {
-                String rawHistory = sessionService.summarizeAndCompact(sid, "请将以下对话历史总结为简洁的摘要，保留关键信息：");
+                String rawHistory = sessionService.prepareSummaryContext(sid, "请将以下对话历史总结为简洁的摘要，保留关键信息：");
                 if (rawHistory != null) {
                     List<Map<String, Object>> sumMsgs = new ArrayList<>();
                     Map<String, Object> sMsg = new HashMap<>();
@@ -267,7 +281,9 @@ public class AiController {
                     sMsg.put("content", rawHistory);
                     sumMsgs.add(sMsg);
                     String summary = deepSeekClient.chat(sumMsgs);
-                    sessionService.saveSummary(sid, summary);
+                    if (summary != null && !summary.isEmpty()) {
+                        sessionService.applySummary(sid, summary);
+                    }
                 }
             }
         } catch (Exception e) {
@@ -359,6 +375,12 @@ public class AiController {
                 break;
             }
 
+            if (nonStreamAnswer != null && !nonStreamAnswer.isEmpty()) {
+                try {
+                    emitter.send(SseEmitter.event().name("message").data(jsonContent(nonStreamAnswer)));
+                } catch (Exception ignored) {}
+            }
+
             toolsUsed = true;
             Map<String, Object> assistantMsg = new LinkedHashMap<>();
             assistantMsg.put("role", "assistant");
@@ -366,6 +388,7 @@ public class AiController {
             assistantMsg.put("tool_calls", toolCalls);
             messages.add(assistantMsg);
 
+            List<java.util.concurrent.CompletableFuture<String>> toolFutures = new ArrayList<>();
             for (Map<String, Object> toolCall : toolCalls) {
                 String toolCallId = (String) toolCall.get("id");
                 Map<String, Object> function = (Map<String, Object>) toolCall.get("function");
@@ -378,16 +401,28 @@ public class AiController {
 
                 try {
                     Map<String, Object> callInfo = new LinkedHashMap<>();
+                    callInfo.put("id", toolCallId);
                     callInfo.put("name", toolName);
                     callInfo.put("args", args);
                     emitter.send(SseEmitter.event().name("tool_call").data(
                         new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(callInfo)));
                 } catch (Exception ignored) {}
 
-                String toolResult = aiToolService.executeTool(toolName, args);
+                final String fnName = toolName;
+                final Map<String, Object> fnArgs = args;
+                toolFutures.add(java.util.concurrent.CompletableFuture.supplyAsync(() -> aiToolService.executeTool(fnName, fnArgs)));
+            }
+
+            for (int j = 0; j < toolCalls.size(); j++) {
+                Map<String, Object> toolCall = toolCalls.get(j);
+                String toolCallId = (String) toolCall.get("id");
+                Map<String, Object> function = (Map<String, Object>) toolCall.get("function");
+                String toolName = (String) function.get("name");
+                String toolResult = toolFutures.get(j).join();
 
                 try {
                     Map<String, Object> resultInfo = new LinkedHashMap<>();
+                    resultInfo.put("id", toolCallId);
                     resultInfo.put("name", toolName);
                     resultInfo.put("result", toolResult.length() > 500 ? toolResult.substring(0, 500) + "..." : toolResult);
                     emitter.send(SseEmitter.event().name("tool_result").data(
@@ -406,13 +441,7 @@ public class AiController {
         if (!toolsUsed && nonStreamAnswer != null) {
             String content = safetyService.sanitizeOutput(nonStreamAnswer);
             try {
-                int chunkSize = 3;
-                for (int j = 0; j < content.length(); j += chunkSize) {
-                    int end = Math.min(j + chunkSize, content.length());
-                    String chunk = content.substring(j, end);
-                    emitter.send(SseEmitter.event().name("message").data(jsonContent(chunk)));
-                    Thread.sleep(30);
-                }
+                emitter.send(SseEmitter.event().name("message").data(jsonContent(content)));
                 sessionService.addMessagePair(sid, userMessage, content);
                 emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                 emitter.complete();
@@ -480,7 +509,7 @@ public class AiController {
             "分类", "流水", "退款", "取消",
             "上架", "下架", "举报", "封禁", "解封",
             "管理", "审核", "仪表盘", "概览", "平台数据",
-            "我的", "帮我", "查询", "查看", "看看", "列表",
+            "查询", "列表",
             "姓名", "手机", "街道", "门牌", "省", "市", "区"
         };
         for (String kw : keywords) {

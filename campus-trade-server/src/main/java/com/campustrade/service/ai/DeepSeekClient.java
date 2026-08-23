@@ -52,6 +52,15 @@ public class DeepSeekClient {
     @Value("${ai.deepseek.max-concurrent:5}")
     private int maxConcurrent;
 
+    @Value("${ai.fallback.api-key:}")
+    private String fallbackApiKey;
+
+    @Value("${ai.fallback.base-url:}")
+    private String fallbackBaseUrl;
+
+    @Value("${ai.fallback.model:}")
+    private String fallbackModel;
+
     @Autowired
     @Qualifier("aiTaskExecutor")
     private ThreadPoolTaskExecutor aiTaskExecutor;
@@ -238,6 +247,21 @@ public class DeepSeekClient {
             if (!FALLBACK_ANSWERS.get("faq").equals(result)) return result;
             if (attempt == 0) log.info("Retrying DeepSeek chat after failure");
         }
+        if (fallbackApiKey != null && !fallbackApiKey.isEmpty()) {
+            String origKey = currentApiKey, origUrl = currentBaseUrl, origModel = currentModel;
+            currentApiKey = fallbackApiKey;
+            currentBaseUrl = fallbackBaseUrl.isEmpty() ? origUrl : fallbackBaseUrl;
+            currentModel = fallbackModel.isEmpty() ? origModel : fallbackModel;
+            try {
+                log.info("Trying fallback model: {}", currentModel);
+                String result = doChat(messages);
+                if (!FALLBACK_ANSWERS.get("faq").equals(result)) return result;
+            } finally {
+                currentApiKey = origKey;
+                currentBaseUrl = origUrl;
+                currentModel = origModel;
+            }
+        }
         return FALLBACK_ANSWERS.get("faq");
     }
 
@@ -296,6 +320,22 @@ public class DeepSeekClient {
                 return result;
             }
             if (attempt == 0) log.info("Retrying DeepSeek chatWithTools after failure");
+        }
+        if (fallbackApiKey != null && !fallbackApiKey.isEmpty()) {
+            String origKey = currentApiKey, origUrl = currentBaseUrl, origModel = currentModel;
+            currentApiKey = fallbackApiKey;
+            currentBaseUrl = fallbackBaseUrl.isEmpty() ? origUrl : fallbackBaseUrl;
+            currentModel = fallbackModel.isEmpty() ? origModel : fallbackModel;
+            try {
+                log.info("Trying fallback model (tools): {}", currentModel);
+                result = doChatWithTools(messages, tools);
+                String content = (String) result.get("content");
+                if (content != null && !FALLBACK_ANSWERS.get("faq").equals(content)) return result;
+            } finally {
+                currentApiKey = origKey;
+                currentBaseUrl = origUrl;
+                currentModel = origModel;
+            }
         }
         return result;
     }
