@@ -43,6 +43,21 @@
             </el-tag>
             <span class="ai-health-text">{{ aiHealthDetail }}</span>
           </div>
+          <el-divider content-position="left">服务配置</el-divider>
+          <div class="service-status-row">
+            <div class="service-status-item">
+              <span class="service-status-label">📧 邮件服务</span>
+              <el-tag :type="emailConfigured ? 'success' : 'danger'" size="small">
+                {{ emailConfigured ? '已配置' : '未配置' }}
+              </el-tag>
+            </div>
+            <div class="service-status-item">
+              <span class="service-status-label">💰 支付宝</span>
+              <el-tag :type="alipayConfigured ? 'success' : 'danger'" size="small">
+                {{ alipayConfigured ? '已配置' : '未配置' }}
+              </el-tag>
+            </div>
+          </div>
         </el-card>
 
         <el-card shadow="hover" class="log-card">
@@ -68,7 +83,7 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { User, Sunny, Plus, Box, ShoppingCart, Tickets, ArrowRight } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
-import { getDashboardStats, getReportList, getOperationLogs, getAiHealth } from '@/api/admin'
+import { getDashboardStats, getReportList, getOperationLogs, getAiHealth, getAlipayStatus, getEmailStatus } from '@/api/admin'
 import { operationLabel, moduleLabel, goodsStatusLabel, orderStatusLabel } from '@/utils/labels'
 import type { OperationLogVO, PageQueryParams } from '@/types'
 
@@ -90,6 +105,8 @@ const todoItems = ref([
 const recentLogs = ref<OperationLogVO[]>([])
 const aiHealthStatus = ref('UP')
 const aiHealthDetail = ref('')
+const emailConfigured = ref(false)
+const alipayConfigured = ref(false)
 const goodsChartRef = ref<HTMLElement>()
 const orderChartRef = ref<HTMLElement>()
 let goodsChart: echarts.ECharts | null = null
@@ -197,12 +214,23 @@ const loadAiHealth = async () => {
   } catch { aiHealthStatus.value = 'UNKNOWN'; aiHealthDetail.value = '无法获取' }
 }
 
+const loadServiceStatus = async () => {
+  try {
+    const mail = await getEmailStatus()
+    emailConfigured.value = !!mail?.configured
+  } catch { emailConfigured.value = false }
+  try {
+    const alipay = await getAlipayStatus()
+    alipayConfigured.value = !!alipay?.configured
+  } catch { alipayConfigured.value = false }
+}
+
 const handleResize = () => {
   goodsChart?.resize()
   orderChart?.resize()
 }
 
-onMounted(() => { loadStats(); loadRecentLogs(); loadAiHealth(); window.addEventListener('resize', handleResize) })
+onMounted(() => { loadStats(); loadRecentLogs(); loadAiHealth(); loadServiceStatus(); window.addEventListener('resize', handleResize) })
 onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeEventListener('resize', handleResize) })
 </script>
 
@@ -272,6 +300,9 @@ onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeE
 .todo-label { font-size: 13px; font-weight: 500; }
 .ai-health { display: flex; align-items: center; gap: 8px; }
 .ai-health-text { font-size: 13px; color: var(--admin-text-secondary); }
+.service-status-row { display: flex; gap: 24px; }
+.service-status-item { display: flex; align-items: center; gap: 8px; }
+.service-status-label { font-size: 13px; color: var(--admin-text-secondary); }
 
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(16px); }

@@ -94,8 +94,10 @@ public class AdminController {
     private FundLogMapper fundLogMapper;
 
     @Autowired
-
     private NotificationService notificationService;
+
+    @Autowired
+    private com.campustrade.service.EmailService emailService;
 
     @ApiOperation("获取当前管理员信息")
     @GetMapping("/info")
@@ -318,6 +320,18 @@ public class AdminController {
         status.put("appId", appId != null && !appId.isEmpty() ? "已配置" : "未配置");
         status.put("privateKey", privateKey != null && !privateKey.isEmpty() ? "已配置" : "未配置");
         status.put("alipayPublicKey", alipayPublicKey != null && !alipayPublicKey.isEmpty() ? "已配置" : "未配置");
+        return Result.success(status);
+    }
+
+    @ApiOperation("获取邮件服务配置状态")
+    @GetMapping("/email-status")
+    public Result<Map<String, Object>> getEmailStatus() {
+        Map<String, Object> status = new HashMap<>();
+        status.put("configured", emailService.isConfigured());
+        status.put("host", systemConfigService.getConfigValue("mail.host"));
+        status.put("port", systemConfigService.getConfigValue("mail.port"));
+        status.put("username", systemConfigService.getConfigValue("mail.username"));
+        status.put("from", systemConfigService.getConfigValue("mail.from"));
         return Result.success(status);
     }
 

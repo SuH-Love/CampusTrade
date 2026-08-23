@@ -156,6 +156,9 @@ export const updateSystemConfig = (configs: SystemConfigVO[]) =>
 export const getAlipayStatus = () =>
   request.get<never, Record<string, unknown>>('/admin/alipay-status')
 
+export const getEmailStatus = () =>
+  request.get<never, Record<string, unknown>>('/admin/email-status')
+
 export const getFundLogList = (params: PageQueryParams & { type?: string; orderId?: number }) =>
   request.get<never, PageResult<FundLogVO>>('/admin/fund-log', { params })
 

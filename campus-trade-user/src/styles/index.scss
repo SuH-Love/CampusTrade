@@ -246,7 +246,7 @@ a:hover { color: var(--primary-dark); }
 .dark .el-collapse-item__wrap { background: var(--bg-card) !important; border-bottom-color: var(--border) !important; }
 .dark .el-collapse-item__content { color: var(--text-primary) !important; }
 .dark .el-popconfirm__main { color: var(--text-primary) !important; }
-.dark .el-tooltip__trigger { outline: none; }
+.el-tooltip__trigger { outline: none; }
 .dark .el-image-viewer__mask { background: rgba(0,0,0,0.8) !important; }
 .dark .el-image-viewer__btn { background: var(--bg-hover) !important; color: var(--text-primary) !important; }
 .dark .el-tag--info { --el-tag-bg-color: var(--bg-hover) !important; --el-tag-border-color: var(--border) !important; --el-tag-text-color: var(--text-secondary) !important; }
