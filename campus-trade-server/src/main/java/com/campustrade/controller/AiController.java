@@ -124,7 +124,7 @@ public class AiController {
         String userMessage = request.getMessage().trim();
 
         String faqContext = faqVectorService.buildContext(userMessage);
-        String prompt = systemPrompt;
+        String prompt = systemPrompt + buildDateHint();
         if (!faqContext.isEmpty()) {
             prompt = prompt + "\n\n" + faqContext;
         }
@@ -254,7 +254,7 @@ public class AiController {
         }
 
         String faqContext = faqVectorService.buildContext(userMessage);
-        String prompt = systemPrompt;
+        String prompt = systemPrompt + buildDateHint();
         if (!faqContext.isEmpty()) {
             prompt = prompt + "\n\n" + faqContext;
         }
@@ -687,5 +687,14 @@ public class AiController {
             return faqContext.substring(answerStart + 3).trim();
         }
         return "AI助手暂时不可用，请稍后再试。";
+    }
+
+    private String buildDateHint() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        String[] weekNames = {"一", "二", "三", "四", "五", "六", "日"};
+        String weekName = weekNames[today.getDayOfWeek().getValue() - 1];
+        return "\n\n当前日期：" + today + "（星期" + weekName + "）。" +
+               "当用户提到'昨天'、'前天'、'近7天'等相对日期时，请根据当前日期计算具体日期，" +
+               "并传给工具的startDate/endDate参数（格式yyyy-MM-dd）。";
     }
 }
