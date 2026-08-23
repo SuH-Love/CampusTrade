@@ -125,11 +125,13 @@ public class AiToolService {
         List<Map<String, Object>> base = new ArrayList<>();
 
         base.add(tool("get_order_status",
-            "查询当前用户的订单列表。可查买家订单（我买的）或卖家订单（我卖出的）。当用户询问'我的订单'、'购买记录'、'卖出记录'、'我卖出的商品'、'销售情况'、'物流状态'时调用。不传orderId时返回订单列表。",
+            "查询当前用户的订单列表。可查买家订单（我买的）或卖家订单（我卖出的）。支持按日期过滤（如今日、昨天、近7天）。当用户询问'我的订单'、'购买记录'、'卖出记录'、'昨天买了几件'、'今天订单'、'销售情况'、'物流状态'时调用。不传orderId时返回订单列表。",
             props(
                 "orderId", prop("integer", "订单数字ID（可选）。仅当用户提到数字ID时传入。"),
                 "role", propEnum("string", "查询角色：buyer=我买的订单，seller=我卖出的订单。默认buyer。", Arrays.asList("buyer", "seller")),
-                "status", propEnum("string", "订单状态过滤（可选）", Arrays.asList("PENDING_PAY", "PAID", "SHIPPED", "COMPLETED", "CANCELLED")))));
+                "status", propEnum("string", "订单状态过滤（可选）", Arrays.asList("PENDING_PAY", "PAID", "SHIPPED", "COMPLETED", "CANCELLED")),
+                "startDate", prop("string", "起始日期（可选，格式yyyy-MM-dd）"),
+                "endDate", prop("string", "结束日期（可选，格式yyyy-MM-dd）"))));
 
         base.add(tool("get_order_by_no",
             "按订单号查询特定订单的详细信息。当用户提到具体订单号（如CT开头的长字符串）时调用。",
@@ -402,6 +404,8 @@ public class AiToolService {
 
         String role = arguments.get("role") != null ? arguments.get("role").toString() : "buyer";
         String status = arguments.get("status") != null ? arguments.get("status").toString() : null;
+        String startDate = arguments.get("startDate") != null ? arguments.get("startDate").toString() : null;
+        String endDate = arguments.get("endDate") != null ? arguments.get("endDate").toString() : null;
         boolean isSeller = "seller".equalsIgnoreCase(role);
 
         List<Order> orders;
@@ -409,26 +413,31 @@ public class AiToolService {
         Long completedCount;
 
         if (isSeller) {
-            orders = orderMapper.selectBySellerId(userId, status, 0, 10);
-            totalCount = orderMapper.selectCountBySellerId(userId, null);
-            Long c1 = orderMapper.selectCountBySellerId(userId, "COMPLETED");
-            Long c2 = orderMapper.selectCountBySellerId(userId, "FINISHED");
+            orders = orderMapper.selectBySellerId(userId, status, 0, 20, startDate, endDate);
+            totalCount = orderMapper.selectCountBySellerId(userId, null, startDate, endDate);
+            Long c1 = orderMapper.selectCountBySellerId(userId, "COMPLETED", startDate, endDate);
+            Long c2 = orderMapper.selectCountBySellerId(userId, "FINISHED", startDate, endDate);
             completedCount = (c1 != null ? c1 : 0) + (c2 != null ? c2 : 0);
         } else {
-            orders = orderMapper.selectByBuyerId(userId, status, 0, 10);
-            totalCount = orderMapper.selectCountByBuyerId(userId, null);
-            Long c1 = orderMapper.selectCountByBuyerId(userId, "COMPLETED");
-            Long c2 = orderMapper.selectCountByBuyerId(userId, "FINISHED");
+            orders = orderMapper.selectByBuyerId(userId, status, 0, 20, startDate, endDate);
+            totalCount = orderMapper.selectCountByBuyerId(userId, null, startDate, endDate);
+            Long c1 = orderMapper.selectCountByBuyerId(userId, "COMPLETED", startDate, endDate);
+            Long c2 = orderMapper.selectCountByBuyerId(userId, "FINISHED", startDate, endDate);
             completedCount = (c1 != null ? c1 : 0) + (c2 != null ? c2 : 0);
         }
 
         String roleDesc = isSeller ? "卖家订单（您卖出的）" : "买家订单（您购买的）";
+        String dateScope = "";
+        if (startDate != null && endDate != null) dateScope = String.format("（%s至%s）", startDate, endDate);
+        else if (startDate != null) dateScope = String.format("（从%s起）", startDate);
+        else if (endDate != null) dateScope = String.format("（截至%s）", endDate);
+
         if (orders == null || orders.isEmpty()) {
-            return String.format("您还没有%s。总计: 0笔，已完成: 0笔", roleDesc);
+            return String.format("您还没有%s%s。总计: 0笔，已完成: 0笔", roleDesc, dateScope);
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("您的%s统计：总计%d笔，已完成%d笔\n", roleDesc, totalCount, completedCount));
+        sb.append(String.format("您的%s%s统计：总计%d笔，已完成%d笔\n", roleDesc, dateScope, totalCount, completedCount));
         if (status != null) {
             sb.append(String.format("（已按状态'%s'过滤）\n", STATUS_MAP.getOrDefault(status, status)));
         }
@@ -436,6 +445,7 @@ public class AiToolService {
         for (Order order : orders) {
             sb.append(formatOrder(order, userId)).append("\n");
         }
+        if (totalCount != null && totalCount > 20) sb.append("（仅显示前20条）\n");
         return sb.toString();
     }
 
@@ -498,8 +508,8 @@ public class AiToolService {
         Long todayGoodsCount = goodsMapper.selectCount(null, null, null, null, null, userId, true);
         Long pendingAuditCount = goodsMapper.selectCountByStatusAndUserId("PENDING_AUDIT", userId);
         Long rejectedCount = goodsMapper.selectCountByStatusAndUserId("REJECTED", userId);
-        Long buyerOrderCount = orderMapper.selectCountByBuyerId(userId, null);
-        Long sellerOrderCount = orderMapper.selectCountBySellerId(userId, null);
+        Long buyerOrderCount = orderMapper.selectCountByBuyerId(userId, null, null, null);
+        Long sellerOrderCount = orderMapper.selectCountBySellerId(userId, null, null, null);
         BigDecimal totalSpent = orderMapper.selectTotalSpentByBuyerId(userId);
         BigDecimal totalEarned = orderMapper.selectTotalEarnedBySellerId(userId);
 

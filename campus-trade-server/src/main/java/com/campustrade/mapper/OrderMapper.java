@@ -14,14 +14,18 @@ public interface OrderMapper {
     Order selectByOrderNo(@Param("orderNo") String orderNo);
 
     List<Order> selectByBuyerId(@Param("buyerId") Long buyerId, @Param("status") String status,
-                                @Param("offset") Integer offset, @Param("pageSize") Integer pageSize);
+                                @Param("offset") Integer offset, @Param("pageSize") Integer pageSize,
+                                @Param("startDate") String startDate, @Param("endDate") String endDate);
 
-    Long selectCountByBuyerId(@Param("buyerId") Long buyerId, @Param("status") String status);
+    Long selectCountByBuyerId(@Param("buyerId") Long buyerId, @Param("status") String status,
+                              @Param("startDate") String startDate, @Param("endDate") String endDate);
 
     List<Order> selectBySellerId(@Param("sellerId") Long sellerId, @Param("status") String status,
-                                 @Param("offset") Integer offset, @Param("pageSize") Integer pageSize);
+                                 @Param("offset") Integer offset, @Param("pageSize") Integer pageSize,
+                                 @Param("startDate") String startDate, @Param("endDate") String endDate);
 
-    Long selectCountBySellerId(@Param("sellerId") Long sellerId, @Param("status") String status);
+    Long selectCountBySellerId(@Param("sellerId") Long sellerId, @Param("status") String status,
+                               @Param("startDate") String startDate, @Param("endDate") String endDate);
 
     int insert(Order order);
 

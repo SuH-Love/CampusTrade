@@ -38,23 +38,31 @@
     <select id="selectByBuyerId" resultMap="BaseResultMap">
         SELECT * FROM t_order WHERE buyer_id = #{buyerId} AND deleted = 0
         <if test="status != null and status != ''">AND status = #{status}</if>
+        <if test="startDate != null and startDate != ''">AND create_time &gt;= #{startDate}</if>
+        <if test="endDate != null and endDate != ''">AND create_time &lt;= CONCAT(#{endDate}, ' 23:59:59')</if>
         ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
     </select>
 
     <select id="selectCountByBuyerId" resultType="java.lang.Long">
         SELECT COUNT(*) FROM t_order WHERE buyer_id = #{buyerId} AND deleted = 0
         <if test="status != null and status != ''">AND status = #{status}</if>
+        <if test="startDate != null and startDate != ''">AND create_time &gt;= #{startDate}</if>
+        <if test="endDate != null and endDate != ''">AND create_time &lt;= CONCAT(#{endDate}, ' 23:59:59')</if>
     </select>
 
     <select id="selectBySellerId" resultMap="BaseResultMap">
         SELECT * FROM t_order WHERE seller_id = #{sellerId} AND deleted = 0
         <if test="status != null and status != ''">AND status = #{status}</if>
+        <if test="startDate != null and startDate != ''">AND create_time &gt;= #{startDate}</if>
+        <if test="endDate != null and endDate != ''">AND create_time &lt;= CONCAT(#{endDate}, ' 23:59:59')</if>
         ORDER BY create_time DESC LIMIT #{offset}, #{pageSize}
     </select>
 
     <select id="selectCountBySellerId" resultType="java.lang.Long">
         SELECT COUNT(*) FROM t_order WHERE seller_id = #{sellerId} AND deleted = 0
         <if test="status != null and status != ''">AND status = #{status}</if>
+        <if test="startDate != null and startDate != ''">AND create_time &gt;= #{startDate}</if>
+        <if test="endDate != null and endDate != ''">AND create_time &lt;= CONCAT(#{endDate}, ' 23:59:59')</if>
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">

@@ -75,9 +75,9 @@ public class UserController {
         Map<String, Object> stats = new HashMap<>();
         stats.put("publishedGoods", goodsMapper.selectCount(null, null, null, null, null, userId, null));
         stats.put("onlineGoods", goodsMapper.selectCount(null, null, null, null, "ONLINE", userId, null));
-        stats.put("buyerOrders", orderMapper.selectCountByBuyerId(userId, null));
-        stats.put("sellerOrders", orderMapper.selectCountBySellerId(userId, "FINISHED"));
-        stats.put("finishedOrders", orderMapper.selectCountByBuyerId(userId, "FINISHED"));
+        stats.put("buyerOrders", orderMapper.selectCountByBuyerId(userId, null, null, null));
+        stats.put("sellerOrders", orderMapper.selectCountBySellerId(userId, "FINISHED", null, null));
+        stats.put("finishedOrders", orderMapper.selectCountByBuyerId(userId, "FINISHED", null, null));
         stats.put("totalSpent", orderMapper.selectTotalSpentByBuyerId(userId));
         stats.put("totalEarned", orderMapper.selectTotalEarnedBySellerId(userId));
         return Result.success(stats);

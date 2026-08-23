@@ -537,8 +537,8 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public Result<PageResult<OrderVO>> listBuyerOrders(Long buyerId, String status, Integer pageNum, Integer pageSize) {
         int offset = (pageNum - 1) * pageSize;
-        List<Order> list = orderMapper.selectByBuyerId(buyerId, status, offset, pageSize);
-        Long total = orderMapper.selectCountByBuyerId(buyerId, status);
+        List<Order> list = orderMapper.selectByBuyerId(buyerId, status, offset, pageSize, null, null);
+        Long total = orderMapper.selectCountByBuyerId(buyerId, status, null, null);
         List<OrderVO> vos = toVOList(list);
         return Result.success(new PageResult<>(vos, total));
     }
@@ -546,8 +546,8 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public Result<PageResult<OrderVO>> listSellerOrders(Long sellerId, String status, Integer pageNum, Integer pageSize) {
         int offset = (pageNum - 1) * pageSize;
-        List<Order> list = orderMapper.selectBySellerId(sellerId, status, offset, pageSize);
-        Long total = orderMapper.selectCountBySellerId(sellerId, status);
+        List<Order> list = orderMapper.selectBySellerId(sellerId, status, offset, pageSize, null, null);
+        Long total = orderMapper.selectCountBySellerId(sellerId, status, null, null);
         List<OrderVO> vos = toVOList(list);
         return Result.success(new PageResult<>(vos, total));
     }
