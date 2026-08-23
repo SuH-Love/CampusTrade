@@ -410,7 +410,16 @@ public class AiController {
 
                 final String fnName = toolName;
                 final Map<String, Object> fnArgs = args;
-                toolFutures.add(java.util.concurrent.CompletableFuture.supplyAsync(() -> aiToolService.executeTool(fnName, fnArgs)));
+                final org.springframework.security.core.context.SecurityContext secCtx =
+                    org.springframework.security.core.context.SecurityContextHolder.getContext();
+                toolFutures.add(java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                    org.springframework.security.core.context.SecurityContextHolder.setContext(secCtx);
+                    try {
+                        return aiToolService.executeTool(fnName, fnArgs);
+                    } finally {
+                        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+                    }
+                }));
             }
 
             for (int j = 0; j < toolCalls.size(); j++) {
