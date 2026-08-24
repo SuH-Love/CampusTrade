@@ -5,7 +5,7 @@
       <section class="hero">
         <el-carousel :height="heroHeight" :interval="5000" arrow="hover">
           <el-carousel-item v-for="banner in allBanners" :key="banner.id || 'default'">
-            <div class="hero-slide" :class="{ 'hero-default': !banner.id }" :style="banner.id ? { background: banner.imageUrl ? 'transparent' : (banner.bgColor || 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)') } : {}">
+            <div class="hero-slide" :class="{ 'hero-default': !banner.id }" :style="banner.id ? { background: banner.imageUrl ? 'transparent' : (banner.bgColor || 'linear-gradient(135deg, #0EA5E9 0%, #14B8A6 100%)') } : {}">
               <img v-if="banner.imageUrl" :src="banner.imageUrl" class="hero-bg-img" alt="轮播图" />
               <div class="hero-overlay" v-if="banner.imageUrl" />
               <template v-if="!banner.id">
@@ -323,7 +323,7 @@ onMounted(() => {
 })
 
 const particleStyle = (i: number) => {
-  const colors = ['#818cf8', '#a78bfa', '#c4b5fd', '#60a5fa', '#93c5fd']
+  const colors = ['#38BDF8', '#2DD4BF', '#5EEAD4', '#38BDF8', '#7DD3FC']
   const sizes = [4, 6, 8, 10, 12]
   return {
     left: `${(i * 13 + 7) % 100}%`,
@@ -360,7 +360,7 @@ onUnmounted(() => {
 .hero-announce-bar {
   display: flex; align-items: center; gap: 4px;
   padding: 10px 24px;
-  background: linear-gradient(90deg, rgba(99,102,241,0.08), rgba(139,92,246,0.06), rgba(99,102,241,0.08));
+  background: linear-gradient(90deg, rgba(14, 165, 233, 0.08), rgba(20, 184, 166, 0.06), rgba(14, 165, 233, 0.08));
 
   border-top: 1px solid var(--border-light);
   color: var(--text-secondary);
@@ -393,7 +393,7 @@ onUnmounted(() => {
 }
 
 .hero-default {
-  background: linear-gradient(135deg, #4338ca 0%, #6366f1 20%, #3b82f6 40%, #8b5cf6 60%, #7c3aed 80%, #4f46e5 100%);
+  background: linear-gradient(135deg, #0369A1 0%, #0EA5E9 20%, #0EA5E9 40%, #14B8A6 60%, #0D9488 80%, #0284C7 100%);
   background-size: 300% 300%;
   animation: heroBgShift 16s ease-in-out infinite;
 }
@@ -406,7 +406,7 @@ onUnmounted(() => {
 }
 
 :deep(.dark) .hero-default, .dark .hero-default {
-  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 20%, #1e3a5f 40%, #4c1d95 60%, #312e81 80%, #1e1b4b 100%);
+  background: linear-gradient(135deg, #082F49 0%, #0C4A6E 20%, #0C4A6E 40%, #134E4A 60%, #0C4A6E 80%, #082F49 100%);
   background-size: 300% 300%;
 }
 
@@ -499,7 +499,7 @@ onUnmounted(() => {
 }
 .search-wrap { position: relative; }
 
-.search-input { :deep(.el-input__wrapper) { border-radius: 24px; box-shadow: 0 2px 16px rgba(99,102,241,0.12); padding: 6px 20px; transition: var(--transition); } :deep(.el-input__wrapper:hover) { box-shadow: 0 4px 20px rgba(99,102,241,0.2); } }
+.search-input { :deep(.el-input__wrapper) { border-radius: 24px; box-shadow: 0 2px 16px rgba(14, 165, 233, 0.12); padding: 6px 20px; transition: var(--transition); } :deep(.el-input__wrapper:hover) { box-shadow: 0 4px 20px rgba(14, 165, 233, 0.2); } }
 .search-dropdown {
   position: absolute; top: 100%; left: 0; right: 0;
   background: var(--color-dropdown-bg); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);
@@ -543,7 +543,7 @@ onUnmounted(() => {
   color: var(--text-secondary); cursor: pointer; transition: all 0.2s ease;
   white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
   &:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-1px); }
-  &.active { background: var(--primary-gradient); color: #fff; border-color: transparent; box-shadow: 0 2px 12px rgba(99, 102, 241, 0.3); .chip-count { background: rgba(255,255,255,0.3); color: #fff; } }
+  &.active { background: var(--primary-gradient); color: #fff; border-color: transparent; box-shadow: 0 2px 12px rgba(14, 165, 233, 0.3); .chip-count { background: rgba(255,255,255,0.3); color: #fff; } }
   &.cat-empty { opacity: 0.5; }
 }
 .chip-count { font-size: 11px; background: var(--bg-hover); color: var(--text-muted); padding: 1px 6px; border-radius: 10px; font-weight: 600; }
@@ -554,7 +554,7 @@ onUnmounted(() => {
   background: var(--color-chip-bg); border: 1px solid var(--color-chip-border);
   color: var(--text-secondary); cursor: pointer; flex-shrink: 0;
   transition: all 0.3s ease;
-  &:hover { background: var(--primary); color: #fff; border-color: var(--primary); transform: translateX(6px); box-shadow: 0 2px 12px rgba(99,102,241,0.3); }
+  &:hover { background: var(--primary); color: #fff; border-color: var(--primary); transform: translateX(6px); box-shadow: 0 2px 12px rgba(14, 165, 233, 0.3); }
   &.collapse { &:hover { transform: translateX(-6px); } }
 }
 

@@ -12,7 +12,7 @@
         <el-table-column label="预览" min-width="160">
           <template #default="{ row }">
             <div v-if="row.imageUrl" class="banner-preview"><img :src="row.imageUrl" /></div>
-            <div v-else class="banner-preview" :style="{ background: row.bgColor || '#6366f1' }"><span class="preview-text">{{ row.title }}</span></div>
+            <div v-else class="banner-preview" :style="{ background: row.bgColor || '#0EA5E9' }"><span class="preview-text">{{ row.title }}</span></div>
           </template>
         </el-table-column>
         <el-table-column prop="title" label="标题" min-width="150" />
@@ -70,7 +70,7 @@
         <el-form-item label="背景色">
           <div class="color-field">
             <el-color-picker v-model="solidBgColor" show-alpha @change="onSolidBgChange" />
-            <el-input v-model="form.bgColor" placeholder="如 #6366f1 或 linear-gradient(135deg, #6366f1, #8b5cf6)" class="color-input" />
+            <el-input v-model="form.bgColor" placeholder="如 #0EA5E9 或 linear-gradient(135deg, #0EA5E9, #14B8A6)" class="color-input" />
             <el-dropdown trigger="click" @command="onGradientBg">
               <el-button size="small">渐变预设</el-button>
               <template #dropdown>
@@ -141,12 +141,12 @@ const solidBgColor = ref('')
 const solidBtnColor = ref('')
 
 const gradientPresets = [
-  { label: '靛蓝紫', value: 'linear-gradient(135deg, #6366f1, #8b5cf6)' },
-  { label: '蓝青', value: 'linear-gradient(135deg, #3b82f6, #06b6d4)' },
+  { label: '海蓝青', value: 'linear-gradient(135deg, #0EA5E9, #14B8A6)' },
+  { label: '天蓝青', value: 'linear-gradient(135deg, #0EA5E9, #06b6d4)' },
   { label: '橙红', value: 'linear-gradient(135deg, #f59e0b, #ef4444)' },
-  { label: '粉紫', value: 'linear-gradient(135deg, #ec4899, #8b5cf6)' },
+  { label: '碧波青', value: 'linear-gradient(135deg, #0891B2, #14B8A6)' },
   { label: '绿青', value: 'linear-gradient(135deg, #10b981, #06b6d4)' },
-  { label: '深蓝紫', value: 'linear-gradient(135deg, #1e3a8a, #7c3aed)' },
+  { label: '深海青', value: 'linear-gradient(135deg, #0C4A6E, #0D9488)' },
   { label: '暖橙', value: 'linear-gradient(135deg, #f97316, #eab308)' },
   { label: '玫瑰金', value: 'linear-gradient(135deg, #f43f5e, #d97706)' },
 ]

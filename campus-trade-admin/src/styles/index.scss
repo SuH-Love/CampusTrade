@@ -1,10 +1,10 @@
 :root {
-  --admin-primary: #6366f1;
-  --admin-primary-light: #818cf8;
-  --admin-primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  --admin-sidebar-bg: #1e1b4b;
-  --admin-sidebar-active: #312e81;
-  --admin-sidebar-text: #c7d2fe;
+  --admin-primary: #0EA5E9;
+  --admin-primary-light: #38BDF8;
+  --admin-primary-gradient: linear-gradient(135deg, #0EA5E9 0%, #14B8A6 100%);
+  --admin-sidebar-bg: #082F49;
+  --admin-sidebar-active: #0C4A6E;
+  --admin-sidebar-text: #BAE6FD;
   --admin-sidebar-active-text: #ffffff;
   --admin-header-bg: rgba(255, 255, 255, 0.85);
   --admin-bg: #f0f2f5;
@@ -62,7 +62,7 @@ body {
 .el-input__wrapper { border-radius: 8px !important; transition: var(--admin-transition) !important; }
 .el-table { border-radius: var(--admin-radius) !important; overflow: hidden; }
 .el-table th.el-table__cell { background: var(--admin-primary) !important; font-weight: 600 !important; color: #fff !important; }
-.el-table tr:hover > td { background: rgba(99, 102, 241, 0.06) !important; }
+.el-table tr:hover > td { background: rgba(14, 165, 233, 0.06) !important; }
 .el-tag { border-radius: 6px !important; font-weight: 500 !important; }
 .el-pagination {
   justify-content: center !important;

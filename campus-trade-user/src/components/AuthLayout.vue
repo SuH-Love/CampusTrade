@@ -39,7 +39,7 @@ defineProps<{
 
 .auth-left {
   flex: 1;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa);
+  background: linear-gradient(135deg, #0EA5E9, #14B8A6, #2DD4BF);
   padding: 60px 48px;
   display: flex;
   flex-direction: column;

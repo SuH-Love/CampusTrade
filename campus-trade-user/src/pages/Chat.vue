@@ -982,8 +982,8 @@ onUnmounted(() => {
 }
 .self-bubble {
   background: var(--primary-gradient); color: #fff; border-radius: 16px 16px 4px 16px;
-  box-shadow: 0 2px 8px rgba(99,102,241,0.25);
-  &:hover { box-shadow: 0 4px 12px rgba(99,102,241,0.35); }
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);
+  &:hover { box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35); }
 }
 .recall-bubble { background: var(--bg-hover) !important; color: var(--text-muted) !important; font-size: 12px !important; font-style: italic; display: flex; align-items: center; border-radius: 12px !important; box-shadow: none !important; }
 .img-bubble { padding: 4px !important; background: transparent !important; box-shadow: none !important; }

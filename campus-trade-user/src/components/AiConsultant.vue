@@ -622,10 +622,10 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   cursor: grab;
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.35);
   transition: transform 0.2s, box-shadow 0.2s;
   user-select: none;
-  &:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(99, 102, 241, 0.45); }
+  &:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(14, 165, 233, 0.45); }
   &:active { cursor: grabbing; transform: scale(0.95); }
   &.snapping { transition: transform 0.2s, box-shadow 0.2s, left 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 }
@@ -694,7 +694,7 @@ onUnmounted(() => {
 .msg-bubble {
   padding: 10px 14px; border-radius: 14px;
   font-size: 14px; line-height: 1.6; word-break: break-word;
-  .user & { background: var(--primary-gradient); color: #fff; border-bottom-right-radius: 4px; box-shadow: 0 2px 8px rgba(99,102,241,0.25); }
+  .user & { background: var(--primary-gradient); color: #fff; border-bottom-right-radius: 4px; box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25); }
   .assistant & { background: var(--bg-card); color: var(--text-primary); border-bottom-left-radius: 4px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-light); }
 }
 

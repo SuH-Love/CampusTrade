@@ -88,11 +88,11 @@ import { operationLabel, moduleLabel, goodsStatusLabel, orderStatusLabel } from 
 import type { OperationLogVO, PageQueryParams } from '@/types'
 
 const stats = ref([
-  { label: '用户总数', value: 0, icon: User, color: '#6366f1' },
+  { label: '用户总数', value: 0, icon: User, color: '#0EA5E9' },
   { label: '今日日活', value: 0, icon: Sunny, color: '#f59e0b' },
   { label: '今日新增', value: 0, icon: Plus, color: '#10b981' },
-  { label: '商品总数', value: 0, icon: Box, color: '#8b5cf6' },
-  { label: '订单总数', value: 0, icon: ShoppingCart, color: '#3b82f6' },
+  { label: '商品总数', value: 0, icon: Box, color: '#14B8A6' },
+  { label: '订单总数', value: 0, icon: ShoppingCart, color: '#0EA5E9' },
   { label: '今日订单', value: 0, icon: Tickets, color: '#06b6d4' }
 ])
 
@@ -128,7 +128,7 @@ const initGoodsChart = () => {
       label: { show: true, formatter: '{b}\n{c}' },
       data: goodsStatusData.value
     }],
-    color: ['#10b981', '#f59e0b', '#6366f1', '#ef4444', '#8b5cf6', '#64748b']
+    color: ['#10b981', '#f59e0b', '#0EA5E9', '#ef4444', '#14B8A6', '#64748b']
   })
 }
 
@@ -145,7 +145,7 @@ const initOrderChart = () => {
       label: { show: true, formatter: '{b}\n{c}' },
       data: orderStatusData.value
     }],
-    color: ['#f59e0b', '#6366f1', '#10b981', '#8b5cf6', '#22c55e', '#64748b', '#ef4444']
+    color: ['#f59e0b', '#0EA5E9', '#10b981', '#14B8A6', '#22c55e', '#64748b', '#ef4444']
   })
 }
 
@@ -292,7 +292,7 @@ onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeE
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 0; border-bottom: 1px solid var(--admin-border);
   cursor: pointer; transition: all 0.2s;
-  &:hover { padding-left: 8px; background: rgba(99,102,241,0.03); border-radius: 6px; }
+  &:hover { padding-left: 8px; background: rgba(14, 165, 233, 0.03); border-radius: 6px; }
   &:last-child { border-bottom: none; }
 }
 

@@ -62,7 +62,7 @@ onUnmounted(() => {
 .not-found-content { text-align: center; max-width: 480px; }
 .not-found-code {
   font-size: 140px; font-weight: 900; line-height: 1;
-  background: linear-gradient(135deg, var(--primary, #6366f1), #a78bfa, #f472b6);
+  background: linear-gradient(135deg, var(--primary, #0EA5E9), #2DD4BF, #06B6D4);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text; opacity: 0.6;
   animation: float 3s ease-in-out infinite;
@@ -79,7 +79,7 @@ onUnmounted(() => {
 .trail { display: flex; gap: 6px; }
 .dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: var(--primary, #6366f1); opacity: 0.4;
+  background: var(--primary, #0EA5E9); opacity: 0.4;
   animation: pulse 1.5s ease-in-out infinite;
 }
 @keyframes bob {

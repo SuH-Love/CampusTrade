@@ -191,7 +191,7 @@ onMounted(loadList)
   transition: var(--transition);
   display: flex; justify-content: space-between; align-items: center;
   &:hover { border-color: var(--primary-light); box-shadow: var(--shadow-sm); }
-  &.default { border-color: var(--primary); background: linear-gradient(135deg, rgba(99,102,241,0.04), rgba(139,92,246,0.04)); }
+  &.default { border-color: var(--primary); background: linear-gradient(135deg, rgba(14, 165, 233, 0.04), rgba(20, 184, 166, 0.04)); }
 }
 .address-body { flex: 1; }
 .address-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }

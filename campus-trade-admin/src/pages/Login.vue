@@ -68,7 +68,7 @@ const handleLogin = async () => {
 .admin-login-page {
   min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+  background: linear-gradient(135deg, #082F49 0%, #0C4A6E 50%, #0369A1 100%);
 }
 
 .login-card {

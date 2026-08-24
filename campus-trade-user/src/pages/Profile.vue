@@ -68,7 +68,7 @@
         <template v-if="isSelf">
           <div class="stats-grid">
             <div class="stat-card" @click="$router.push('/my-goods')">
-              <div class="stat-icon stat-icon--purple">📦</div>
+              <div class="stat-icon stat-icon--sky">📦</div>
               <div class="stat-value">{{ stats.publishedGoods }}</div>
               <div class="stat-label">发布商品</div>
             </div>
@@ -83,7 +83,7 @@
               <div class="stat-label">我的订单</div>
             </div>
             <div class="stat-card" @click="$router.push('/order?tab=seller')">
-              <div class="stat-icon stat-icon--violet">💰</div>
+              <div class="stat-icon stat-icon--teal">💰</div>
               <div class="stat-value">{{ stats.sellerOrders }}</div>
               <div class="stat-label">出售商品</div>
             </div>
@@ -498,7 +498,7 @@ onMounted(() => {
   background-image: radial-gradient(circle at 30% 40%, rgba(255,255,255,0.12) 0%, transparent 60%);
 }
 .dark .profile-banner {
-  background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 50%, #5b21b6 100%);
+  background: linear-gradient(135deg, #134E4A 0%, #0F766E 50%, #115E59 100%);
 }
 .profile-name { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; margin-top: 4px; }
 .stats-grid {
@@ -515,12 +515,12 @@ onMounted(() => {
   width: 44px; height: 44px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
   font-size: 20px; margin: 0 auto 10px;
-  &--purple { background: linear-gradient(135deg, #6366f1, #818cf8); }
+  &--sky { background: linear-gradient(135deg, #0EA5E9, #38BDF8); }
   &--green { background: linear-gradient(135deg, #10b981, #34d399); }
   &--amber { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
-  &--violet { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+  &--teal { background: linear-gradient(135deg, #14B8A6, #2DD4BF); }
   &--cyan { background: linear-gradient(135deg, #06b6d4, #22d3ee); }
-  &--pink { background: linear-gradient(135deg, #ec4899, #f472b6); }
+  &--pink { background: linear-gradient(135deg, #0891B2, #06B6D4); }
   &--red { background: linear-gradient(135deg, #ef4444, #f87171); }
   &--emerald { background: linear-gradient(135deg, #22c55e, #4ade80); }
 }

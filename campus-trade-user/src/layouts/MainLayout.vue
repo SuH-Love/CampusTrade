@@ -270,7 +270,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   color: #fff;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
 }
 
 .logo-text {
@@ -307,7 +307,7 @@ onUnmounted(() => {
     color: var(--primary);
     background: var(--primary-lighter);
     font-weight: 600;
-    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.15);
+    box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.15);
   }
   &.nav-link--user { color: var(--text-muted); }
   &.nav-link--user:hover { color: var(--primary); }

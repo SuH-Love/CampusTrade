@@ -287,7 +287,7 @@ onMounted(loadData)
     transform: translateY(-2px);
   }
   &--selected {
-    background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.04));
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.06), rgba(20, 184, 166, 0.04));
     border-color: var(--primary-light);
   }
 }
@@ -325,8 +325,8 @@ onMounted(loadData)
   cursor: pointer; transition: all 0.25s;
   &:hover { border-color: var(--primary-light); transform: translateX(2px); }
   &--active {
-    border-color: var(--primary); background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.04));
-    box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+    border-color: var(--primary); background: linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(20, 184, 166, 0.04));
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
   }
 }
 .address-name { font-size: 14px; font-weight: 500; }

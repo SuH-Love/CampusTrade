@@ -116,7 +116,7 @@ onMounted(loadData)
   border-radius: 14px;
   margin-bottom: 12px;
   transition: var(--transition-fast);
-  &:hover { background: var(--bg-hover); border-color: var(--primary-lighter); box-shadow: 0 4px 16px rgba(99, 102, 241, 0.08); }
+  &:hover { background: var(--bg-hover); border-color: var(--primary-lighter); box-shadow: 0 4px 16px rgba(14, 165, 233, 0.08); }
 }
 .following-avatar { cursor: pointer; flex-shrink: 0; }
 .following-info { flex: 1; cursor: pointer; min-width: 0; }

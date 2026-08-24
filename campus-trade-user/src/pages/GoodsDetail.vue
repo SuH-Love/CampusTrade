@@ -388,13 +388,13 @@ onUnmounted(() => { window.removeEventListener('resize', onResize) })
   position: fixed;
   top: 0; left: 0; right: 0;
   height: 300px;
-  background: radial-gradient(ellipse at top, rgba(99,102,241,0.08) 0%, transparent 70%);
+  background: radial-gradient(ellipse at top, rgba(14, 165, 233, 0.08) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
 
 .dark .goods-detail::before {
-  background: radial-gradient(ellipse at top, rgba(129,140,248,0.06) 0%, transparent 70%);
+  background: radial-gradient(ellipse at top, rgba(56, 189, 248, 0.06) 0%, transparent 70%);
 }
 
 .goods-detail-skeleton {
@@ -491,7 +491,7 @@ onUnmounted(() => { window.removeEventListener('resize', onResize) })
     content: '';
     position: absolute; top: 0; left: 0; right: 0;
     height: 60%;
-    background: linear-gradient(180deg, rgba(99,102,241,0.08), transparent);
+    background: linear-gradient(180deg, rgba(14, 165, 233, 0.08), transparent);
     pointer-events: none; z-index: 1;
   }
 }

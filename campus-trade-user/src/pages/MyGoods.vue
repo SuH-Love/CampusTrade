@@ -282,7 +282,7 @@ onUnmounted(() => { window.removeEventListener('resize', handleResize) })
 .suggestion-row { display: flex; gap: 12px; align-items: flex-start; }
 .suggestion-label { font-size: 13px; color: var(--text-muted); min-width: 70px; flex-shrink: 0; }
 .suggestion-value { font-size: 14px; font-weight: 500; }
-.suggestion-new { color: var(--primary, #6366f1); }
+.suggestion-new { color: var(--primary, #0EA5E9); }
 
 .goods-cards { display: flex; flex-direction: column; gap: 12px; }
 .goods-card {

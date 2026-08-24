@@ -176,7 +176,7 @@ const handleConfirm = () => {
   cursor: pointer;
   transition: all 0.2s;
   &:hover { border-color: var(--primary); }
-  &.active { border-color: var(--primary); background: rgba(99,102,241,0.06); }
+  &.active { border-color: var(--primary); background: rgba(14, 165, 233, 0.06); }
 }
 
 .buy-address-name { font-size: 14px; font-weight: 500; }

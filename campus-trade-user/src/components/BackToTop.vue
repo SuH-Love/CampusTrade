@@ -40,12 +40,12 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.35);
   transition: var(--transition);
   z-index: 999;
   &:hover {
     transform: translateY(-3px);
-    box-shadow: 0 6px 24px rgba(99, 102, 241, 0.45);
+    box-shadow: 0 6px 24px rgba(14, 165, 233, 0.45);
   }
 }
 
