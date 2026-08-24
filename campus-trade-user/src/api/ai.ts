@@ -41,10 +41,12 @@ export function chatStream(
   onSession?: (sessionId: string) => void,
   onThinking?: (status: string) => void,
   onToolCall?: (toolCall: { id: string; name: string; args: Record<string, unknown> }) => void,
-  onToolResult?: (toolResult: { id: string; name: string; result: string }) => void
+  onToolResult?: (toolResult: { id: string; name: string; result: string }) => void,
+  regenerate?: boolean
 ): { close: () => void } {
   const params = new URLSearchParams({ message })
   if (sessionId) params.append('sessionId', sessionId)
+  if (regenerate) params.append('regenerate', 'true')
 
   const token = localStorage.getItem('token') || ''
   const controller = new AbortController()

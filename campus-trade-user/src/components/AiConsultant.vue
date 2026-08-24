@@ -102,7 +102,7 @@
                   <div v-if="msg.thinkingStatus" class="thinking-status">
                     <el-icon :size="12" class="is-loading"><Loading /></el-icon>
                     {{ msg.thinkingStatus }}
-                    <span v-if="msg.thinkingStartTime" class="thinking-timer">{{ (Date.now() - msg.thinkingStartTime) / 1000 | 1 }}s</span>
+                    <span v-if="msg.thinkingStartTime" class="thinking-timer">{{ ((msg.thinkingEndTime || Date.now()) - msg.thinkingStartTime) / 1000 | 1 }}s</span>
                   </div>
                   <div v-if="msg.error" class="msg-error">
                     <span>{{ msg.content }}</span>
@@ -388,7 +388,7 @@ const loadHistory = async () => {
         role: msg.role as 'user' | 'assistant',
         content: msg.content,
         toolCalls: [],
-        timestamp: msg.timestamp || 0,
+        timestamp: msg.timestamp || Date.now(),
         thinkingSteps: []
       }))
       if (history.length > 10) {
@@ -428,7 +428,7 @@ const stopThinkingTimer = () => {
   }
 }
 
-const startAIStream = async (text: string, assistantMsg: Message) => {
+const startAIStream = async (text: string, assistantMsg: Message, regenerate = false) => {
   if (!aiEnabled.value) {
     assistantMsg.loading = false
     assistantMsg.streaming = false
@@ -542,7 +542,7 @@ const startAIStream = async (text: string, assistantMsg: Message) => {
         if (lastStep) lastStep.endTime = Date.now()
         scrollToBottom()
       }
-    )
+    , regenerate)
   } catch (e) {
     assistantMsg.loading = false
     assistantMsg.streaming = false
@@ -645,7 +645,7 @@ const regenerateAnswer = (idx: number) => {
   loading.value = true
   startThinkingTimer()
   scrollToBottom()
-  startAIStream(userMsg.content, assistantMsg)
+  startAIStream(userMsg.content, assistantMsg, true)
 }
 
 const handleClear = async () => {

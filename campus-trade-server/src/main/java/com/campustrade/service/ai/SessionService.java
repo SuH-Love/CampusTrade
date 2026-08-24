@@ -97,6 +97,19 @@ public class SessionService {
         stringRedisTemplate.delete(SESSION_PREFIX + sessionId);
     }
 
+    public void removeLastMessagePair(String sessionId) {
+        String key = SESSION_PREFIX + sessionId;
+        try {
+            Long size = stringRedisTemplate.opsForList().size(key);
+            if (size != null && size >= 2) {
+                stringRedisTemplate.opsForList().rightPop(key);
+                stringRedisTemplate.opsForList().rightPop(key);
+            }
+        } catch (Exception e) {
+            log.error("Failed to remove last message pair: sessionId={}", sessionId, e);
+        }
+    }
+
     public void saveSummary(String sessionId, String summary) {
         String key = SESSION_PREFIX + sessionId;
         try {

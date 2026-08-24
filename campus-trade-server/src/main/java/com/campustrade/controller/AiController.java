@@ -215,6 +215,7 @@ public class AiController {
     @GetMapping(value = "/chat/stream", produces = "text/event-stream;charset=UTF-8")
     public SseEmitter chatStream(@RequestParam String message,
                                  @RequestParam(required = false) String sessionId,
+                                 @RequestParam(required = false, defaultValue = "false") boolean regenerate,
                                  HttpServletRequest httpRequest,
                                  HttpServletResponse httpResponse) {
         httpResponse.setHeader("X-Accel-Buffering", "no");
@@ -230,6 +231,11 @@ public class AiController {
 
         String sid = sessionId != null && !sessionId.isEmpty() ? sessionId : UUID.randomUUID().toString();
         String userMessage = message.trim();
+
+
+        if (regenerate && sessionId != null && !sessionId.isEmpty()) {
+            sessionService.removeLastMessagePair(sid);
+        }
 
         Long rateUserId = SecurityUtil.getCurrentUserId();
         String rateKey = rateUserId != null ? "user:" + rateUserId : "ip:" + httpRequest.getRemoteAddr();
