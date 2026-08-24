@@ -136,7 +136,7 @@
       @touchstart="onDragStart"
     >
       <el-badge :is-dot="hasNewBadge" type="primary">
-        <el-icon :size="28"><ChatDotRound /></el-icon>
+        <span class="ai-fab-text">AI</span>
       </el-badge>
     </div>
   </div>
@@ -628,6 +628,18 @@ onUnmounted(() => {
   &:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(14, 165, 233, 0.45); }
   &:active { cursor: grabbing; transform: scale(0.95); }
   &.snapping { transition: transform 0.2s, box-shadow 0.2s, left 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+}
+
+.ai-fab-text {
+  font-size: 20px;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: -1px;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  font-family: 'Inter', -apple-system, sans-serif;
+  line-height: 1;
+  user-select: none;
 }
 
 .chat-panel {

@@ -119,7 +119,7 @@
           <div class="bento-card bento-hot-card">
             <div class="bento-card-head">
               <h3><span class="title-emoji">🔥</span> <span class="bento-title-gradient">热门商品</span></h3>
-              <el-button text type="primary" @click="$router.push('/goods')">查看更多 <el-icon class="more-arrow"><ArrowRight /></el-icon></el-button>
+              <el-button class="more-btn" size="small" @click="$router.push('/goods')">查看更多 <el-icon class="more-arrow"><ArrowRight /></el-icon></el-button>
             </div>
             <div class="goods-grid" v-if="hotGoods.length > 0">
               <div v-for="(item, idx) in hotGoods" :key="item.id" class="goods-grid-item" :style="idx < 8 ? { animationDelay: `${idx * 0.05}s` } : undefined">
@@ -132,7 +132,7 @@
           <div class="bento-card bento-new-card">
             <div class="bento-card-head">
               <h3><span class="title-emoji">✨</span> <span class="bento-title-gradient">最新上架</span></h3>
-              <el-button text type="primary" @click="$router.push('/goods')">查看更多 <el-icon class="more-arrow"><ArrowRight /></el-icon></el-button>
+              <el-button class="more-btn" size="small" @click="$router.push('/goods')">查看更多 <el-icon class="more-arrow"><ArrowRight /></el-icon></el-button>
             </div>
             <div class="goods-grid" v-if="recommendGoods.length > 0">
               <div v-for="(item, idx) in recommendGoods" :key="item.id" class="goods-grid-item" :style="idx < 8 ? { animationDelay: `${idx * 0.05}s` } : undefined">
@@ -527,6 +527,22 @@ onUnmounted(() => {
 .title-emoji { font-size: 20px; }
 .more-arrow { margin-left: 2px; transition: transform 0.2s ease; }
 :deep(.el-button:hover .more-arrow) { transform: translateX(3px); }
+
+.more-btn {
+  background: var(--primary-gradient) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  border-radius: 20px !important;
+  padding: 6px 16px !important;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);
+  transition: var(--transition) !important;
+  &:hover {
+    opacity: 0.92;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
+  }
+}
 
 .category-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; }
 .category-expanded-strip {
