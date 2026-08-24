@@ -75,6 +75,7 @@ services:
     ports:
       - "${SERVER_PORT:-8080}:8080"
     environment:
+      TZ: Asia/Shanghai
       MYSQL_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-campus_trade}?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
       MYSQL_USERNAME: ${MYSQL_USERNAME:-root}
       MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}

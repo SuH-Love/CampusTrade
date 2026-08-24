@@ -428,40 +428,7 @@ const stopThinkingTimer = () => {
   }
 }
 
-const sendMessage = async (text: string, skipUserMessage = false) => {
-  const trimmed = text.trim()
-  if (!trimmed || loading.value) return
-
-  if (!sessionId.value) {
-    const userSid = getUserSessionId()
-    if (userSid) {
-      sessionId.value = userSid
-      localStorage.setItem(STORAGE_KEY, userSid)
-    }
-  }
-
-  lastUserMessage = trimmed
-  if (!skipUserMessage) {
-    inputText.value = ''
-    if (textareaRef.value) textareaRef.value.style.height = 'auto'
-    messages.value.push({ id: ++msgIdCounter, role: 'user', content: trimmed, toolCalls: [], timestamp: Date.now(), thinkingSteps: [] })
-  }
-  const assistantMsg: Message = {
-    id: ++msgIdCounter,
-    role: 'assistant',
-    content: '',
-    loading: true,
-    streaming: true,
-    toolCalls: [],
-    timestamp: Date.now(),
-    thinkingStartTime: Date.now(),
-    thinkingSteps: []
-  }
-  messages.value.push(assistantMsg)
-  loading.value = true
-  startThinkingTimer()
-  scrollToBottom()
-
+const startAIStream = async (text: string, assistantMsg: Message) => {
   if (!aiEnabled.value) {
     assistantMsg.loading = false
     assistantMsg.streaming = false
@@ -504,7 +471,7 @@ const sendMessage = async (text: string, skipUserMessage = false) => {
     }
 
     streamHandle = chatStream(
-      trimmed,
+      text,
       sessionId.value,
       (token: string) => {
         tokenQueue.push(token)
@@ -587,6 +554,41 @@ const sendMessage = async (text: string, skipUserMessage = false) => {
   }
 }
 
+const sendMessage = async (text: string) => {
+  const trimmed = text.trim()
+  if (!trimmed || loading.value) return
+
+  if (!sessionId.value) {
+    const userSid = getUserSessionId()
+    if (userSid) {
+      sessionId.value = userSid
+      localStorage.setItem(STORAGE_KEY, userSid)
+    }
+  }
+
+  lastUserMessage = trimmed
+  inputText.value = ''
+  if (textareaRef.value) textareaRef.value.style.height = 'auto'
+  messages.value.push({ id: ++msgIdCounter, role: 'user', content: trimmed, toolCalls: [], timestamp: Date.now(), thinkingSteps: [] })
+  const assistantMsg: Message = {
+    id: ++msgIdCounter,
+    role: 'assistant',
+    content: '',
+    loading: true,
+    streaming: true,
+    toolCalls: [],
+    timestamp: Date.now(),
+    thinkingStartTime: Date.now(),
+    thinkingSteps: []
+  }
+  messages.value.push(assistantMsg)
+  loading.value = true
+  startThinkingTimer()
+  scrollToBottom()
+
+  await startAIStream(trimmed, assistantMsg)
+}
+
 const handleSend = () => sendMessage(inputText.value)
 const handleEnter = (e: KeyboardEvent) => {
   if (e.shiftKey) return
@@ -627,7 +629,23 @@ const regenerateAnswer = (idx: number) => {
   const userMsg = messages.value[idx - 1]
   if (!userMsg || userMsg.role !== 'user') return
   messages.value.splice(idx)
-  sendMessage(userMsg.content, true)
+  lastUserMessage = userMsg.content
+  const assistantMsg: Message = {
+    id: ++msgIdCounter,
+    role: 'assistant',
+    content: '',
+    loading: true,
+    streaming: true,
+    toolCalls: [],
+    timestamp: Date.now(),
+    thinkingStartTime: Date.now(),
+    thinkingSteps: []
+  }
+  messages.value.push(assistantMsg)
+  loading.value = true
+  startThinkingTimer()
+  scrollToBottom()
+  startAIStream(userMsg.content, assistantMsg)
 }
 
 const handleClear = async () => {
