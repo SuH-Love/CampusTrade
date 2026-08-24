@@ -90,8 +90,8 @@ CampusTrade/
 │       │   ├── mapper/                    # 26个Mapper接口
 │       │   ├── mq/                        # 6个Consumer(含死信)
 │       │   ├── security/                  # JWT/认证/过滤器
-│       │   ├── service/                   # 13个Service接口
-│       │   ├── service/impl/              # 13个ServiceImpl
+│       │   ├── service/                   # 14个Service接口(含EmailService)
+│       │   ├── service/impl/              # 14个ServiceImpl(含EmailServiceImpl)
 │       │   ├── service/ai/                # AI助手服务(5个)
 │       │   │   ├── AiToolService.java     # 36个Function Calling工具
 │       │   │   ├── AiSafetyService.java   # Prompt Injection检测+敏感值脱敏
@@ -191,6 +191,8 @@ CampusTrade/
 | t_payment_config | 卖家收款配置表 | 同上 |
 | t_fund_log | 资金流水表 | 同上 |
 | t_system_config | 系统配置表 | 同上 |
+| t_ai_audit_log | AI工具审计日志表 | 同上 |
+| t_faq | FAQ常见问题表 | 同上 |
 
 ### 索引规范
 
@@ -205,7 +207,7 @@ CampusTrade/
 - 3个角色: ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_USER
 - 11个权限: goods:create/update/delete/audit, user:ban, report:review, log:view 等
 - 6个商品分类: 数码电子, 书籍教材, 生活用品, 服装鞋帽, 运动户外, 其他
-- 1个超级管理员账号: admin / admin123（密码通过 `.env` 的 `ADMIN_PASSWORD` 配置）
+- 1个超级管理员账号: admin / Admin123!@（密码通过 `.env` 的 `ADMIN_PASSWORD` 配置）
 - 10个示例商品（首页展示用）
 - 2个横幅广告
 
@@ -264,6 +266,17 @@ CampusTrade/
 | 应用私钥 | alipay.private_key | AES加密存储，管理端显示掩码 `******` |
 | 支付宝公钥 | alipay.alipay_public_key | AES加密存储 |
 | 支付模式 | alipay.mode | `sandbox` / `simulation` |
+
+**邮件服务配置**（同样通过管理端后台设置）：
+
+| 配置项 | system_config key | 说明 |
+|--------|-------------------|------|
+| SMTP服务器 | mail.host | 默认 `smtp.qq.com` |
+| SMTP端口 | mail.port | 默认 `465`（SSL）或 `587`（TLS） |
+| 发件人邮箱 | mail.username | QQ邮箱地址 |
+| 邮箱授权码 | mail.password | AES加密存储，管理端显示掩码 `******` |
+| 发件人名称 | mail.from | 默认 `CampusTrade校园贸易` |
+| 启用SSL | mail.ssl | 默认 `true` |
 
 **降级机制**: 未配置支付宝参数时，自动降级为模拟支付（直接标记支付成功）。
 
@@ -525,7 +538,21 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 
 > **热更新**：管理员可通过 `PUT /api/ai/config` 修改API Key/Model/Base URL，修改后立即生效并持久化到Redis，重启后自动加载。
 
-### 5.7 Agent Loop机制
+### 5.7 平台知识注入
+
+系统提示词中注入平台规则知识，确保AI回答准确反映最新平台规则：
+
+| 知识域 | 内容 |
+|--------|------|
+| 密码与账号 | 注册要求（强密码）、重置密码流程（邮箱验证码非手机号）、登录锁定规则 |
+| 商品发布与审核 | 完整审核流程（草稿→AI审核→管理员复审→上架）、编辑重新审核、7种状态说明 |
+| 订单交易 | 订单流程、支付宝担保交易、配送方式、评价 |
+| 其他功能 | 收藏、购物车、关注、聊天、举报、通知 |
+| 回答要求 | 依据知识准确回答，不编造功能；涉及具体数据时调用工具获取 |
+
+**实现**：`AiController.buildPlatformKnowledge()` 方法在每次对话时动态拼接到系统提示词，与 `buildDateHint()` 一起注入。
+
+### 5.8 Agent Loop机制
 
 当用户消息命中工具关键词时，进入Agent Loop（多轮工具调用）：
 
@@ -539,7 +566,7 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 
 **SSE超时**：300秒（Agent Loop最多3轮×60s=180s，预留缓冲）
 
-### 5.8 前端组件
+### 5.9 前端组件
 
 | 组件 | 文件 | 说明 |
 |------|------|------|
@@ -560,10 +587,12 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 
 | 模块 | 方法 | 路径 | 说明 | 鉴权 | 限流 |
 |------|------|------|------|------|------|
-| **认证** | POST | /api/auth/register | 注册 | 否 | @RateLimit |
+| **认证** | POST | /api/auth/register | 注册(邮箱必填) | 否 | @RateLimit |
 | | POST | /api/auth/login | 登录 | 否 | @RateLimit |
 | | POST | /api/auth/logout | 退出 | 是 | - |
 | | POST | /api/auth/refresh | 刷新Token | 否 | - |
+| | POST | /api/auth/send-code | 发送重置密码验证码(邮箱) | 否 | @RateLimit |
+| | POST | /api/auth/reset-password | 重置密码(邮箱验证码) | 否 | @RateLimit |
 | **用户** | GET | /api/user/info | 获取个人信息 | 是 | - |
 | | PUT | /api/user/info | 修改个人信息 | 是 | - |
 | | PUT | /api/user/password | 修改密码 | 是 | - |
@@ -665,6 +694,7 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 | | GET | /api/admin/system-config | 系统配置列表 | ADMIN+ | - |
 | | PUT | /api/admin/system-config | 批量更新系统配置 | ADMIN+ | - |
 | | GET | /api/admin/alipay-status | 支付宝配置状态 | ADMIN+ | - |
+| | GET | /api/admin/email-status | 邮件服务配置状态 | ADMIN+ | - |
 | | GET | /api/admin/export/users | 导出用户CSV | ADMIN+ | - |
 | | GET | /api/admin/export/orders | 导出订单CSV | ADMIN+ | - |
 | **AI助手** | GET | /api/ai/chat/stream | SSE流式对话 | 是 | @RateLimit |
@@ -723,6 +753,7 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 | `token:user:{id}` | 用户AccessToken | 7200s | `RedisConstant.TOKEN_PREFIX` |
 | `refresh:user:{id}` | 刷新Token | 604800s | `RedisConstant.REFRESH_PREFIX` |
 | `captcha:{uuid}` | 验证码 | 300s | `RedisConstant.CAPTCHA_PREFIX` |
+| `captcha:reset:{username}` | 重置密码验证码(邮箱) | 300s | `RedisConstant.CAPTCHA_PREFIX` |
 | `goods:detail:{id}` | 商品详情缓存 | 1800s | `RedisConstant.GOODS_DETAIL_PREFIX` |
 | `goods:list:{page}` | 商品列表缓存 | 600s | `RedisConstant.GOODS_LIST_PREFIX` |
 | `goods:hot` | 热门商品缓存 | 600s | `RedisConstant.GOODS_HOT_KEY` |
@@ -837,6 +868,8 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 | /api/auth/login | 登录 |
 | /api/auth/register | 注册 |
 | /api/auth/refresh | 刷新Token |
+| /api/auth/send-code | 发送重置密码验证码 |
+| /api/auth/reset-password | 重置密码 |
 | /api/auth/captcha | 验证码 |
 | GET /api/goods/** | 商品浏览 |
 | GET /api/goods-category/**, GET /api/category/** | 分类浏览 |
@@ -897,6 +930,7 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 | Token失效 | TOKEN_EXPIRED |
 | 频率限制 | RATE_LIMIT |
 | 恶意输入 | MALICIOUS_INPUT |
+| 密码重置 | PASSWORD_RESET |
 
 ---
 
@@ -966,7 +1000,7 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 | `SPRING_PROFILES_ACTIVE` | prod | Spring Profile |
 | `JAVA_OPTS` | -Xms512m -Xmx1024m -XX:+UseG1GC | JVM参数 |
 | `SERVER_PORT` | 8080 | 后端服务端口 |
-| `ADMIN_PASSWORD` | admin123 | **[必改]** 超级管理员初始密码 |
+| `ADMIN_PASSWORD` | Admin123!@ | **[必改]** 超级管理员初始密码 |
 | `FRONTEND_USER_PORT` | 80 | 用户端Nginx端口 |
 | `FRONTEND_ADMIN_PORT` | 81 | 管理端Nginx端口 |
 
@@ -1038,6 +1072,8 @@ management.endpoints.web.exposure.include: health,info,metrics
 ```
 
 > **支付宝配置**: 不在 yml 中配置，通过管理端"系统配置"页面设置，存储在 `t_system_config` 表中，私钥/公钥 AES 加密。
+
+> **邮件服务配置**: 同样通过管理端"系统配置"页面设置，存储在 `t_system_config` 表中，授权码 AES 加密。配置项包括：`mail.host`(smtp.qq.com)、`mail.port`(465)、`mail.username`(发件人邮箱)、`mail.password`(授权码)、`mail.from`(发件人名称)、`mail.ssl`(true)。保存后热更新生效，无需重启。
 
 ### 11.5 HikariCP 连接池配置对比
 
@@ -1280,6 +1316,8 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 - [ ] 数据库定期备份
 - [ ] AI_API_KEY 已替换为有效的DeepSeek API密钥
 - [ ] AI限流配置合理（默认20次/分钟）
+- [ ] 邮件服务已配置（QQ邮箱SMTP+授权码），重置密码功能可用
+- [ ] 支付宝沙箱参数已配置（或确认使用模拟支付模式）
 
 ---
 
@@ -1434,7 +1472,24 @@ mvn test
 | 退款失败 | 卖家未配置收款信息 | 卖家需在"收款管理"页面配置支付宝账号 |
 | 资金流水缺失 | t_fund_log表异常 | safeInsertFundLog()已保护，检查后端日志 |
 
-### 16.5 日志排查
+### 16.5 邮件服务问题
+
+| 现象 | 可能原因 | 解决方案 |
+|------|----------|----------|
+| 重置密码提示"邮件服务未配置" | 未在管理端配置邮件服务 | 管理端"系统配置"→"邮件服务配置"填写QQ邮箱和授权码 |
+| 验证码邮件未收到 | 授权码错误/邮箱地址错误 | 检查QQ邮箱POP3/SMTP服务是否开启，授权码是否正确 |
+| 邮件发送超时 | 网络问题/SMTP端口错误 | 检查端口(465 SSL/587 TLS)，确认服务器可访问smtp.qq.com |
+| 用户无邮箱无法重置密码 | 注册时未绑定邮箱 | 建议用户联系管理员协助重置密码 |
+
+### 16.6 商品审核问题
+
+| 现象 | 可能原因 | 解决方案 |
+|------|----------|----------|
+| 商品提交审核后一直待审核 | AI服务不可用/MQ消息积压 | 检查AI服务状态和RabbitMQ队列 |
+| AI审核结果不准确 | AI模型判断误差 | 管理员可在后台"商品审核"页面复审改判 |
+| 编辑商品后未重新审核 | 预期行为：编辑已审核商品自动重置为待审核 | 确认商品状态已变为PENDING |
+
+### 16.7 日志排查
 
 ```bash
 # 后端日志
@@ -1450,7 +1505,7 @@ docker exec -it campus-trade-redis redis-cli -a ${REDIS_PASSWORD} info clients
 # 访问 http://localhost:15672 → Queues Tab
 ```
 
-### 16.6 AI助手问题
+### 16.8 AI助手问题
 
 | 现象 | 可能原因 | 解决方案 |
 |------|----------|----------|

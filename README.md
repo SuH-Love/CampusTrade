@@ -10,9 +10,10 @@
 - Redis (缓存/限流/Token黑名单/幂等/分布式锁/AI会话/AI限流)
 - RabbitMQ (异步消息/死信队列/手动ACK)
 - 支付宝沙箱 SDK (担保交易/退款)
+- Spring Boot Mail (QQ邮箱验证码服务)
 - Log4j2 (五文件日志/traceId全链路追踪)
 - Knife4j (API文档)
-- DeepSeek API (AI助手/Function Calling/多轮对话)
+- DeepSeek API (AI助手/Function Calling/多轮对话/平台知识注入)
 - SseEmitter (AI流式输出/Server-Sent Events)
 
 ### 前端
@@ -33,7 +34,7 @@ CampusTrade/
 ├── campus-trade-server/          # 后端 Spring Boot
 │   └── src/main/java/com/campustrade/
 │       ├── controller/           # REST Controller (含AiController)
-│       ├── service/impl/         # 业务逻辑
+│       ├── service/impl/         # 业务逻辑 (含EmailServiceImpl邮件服务)
 │       ├── service/ai/           # AI助手服务(AI工具/安全/限流/会话/DeepSeek客户端)
 │       ├── mapper/               # MyBatis Mapper
 │       ├── entity/               # 实体类
@@ -41,7 +42,7 @@ CampusTrade/
 │       ├── vo/                   # 响应VO
 │       ├── config/               # 配置类(安全/支付宝/Redis等)
 │       ├── security/             # JWT/XSS/安全头
-│       ├── mq/                   # RabbitMQ消费者
+│       ├── mq/                   # RabbitMQ消费者(含商品AI审核)
 │       ├── aspect/               # AOP操作日志切面
 │       └── util/                 # 工具类(含SecurityUtil)
 ├── campus-trade-user/            # 用户端 Vue3
@@ -100,7 +101,7 @@ docker-compose up -d --build
 
 | 角色 | 用户名 | 密码 |
 |------|--------|------|
-| 超级管理员 | admin | admin123 |
+| 超级管理员 | admin | Admin123!@ |
 | 普通用户 | user | user123 |
 
 管理端访问：`http://<host>:81`
@@ -110,7 +111,12 @@ docker-compose up -d --build
 
 ### 用户端
 - 用户注册/登录/JWT双Token认证/实名认证
+  - 注册需绑定邮箱（必填），用于重置密码
+  - 密码强度校验：8-50位，含大小写字母/数字/特殊字符中三种
+- 密码重置：邮箱验证码三步向导（验证身份→输入验证码→设置新密码）
 - 商品发布/编辑/审核/上下架/收藏/搜索
+  - 商品审核流程：提交审核 → AI自动审核 → 通过/拒绝 → 用户手动上架
+  - 已审核/已上架/已下架商品编辑后需重新提交AI审核
 - 购物车/订单创建/支付/发货/收货/退款/评价
 - 支付宝沙箱担保交易（平台担保→确认收货→结算给卖家）
 - 卖家收款配置管理
@@ -120,18 +126,22 @@ docker-compose up -d --build
 - 暗色模式/响应式布局
 
 ### 管理端
-- 仪表盘（数据统计/图表）
+- 仪表盘（数据统计/图表/AI服务状态/邮件服务状态/支付宝配置状态）
 - 用户管理（封禁/解封/导出CSV）
-- 商品审核/分类管理
+- 商品审核/复审（可对AI审核结果改判）/分类管理
 - 订单管理（退款审批/导出CSV）
 - 举报审核
 - 横幅管理/公告管理
-- 系统配置（支付宝沙箱密钥配置/AI助手API配置）
+- 系统配置
+  - 支付宝沙箱密钥配置（AES加密存储）
+  - AI助手API配置（热更新）
+  - 邮件服务配置（QQ邮箱SMTP/授权码，AES加密存储，热更新）
 - 资金流水查看
 - 操作日志/安全日志
 
 ### AI助手
 - **DeepSeek大模型接入**：基于DeepSeek-V4-Flash，支持多轮对话和上下文记忆
+- **平台知识注入**：系统提示词中注入平台规则知识（密码重置流程、商品审核流程、商品状态说明等），确保AI回答准确反映最新平台规则
 - **SSE流式输出**：Server-Sent Events实时推送，逐字显示AI回复
 - **Function Calling工具调用**：36个内置工具，AI可自主调用业务接口
   - 商品工具：搜索/详情/发布/上下架/收藏/推荐(8个)
@@ -150,9 +160,23 @@ docker-compose up -d --build
   - 原子化会话操作（Redis pipeline保证数据一致性）
   - 会话隔离（每用户独立会话空间）
 - **限流防护**：Lua脚本原子化限流（每用户每分钟20次）
+- **工具执行审计日志**：AI工具调用记录持久化到t_ai_audit_log表
+- **FAQ持久化**：常见问题向量化存储（t_faq表），语义匹配自动回复
+- **多模型fallback**：API调用失败时自动切换备用模型
 - **Markdown渲染**：前端markdown-it渲染AI回复（代码块/列表/表格/链接等）
 - **工具调用展示**：折叠卡片展示工具名/参数/结果
 - **中断/重试**：支持发送中中断请求、错误时重试
+
+### 商品审核系统
+- **AI自动审核**：用户提交审核后，MQ异步触发AI审核，检查内容合规性（违禁品/欺诈/绕过平台等）
+- **管理员复审**：管理员可在后台对AI审核结果进行复审改判（将通过改为拒绝，或将拒绝改为通过），防止AI误判
+- **编辑重新审核**：已审核通过/已上架/已下架的商品编辑后自动重置为待审核状态，重新触发AI审核
+- **商品状态**：草稿(DRAFT)→待审核(PENDING)→已审核(APPROVED)/审核拒绝(REJECTED)→在售(ONLINE)→已下架(OFFLINE)/已售出(SOLD)
+
+### 邮件服务
+- **QQ邮箱验证码**：重置密码时通过QQ邮箱SMTP发送6位验证码，验证码5分钟有效
+- **管理后台热更新配置**：SMTP主机/端口/发件人邮箱/授权码/发件人名称/SSL开关，保存后立即生效无需重启
+- **安全存储**：邮箱授权码AES加密存储于t_system_config表，管理端显示掩码
 
 ### 支付系统
 - **担保交易模式**：买家支付 → 平台担保冻结 → 买家确认收货 → 平台结算给卖家
@@ -164,7 +188,7 @@ docker-compose up -d --build
 
 ## 安全特性
 
-- BCrypt密码加密 + 密码强度校验
+- BCrypt密码加密 + 密码强度校验（8-50位，含大小写/数字/特殊字符三种）
 - JWT accessToken(2h) + refreshToken(7d) + Token黑名单
 - RBAC三角色权限(ROLE_USER/ROLE_ADMIN/ROLE_SUPER_ADMIN)
 - 账号锁定(5次失败锁定30分钟)
@@ -173,7 +197,9 @@ docker-compose up -d --build
 - 安全响应头(CSP/X-Frame-Options/HSTS等)
 - CORS可配置白名单
 - 操作日志 + 安全日志全记录
-- AI安全：Prompt Injection检测(中英文) + 敏感值脱敏 + 管理员工具过滤 + AI配置修改鉴权 + Lua原子限流
+- 邮箱验证码重置密码（验证码Redis存储，5分钟TTL）
+- 系统配置AES加密存储（支付宝密钥/邮件授权码）
+- AI安全：Prompt Injection检测(中英文) + 敏感值脱敏 + 管理员工具过滤 + AI配置修改鉴权 + Lua原子限流 + 平台知识注入
 
 ## API文档
 
