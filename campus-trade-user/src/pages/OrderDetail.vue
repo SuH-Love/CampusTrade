@@ -101,7 +101,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { getOrderDetail, payOrder, createPayment, cancelOrder, shipOrder, finishOrder, refundOrder, approveRefund, rejectRefund, rateOrder, modifyPrice, getOrderFundLogs } from '@/api/order'
 import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -111,6 +111,7 @@ import { orderStatusLabel, orderStatusTagType } from '@/utils/labels'
 import EmptyState from '@/components/EmptyState.vue'
 
 const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 const order = ref<OrderVO | null>(null)
 const loading = ref(false)
@@ -161,6 +162,9 @@ const loadData = async () => {
     try {
       fundLogs.value = await getOrderFundLogs(Number(route.params.id))
     } catch (e) { console.error(e) }
+  } catch (e) {
+    ElMessage.error('订单不存在或无法查看')
+    router.replace('/order')
   } finally {
     loading.value = false
   }

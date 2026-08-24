@@ -64,7 +64,8 @@ onMounted(async () => {
       stock: goods.stock
     }
   } catch {
-    ElMessage.error('商品信息加载失败')
+    ElMessage.error('商品不存在或已被删除')
+    router.replace('/my-goods')
   }
 })
 </script>

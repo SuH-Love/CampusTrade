@@ -235,6 +235,9 @@ const loadData = async () => {
       loadReviews()
       loadSimilarGoods()
     }
+  } catch (e) {
+    ElMessage.error('商品不存在或已被删除')
+    router.replace('/goods')
   } finally {
     pageLoading.value = false
   }

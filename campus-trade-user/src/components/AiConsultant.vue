@@ -622,24 +622,34 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   cursor: grab;
-  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.35);
+  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.35), inset 0 0 0 2px rgba(255, 255, 255, 0.15);
   transition: transform 0.2s, box-shadow 0.2s;
   user-select: none;
-  &:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(14, 165, 233, 0.45); }
+  animation: ai-pulse 3s ease-in-out infinite;
+  &:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(14, 165, 233, 0.45), inset 0 0 0 2px rgba(255, 255, 255, 0.25); animation: none; }
   &:active { cursor: grabbing; transform: scale(0.95); }
   &.snapping { transition: transform 0.2s, box-shadow 0.2s, left 0.3s cubic-bezier(0.4, 0, 0.2, 1), top 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 }
 
+@keyframes ai-pulse {
+  0%, 100% { box-shadow: 0 4px 20px rgba(14, 165, 233, 0.35), inset 0 0 0 2px rgba(255, 255, 255, 0.15); }
+  50% { box-shadow: 0 4px 28px rgba(14, 165, 233, 0.5), inset 0 0 0 2px rgba(255, 255, 255, 0.2); }
+}
+
 .ai-fab-text {
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 22px;
+  font-weight: 900;
   font-style: italic;
-  letter-spacing: -1px;
+  letter-spacing: -1.5px;
   color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), 0 0 12px rgba(255, 255, 255, 0.3);
   font-family: 'Inter', -apple-system, sans-serif;
   line-height: 1;
   user-select: none;
+  background: linear-gradient(135deg, #fff 0%, #E0F2FE 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .chat-panel {

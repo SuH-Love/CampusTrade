@@ -311,7 +311,12 @@ const verifyRules = {
 const loadOtherUser = async () => {
   const userId = Number(route.params.id)
   if (!userId) return
-  try { profileUser.value = await getUserPublicInfo(userId) } catch (e) { console.error(e) }
+  try { profileUser.value = await getUserPublicInfo(userId) } catch (e) {
+    console.error(e)
+    ElMessage.error('用户不存在')
+    router.replace('/')
+    return
+  }
   try { followCounts.value = await getFollowCounts(userId) } catch (e) { console.error(e) }
   try { avgRating.value = await getAverageRating(userId) } catch (e) { console.error(e) }
   if (userStore.token && !isSelf.value) {
