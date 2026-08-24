@@ -112,24 +112,19 @@
               </div>
               <div v-if="msg.content && !msg.loading && msg.timestamp" class="msg-footer">
                 <span class="msg-time">{{ formatTime(msg.timestamp) }}</span>
-                <el-button
-                  v-if="msg.role === 'assistant'"
-                  size="small"
-                  text
-                  class="copy-btn"
-                  @click="copyMessage(msg.content)"
-                >
-                  <el-icon :size="12"><CopyDocument /></el-icon>
-                </el-button>
-                <el-button
-                  v-if="msg.role === 'assistant' && !msg.error && idx > 0"
-                  size="small"
-                  text
-                  class="retry-btn"
-                  @click="regenerateAnswer(idx)"
-                >
-                  <el-icon :size="12"><RefreshRight /></el-icon>
-                </el-button>
+                <div v-if="msg.role === 'assistant'" class="msg-actions">
+                  <button class="action-btn" title="复制" @click="copyMessage(msg.content)">
+                    <el-icon :size="13"><CopyDocument /></el-icon>
+                  </button>
+                  <button
+                    v-if="!msg.error && idx > 0"
+                    class="action-btn"
+                    title="重新回答"
+                    @click="regenerateAnswer(idx)"
+                  >
+                    <el-icon :size="13"><RefreshRight /></el-icon>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -433,7 +428,7 @@ const stopThinkingTimer = () => {
   }
 }
 
-const sendMessage = async (text: string) => {
+const sendMessage = async (text: string, skipUserMessage = false) => {
   const trimmed = text.trim()
   if (!trimmed || loading.value) return
 
@@ -446,9 +441,11 @@ const sendMessage = async (text: string) => {
   }
 
   lastUserMessage = trimmed
-  inputText.value = ''
-  if (textareaRef.value) textareaRef.value.style.height = 'auto'
-  messages.value.push({ id: ++msgIdCounter, role: 'user', content: trimmed, toolCalls: [], timestamp: Date.now(), thinkingSteps: [] })
+  if (!skipUserMessage) {
+    inputText.value = ''
+    if (textareaRef.value) textareaRef.value.style.height = 'auto'
+    messages.value.push({ id: ++msgIdCounter, role: 'user', content: trimmed, toolCalls: [], timestamp: Date.now(), thinkingSteps: [] })
+  }
   const assistantMsg: Message = {
     id: ++msgIdCounter,
     role: 'assistant',
@@ -629,8 +626,8 @@ const regenerateAnswer = (idx: number) => {
   if (loading.value) return
   const userMsg = messages.value[idx - 1]
   if (!userMsg || userMsg.role !== 'user') return
-  messages.value.splice(idx - 1)
-  sendMessage(userMsg.content)
+  messages.value.splice(idx)
+  sendMessage(userMsg.content, true)
 }
 
 const handleClear = async () => {
@@ -894,23 +891,17 @@ onUnmounted(() => {
 .thinking-status { display: flex; align-items: center; gap: 4px; color: var(--text-secondary); font-size: 12px; margin-top: 4px; .is-loading { animation: rotating 1.5s linear infinite; } .thinking-timer { color: var(--primary); font-weight: 600; font-variant-numeric: tabular-nums; } }
 @keyframes rotating { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .msg-error { display: flex; align-items: center; gap: 8px; color: var(--danger); }
-.msg-footer { display: flex; align-items: center; gap: 2px; margin-top: 4px; padding: 0 4px; opacity: 0.55; }
+.msg-footer { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 0 4px; opacity: 0.55; }
 .msg-time { font-size: 11px; color: var(--text-secondary); }
-.copy-btn, .retry-btn {
-  padding: 2px !important;
-  min-height: auto;
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
-  color: var(--text-muted);
-  &:hover, &:focus {
-    border: none !important;
-    outline: none !important;
-    box-shadow: none !important;
-    background: transparent !important;
-    color: var(--primary);
-  }
+.msg-actions { display: flex; align-items: center; gap: 2px; }
+.action-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0;
+  border: none; outline: none; background: transparent;
+  color: var(--text-muted); cursor: pointer; border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+  &:hover { color: var(--primary); background: rgba(14, 165, 233, 0.08); }
+  &:active { transform: scale(0.92); }
 }
 .typing { display: inline-flex; gap: 4px; align-items: center; .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-secondary); animation: typing-bounce 1.4s infinite ease-in-out; &:nth-child(2) { animation-delay: 0.2s; } &:nth-child(3) { animation-delay: 0.4s; } } }
 @keyframes typing-bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
