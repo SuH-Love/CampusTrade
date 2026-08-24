@@ -1,18 +1,21 @@
 <template>
   <div class="ai-consultant">
     <transition name="slide-up">
-      <div v-if="visible" class="chat-panel">
+      <div v-if="visible" class="chat-panel" :class="{ expanded }">
         <div class="chat-header">
           <div class="header-info">
             <div class="avatar">
               <el-icon :size="20"><ChatDotRound /></el-icon>
             </div>
             <div class="header-text">
-              <span class="title">小校 AI助手</span>
+              <span class="title">小苏 AI助手</span>
               <span class="subtitle">{{ statusText }}</span>
             </div>
           </div>
           <div class="header-actions">
+            <el-tooltip :content="expanded ? '收起' : '放大'" placement="top">
+              <el-button :icon="expanded ? CopyDocument : FullScreen" circle size="small" @click="toggleExpand" />
+            </el-tooltip>
             <el-tooltip content="清空对话" placement="top">
               <el-button :icon="Delete" circle size="small" @click="handleClear" />
             </el-tooltip>
@@ -25,7 +28,7 @@
             <div class="welcome-icon">
               <el-icon :size="36"><ChatDotRound /></el-icon>
             </div>
-            <p class="welcome-title">你好，我是小校</p>
+            <p class="welcome-title">你好，我是小苏</p>
             <p class="welcome-desc">校园贸易平台AI助手，有什么可以帮你的吗？</p>
             <div class="suggestions">
               <el-button
@@ -38,13 +41,32 @@
             </div>
           </div>
 
-          <div v-for="msg in messages" :key="msg.id" :class="['msg-row', msg.role]">
+          <div v-for="(msg, idx) in messages" :key="msg.id" :class="['msg-row', msg.role]">
             <div class="msg-wrapper">
               <div class="msg-bubble">
                 <span v-if="msg.role === 'assistant' && msg.loading && !msg.content" class="typing">
                   <span class="dot"></span><span class="dot"></span><span class="dot"></span>
                 </span>
                 <template v-else>
+                  <div v-if="msg.thinkingSteps.length > 0" class="thinking-process">
+                    <div class="thinking-header" @click="msg.thinkingExpanded = !msg.thinkingExpanded">
+                      <el-icon :size="13"><ThinkingIcon /></el-icon>
+                      <span class="thinking-label">
+                        <template v-if="msg.loading">思考中...</template>
+                        <template v-else>已思考 {{ ((msg.thinkingEndTime || Date.now()) - msg.thinkingStartTime) / 1000 | 0 }}s</template>
+                      </span>
+                      <el-icon :size="11" class="expand-icon">
+                        <ArrowDown v-if="!msg.thinkingExpanded" />
+                        <ArrowUp v-else />
+                      </el-icon>
+                    </div>
+                    <div v-if="msg.thinkingExpanded" class="thinking-body">
+                      <div v-for="(step, si) in msg.thinkingSteps" :key="si" class="thinking-step">
+                        <span class="step-time">{{ ((step.endTime || Date.now()) - step.startTime) / 1000 | 1 }}s</span>
+                        <span class="step-status">{{ step.status }}</span>
+                      </div>
+                    </div>
+                  </div>
                   <div v-if="msg.toolCalls.length > 0" class="tool-calls">
                     <div
                       v-for="tc in msg.toolCalls"
@@ -54,6 +76,7 @@
                       <div class="tool-call-header" @click="tc.expanded = !tc.expanded">
                         <el-icon :size="14"><Tools /></el-icon>
                         <span class="tool-name">{{ toolDisplayName(tc.name) }}</span>
+                        <span v-if="tc.duration" class="tool-duration">{{ tc.duration }}ms</span>
                         <el-icon :size="12" class="expand-icon">
                           <ArrowDown v-if="!tc.expanded" />
                           <ArrowUp v-else />
@@ -79,6 +102,7 @@
                   <div v-if="msg.thinkingStatus" class="thinking-status">
                     <el-icon :size="12" class="is-loading"><Loading /></el-icon>
                     {{ msg.thinkingStatus }}
+                    <span v-if="msg.thinkingStartTime" class="thinking-timer">{{ (Date.now() - msg.thinkingStartTime) / 1000 | 1 }}s</span>
                   </div>
                   <div v-if="msg.error" class="msg-error">
                     <span>{{ msg.content }}</span>
@@ -97,34 +121,45 @@
                 >
                   <el-icon :size="12"><CopyDocument /></el-icon>
                 </el-button>
+                <el-button
+                  v-if="msg.role === 'assistant' && !msg.error && idx > 0"
+                  size="small"
+                  text
+                  class="retry-btn"
+                  @click="regenerateAnswer(idx)"
+                >
+                  <el-icon :size="12"><RefreshRight /></el-icon>
+                </el-button>
               </div>
             </div>
           </div>
         </div>
 
         <div class="chat-footer">
-          <el-input
-            v-model="inputText"
-            placeholder="输入你的问题..."
-            @keyup.enter="handleEnter"
-            :disabled="loading"
-            maxlength="500"
-            clearable
-          >
-            <template #append>
-              <el-button
-                v-if="!loading"
-                :icon="Promotion"
-                @click="handleSend"
-                :disabled="!inputText.trim()"
-              />
-              <el-button
-                v-else
-                :icon="VideoPause"
-                @click="handleStop"
-              />
-            </template>
-          </el-input>
+          <div class="input-wrapper" :class="{ disabled: loading }">
+            <textarea
+              ref="textareaRef"
+              v-model="inputText"
+              class="chat-textarea"
+              placeholder="输入你的问题..."
+              :disabled="loading"
+              maxlength="500"
+              rows="1"
+              @keydown.enter="handleEnter"
+              @input="autoResize"
+            ></textarea>
+            <button
+              v-if="!loading"
+              class="send-btn"
+              :disabled="!inputText.trim()"
+              @click="handleSend"
+            >
+              <el-icon :size="18"><Promotion /></el-icon>
+            </button>
+            <button v-else class="send-btn stop-btn" @click="handleStop">
+              <el-icon :size="18"><VideoPause /></el-icon>
+            </button>
+          </div>
         </div>
       </div>
     </transition>
@@ -144,11 +179,13 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { ChatDotRound, Close, Delete, Promotion, Tools, ArrowDown, ArrowUp, Loading, VideoPause, CopyDocument } from '@element-plus/icons-vue'
+import { ChatDotRound, Close, Delete, Promotion, Tools, ArrowDown, ArrowUp, Loading, VideoPause, CopyDocument, RefreshRight, FullScreen } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { chatStream, getAiStatus, clearSession, getSessionHistory } from '@/api/ai'
 import { useUserStore } from '@/stores/user'
 import MarkdownIt from 'markdown-it'
+
+const ThinkingIcon = Loading
 
 interface ToolCallInfo {
   id: number
@@ -157,6 +194,13 @@ interface ToolCallInfo {
   args: Record<string, unknown>
   result: string
   expanded: boolean
+  duration?: string
+}
+
+interface ThinkingStep {
+  status: string
+  startTime: number
+  endTime?: number
 }
 
 interface Message {
@@ -169,6 +213,10 @@ interface Message {
   error?: boolean
   toolCalls: ToolCallInfo[]
   timestamp: number
+  thinkingStartTime?: number
+  thinkingEndTime?: number
+  thinkingSteps: ThinkingStep[]
+  thinkingExpanded?: boolean
 }
 
 const md = new MarkdownIt({
@@ -238,11 +286,13 @@ const toolDisplayName = (name: string): string => {  const names: Record<string,
 }
 
 const visible = ref(false)
+const expanded = ref(false)
 const inputText = ref('')
 const loading = ref(false)
 const messages = ref<Message[]>([])
 const sessionId = ref<string | undefined>(undefined)
 const bodyRef = ref<HTMLElement>()
+const textareaRef = ref<HTMLTextAreaElement>()
 const aiEnabled = ref(true)
 const hasNewBadge = ref(true)
 const statusText = ref('在线')
@@ -250,10 +300,23 @@ let streamHandle: { close: () => void } | null = null
 let msgIdCounter = 0
 let toolCallIdCounter = 0
 let lastUserMessage = ''
+let thinkingTimerId: number | null = null
 
 const btnPos = ref({ x: window.innerWidth - 80, y: window.innerHeight - 80 })
 const isDragging = ref(false)
 let dragStart = { x: 0, y: 0, bx: 0, by: 0, moved: false }
+
+const toggleExpand = () => {
+  expanded.value = !expanded.value
+  nextTick(() => scrollToBottom())
+}
+
+const autoResize = () => {
+  const ta = textareaRef.value
+  if (!ta) return
+  ta.style.height = 'auto'
+  ta.style.height = Math.min(ta.scrollHeight, 120) + 'px'
+}
 
 const onDragStart = (e: MouseEvent | TouchEvent) => {
   const point = 'touches' in e ? e.touches[0] : e
@@ -316,7 +379,6 @@ const restoreSession = () => {
   const saved = localStorage.getItem(STORAGE_KEY)
   if (saved && !saved.startsWith('user:')) {
     sessionId.value = saved
-
   }
 }
 
@@ -331,10 +393,11 @@ const loadHistory = async () => {
         role: msg.role as 'user' | 'assistant',
         content: msg.content,
         toolCalls: [],
-        timestamp: msg.timestamp || 0
+        timestamp: msg.timestamp || 0,
+        thinkingSteps: []
       }))
       if (history.length > 10) {
-        messages.value.unshift({ id: ++msgIdCounter, role: 'assistant', content: `（已加载最近10条，共${history.length}条历史对话）`, toolCalls: [], timestamp: 0 })
+        messages.value.unshift({ id: ++msgIdCounter, role: 'assistant', content: `（已加载最近10条，共${history.length}条历史对话）`, toolCalls: [], timestamp: 0, thinkingSteps: [] })
       }
       scrollToBottom()
     }
@@ -356,6 +419,20 @@ const scrollToBottom = () => {
   })
 }
 
+const startThinkingTimer = () => {
+  if (thinkingTimerId) clearInterval(thinkingTimerId)
+  thinkingTimerId = window.setInterval(() => {
+    nextTick()
+  }, 100)
+}
+
+const stopThinkingTimer = () => {
+  if (thinkingTimerId) {
+    clearInterval(thinkingTimerId)
+    thinkingTimerId = null
+  }
+}
+
 const sendMessage = async (text: string) => {
   const trimmed = text.trim()
   if (!trimmed || loading.value) return
@@ -370,7 +447,8 @@ const sendMessage = async (text: string) => {
 
   lastUserMessage = trimmed
   inputText.value = ''
-  messages.value.push({ id: ++msgIdCounter, role: 'user', content: trimmed, toolCalls: [], timestamp: Date.now() })
+  if (textareaRef.value) textareaRef.value.style.height = 'auto'
+  messages.value.push({ id: ++msgIdCounter, role: 'user', content: trimmed, toolCalls: [], timestamp: Date.now(), thinkingSteps: [] })
   const assistantMsg: Message = {
     id: ++msgIdCounter,
     role: 'assistant',
@@ -378,17 +456,22 @@ const sendMessage = async (text: string) => {
     loading: true,
     streaming: true,
     toolCalls: [],
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    thinkingStartTime: Date.now(),
+    thinkingSteps: []
   }
   messages.value.push(assistantMsg)
   loading.value = true
+  startThinkingTimer()
   scrollToBottom()
 
   if (!aiEnabled.value) {
     assistantMsg.loading = false
     assistantMsg.streaming = false
     assistantMsg.content = 'AI助手暂时不可用，请稍后再试或联系人工客服。'
+    assistantMsg.thinkingEndTime = Date.now()
     loading.value = false
+    stopThinkingTimer()
     return
   }
 
@@ -402,8 +485,10 @@ const sendMessage = async (text: string) => {
       assistantMsg.loading = false
       assistantMsg.streaming = false
       assistantMsg.thinkingStatus = undefined
+      assistantMsg.thinkingEndTime = Date.now()
       loading.value = false
       streamHandle = null
+      stopThinkingTimer()
       scrollToBottom()
     }
 
@@ -447,8 +532,10 @@ const sendMessage = async (text: string) => {
         assistantMsg.thinkingStatus = undefined
         assistantMsg.content = error || 'AI服务暂时不可用，请稍后再试。'
         assistantMsg.error = true
+        assistantMsg.thinkingEndTime = Date.now()
         loading.value = false
         streamHandle = null
+        stopThinkingTimer()
       },
       (sid: string) => {
         sessionId.value = sid
@@ -457,9 +544,14 @@ const sendMessage = async (text: string) => {
       (status: string) => {
         if (!assistantMsg.content) {
           assistantMsg.thinkingStatus = status
+          assistantMsg.thinkingSteps.push({ status, startTime: Date.now() })
+          if (assistantMsg.thinkingSteps.length > 1) {
+            assistantMsg.thinkingSteps[assistantMsg.thinkingSteps.length - 2].endTime = Date.now()
+          }
         }
       },
       (toolCall: { id: string; name: string; args: Record<string, unknown> }) => {
+        const tcStartTime = Date.now()
         assistantMsg.toolCalls.push({
           id: ++toolCallIdCounter,
           callId: toolCall.id,
@@ -469,14 +561,21 @@ const sendMessage = async (text: string) => {
           expanded: false
         })
         assistantMsg.thinkingStatus = `正在调用 ${toolDisplayName(toolCall.name)}...`
+        assistantMsg.thinkingSteps.push({ status: `调用工具: ${toolDisplayName(toolCall.name)}`, startTime: tcStartTime })
+        if (assistantMsg.thinkingSteps.length > 1) {
+          assistantMsg.thinkingSteps[assistantMsg.thinkingSteps.length - 2].endTime = tcStartTime
+        }
         scrollToBottom()
       },
       (toolResult: { id: string; name: string; result: string }) => {
         const tc = assistantMsg.toolCalls.find(t => t.callId === toolResult.id && !t.result)
         if (tc) {
           tc.result = toolResult.result
+          tc.duration = String(Date.now() - (assistantMsg.thinkingSteps[assistantMsg.thinkingSteps.length - 1]?.startTime || Date.now()))
         }
         assistantMsg.thinkingStatus = undefined
+        const lastStep = assistantMsg.thinkingSteps[assistantMsg.thinkingSteps.length - 1]
+        if (lastStep) lastStep.endTime = Date.now()
         scrollToBottom()
       }
     )
@@ -485,12 +584,16 @@ const sendMessage = async (text: string) => {
     assistantMsg.streaming = false
     assistantMsg.content = '请求失败，请稍后再试。'
     assistantMsg.error = true
+    assistantMsg.thinkingEndTime = Date.now()
     loading.value = false
+    stopThinkingTimer()
   }
 }
 
 const handleSend = () => sendMessage(inputText.value)
-const handleEnter = () => {
+const handleEnter = (e: KeyboardEvent) => {
+  if (e.shiftKey) return
+  e.preventDefault()
   if (inputText.value.trim()) handleSend()
 }
 const handleStop = () => {
@@ -499,11 +602,13 @@ const handleStop = () => {
     streamHandle = null
   }
   loading.value = false
+  stopThinkingTimer()
   const lastMsg = messages.value[messages.value.length - 1]
   if (lastMsg && lastMsg.role === 'assistant') {
     lastMsg.loading = false
     lastMsg.streaming = false
     lastMsg.thinkingStatus = undefined
+    lastMsg.thinkingEndTime = Date.now()
     if (!lastMsg.content) {
       lastMsg.content = '已停止'
     }
@@ -520,12 +625,21 @@ const retryLastMessage = () => {
   }
 }
 
+const regenerateAnswer = (idx: number) => {
+  if (loading.value) return
+  const userMsg = messages.value[idx - 1]
+  if (!userMsg || userMsg.role !== 'user') return
+  messages.value.splice(idx)
+  sendMessage(userMsg.content)
+}
+
 const handleClear = async () => {
   if (streamHandle) {
     streamHandle.close()
     streamHandle = null
   }
   loading.value = false
+  stopThinkingTimer()
   if (sessionId.value) {
     try {
       await clearSession(sessionId.value)
@@ -601,6 +715,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (streamHandle) streamHandle.close()
+  stopThinkingTimer()
   window.removeEventListener('resize', onResize)
 })
 </script>
@@ -665,6 +780,22 @@ onUnmounted(() => {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--border);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &.expanded {
+    bottom: 0;
+    right: 0;
+    top: 64px;
+    width: 20vw;
+    min-width: 340px;
+    max-width: 500px;
+    height: auto;
+    max-height: none;
+    border-radius: 16px 0 0 16px;
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--border);
+    border-right: none;
+  }
 }
 
 .chat-header {
@@ -729,26 +860,105 @@ onUnmounted(() => {
   :deep(a) { color: var(--primary); text-decoration: none; &:hover { text-decoration: underline; } }
 }
 
+.thinking-process {
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: rgba(14, 165, 233, 0.06);
+  border: 1px solid rgba(14, 165, 233, 0.12);
+  overflow: hidden;
+  font-size: 12px;
+}
+.thinking-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; cursor: pointer;
+  color: var(--text-secondary);
+  .thinking-label { font-weight: 600; color: var(--primary); flex: 1; }
+  .expand-icon { margin-left: auto; }
+  &:hover { background: rgba(14, 165, 233, 0.08); }
+}
+.thinking-body {
+  padding: 4px 10px 6px;
+  border-top: 1px solid rgba(14, 165, 233, 0.1);
+}
+.thinking-step {
+  display: flex; gap: 8px; padding: 3px 0;
+  .step-time { color: var(--primary); font-weight: 600; min-width: 36px; font-variant-numeric: tabular-nums; }
+  .step-status { color: var(--text-secondary); }
+}
+
 .tool-calls { margin-bottom: 8px; }
 .tool-call-card { background: var(--bg-hover); border-radius: 8px; margin-bottom: 4px; overflow: hidden; font-size: 12px; }
-.tool-call-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer; color: var(--text-secondary); .tool-name { font-weight: 600; color: var(--primary); } .expand-icon { margin-left: auto; } &:hover { background: var(--primary-lighter); } }
+.tool-call-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer; color: var(--text-secondary); .tool-name { font-weight: 600; color: var(--primary); } .tool-duration { font-size: 10px; color: var(--text-muted); margin-left: 4px; } .expand-icon { margin-left: auto; } &:hover { background: var(--primary-lighter); } }
 .tool-call-body { padding: 6px 10px; border-top: 1px solid var(--border-light); }
 .tool-args, .tool-result { margin: 4px 0; .tool-label { color: var(--text-secondary); font-weight: 600; } code { background: var(--bg-hover); padding: 2px 4px; border-radius: 3px; font-size: 11px; } pre { background: var(--bg-hover); padding: 6px 8px; border-radius: 4px; overflow-x: auto; margin: 4px 0; font-size: 11px; white-space: pre-wrap; max-height: 120px; overflow-y: auto; } }
-.thinking-status { display: flex; align-items: center; gap: 4px; color: var(--text-secondary); font-size: 12px; margin-top: 4px; .is-loading { animation: rotating 1.5s linear infinite; } }
+.thinking-status { display: flex; align-items: center; gap: 4px; color: var(--text-secondary); font-size: 12px; margin-top: 4px; .is-loading { animation: rotating 1.5s linear infinite; } .thinking-timer { color: var(--primary); font-weight: 600; font-variant-numeric: tabular-nums; } }
 @keyframes rotating { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .msg-error { display: flex; align-items: center; gap: 8px; color: var(--danger); }
-.msg-footer { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 0 4px; opacity: 0.6; }
+.msg-footer { display: flex; align-items: center; gap: 4px; margin-top: 4px; padding: 0 4px; opacity: 0.6; }
 .msg-time { font-size: 11px; color: var(--text-secondary); }
-.copy-btn { padding: 2px; min-height: auto; }
+.copy-btn, .retry-btn { padding: 2px; min-height: auto; }
+.retry-btn:hover { color: var(--primary); }
 .typing { display: inline-flex; gap: 4px; align-items: center; .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-secondary); animation: typing-bounce 1.4s infinite ease-in-out; &:nth-child(2) { animation-delay: 0.2s; } &:nth-child(3) { animation-delay: 0.4s; } } }
 @keyframes typing-bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
 
 .chat-footer { padding: 12px; border-top: 1px solid var(--border-light); flex-shrink: 0; background: var(--bg-glass); backdrop-filter: blur(8px); }
 
+.input-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: 24px;
+  padding: 8px 8px 8px 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  &.disabled { opacity: 0.6; }
+  &:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+  }
+}
+.chat-textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: inherit;
+  max-height: 120px;
+  min-height: 24px;
+  &::placeholder { color: var(--text-muted); }
+}
+.send-btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: var(--primary-gradient);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s, opacity 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.3);
+  &:hover:not(:disabled) { transform: scale(1.08); box-shadow: 0 3px 12px rgba(14, 165, 233, 0.4); }
+  &:active:not(:disabled) { transform: scale(0.95); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+  &.stop-btn { background: var(--danger); box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); }
+}
+
 .slide-up-enter-active, .slide-up-leave-active { transition: opacity 0.3s, transform 0.3s; }
 .slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(20px); }
 
 @media (max-width: 480px) {
-  .chat-panel { width: calc(100vw - 32px); height: calc(100vh - 120px); bottom: 16px; right: 16px; }
+  .chat-panel {
+    width: calc(100vw - 32px); height: calc(100vh - 120px); bottom: 16px; right: 16px;
+    &.expanded { width: 100vw; min-width: 0; max-width: none; border-radius: 0; }
+  }
 }
 </style>
