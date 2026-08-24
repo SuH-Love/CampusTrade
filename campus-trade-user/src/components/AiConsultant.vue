@@ -629,7 +629,7 @@ const regenerateAnswer = (idx: number) => {
   if (loading.value) return
   const userMsg = messages.value[idx - 1]
   if (!userMsg || userMsg.role !== 'user') return
-  messages.value.splice(idx)
+  messages.value.splice(idx - 1)
   sendMessage(userMsg.content)
 }
 
@@ -786,12 +786,12 @@ onUnmounted(() => {
     bottom: 0;
     right: 0;
     top: 64px;
-    width: 20vw;
-    min-width: 340px;
-    max-width: 500px;
+    width: 28vw;
+    min-width: 400px;
+    max-width: 620px;
     height: auto;
     max-height: none;
-    border-radius: 16px 0 0 16px;
+    border-radius: 0;
     box-shadow: -8px 0 32px rgba(0, 0, 0, 0.12);
     border: 1px solid var(--border);
     border-right: none;
@@ -894,10 +894,24 @@ onUnmounted(() => {
 .thinking-status { display: flex; align-items: center; gap: 4px; color: var(--text-secondary); font-size: 12px; margin-top: 4px; .is-loading { animation: rotating 1.5s linear infinite; } .thinking-timer { color: var(--primary); font-weight: 600; font-variant-numeric: tabular-nums; } }
 @keyframes rotating { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .msg-error { display: flex; align-items: center; gap: 8px; color: var(--danger); }
-.msg-footer { display: flex; align-items: center; gap: 4px; margin-top: 4px; padding: 0 4px; opacity: 0.6; }
+.msg-footer { display: flex; align-items: center; gap: 2px; margin-top: 4px; padding: 0 4px; opacity: 0.55; }
 .msg-time { font-size: 11px; color: var(--text-secondary); }
-.copy-btn, .retry-btn { padding: 2px; min-height: auto; }
-.retry-btn:hover { color: var(--primary); }
+.copy-btn, .retry-btn {
+  padding: 2px !important;
+  min-height: auto;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: var(--text-muted);
+  &:hover, &:focus {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    color: var(--primary);
+  }
+}
 .typing { display: inline-flex; gap: 4px; align-items: center; .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-secondary); animation: typing-bounce 1.4s infinite ease-in-out; &:nth-child(2) { animation-delay: 0.2s; } &:nth-child(3) { animation-delay: 0.4s; } } }
 @keyframes typing-bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
 
@@ -926,10 +940,10 @@ onUnmounted(() => {
   background: transparent;
   color: var(--text-primary);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 36px;
   font-family: inherit;
   max-height: 120px;
-  min-height: 24px;
+  min-height: 36px;
   &::placeholder { color: var(--text-muted); }
 }
 .send-btn {
