@@ -349,12 +349,21 @@ onUnmounted(() => {
   overflow: hidden;
   box-shadow: var(--shadow-md);
   position: relative;
-  transform: translateZ(0);
-  clip-path: inset(0 0 0 0 round 0 0 var(--radius-lg) var(--radius-lg));
-  :deep(.el-carousel) { overflow: hidden; }
-  :deep(.el-carousel__container) { overflow: hidden; }
-  :deep(.el-carousel__item) { overflow: hidden; width: 100%; }
-  :deep(.el-carousel__track) { overflow: hidden; }
+  :deep(.el-carousel) { overflow: hidden !important; }
+  :deep(.el-carousel__container) { overflow: hidden !important; }
+  :deep(.el-carousel__item) {
+    overflow: hidden !important;
+    width: 100% !important;
+    transform: translateX(0) !important;
+    opacity: 0;
+    transition: opacity 0.8s ease-in-out;
+    z-index: 1;
+  }
+  :deep(.el-carousel__item.is-active) {
+    opacity: 1;
+    z-index: 2;
+  }
+  :deep(.el-carousel__track) { overflow: hidden !important; }
 }
 
 .hero-announce-bar {
