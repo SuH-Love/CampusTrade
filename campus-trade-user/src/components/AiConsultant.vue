@@ -637,19 +637,17 @@ onUnmounted(() => {
 }
 
 .ai-fab-text {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 900;
-  font-style: italic;
-  letter-spacing: -1.5px;
+  letter-spacing: -0.5px;
   color: #fff;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), 0 0 12px rgba(255, 255, 255, 0.3);
+  text-shadow:
+    0 0 6px rgba(255, 255, 255, 0.8),
+    0 0 14px rgba(14, 165, 233, 0.6),
+    0 2px 4px rgba(0, 0, 0, 0.35);
   font-family: 'Inter', -apple-system, sans-serif;
   line-height: 1;
   user-select: none;
-  background: linear-gradient(135deg, #fff 0%, #E0F2FE 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .chat-panel {

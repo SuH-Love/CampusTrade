@@ -24,8 +24,8 @@
             :src="imageList[currentIdx] || goods.coverImage || '/default-cover.svg'"
             fit="cover"
             class="gallery-img"
-            :preview-src-list="imageList"
-            :initial-index="currentIdx"
+            :preview-src-list="imageList.length > 0 ? imageList : undefined"
+            :initial-index="Math.min(currentIdx, Math.max(0, imageList.length - 1))"
             preview-teleported
             hide-on-click-modal
             zoom-rate="1.2"
@@ -204,7 +204,8 @@ const buyAddressList = ref<DeliveryAddressVO[]>([])
 const imageList = computed(() => {
   if (!goods.value) return []
   const imgs = goods.value.images ? goods.value.images.split(',').filter(Boolean) : []
-  return goods.value.coverImage ? [goods.value.coverImage, ...imgs] : imgs
+  const all = goods.value.coverImage ? [goods.value.coverImage, ...imgs] : imgs
+  return [...new Set(all)]
 })
 
 const discount = computed(() => {
@@ -507,8 +508,9 @@ onUnmounted(() => { window.removeEventListener('resize', onResize) })
   filter: brightness(var(--img-brightness));
   cursor: pointer;
   background: var(--bg-card);
-  :deep(.el-image__inner) { width: 100%; height: 100%; object-fit: cover; }
-  :deep(img) { width: 100% !important; height: 100% !important; object-fit: cover; }
+  :deep(.el-image__inner) { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+  :deep(img) { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+  :deep(svg) { width: 100% !important; height: 100% !important; object-fit: cover !important; }
 }
 .gallery-thumbs {
   display: flex;
