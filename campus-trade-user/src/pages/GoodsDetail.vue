@@ -500,30 +500,28 @@ onUnmounted(() => { window.removeEventListener('resize', onResize) })
   }
 }
 .gallery-img {
-  width: 100%;
+  width: 100% !important;
   flex: 1;
   min-height: 0;
   display: block !important;
-  position: relative;
   border-radius: var(--radius-lg);
   filter: brightness(var(--img-brightness));
   cursor: pointer;
   background: var(--bg-card);
   :deep(.el-image__inner) {
-    position: absolute !important;
-    top: 0 !important; left: 0 !important;
-    width: 100% !important; height: 100% !important;
+    width: 100% !important;
+    height: 100% !important;
     object-fit: cover !important;
+    display: block !important;
   }
   :deep(img) {
-    position: absolute !important;
-    top: 0 !important; left: 0 !important;
-    width: 100% !important; height: 100% !important;
+    width: 100% !important;
+    height: 100% !important;
     object-fit: cover !important;
   }
   :deep(svg) {
-    width: 100% !important; height: 100% !important;
-    object-fit: cover !important;
+    width: 100% !important;
+    height: 100% !important;
   }
 }
 .gallery-thumbs {
