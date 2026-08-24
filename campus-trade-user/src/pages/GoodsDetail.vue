@@ -20,8 +20,15 @@
     <el-row :gutter="32">
       <el-col :xs="24" :md="12">
         <div class="detail-gallery">
+          <img
+            v-if="!imageList.length && !goods.coverImage"
+            src="/default-cover.svg"
+            class="gallery-img gallery-img-fallback"
+            alt="暂无图片"
+          />
           <el-image
-            :src="imageList[currentIdx] || goods.coverImage || '/default-cover.svg'"
+            v-else
+            :src="imageList[currentIdx] || goods.coverImage"
             fit="cover"
             class="gallery-img"
             :preview-src-list="imageList.length > 0 ? imageList : undefined"
@@ -483,6 +490,7 @@ onUnmounted(() => { window.removeEventListener('resize', onResize) })
 }
 
 .detail-gallery {
+  width: 100%;
   border-radius: var(--radius-xl);
   overflow: hidden;
   background: linear-gradient(135deg, var(--color-img-placeholder-from), var(--color-img-placeholder-to));
@@ -523,6 +531,16 @@ onUnmounted(() => { window.removeEventListener('resize', onResize) })
     width: 100% !important;
     height: 100% !important;
   }
+}
+.gallery-img-fallback {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  flex: none;
+  z-index: 2;
 }
 .gallery-thumbs {
   display: flex;
