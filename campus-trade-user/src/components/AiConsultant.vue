@@ -5,7 +5,7 @@
         <div class="chat-header">
           <div class="header-info">
             <div class="avatar">
-              <el-icon :size="20"><ChatDotRound /></el-icon>
+              <span class="ai-header-text">AI</span>
             </div>
             <div class="header-text">
               <span class="title">小苏 AI助手</span>
@@ -48,23 +48,32 @@
                   <span class="dot"></span><span class="dot"></span><span class="dot"></span>
                 </span>
                 <template v-else>
-                  <div v-if="msg.thinkingSteps.length > 0" class="thinking-process">
-                    <div class="thinking-header" @click="msg.thinkingExpanded = !msg.thinkingExpanded">
-                      <el-icon :size="13"><ThinkingIcon /></el-icon>
-                      <span class="thinking-label">
-                        <template v-if="msg.loading">思考中...</template>
-                        <template v-else>任务完成 | 总耗时 {{ ((msg.thinkingEndTime || Date.now()) - msg.thinkingStartTime) / 1000 | 1 }}s</template>
-                      </span>
-                      <el-icon :size="11" class="expand-icon">
-                        <ArrowDown v-if="!msg.thinkingExpanded" />
-                        <ArrowUp v-else />
-                      </el-icon>
+                  <div v-if="msg.role === 'assistant' && (msg.content || msg.thinkingSteps.length > 0) && !msg.loading" class="response-header">
+                    <div class="header-left">
+                      <template v-if="msg.thinkingSteps.length > 0">
+                        <el-icon :size="14" class="check-icon"><CircleCheck /></el-icon>
+                        <span class="header-status">任务完成 | 总耗时 {{ ((msg.thinkingEndTime || Date.now()) - msg.thinkingStartTime) / 1000 | 1 }}s</span>
+                      </template>
                     </div>
-                    <div v-if="msg.thinkingExpanded" class="thinking-body">
-                      <div v-for="(step, si) in msg.thinkingSteps" :key="si" class="thinking-step">
-                        <span class="step-time">{{ ((step.endTime || Date.now()) - step.startTime) / 1000 | 1 }}s</span>
-                        <span class="step-status">{{ step.status }}</span>
-                      </div>
+                    <div class="header-right">
+                      <span class="header-time">{{ formatTime(msg.timestamp) }}</span>
+                      <button class="action-btn" title="复制" @click="copyMessage(msg.content)">
+                        <el-icon :size="13"><CopyDocument /></el-icon>
+                      </button>
+                      <button
+                        v-if="!msg.error && idx === messages.length - 1 && !loading"
+                        class="action-btn"
+                        title="重新回答"
+                        @click="regenerateAnswer(idx)"
+                      >
+                        <el-icon :size="13"><RefreshRight /></el-icon>
+                      </button>
+                    </div>
+                  </div>
+                  <div v-if="msg.thinkingSteps.length > 0" class="thinking-steps">
+                    <div v-for="(step, si) in msg.thinkingSteps" :key="si" class="thinking-step">
+                      <span class="step-time">{{ ((step.endTime || Date.now()) - step.startTime) / 1000 | 1 }}s</span>
+                      <span class="step-status">{{ step.status }}</span>
                     </div>
                   </div>
                   <div v-if="msg.toolCalls.length > 0" class="tool-calls">
@@ -105,21 +114,8 @@
                   </div>
                 </template>
               </div>
-              <div v-if="msg.content && !msg.loading && msg.timestamp" class="msg-footer">
+              <div v-if="msg.role === 'user' && msg.content && !msg.loading && msg.timestamp" class="msg-footer">
                 <span class="msg-time">{{ formatTime(msg.timestamp) }}</span>
-                <div v-if="msg.role === 'assistant'" class="msg-actions">
-                  <button class="action-btn" title="复制" @click="copyMessage(msg.content)">
-                    <el-icon :size="13"><CopyDocument /></el-icon>
-                  </button>
-                  <button
-                    v-if="!msg.error && idx === messages.length - 1 && !loading"
-                    class="action-btn"
-                    title="重新回答"
-                    @click="regenerateAnswer(idx)"
-                  >
-                    <el-icon :size="13"><RefreshRight /></el-icon>
-                  </button>
-                </div>
               </div>
             </div>
           </div>
@@ -169,7 +165,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { ChatDotRound, Close, Delete, Promotion, Tools, ArrowDown, ArrowUp, Loading, VideoPause, CopyDocument, RefreshRight, FullScreen } from '@element-plus/icons-vue'
+import { ChatDotRound, Close, Delete, Promotion, Tools, ArrowDown, ArrowUp, Loading, VideoPause, CopyDocument, RefreshRight, FullScreen, CircleCheck } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { chatStream, getAiStatus, clearSession, getSessionHistory } from '@/api/ai'
 import { useUserStore } from '@/stores/user'
@@ -372,20 +368,58 @@ const restoreSession = () => {
   }
 }
 
+const saveThinkingData = (sid: string, msg: Message) => {
+  if (msg.role !== 'assistant' || !msg.content) return
+  try {
+    const key = `ai:thinking:${sid}`
+    const data = JSON.parse(localStorage.getItem(key) || '{}')
+    const contentKey = msg.content.substring(0, 50)
+    data[contentKey] = {
+      thinkingSteps: msg.thinkingSteps,
+      thinkingStartTime: msg.thinkingStartTime,
+      thinkingEndTime: msg.thinkingEndTime,
+      toolCalls: msg.toolCalls.map(tc => ({ ...tc, expanded: false }))
+    }
+    localStorage.setItem(key, JSON.stringify(data))
+  } catch {}
+}
+
+const restoreThinkingData = (sid: string, msg: Message) => {
+  if (msg.role !== 'assistant' || !msg.content) return
+  try {
+    const key = `ai:thinking:${sid}`
+    const data = JSON.parse(localStorage.getItem(key) || '{}')
+    const contentKey = msg.content.substring(0, 50)
+    const saved = data[contentKey]
+    if (saved) {
+      msg.thinkingSteps = saved.thinkingSteps || []
+      msg.thinkingStartTime = saved.thinkingStartTime
+      msg.thinkingEndTime = saved.thinkingEndTime
+      msg.toolCalls = saved.toolCalls || []
+    }
+  } catch {}
+}
+
 const loadHistory = async () => {
   if (!sessionId.value) return
   try {
     const history = await getSessionHistory(sessionId.value)
     if (history && history.length > 0) {
       const recent = history.slice(-10)
-      messages.value = recent.map(msg => ({
-        id: ++msgIdCounter,
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-        toolCalls: [],
-        timestamp: msg.timestamp || Date.now(),
-        thinkingSteps: []
-      }))
+      messages.value = recent.map(msg => {
+        const m: Message = {
+          id: ++msgIdCounter,
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+          toolCalls: [],
+          timestamp: msg.timestamp || Date.now(),
+          thinkingSteps: []
+        }
+        if (m.role === 'assistant' && sessionId.value) {
+          restoreThinkingData(sessionId.value, m)
+        }
+        return m
+      })
       if (history.length > 10) {
         messages.value.unshift({ id: ++msgIdCounter, role: 'assistant', content: `（已加载最近10条，共${history.length}条历史对话）`, toolCalls: [], timestamp: 0, thinkingSteps: [] })
       }
@@ -447,6 +481,7 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
       assistantMsg.thinkingEndTime = Date.now()
       const lastStep = assistantMsg.thinkingSteps[assistantMsg.thinkingSteps.length - 1]
       if (lastStep && !lastStep.endTime) lastStep.endTime = Date.now()
+      if (sessionId.value) saveThinkingData(sessionId.value, assistantMsg)
       loading.value = false
       streamHandle = null
       stopThinkingTimer()
@@ -665,6 +700,7 @@ const handleClear = async () => {
   }
   messages.value = []
   localStorage.removeItem(STORAGE_KEY)
+  if (sessionId.value) localStorage.removeItem(`ai:thinking:${sessionId.value}`)
   const userSid = getUserSessionId()
   if (userSid) {
     sessionId.value = userSid
@@ -876,28 +912,37 @@ onUnmounted(() => {
   :deep(a) { color: var(--primary); text-decoration: none; &:hover { text-decoration: underline; } }
 }
 
-.thinking-process {
-  margin-bottom: 8px;
-  border-radius: 8px;
-  background: rgba(14, 165, 233, 0.06);
-  border: 1px solid rgba(14, 165, 233, 0.12);
-  overflow: hidden;
+.ai-header-text {
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  color: #fff;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.8), 0 0 10px rgba(14, 165, 233, 0.6), 0 1px 3px rgba(0, 0, 0, 0.35);
+  font-family: 'Inter', -apple-system, sans-serif;
+  line-height: 1;
+}
+
+.response-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 6px; margin-bottom: 8px;
+  border-bottom: 1px solid var(--border-light);
   font-size: 12px;
+  .header-left { display: flex; align-items: center; gap: 4px;
+    .check-icon { color: #22c55e; }
+    .header-status { color: var(--primary); font-weight: 600; }
+  }
+  .header-right { display: flex; align-items: center; gap: 4px; opacity: 0.6;
+    .header-time { font-size: 11px; color: var(--text-secondary); }
+  }
 }
-.thinking-header {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 10px; cursor: pointer;
-  color: var(--text-secondary);
-  .thinking-label { font-weight: 600; color: var(--primary); flex: 1; }
-  .expand-icon { margin-left: auto; }
-  &:hover { background: rgba(14, 165, 233, 0.08); }
-}
-.thinking-body {
-  padding: 4px 10px 6px;
-  border-top: 1px solid rgba(14, 165, 233, 0.1);
+
+.thinking-steps {
+  margin-bottom: 8px; font-size: 12px;
+  background: rgba(14, 165, 233, 0.04);
+  border-radius: 6px; padding: 4px 8px;
 }
 .thinking-step {
-  display: flex; gap: 8px; padding: 3px 0;
+  display: flex; gap: 8px; padding: 2px 0;
   .step-time { color: var(--primary); font-weight: 600; min-width: 36px; font-variant-numeric: tabular-nums; }
   .step-status { color: var(--text-secondary); }
 }
@@ -906,7 +951,7 @@ onUnmounted(() => {
 .tool-call-card { background: var(--bg-hover); border-radius: 8px; margin-bottom: 4px; overflow: hidden; font-size: 12px; }
 .tool-call-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer; color: var(--text-secondary); .tool-name { font-weight: 600; color: var(--primary); } .tool-duration { font-size: 10px; color: var(--text-muted); margin-left: 4px; } .expand-icon { margin-left: auto; } &:hover { background: var(--primary-lighter); } }
 .tool-call-body { padding: 6px 10px; border-top: 1px solid var(--border-light); }
-.tool-args, .tool-result { margin: 4px 0; .tool-label { color: var(--text-secondary); font-weight: 600; } code { background: var(--bg-hover); padding: 2px 4px; border-radius: 3px; font-size: 11px; } pre { background: var(--bg-hover); padding: 6px 8px; border-radius: 4px; overflow-x: auto; margin: 4px 0; font-size: 11px; white-space: pre-wrap; max-height: 120px; overflow-y: auto; } }
+.tool-args, .tool-result { margin: 4px 0; pre { background: var(--bg-hover); padding: 6px 8px; border-radius: 4px; overflow-x: auto; margin: 4px 0; font-size: 11px; white-space: pre-wrap; max-height: 120px; overflow-y: auto; } }
 .thinking-status { display: flex; align-items: center; gap: 4px; color: var(--text-secondary); font-size: 12px; margin-top: 4px; .is-loading { animation: rotating 1.5s linear infinite; } .thinking-timer { color: var(--primary); font-weight: 600; font-variant-numeric: tabular-nums; } }
 @keyframes rotating { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .msg-error { display: flex; align-items: center; gap: 8px; color: var(--danger); }
