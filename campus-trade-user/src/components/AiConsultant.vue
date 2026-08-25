@@ -48,28 +48,6 @@
                   <span class="dot"></span><span class="dot"></span><span class="dot"></span>
                 </span>
                 <template v-else>
-                  <div v-if="msg.role === 'assistant' && (msg.content || msg.thinkingSteps.length > 0) && !msg.loading" class="response-header">
-                    <div class="header-left">
-                      <template v-if="msg.thinkingSteps.length > 0">
-                        <el-icon :size="14" class="check-icon"><CircleCheck /></el-icon>
-                        <span class="header-status">任务完成 | 总耗时 {{ ((msg.thinkingEndTime || Date.now()) - msg.thinkingStartTime) / 1000 | 1 }}s</span>
-                      </template>
-                    </div>
-                    <div class="header-right">
-                      <span class="header-time">{{ formatTime(msg.timestamp) }}</span>
-                      <button class="action-btn" title="复制" @click="copyMessage(msg.content)">
-                        <el-icon :size="13"><CopyDocument /></el-icon>
-                      </button>
-                      <button
-                        v-if="!msg.error && idx === messages.length - 1 && !loading"
-                        class="action-btn"
-                        title="重新回答"
-                        @click="regenerateAnswer(idx)"
-                      >
-                        <el-icon :size="13"><RefreshRight /></el-icon>
-                      </button>
-                    </div>
-                  </div>
                   <div v-if="msg.thinkingSteps.length > 0" class="thinking-steps">
                     <div v-for="(step, si) in msg.thinkingSteps" :key="si" class="thinking-step">
                       <span class="step-time">{{ ((step.endTime || Date.now()) - step.startTime) / 1000 | 1 }}s</span>
@@ -111,6 +89,28 @@
                   <div v-if="msg.error" class="msg-error">
                     <span>{{ msg.content }}</span>
                     <el-button size="small" text @click="retryLastMessage">重试</el-button>
+                  </div>
+                  <div v-if="msg.role === 'assistant' && msg.content && !msg.loading" class="response-footer">
+                    <div class="footer-left">
+                      <template v-if="msg.thinkingSteps.length > 0">
+                        <el-icon :size="14" class="check-icon"><CircleCheck /></el-icon>
+                        <span class="footer-status">任务完成 | 总耗时 {{ ((msg.thinkingEndTime || Date.now()) - msg.thinkingStartTime) / 1000 | 1 }}s</span>
+                      </template>
+                    </div>
+                    <div class="footer-right">
+                      <span class="footer-time">{{ formatTime(msg.timestamp) }}</span>
+                      <button class="action-btn" title="复制" @click="copyMessage(msg.content)">
+                        <el-icon :size="13"><CopyDocument /></el-icon>
+                      </button>
+                      <button
+                        v-if="!msg.error && idx === messages.length - 1 && !loading"
+                        class="action-btn"
+                        title="重新回答"
+                        @click="regenerateAnswer(idx)"
+                      >
+                        <el-icon :size="13"><RefreshRight /></el-icon>
+                      </button>
+                    </div>
                   </div>
                 </template>
               </div>
@@ -922,17 +922,17 @@ onUnmounted(() => {
   line-height: 1;
 }
 
-.response-header {
+.response-footer {
   display: flex; align-items: center; justify-content: space-between;
-  padding-bottom: 6px; margin-bottom: 8px;
-  border-bottom: 1px solid var(--border-light);
+  padding-top: 6px; margin-top: 8px;
+  border-top: 1px solid var(--border-light);
   font-size: 12px;
-  .header-left { display: flex; align-items: center; gap: 4px;
+  .footer-left { display: flex; align-items: center; gap: 4px;
     .check-icon { color: #22c55e; }
-    .header-status { color: var(--primary); font-weight: 600; }
+    .footer-status { color: var(--primary); font-weight: 600; }
   }
-  .header-right { display: flex; align-items: center; gap: 4px; opacity: 0.6;
-    .header-time { font-size: 11px; color: var(--text-secondary); }
+  .footer-right { display: flex; align-items: center; gap: 4px; opacity: 0.6;
+    .footer-time { font-size: 11px; color: var(--text-secondary); }
   }
 }
 
