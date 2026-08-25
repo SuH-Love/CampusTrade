@@ -419,14 +419,18 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 | 事件 | data格式 | 说明 |
 |------|----------|------|
 | `session` | `{"sessionId":"xxx"}` | 会话ID（首个事件） |
-| `thinking` | `{"status":"thinking"}` | AI思考中状态 |
-| `message` | `{"content":"token"}` | AI回复内容（逐token推送） |
+| `thinking` | `{"step":"理解意图","detail":"用户想查询..."}` | AI思考流程（共4步：理解意图→分析完成→调用工具→查询完成） |
+| `message` | `{"content":"token"}` | AI回复内容（逐token推送，已过滤DSML标记） |
 | `tool_call` | `{"tool":"工具名","args":{参数}}` | 工具调用开始 |
 | `tool_result` | `{"tool":"工具名","result":结果}` | 工具调用结果 |
 | `done` | `{"content":"完整回复"}` | 回复完成 |
 | `error` | `{"error":"错误信息"}` | 错误 |
 
 > **重要**：`message` 事件的 data 是 JSON 格式 `{"content":"token"}`，不是纯文本。这是因为token中可能包含 `\n`，直接用SSE的 `data:` 写入会破坏SSE格式。前端需 `JSON.parse(e.data).content` 提取内容。
+
+> **思考流程事件**：`thinking` 事件共发送4次，`step` 字段依次为"理解意图"、"分析完成"、"调用工具"、"查询完成"，`detail` 字段为该步骤的中文描述。前端将4个事件合并为单个可展开的"思考过程"时间线展示，刷新后通过localStorage恢复。
+
+> **DSML标记过滤**：AI回复内容经过 `AiSafetyService.sanitizeOutput()` 过滤，移除 `<tool_call>`、`<invoke>`、`<parameter>` 等DSML标记。流式推送时通过 `isTokenSafe()` 逐token检查，含DSML标记的token不会被发送。
 
 ### 5.3 Function Calling工具清单（36个）
 
