@@ -344,6 +344,9 @@ public class AiController {
                     }
                 } catch (Exception ignored) {}
             }
+            try {
+                emitter.send(SseEmitter.event().name("thinking").data("理解意图..."));
+            } catch (Exception ignored) {}
             StringBuilder fullResponse = new StringBuilder();
             deepSeekClient.chatStream(messages,
                     token -> {
@@ -390,7 +393,7 @@ public class AiController {
 
         for (int i = 0; i < 3; i++) {
             try {
-                emitter.send(SseEmitter.event().name("thinking").data(i == 0 ? "正在思考..." : "继续查询..."));
+                emitter.send(SseEmitter.event().name("thinking").data("理解意图..."));
             } catch (Exception ignored) {}
             Map<String, Object> aiResult;
             try {
@@ -401,6 +404,10 @@ public class AiController {
             }
             nonStreamAnswer = (String) aiResult.get("content");
             List<Map<String, Object>> toolCalls = (List<Map<String, Object>>) aiResult.get("toolCalls");
+
+            try {
+                emitter.send(SseEmitter.event().name("thinking").data("分析完成"));
+            } catch (Exception ignored) {}
 
             if (toolCalls == null || toolCalls.isEmpty()) {
                 break;
@@ -476,6 +483,10 @@ public class AiController {
                 messages.add(toolMsg);
                 log.info("Tool called (stream): {} -> {}", toolName, toolResult.length() > 100 ? toolResult.substring(0, 100) : toolResult);
             }
+
+            try {
+                emitter.send(SseEmitter.event().name("thinking").data("查询完成"));
+            } catch (Exception ignored) {}
 
             nonStreamAnswer = null;
             break;
