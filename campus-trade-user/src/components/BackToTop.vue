@@ -29,8 +29,9 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
 <style scoped lang="scss">
 .back-to-top {
   position: fixed;
-  bottom: 40px;
-  right: 40px;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 44px;
   height: 44px;
   border-radius: 50%;
@@ -44,12 +45,12 @@ onUnmounted(() => window.removeEventListener('scroll', handleScroll))
   transition: var(--transition);
   z-index: 999;
   &:hover {
-    transform: translateY(-3px);
+    transform: translateX(-50%) translateY(-3px);
     box-shadow: 0 6px 24px rgba(14, 165, 233, 0.45);
   }
 }
 
 .backtop-fade-enter-active { transition: all 0.3s ease; }
 .backtop-fade-leave-active { transition: all 0.2s ease; }
-.backtop-fade-enter-from, .backtop-fade-leave-to { opacity: 0; transform: translateY(10px); }
+.backtop-fade-enter-from, .backtop-fade-leave-to { opacity: 0; transform: translateX(-50%) translateY(20px); }
 </style>
