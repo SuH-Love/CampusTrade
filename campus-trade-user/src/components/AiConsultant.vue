@@ -53,7 +53,7 @@
                       <el-icon :size="13"><ThinkingIcon /></el-icon>
                       <span class="thinking-label">
                         <template v-if="msg.loading">思考中...</template>
-                        <template v-else>总耗时 {{ ((msg.thinkingEndTime || Date.now()) - msg.thinkingStartTime) / 1000 | 1 }}s</template>
+                        <template v-else>任务完成 | 总耗时 {{ ((msg.thinkingEndTime || Date.now()) - msg.thinkingStartTime) / 1000 | 1 }}s</template>
                       </span>
                       <el-icon :size="11" class="expand-icon">
                         <ArrowDown v-if="!msg.thinkingExpanded" />
@@ -83,12 +83,7 @@
                         </el-icon>
                       </div>
                       <div v-if="tc.expanded" class="tool-call-body">
-                        <div v-if="tc.args && Object.keys(tc.args).length > 0" class="tool-args">
-                          <span class="tool-label">参数：</span>
-                          <code>{{ JSON.stringify(tc.args) }}</code>
-                        </div>
                         <div v-if="tc.result" class="tool-result">
-                          <span class="tool-label">结果：</span>
                           <pre>{{ tc.result }}</pre>
                         </div>
                       </div>
