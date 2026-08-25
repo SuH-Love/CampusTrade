@@ -207,7 +207,7 @@ CampusTrade/
 - 3个角色: ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_USER
 - 11个权限: goods:create/update/delete/audit, user:ban, report:review, log:view 等
 - 6个商品分类: 数码电子, 书籍教材, 生活用品, 服装鞋帽, 运动户外, 其他
-- 1个超级管理员账号: admin / Admin123!@（密码通过 `.env` 的 `ADMIN_PASSWORD` 配置）
+- 1个超级管理员账号: admin / admin123（默认密码，可通过 `.env` 的 `ADMIN_PASSWORD` 覆盖）
 - 10个示例商品（首页展示用）
 - 2个横幅广告
 
@@ -1004,7 +1004,7 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 | `SPRING_PROFILES_ACTIVE` | prod | Spring Profile |
 | `JAVA_OPTS` | -Xms512m -Xmx1024m -XX:+UseG1GC | JVM参数 |
 | `SERVER_PORT` | 8080 | 后端服务端口 |
-| `ADMIN_PASSWORD` | Admin123!@ | **[必改]** 超级管理员初始密码 |
+| `ADMIN_PASSWORD` | admin123 | **[必改]** 超级管理员初始密码（代码默认值，部署时建议改为强密码） |
 | `FRONTEND_USER_PORT` | 80 | 用户端Nginx端口 |
 | `FRONTEND_ADMIN_PORT` | 81 | 管理端Nginx端口 |
 

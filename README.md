@@ -101,7 +101,7 @@ docker-compose up -d --build
 
 | 角色 | 用户名 | 密码 |
 |------|--------|------|
-| 超级管理员 | admin | Admin123!@ |
+| 超级管理员 | admin | admin123 |
 | 普通用户 | user | user123 |
 
 管理端访问：`http://<host>:81`
