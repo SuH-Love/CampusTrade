@@ -185,7 +185,8 @@ public class DeepSeekClient {
                 payload.set("model", currentModel);
                 payload.set("messages", JSONUtil.parseArray(messages));
                 payload.set("stream", true);
-                payload.set("temperature", 0.7);
+                payload.set("temperature", 0.3);
+                payload.set("max_tokens", 2048);
 
                 response = HttpRequest.post(currentBaseUrl + "/chat/completions")
                         .header("Authorization", "Bearer " + currentApiKey)
@@ -276,7 +277,8 @@ public class DeepSeekClient {
             payload.set("model", currentModel);
             payload.set("messages", JSONUtil.parseArray(messages));
             payload.set("stream", false);
-            payload.set("temperature", 0.7);
+            payload.set("temperature", 0.3);
+            payload.set("max_tokens", 2048);
 
             HttpResponse response = HttpRequest.post(currentBaseUrl + "/chat/completions")
                     .header("Authorization", "Bearer " + currentApiKey)
@@ -359,7 +361,8 @@ public class DeepSeekClient {
             payload.set("model", currentModel);
             payload.set("messages", JSONUtil.parseArray(messages));
             payload.set("stream", false);
-            payload.set("temperature", 0.7);
+            payload.set("temperature", 0.3);
+            payload.set("max_tokens", 2048);
             if (tools != null && !tools.isEmpty()) {
                 payload.set("tools", JSONUtil.parseArray(tools));
             }
