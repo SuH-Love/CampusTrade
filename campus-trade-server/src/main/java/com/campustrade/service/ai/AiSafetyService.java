@@ -84,7 +84,19 @@ public class AiSafetyService {
         for (Pattern p : SENSITIVE_VALUE_PATTERNS) {
             sanitized = p.matcher(sanitized).replaceAll("$1***");
         }
-        return sanitized;
+        sanitized = sanitized.replaceAll("<.*?DSML.*?>[\\s\\S]*?</.*?DSML.*?>", "");
+        sanitized = sanitized.replaceAll("<.*?DSML.*?>", "");
+        sanitized = sanitized.replaceAll("<.*?tool_calls.*?>[\\s\\S]*?</.*?tool_calls.*?>", "");
+        sanitized = sanitized.replaceAll("<.*?invoke.*?name.*?>[\\s\\S]*?</.*?invoke.*?>", "");
+        sanitized = sanitized.replaceAll("<.*?invoke.*?name.*?>", "");
+        sanitized = sanitized.replaceAll("<.*?parameter.*?>[\\s\\S]*?</.*?parameter.*?>", "");
+        sanitized = sanitized.replaceAll("<.*?parameter.*?>", "");
+        return sanitized.trim();
+    }
+
+    public boolean isTokenSafe(String token) {
+        if (token == null) return false;
+        return !token.contains("DSML") && !token.contains("invoke") && !token.contains("parameter");
     }
 
     public String getSafetyReminder() {

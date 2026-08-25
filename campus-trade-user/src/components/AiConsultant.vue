@@ -48,10 +48,30 @@
                   <span class="dot"></span><span class="dot"></span><span class="dot"></span>
                 </span>
                 <template v-else>
-                  <div v-if="msg.thinkingSteps.length > 0" class="thinking-steps">
-                    <div v-for="(step, si) in msg.thinkingSteps" :key="si" class="thinking-step">
-                      <span class="step-time">{{ ((step.endTime || Date.now()) - step.startTime) / 1000 | 1 }}s</span>
-                      <span class="step-status">{{ step.status }}</span>
+                  <div v-if="msg.thinkingSteps.length > 0" class="thinking-process">
+                    <div class="process-header" @click="!msg.loading && (msg.thinkingExpanded = !msg.thinkingExpanded)">
+                      <el-icon v-if="!msg.thinkingStatus" size="14" class="process-check"><CircleCheck /></el-icon>
+                      <el-icon v-else size="14" class="is-loading"><Loading /></el-icon>
+                      <span class="process-title">{{ msg.thinkingStatus || '分析完成' }}</span>
+                      <span class="process-time">{{ ((msg.thinkingEndTime || Date.now()) - (msg.thinkingStartTime || Date.now())) / 1000 | 1 }}s</span>
+                      <el-icon v-if="!msg.loading" size="12" class="process-expand-icon">
+                        <ArrowDown v-if="!msg.thinkingExpanded" />
+                        <ArrowUp v-else />
+                      </el-icon>
+                    </div>
+                    <div v-if="msg.loading || msg.thinkingExpanded" class="process-body">
+                      <template v-for="(step, si) in msg.thinkingSteps" :key="si">
+                        <div class="process-step">
+                          <div class="step-marker">
+                            <div class="step-dot"></div>
+                            <div v-if="si < msg.thinkingSteps.length - 1" class="step-line"></div>
+                          </div>
+                          <div class="step-content">
+                            <div class="step-title">{{ step.status }}</div>
+                            <div v-if="step.detail" class="step-detail">{{ step.detail }}</div>
+                          </div>
+                        </div>
+                      </template>
                     </div>
                   </div>
                   <div v-if="msg.toolCalls.length > 0" class="tool-calls">
@@ -81,11 +101,6 @@
                     class="msg-content"
                     v-html="msg.role === 'assistant' && !msg.streaming ? renderMarkdown(msg.content) : escapeHtml(msg.content)"
                   ></div>
-                  <div v-if="msg.thinkingStatus" class="thinking-status">
-                    <el-icon :size="12" class="is-loading"><Loading /></el-icon>
-                    {{ msg.thinkingStatus }}
-                    <span v-if="msg.thinkingSteps.length > 0" class="thinking-timer">{{ (Date.now() - msg.thinkingSteps[msg.thinkingSteps.length - 1].startTime) / 1000 | 1 }}s</span>
-                  </div>
                   <div v-if="msg.error" class="msg-error">
                     <span>{{ msg.content }}</span>
                     <el-button size="small" text @click="retryLastMessage">重试</el-button>
@@ -185,8 +200,10 @@ interface ToolCallInfo {
 
 interface ThinkingStep {
   status: string
+  detail?: string
   startTime: number
   endTime?: number
+  expanded?: boolean
 }
 
 interface Message {
@@ -368,12 +385,25 @@ const restoreSession = () => {
   }
 }
 
+const sanitizeContentKey = (content: string): string => {
+  return content
+    .replace(/<.*?DSML.*?>[\s\S]*?<\/.*?DSML.*?>/g, '')
+    .replace(/<.*?DSML.*?>/g, '')
+    .replace(/<.*?tool_calls.*?>[\s\S]*?<\/.*?tool_calls.*?>/g, '')
+    .replace(/<.*?invoke.*?name.*?>[\s\S]*?<\/.*?invoke.*?>/g, '')
+    .replace(/<.*?invoke.*?name.*?>/g, '')
+    .replace(/<.*?parameter.*?>[\s\S]*?<\/.*?parameter.*?>/g, '')
+    .replace(/<.*?parameter.*?>/g, '')
+    .trim()
+    .substring(0, 100)
+}
+
 const saveThinkingData = (sid: string, msg: Message) => {
   if (msg.role !== 'assistant' || !msg.content) return
   try {
     const key = `ai:thinking:${sid}`
     const data = JSON.parse(localStorage.getItem(key) || '{}')
-    const contentKey = msg.content.substring(0, 50)
+    const contentKey = sanitizeContentKey(msg.content)
     data[contentKey] = {
       thinkingSteps: msg.thinkingSteps,
       thinkingStartTime: msg.thinkingStartTime,
@@ -389,7 +419,7 @@ const restoreThinkingData = (sid: string, msg: Message) => {
   try {
     const key = `ai:thinking:${sid}`
     const data = JSON.parse(localStorage.getItem(key) || '{}')
-    const contentKey = msg.content.substring(0, 50)
+    const contentKey = sanitizeContentKey(msg.content)
     const saved = data[contentKey]
     if (saved) {
       msg.thinkingSteps = saved.thinkingSteps || []
@@ -541,10 +571,10 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
         sessionId.value = sid
         localStorage.setItem(STORAGE_KEY, sid)
       },
-      (status: string) => {
+      (thinkingData: { step: string; detail?: string }) => {
         if (!assistantMsg.content) {
-          assistantMsg.thinkingStatus = status
-          assistantMsg.thinkingSteps.push({ status, startTime: Date.now() })
+          assistantMsg.thinkingStatus = thinkingData.step
+          assistantMsg.thinkingSteps.push({ status: thinkingData.step, detail: thinkingData.detail, startTime: Date.now() })
           if (assistantMsg.thinkingSteps.length > 1) {
             assistantMsg.thinkingSteps[assistantMsg.thinkingSteps.length - 2].endTime = Date.now()
           }
@@ -936,23 +966,39 @@ onUnmounted(() => {
   }
 }
 
-.thinking-steps {
+.thinking-process {
   margin-bottom: 8px; font-size: 12px;
-  background: rgba(14, 165, 233, 0.04);
-  border-radius: 6px; padding: 4px 8px;
-}
-.thinking-step {
-  display: flex; gap: 8px; padding: 2px 0;
-  .step-time { color: var(--primary); font-weight: 600; min-width: 36px; font-variant-numeric: tabular-nums; }
-  .step-status { color: var(--text-secondary); }
+  background: rgba(14, 165, 233, 0.06);
+  border-radius: 6px; overflow: hidden;
+  .process-header {
+    display: flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer;
+    &:hover { background: rgba(14, 165, 233, 0.08); }
+    .process-check { color: #22c55e; flex-shrink: 0; }
+    .is-loading { color: var(--primary); flex-shrink: 0; animation: rotating 1.5s linear infinite; }
+    .process-title { font-weight: 600; color: var(--primary); }
+    .process-time { font-size: 10px; color: var(--text-muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+    .process-expand-icon { color: var(--text-muted); }
+  }
+  .process-body { padding: 4px 10px 8px; }
+  .process-step {
+    display: flex; gap: 8px;
+    .step-marker { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; padding-top: 2px;
+      .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
+      .step-line { width: 2px; flex: 1; min-height: 16px; background: rgba(14, 165, 233, 0.2); margin: 2px 0; }
+    }
+    .step-content { flex: 1; min-width: 0; padding-bottom: 8px;
+      .step-title { color: var(--text-secondary); font-weight: 500; }
+      .step-detail { margin-top: 2px; padding: 4px 8px; background: rgba(14, 165, 233, 0.06); border-left: 2px solid var(--primary); border-radius: 0 4px 4px 0; font-size: 11px; color: var(--text-regular); white-space: pre-wrap; line-height: 1.6; }
+    }
+  }
 }
 
 .tool-calls { margin-bottom: 8px; }
-.tool-call-card { background: var(--bg-hover); border-radius: 8px; margin-bottom: 4px; overflow: hidden; font-size: 12px; }
-.tool-call-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer; color: var(--text-secondary); .tool-name { font-weight: 600; color: var(--primary); } .tool-duration { font-size: 10px; color: var(--text-muted); margin-left: 4px; } .expand-icon { margin-left: auto; } &:hover { background: var(--primary-lighter); } }
+.tool-call-card { background: rgba(14, 165, 233, 0.06); border-radius: 6px; margin-bottom: 4px; overflow: hidden; font-size: 12px; }
+.tool-call-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer; color: var(--text-secondary); .tool-name { font-weight: 600; color: var(--primary); } .tool-duration { font-size: 10px; color: var(--text-muted); margin-left: auto; } .expand-icon { color: var(--text-muted); } &:hover { background: rgba(14, 165, 233, 0.08); } }
 .tool-call-body { padding: 6px 10px; border-top: 1px solid var(--border-light); }
 .tool-args, .tool-result { margin: 4px 0; pre { background: var(--bg-hover); padding: 6px 8px; border-radius: 4px; overflow-x: auto; margin: 4px 0; font-size: 11px; white-space: pre-wrap; max-height: 120px; overflow-y: auto; } }
-.thinking-status { display: flex; align-items: center; gap: 4px; color: var(--text-secondary); font-size: 12px; margin-top: 4px; .is-loading { animation: rotating 1.5s linear infinite; } .thinking-timer { color: var(--primary); font-weight: 600; font-variant-numeric: tabular-nums; } }
+
 @keyframes rotating { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .msg-error { display: flex; align-items: center; gap: 8px; color: var(--danger); }
 .msg-footer { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 0 4px; opacity: 0.55; }

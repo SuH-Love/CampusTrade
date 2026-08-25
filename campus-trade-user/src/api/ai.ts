@@ -39,7 +39,7 @@ export function chatStream(
   onDone: () => void,
   onError: (error: string) => void,
   onSession?: (sessionId: string) => void,
-  onThinking?: (status: string) => void,
+  onThinking?: (data: { step: string; detail?: string }) => void,
   onToolCall?: (toolCall: { id: string; name: string; args: Record<string, unknown> }) => void,
   onToolResult?: (toolResult: { id: string; name: string; result: string }) => void,
   regenerate?: boolean
@@ -87,7 +87,11 @@ export function chatStream(
             onMessage(data)
           }
         } else if (currentEvent === 'thinking' && onThinking) {
-          onThinking(data)
+          try {
+            onThinking(JSON.parse(data))
+          } catch {
+            onThinking({ step: data })
+          }
         } else if (currentEvent === 'tool_call' && onToolCall) {
           try {
             onToolCall(JSON.parse(data))

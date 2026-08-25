@@ -128,7 +128,8 @@ public class AiController {
         String userMessage = request.getMessage().trim();
 
         String faqContext = faqVectorService.buildContext(userMessage);
-        String prompt = systemPrompt + buildPlatformKnowledge() + buildDateHint();
+        boolean needTools = mayNeedTools(userMessage);
+        String prompt = systemPrompt + (needTools ? buildPlatformKnowledge() : "") + buildDateHint();
         if (!faqContext.isEmpty()) {
             prompt = prompt + "\n\n" + faqContext;
         }
@@ -264,7 +265,8 @@ public class AiController {
         }
 
         String faqContext = faqVectorService.buildContext(userMessage);
-        String prompt = systemPrompt + buildPlatformKnowledge() + buildDateHint();
+        boolean needTools = mayNeedTools(userMessage);
+        String prompt = systemPrompt + (needTools ? buildPlatformKnowledge() : "") + buildDateHint();
         if (!faqContext.isEmpty()) {
             prompt = prompt + "\n\n" + faqContext;
         }
@@ -330,7 +332,17 @@ public class AiController {
 
         List<Map<String, Object>> messages = sessionService.buildMessages(sid, prompt, effectiveMessage);
 
-        if (!mayNeedTools(userMessage)) {
+        if (!needTools) {
+            String templateResp = getTemplateResponse(userMessage);
+            if (templateResp != null) {
+                try {
+                    emitter.send(SseEmitter.event().name("message").data(jsonContent(templateResp)));
+                    sessionService.addMessagePair(sid, userMessage, templateResp);
+                    emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                    emitter.complete();
+                } catch (Exception ignored) {}
+                return emitter;
+            }
             String cacheKey = "ai:cache:simple:" + Math.abs(userMessage.hashCode());
             if (userMessage.length() < 50) {
                 try {
@@ -344,14 +356,14 @@ public class AiController {
                     }
                 } catch (Exception ignored) {}
             }
-            try {
-                emitter.send(SseEmitter.event().name("thinking").data("理解意图..."));
-            } catch (Exception ignored) {}
+            sendThinking(emitter, "理解意图", analyzeIntent(userMessage));
             StringBuilder fullResponse = new StringBuilder();
             deepSeekClient.chatStream(messages,
                     token -> {
                         try {
-                            emitter.send(SseEmitter.event().name("message").data(jsonContent(token)));
+                            if (safetyService.isTokenSafe(token)) {
+                                emitter.send(SseEmitter.event().name("message").data(jsonContent(token)));
+                            }
                             fullResponse.append(token);
                         } catch (Exception e) {
                             log.warn("SSE send token failed: {}", e.getMessage());
@@ -392,9 +404,7 @@ public class AiController {
         boolean toolsUsed = false;
 
         for (int i = 0; i < 3; i++) {
-            try {
-                emitter.send(SseEmitter.event().name("thinking").data("理解意图..."));
-            } catch (Exception ignored) {}
+            sendThinking(emitter, "理解意图", analyzeIntent(userMessage));
             Map<String, Object> aiResult;
             try {
                 aiResult = deepSeekClient.chatWithTools(messages, tools);
@@ -405,9 +415,7 @@ public class AiController {
             nonStreamAnswer = (String) aiResult.get("content");
             List<Map<String, Object>> toolCalls = (List<Map<String, Object>>) aiResult.get("toolCalls");
 
-            try {
-                emitter.send(SseEmitter.event().name("thinking").data("分析完成"));
-            } catch (Exception ignored) {}
+            sendThinking(emitter, "分析完成", analyzePlan(toolCalls));
 
             if (toolCalls == null || toolCalls.isEmpty()) {
                 break;
@@ -460,12 +468,16 @@ public class AiController {
                 }));
             }
 
+            List<String> completedToolNames = new ArrayList<>();
+            List<String> completedToolResults = new ArrayList<>();
             for (int j = 0; j < toolCalls.size(); j++) {
                 Map<String, Object> toolCall = toolCalls.get(j);
                 String toolCallId = (String) toolCall.get("id");
                 Map<String, Object> function = (Map<String, Object>) toolCall.get("function");
                 String toolName = (String) function.get("name");
                 String toolResult = toolFutures.get(j).join();
+                completedToolNames.add(toolName);
+                completedToolResults.add(toolResult);
 
                 try {
                     Map<String, Object> resultInfo = new LinkedHashMap<>();
@@ -484,9 +496,7 @@ public class AiController {
                 log.info("Tool called (stream): {} -> {}", toolName, toolResult.length() > 100 ? toolResult.substring(0, 100) : toolResult);
             }
 
-            try {
-                emitter.send(SseEmitter.event().name("thinking").data("查询完成"));
-            } catch (Exception ignored) {}
+            sendThinking(emitter, "查询完成", summarizeResult(completedToolNames, completedToolResults));
 
             nonStreamAnswer = null;
             break;
@@ -511,7 +521,9 @@ public class AiController {
         deepSeekClient.chatStream(messages,
                 token -> {
                     try {
-                        emitter.send(SseEmitter.event().name("message").data(jsonContent(token)));
+                        if (safetyService.isTokenSafe(token)) {
+                            emitter.send(SseEmitter.event().name("message").data(jsonContent(token)));
+                        }
                         fullResponse.append(token);
                     } catch (Exception e) {
                         log.warn("SSE send token failed: {}", e.getMessage());
@@ -540,6 +552,121 @@ public class AiController {
         );
 
         return emitter;
+    }
+
+    private String toolDisplayName(String name) {
+        if (name == null) return "未知工具";
+        switch (name) {
+            case "get_order_status": return "查询订单列表";
+            case "get_order_by_no": return "按订单号查询";
+            case "search_goods": return "搜索商品";
+            case "get_user_profile": return "用户资料";
+            case "get_user_stats": return "用户统计";
+            case "get_my_goods": return "我的商品";
+            case "get_goods_detail": return "商品详情";
+            case "get_favorites": return "我的收藏";
+            case "get_cart": return "购物车";
+            case "get_addresses": return "收货地址";
+            case "get_ratings": return "商品评价";
+            case "get_notifications": return "通知消息";
+            case "get_unread_message_count": return "未读消息数";
+            case "get_recent_contacts": return "最近联系人";
+            case "get_follow_list": return "关注列表";
+            case "get_categories": return "商品分类";
+            case "get_order_fund_logs": return "订单资金流水";
+            case "get_announcements": return "平台公告";
+            case "cancel_order": return "取消订单";
+            case "confirm_receipt": return "确认收货";
+            case "ship_order": return "发货";
+            case "request_refund": return "申请退款";
+            case "rate_order": return "评价订单";
+            case "toggle_favorite": return "收藏/取消收藏";
+            case "add_to_cart": return "加入购物车";
+            case "toggle_follow_user": return "关注/取消关注";
+            case "online_offline_goods": return "上架/下架商品";
+            case "add_address": return "添加收货地址";
+            case "submit_report": return "举报";
+            case "admin_dashboard": return "管理仪表盘";
+            case "admin_list_users": return "用户列表";
+            case "admin_ban_user": return "封禁用户";
+            case "admin_audit_goods": return "审核商品";
+            case "admin_list_reports": return "举报列表";
+            case "admin_handle_refund": return "处理退款";
+            default: return name;
+        }
+    }
+
+    private String analyzeIntent(String message) {
+        if (message == null) return "理解用户需求";
+        String lower = message.toLowerCase();
+        if (lower.matches(".*CT\\d+.*")) return "用户想查询特定订单的状态，需要按订单号查找对应订单的详细信息";
+        if (lower.contains("售出") || lower.contains("卖出")) return "用户想查询卖家销售记录，需要获取已卖出的订单信息";
+        if (lower.contains("订单") || lower.contains("买") || lower.contains("交易记录")) return "用户想查询订单/交易信息，需要获取用户的订单列表";
+        if (lower.contains("搜索") || lower.contains("找") || lower.contains("有没有")) return "用户想搜索或查找商品，需要调用商品搜索工具";
+        if (lower.contains("我的商品") || lower.contains("我发布的") || lower.contains("我卖")) return "用户想查看自己发布的商品列表，了解在售/审核状态";
+        if (lower.contains("商品") && (lower.contains("信息") || lower.contains("详情"))) return "用户想查看商品详细信息";
+        if (lower.contains("商品") && (lower.contains("卖") || lower.contains("在售") || lower.contains("发布"))) return "用户想了解商品发布/在售信息";
+        if (lower.contains("平台") && (lower.contains("数据") || lower.contains("统计") || lower.contains("概览"))) return "用户想查看平台运营数据概览，包括用户、商品、订单等统计信息";
+        if (lower.contains("我的") && (lower.contains("信息") || lower.contains("资料"))) return "用户想查看个人资料信息";
+        if (lower.contains("统计") || lower.contains("花了") || lower.contains("消费") || lower.contains("收入")) return "用户想查看个人消费统计数据";
+        if (lower.contains("收藏")) return "用户想查看收藏的商品列表";
+        if (lower.contains("购物车")) return "用户想查看购物车中的商品";
+        if (lower.contains("地址")) return "用户想查看或管理收货地址";
+        if (lower.contains("评价") || lower.contains("评分") || lower.contains("好评")) return "用户想查看商品评价信息";
+        if (lower.contains("通知") || lower.contains("消息") || lower.contains("未读")) return "用户想查看通知消息";
+        if (lower.contains("关注") || lower.contains("粉丝")) return "用户想查看关注/粉丝信息";
+        if (lower.contains("分类")) return "用户想查看商品分类列表";
+        if (lower.contains("公告")) return "用户想查看平台公告";
+        if (lower.contains("退款")) return "用户想申请退款或查看退款状态";
+        if (lower.contains("物流") || lower.contains("发货") || lower.contains("收货")) return "用户想查询物流或发货/收货状态";
+        if (lower.contains("商品")) return "用户想查询商品相关信息";
+        if (lower.contains("查询") || lower.contains("查看")) return "用户想查询相关信息";
+        return "理解用户需求，准备回答问题";
+    }
+
+    private String analyzePlan(List<Map<String, Object>> toolCalls) {
+        if (toolCalls == null || toolCalls.isEmpty()) return "无需调用工具，将直接回答用户问题";
+        StringBuilder sb = new StringBuilder("将调用以下工具获取数据：\n");
+        for (Map<String, Object> tc : toolCalls) {
+            Map<String, Object> fn = (Map<String, Object>) tc.get("function");
+            String name = (String) fn.get("name");
+            sb.append("• ").append(toolDisplayName(name)).append("\n");
+        }
+        return sb.toString().trim();
+    }
+
+    private String summarizeResult(List<String> toolNames, List<String> results) {
+        if (results == null || results.isEmpty()) return "已获取数据，正在整理回复";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < results.size(); i++) {
+            String name = i < toolNames.size() ? toolNames.get(i) : "";
+            String result = results.get(i);
+            sb.append("• ").append(toolDisplayName(name)).append("：");
+            if (result.contains("总用户")) {
+                result = result.replaceAll("[\\s\\n]+", " ");
+                int userStart = result.indexOf("总用户");
+                if (userStart >= 0) sb.append(result.substring(userStart, Math.min(userStart + 100, result.length())));
+                else sb.append("已获取数据");
+            } else if (result.contains("订单")) {
+                sb.append("已获取订单数据");
+            } else if (result.contains("商品")) {
+                sb.append("已获取商品数据");
+            } else {
+                sb.append("已获取数据（").append(result.length()).append("字符）");
+            }
+            sb.append("\n");
+        }
+        return sb.toString().trim();
+    }
+
+    private void sendThinking(SseEmitter emitter, String step, String detail) {
+        try {
+            Map<String, String> data = new LinkedHashMap<>();
+            data.put("step", step);
+            data.put("detail", detail != null ? detail : "");
+            emitter.send(SseEmitter.event().name("thinking").data(
+                objectMapper.writeValueAsString(data)));
+        } catch (Exception ignored) {}
     }
 
     private boolean mayNeedTools(String message) {
@@ -574,6 +701,39 @@ public class AiController {
         }
         if (message.matches(".*CT\\d+.*")) return true;
         return false;
+    }
+
+    private String getTemplateResponse(String message) {
+        if (message == null) return null;
+        String lower = message.toLowerCase().trim();
+
+        if (lower.matches(".*(介绍|自我介绍|你是谁|你叫什么|你的名字).*")) {
+            return "我是校园贸易平台的AI助手\"小苏\"😊\n\n" +
+                   "我可以帮你：\n" +
+                   "• 查询订单状态（如\"我的订单\"、\"订单CT123456到哪了\"）\n" +
+                   "• 搜索商品（如\"有没有二手自行车\"、\"找一本书\"）\n" +
+                   "• 解答平台使用问题（注册、密码、支付等）\n\n" +
+                   "有什么可以帮你的吗？";
+        }
+        if (lower.matches(".*(你能做什么|有什么功能|功能|帮助|help).*")) {
+            return "我可以帮你做这些事：\n\n" +
+                   "📦 **订单查询**：\"我的订单\"、\"订单CT123456到哪了\"\n" +
+                   "🔍 **商品搜索**：\"有没有二手自行车\"、\"找一本书\"\n" +
+                   "📖 **平台指南**：注册、密码重置、支付、实名认证等\n" +
+                   "💬 **日常问答**：随便聊聊\n\n" +
+                   "直接告诉我你的问题就好！";
+        }
+        if (lower.matches("^(你好|您好|hi|hello|嗨|哈喽|hey)[啊呀！!。.~]?$")) {
+            return "你好呀！我是校园贸易平台AI助手\"小苏\"😊\n\n" +
+                   "可以帮你查订单、搜商品、解答平台问题，有什么需要吗？";
+        }
+        if (lower.matches(".*(谢谢|感谢|多谢).*")) {
+            return "不客气！还有其他问题随时问我 😊";
+        }
+        if (lower.matches(".*(再见|拜拜|晚安|bye).*")) {
+            return "再见！有问题随时来找我 😊";
+        }
+        return null;
     }
 
     @ApiOperation("清除AI会话历史")
