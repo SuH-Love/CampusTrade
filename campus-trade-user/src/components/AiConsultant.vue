@@ -53,7 +53,7 @@
                       <el-icon :size="13"><ThinkingIcon /></el-icon>
                       <span class="thinking-label">
                         <template v-if="msg.loading">思考中...</template>
-                        <template v-else>已思考 {{ ((msg.thinkingEndTime || Date.now()) - msg.thinkingStartTime) / 1000 | 0 }}s</template>
+                        <template v-else>总耗时 {{ ((msg.thinkingEndTime || Date.now()) - msg.thinkingStartTime) / 1000 | 1 }}s</template>
                       </span>
                       <el-icon :size="11" class="expand-icon">
                         <ArrowDown v-if="!msg.thinkingExpanded" />
@@ -102,7 +102,7 @@
                   <div v-if="msg.thinkingStatus" class="thinking-status">
                     <el-icon :size="12" class="is-loading"><Loading /></el-icon>
                     {{ msg.thinkingStatus }}
-                    <span v-if="msg.thinkingStartTime" class="thinking-timer">{{ ((msg.thinkingEndTime || Date.now()) - msg.thinkingStartTime) / 1000 | 1 }}s</span>
+                    <span v-if="msg.thinkingSteps.length > 0" class="thinking-timer">{{ (Date.now() - msg.thinkingSteps[msg.thinkingSteps.length - 1].startTime) / 1000 | 1 }}s</span>
                   </div>
                   <div v-if="msg.error" class="msg-error">
                     <span>{{ msg.content }}</span>
@@ -117,7 +117,7 @@
                     <el-icon :size="13"><CopyDocument /></el-icon>
                   </button>
                   <button
-                    v-if="!msg.error && idx > 0"
+                    v-if="!msg.error && idx === messages.length - 1 && !loading"
                     class="action-btn"
                     title="重新回答"
                     @click="regenerateAnswer(idx)"
@@ -450,6 +450,8 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
       assistantMsg.streaming = false
       assistantMsg.thinkingStatus = undefined
       assistantMsg.thinkingEndTime = Date.now()
+      const lastStep = assistantMsg.thinkingSteps[assistantMsg.thinkingSteps.length - 1]
+      if (lastStep && !lastStep.endTime) lastStep.endTime = Date.now()
       loading.value = false
       streamHandle = null
       stopThinkingTimer()
@@ -461,7 +463,11 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
         accumulated += tokenQueue.shift()!
         assistantMsg.content = accumulated
         assistantMsg.loading = false
-        assistantMsg.thinkingStatus = undefined
+        if (assistantMsg.thinkingStatus) {
+          assistantMsg.thinkingStatus = undefined
+          const lastStep = assistantMsg.thinkingSteps[assistantMsg.thinkingSteps.length - 1]
+          if (lastStep && !lastStep.endTime) lastStep.endTime = Date.now()
+        }
         scrollToBottom()
         rafId = requestAnimationFrame(processQueue)
       } else {
