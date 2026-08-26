@@ -2,6 +2,7 @@ package com.campustrade.controller;
 
 import com.campustrade.common.Result;
 import com.campustrade.entity.Goods;
+import com.campustrade.health.AiHealthIndicator;
 import com.campustrade.mapper.GoodsMapper;
 import com.campustrade.service.ai.AiSafetyService;
 import com.campustrade.service.ai.DeepSeekClient;
@@ -14,6 +15,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.actuate.health.Health;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -44,9 +46,10 @@ public class AiController {
     private AiSafetyService safetyService;
 
     @Autowired
-    private com.campustrade.health.AiHealthIndicator aiHealthIndicator;
+    private AiHealthIndicator aiHealthIndicator;
 
     @Autowired
+
     private com.campustrade.service.ai.AiRateLimiter aiRateLimiter;
 
     @Autowired
@@ -777,6 +780,8 @@ public class AiController {
     public Result<Map<String, Object>> status() {
         Map<String, Object> status = new LinkedHashMap<>();
         status.put("enabled", deepSeekClient.isEnabled());
+        Health aiHealth = aiHealthIndicator.health();
+        status.put("healthy", "UP".equals(aiHealth.getStatus().getCode()));
         status.put("model", deepSeekClient.getModel());
         return Result.success(status);
     }
@@ -848,6 +853,8 @@ public class AiController {
         }
         Map<String, Object> config = new LinkedHashMap<>();
         config.put("enabled", deepSeekClient.isEnabled());
+        Health cfgHealth = aiHealthIndicator.health();
+        config.put("healthy", "UP".equals(cfgHealth.getStatus().getCode()));
         config.put("model", deepSeekClient.getModel());
         config.put("apiKeyMasked", deepSeekClient.getCurrentApiKeyMasked());
         config.put("baseUrl", deepSeekClient.getCurrentBaseUrl());

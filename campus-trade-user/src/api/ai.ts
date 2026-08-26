@@ -14,6 +14,7 @@ export interface ChatResponse {
 
 export interface AiStatus {
   enabled: boolean
+  healthy: boolean
   model: string
 }
 

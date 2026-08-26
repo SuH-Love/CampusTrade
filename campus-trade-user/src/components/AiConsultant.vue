@@ -783,8 +783,8 @@ onMounted(async () => {
   window.addEventListener('resize', onResize)
   try {
     const status = await getAiStatus()
-    aiEnabled.value = status.enabled
-    statusText.value = status.enabled ? `在线 · ${status.model}` : '离线'
+    aiEnabled.value = status.enabled && status.healthy
+    statusText.value = (status.enabled && status.healthy) ? `在线 · ${status.model}` : '离线'
   } catch {
     aiEnabled.value = false
     statusText.value = '离线'

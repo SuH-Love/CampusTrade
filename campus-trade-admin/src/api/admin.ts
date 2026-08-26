@@ -164,6 +164,7 @@ export const getFundLogList = (params: PageQueryParams & { type?: string; orderI
 
 export interface AiConfigStatus {
   enabled: boolean
+  healthy: boolean
   model: string
   apiKeyMasked: string
   baseUrl: string

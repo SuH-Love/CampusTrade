@@ -101,8 +101,8 @@
       <template #header>
         <div class="card-header">
           <span>AI 助手配置</span>
-          <el-tag :type="aiConfig.enabled ? 'success' : 'danger'" size="small">
-            {{ aiConfig.enabled ? '在线' : '离线' }}
+          <el-tag :type="aiConfig.healthy ? 'success' : 'danger'" size="small">
+            {{ aiConfig.healthy ? '在线' : '离线' }}
           </el-tag>
         </div>
       </template>
@@ -171,7 +171,7 @@ const form = reactive<Record<string, string>>({
 const aiLoading = ref(false)
 const aiSaving = ref(false)
 const showApiKeyInput = ref(false)
-const aiConfig = ref<AiConfigStatus>({ enabled: false, model: '', apiKeyMasked: '', baseUrl: '' })
+const aiConfig = ref<AiConfigStatus>({ enabled: false, healthy: false, model: '', apiKeyMasked: '', baseUrl: '' })
 const aiForm = reactive({ model: '', baseUrl: '', apiKey: '' })
 
 const loadAiConfig = async () => {
