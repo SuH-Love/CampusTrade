@@ -395,7 +395,7 @@ const sanitizeContentKey = (content: string): string => {
     .replace(/<.*?parameter.*?>[\s\S]*?<\/.*?parameter.*?>/g, '')
     .replace(/<.*?parameter.*?>/g, '')
     .trim()
-    .substring(0, 100)
+    .slice(-50)
 }
 
 const saveThinkingData = (sid: string, msg: Message) => {
@@ -441,9 +441,9 @@ const loadHistory = async () => {
           id: ++msgIdCounter,
           role: msg.role as 'user' | 'assistant',
           content: msg.content,
-          toolCalls: [],
+          toolCalls: (msg.toolCalls || []).map((tc: any) => ({ ...tc, expanded: false })),
           timestamp: msg.timestamp || Date.now(),
-          thinkingSteps: []
+          thinkingSteps: (msg.thinkingSteps || []).map((ts: any) => ({ ...ts, startTime: ts.startTime || 0, endTime: ts.endTime || 0 }))
         }
         if (m.role === 'assistant' && sessionId.value) {
           restoreThinkingData(sessionId.value, m)

@@ -332,6 +332,9 @@ public class AiController {
 
         List<Map<String, Object>> messages = sessionService.buildMessages(sid, prompt, effectiveMessage);
 
+        final List<Map<String, Object>> collectedThinking = new ArrayList<>();
+        final List<Map<String, Object>> collectedToolCalls = new ArrayList<>();
+
         if (!needTools) {
             String templateResp = getTemplateResponse(userMessage);
             if (templateResp != null) {
@@ -357,6 +360,7 @@ public class AiController {
                 } catch (Exception ignored) {}
             }
             sendThinking(emitter, "理解意图", analyzeIntent(userMessage));
+            collectedThinking.add(Map.of("status", "理解意图", "detail", analyzeIntent(userMessage)));
             StringBuilder fullResponse = new StringBuilder();
             deepSeekClient.chatStream(messages,
                     token -> {
@@ -372,7 +376,7 @@ public class AiController {
                     done -> {
                         try {
                             String sanitizedFull = safetyService.sanitizeOutput(fullResponse.toString());
-                            sessionService.addMessagePair(sid, userMessage, sanitizedFull);
+                            sessionService.addMessagePair(sid, userMessage, sanitizedFull, collectedThinking, null);
                             if (userMessage.length() < 50 && sanitizedFull.length() < 2000) {
                                 try {
                                     stringRedisTemplate.opsForValue().set(cacheKey, sanitizedFull, 1, TimeUnit.HOURS);
@@ -389,7 +393,7 @@ public class AiController {
                         try {
                             String partial = fullResponse.toString();
                             String saveContent = partial.isEmpty() ? "AI服务暂时不可用" : safetyService.sanitizeOutput(partial);
-                            sessionService.addMessagePair(sid, userMessage, saveContent);
+                            sessionService.addMessagePair(sid, userMessage, saveContent, collectedThinking, null);
                             emitter.send(SseEmitter.event().name("error").data("AI服务暂时不可用"));
                             emitter.complete();
                         } catch (Exception ignored) {}
@@ -405,6 +409,7 @@ public class AiController {
 
         for (int i = 0; i < 3; i++) {
             sendThinking(emitter, "理解意图", analyzeIntent(userMessage));
+            collectedThinking.add(Map.of("status", "理解意图", "detail", analyzeIntent(userMessage)));
             Map<String, Object> aiResult;
             try {
                 aiResult = deepSeekClient.chatWithTools(messages, tools);
@@ -412,10 +417,13 @@ public class AiController {
                 log.error("Agent loop chatWithTools failed", e);
                 break;
             }
+
             nonStreamAnswer = (String) aiResult.get("content");
             List<Map<String, Object>> toolCalls = (List<Map<String, Object>>) aiResult.get("toolCalls");
 
-            sendThinking(emitter, "分析完成", analyzePlan(toolCalls));
+            String planDetail = analyzePlan(toolCalls);
+            sendThinking(emitter, "分析完成", planDetail);
+            collectedThinking.add(Map.of("status", "分析完成", "detail", planDetail));
 
             if (toolCalls == null || toolCalls.isEmpty()) {
                 break;
@@ -450,8 +458,10 @@ public class AiController {
                     callInfo.put("id", toolCallId);
                     callInfo.put("name", toolName);
                     callInfo.put("args", args);
+                    callInfo.put("displayName", toolDisplayName(toolName));
                     emitter.send(SseEmitter.event().name("tool_call").data(
                         new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(callInfo)));
+                    collectedToolCalls.add(callInfo);
                 } catch (Exception ignored) {}
 
                 final String fnName = toolName;
@@ -486,6 +496,12 @@ public class AiController {
                     resultInfo.put("result", toolResult.length() > 500 ? toolResult.substring(0, 500) + "..." : toolResult);
                     emitter.send(SseEmitter.event().name("tool_result").data(
                         new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(resultInfo)));
+                    for (Map<String, Object> tc : collectedToolCalls) {
+                        if (toolCallId.equals(tc.get("id"))) {
+                            tc.put("result", resultInfo.get("result"));
+                            break;
+                        }
+                    }
                 } catch (Exception ignored) {}
 
                 Map<String, Object> toolMsg = new LinkedHashMap<>();
@@ -496,7 +512,9 @@ public class AiController {
                 log.info("Tool called (stream): {} -> {}", toolName, toolResult.length() > 100 ? toolResult.substring(0, 100) : toolResult);
             }
 
-            sendThinking(emitter, "查询完成", summarizeResult(completedToolNames, completedToolResults));
+            String queryDetail = summarizeResult(completedToolNames, completedToolResults);
+            sendThinking(emitter, "查询完成", queryDetail);
+            collectedThinking.add(Map.of("status", "查询完成", "detail", queryDetail));
 
             nonStreamAnswer = null;
             break;
@@ -506,7 +524,7 @@ public class AiController {
             String content = safetyService.sanitizeOutput(nonStreamAnswer);
             try {
                 emitter.send(SseEmitter.event().name("message").data(jsonContent(content)));
-                sessionService.addMessagePair(sid, userMessage, content);
+                sessionService.addMessagePair(sid, userMessage, content, collectedThinking, collectedToolCalls);
                 emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                 emitter.complete();
             } catch (Exception e) {
@@ -532,7 +550,7 @@ public class AiController {
                 done -> {
                     try {
                         String sanitizedFull = safetyService.sanitizeOutput(fullResponse.toString());
-                        sessionService.addMessagePair(sid, userMessage, sanitizedFull);
+                        sessionService.addMessagePair(sid, userMessage, sanitizedFull, collectedThinking, collectedToolCalls);
                         emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                         emitter.complete();
                     } catch (Exception e) {
@@ -544,7 +562,7 @@ public class AiController {
                     try {
                         String partial = fullResponse.toString();
                         String saveContent = partial.isEmpty() ? "AI服务暂时不可用" : safetyService.sanitizeOutput(partial);
-                        sessionService.addMessagePair(sid, userMessage, saveContent);
+                        sessionService.addMessagePair(sid, userMessage, saveContent, collectedThinking, collectedToolCalls);
                         emitter.send(SseEmitter.event().name("error").data("AI服务暂时不可用"));
                         emitter.complete();
                     } catch (Exception ignored) {}
@@ -599,6 +617,10 @@ public class AiController {
     private String analyzeIntent(String message) {
         if (message == null) return "理解用户需求";
         String lower = message.toLowerCase();
+        if (lower.contains("昨天") || lower.contains("前天") || lower.contains("上周")) return "用户想查询特定时间段的数据，需结合上下文理解时间范围";
+        if (lower.contains("准确") || lower.contains("对吗") || lower.contains("是不是") || lower.contains("对不对") || lower.contains("正确")) return "用户在确认数据准确性，需重新查询验证";
+        if (lower.contains("先去") || lower.contains("再去") || lower.contains("应该先") || lower.contains("你要")) return "用户在给出操作指令，需执行对应操作";
+        if (lower.contains("呢") && message.length() <= 10) return "用户在追问上文话题，需结合上下文理解";
         if (lower.matches(".*CT\\d+.*")) return "用户想查询特定订单的状态，需要按订单号查找对应订单的详细信息";
         if (lower.contains("售出") || lower.contains("卖出")) return "用户想查询卖家销售记录，需要获取已卖出的订单信息";
         if (lower.contains("订单") || lower.contains("买") || lower.contains("交易记录")) return "用户想查询订单/交易信息，需要获取用户的订单列表";

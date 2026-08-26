@@ -67,6 +67,11 @@ public class SessionService {
     }
 
     public void addMessagePair(String sessionId, String userMessage, String assistantMessage) {
+        addMessagePair(sessionId, userMessage, assistantMessage, null, null);
+    }
+
+    public void addMessagePair(String sessionId, String userMessage, String assistantMessage,
+            List<Map<String, Object>> thinkingSteps, List<Map<String, Object>> toolCalls) {
         String key = SESSION_PREFIX + sessionId;
         try {
             long now = System.currentTimeMillis();
@@ -78,6 +83,8 @@ public class SessionService {
             assistantMsg.put("role", "assistant");
             assistantMsg.put("content", assistantMessage);
             assistantMsg.put("timestamp", now);
+            if (thinkingSteps != null && !thinkingSteps.isEmpty()) assistantMsg.put("thinkingSteps", thinkingSteps);
+            if (toolCalls != null && !toolCalls.isEmpty()) assistantMsg.put("toolCalls", toolCalls);
             String userJson = objectMapper.writeValueAsString(userMsg);
             String assistantJson = objectMapper.writeValueAsString(assistantMsg);
             stringRedisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
@@ -92,6 +99,7 @@ public class SessionService {
             log.error("Failed to add message pair: sessionId={}", sessionId, e);
         }
     }
+
 
     public void clearSession(String sessionId) {
         stringRedisTemplate.delete(SESSION_PREFIX + sessionId);
