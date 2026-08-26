@@ -162,6 +162,24 @@ public class DeepSeekClient {
         return currentBaseUrl;
     }
 
+    public boolean checkApiHealth() {
+        try {
+            HttpResponse response = HttpRequest.get(currentBaseUrl + "/models")
+                    .header("Authorization", "Bearer " + currentApiKey)
+                    .timeout(10000)
+                    .execute();
+            int code = response.getStatus();
+            if (code >= 200 && code < 300) {
+                return true;
+            }
+            log.warn("AI health check (GET /models) failed: {} {}", code, response.body());
+            return false;
+        } catch (Exception e) {
+            log.warn("AI health check (GET /models) error: {}", e.getMessage());
+            return false;
+        }
+    }
+
     public CompletableFuture<String> chatAsync(List<Map<String, Object>> messages) {
         return CompletableFuture.supplyAsync(() -> chat(messages), aiTaskExecutor);
     }

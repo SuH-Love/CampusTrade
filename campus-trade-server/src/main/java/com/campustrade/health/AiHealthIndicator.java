@@ -7,10 +7,6 @@ import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Component("ai")
@@ -52,20 +48,14 @@ public class AiHealthIndicator implements HealthIndicator {
 
     private Health doHealthCheck() {
         try {
-            List<Map<String, Object>> messages = new ArrayList<>();
-            Map<String, Object> msg = new HashMap<>();
-            msg.put("role", "user");
-            msg.put("content", "ping");
-            messages.add(msg);
-
-            String response = deepSeekClient.chat(messages);
-            if (response != null && !response.isEmpty()) {
+            boolean healthy = deepSeekClient.checkApiHealth();
+            if (healthy) {
                 return Health.up()
                         .withDetail("model", deepSeekClient.getModel())
                         .withDetail("status", "responsive")
                         .build();
             } else {
-                return Health.down().withDetail("reason", "Empty response from AI").build();
+                return Health.down().withDetail("reason", "AI API /models check failed").build();
             }
         } catch (Exception e) {
             log.warn("AI health check failed: {}", e.getMessage());
