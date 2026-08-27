@@ -242,9 +242,13 @@ onUnmounted(() => {
 .sidebar {
   background: var(--admin-sidebar-bg);
   transition: width 0.3s;
-  overflow: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  flex-shrink: 0;
 }
 
 .sidebar-drawer {
