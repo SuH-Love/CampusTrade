@@ -365,7 +365,7 @@ onUnmounted(() => {
 
 .super-tag { margin-left: 4px; }
 
-.admin-main { background: var(--admin-bg-light); padding: 24px; }
+.admin-main { background: var(--admin-bg-light); padding: 12px; }
 
 @media (max-width: 768px) {
   .header-breadcrumb { display: none; }
