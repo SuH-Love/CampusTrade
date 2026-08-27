@@ -316,6 +316,9 @@ onUnmounted(() => {
   padding: 0 24px;
   height: 60px;
   box-shadow: var(--admin-shadow);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .header-left { display: flex; align-items: center; gap: 12px; }
