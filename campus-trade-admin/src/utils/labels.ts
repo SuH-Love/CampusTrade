@@ -57,7 +57,7 @@ export const operationLabel = (op: string): string => {
     createPayment: '创建支付', payNotify: '支付通知',
     getDefault: '获取默认收款', setDefaultPayment: '设为默认收款',
     listSystemConfig: '获取系统配置', updateSystemConfig: '更新系统配置',
-    getAlipayStatus: '支付宝配置状态', listFundLogs: '资金流水列表',
+    getAlipayStatus: '支付宝配置状态', getEmailStatus: '邮件服务状态', listFundLogs: '资金流水列表',
     adminApproveRefund: '管理员同意退款', adminRejectRefund: '管理员拒绝退款',
     chat: 'AI对话', chatStream: 'AI流式对话', clearSession: '清除AI会话',
     status: 'AI服务状态', getSuggestion: 'AI标题建议', getSessionHistory: 'AI会话历史',
