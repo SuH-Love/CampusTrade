@@ -64,6 +64,8 @@ CampusTrade/
 
 ### 本地开发
 
+> 开发环境使用 `application.yml`，内置弱密码（root123/redis123/guest）仅用于本地开发，生产环境通过 `.env` 注入强密码。
+
 1. 启动后端（数据库和表会自动创建，无需手动建库建表）：
 ```bash
 cd campus-trade-server
@@ -86,23 +88,59 @@ npm install && npm run dev
 ### Docker 部署
 
 ```bash
-# 构建前端
+# 1. 配置环境变量（必须先完成此步，否则容器启动会报错）
+cp .env.example .env
+# 编辑 .env，填写所有 [必改] 变量（密码、JWT密钥、CORS域名等）
+vi .env
+
+# 2. 构建前端
 cd campus-trade-user && npm install && npm run build && cd ..
 cd campus-trade-admin && npm install && npm run build && cd ..
 
-# 构建后端
+# 3. 构建后端
 cd campus-trade-server && mvn package -DskipTests && cd ..
 
-# 启动所有服务
+# 4. 启动所有服务
 docker-compose up -d --build
 ```
 
+> **重要**: `docker-compose.yml` 中所有密码/密钥使用 `${VAR:?error}` 语法，未在 `.env` 中配置将直接报错拒绝启动。请务必先完成 `.env` 配置。
+
+### 环境变量配置
+
+部署前必须配置 `.env` 文件（参考 `.env.example`），以下变量**必须自定义**：
+
+| 变量 | 说明 | 生成方法 |
+|------|------|----------|
+| `MYSQL_ROOT_PASSWORD` | MySQL root密码（至少16位强密码） | `openssl rand -base64 24` |
+| `REDIS_PASSWORD` | Redis密码 | `openssl rand -base64 24` |
+| `RABBITMQ_USERNAME` | RabbitMQ用户名 | 自定义（如 `campustrade`） |
+| `RABBITMQ_PASSWORD` | RabbitMQ密码 | `openssl rand -base64 24` |
+| `JWT_SECRET` | JWT签名密钥（至少32字符） | `openssl rand -base64 48` |
+| `ADMIN_PASSWORD` | 管理员初始密码（至少12位强密码） | 自定义强密码 |
+| `GRAFANA_ADMIN_PASSWORD` | Grafana管理员密码 | `openssl rand -base64 16` |
+| `CORS_ALLOWED_ORIGINS` | 允许的前端域名 | 如 `https://yourdomain.com,https://admin.yourdomain.com` |
+| `CORS_ORIGINS` | WebSocket允许域名 | 如 `https://yourdomain.com` |
+| `ALIPAY_NOTIFY_URL` | 支付宝回调URL | 如 `https://yourdomain.com/api/order/pay/notify` |
+| `ALIPAY_RETURN_URL` | 支付宝返回URL | 如 `https://yourdomain.com/order/` |
+
+可选变量：
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `USER_PASSWORD` | `user123` | 测试用户密码（生产环境建议修改） |
+| `DEEPSEEK_API_KEY` | (空) | DeepSeek API Key，留空则AI功能降级为本地FAQ |
+| `DEEPSEEK_BASE_URL` | `https://api.siliconflow.cn/v1` | AI API地址 |
+| `DEEPSEEK_MODEL` | `deepseek-ai/DeepSeek-V4-Flash` | 模型名称 |
+
 ### 默认账号
 
-| 角色 | 用户名 | 密码 |
-|------|--------|------|
-| 超级管理员 | admin | admin123 |
-| 普通用户 | user | user123 |
+| 角色 | 用户名 | 密码 | 说明 |
+|------|--------|------|------|
+| 超级管理员 | admin | `${ADMIN_PASSWORD}` | 密码在 `.env` 中配置，无默认值 |
+| 普通用户 | user | `${USER_PASSWORD}` | 密码在 `.env` 中配置，默认 `user123` |
+
+> 首次启动时 `DataInitializer` 自动创建上述账号。密码通过 BCrypt 加密存储，日志不输出明文。
 
 管理端访问：`http://<host>:81`
 用户端访问：`http://<host>`

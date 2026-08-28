@@ -16,7 +16,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${MYSQL_URL:jdbc:mysql://localhost:3306/campus_trade?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true}
     username: ${MYSQL_USERNAME:root}
-    password: ${MYSQL_PASSWORD:root123}
+    password: ${MYSQL_PASSWORD}
     hikari:
       minimum-idle: 10
       maximum-pool-size: 50
@@ -31,7 +31,7 @@ spring:
   redis:
     host: ${REDIS_HOST:localhost}
     port: ${REDIS_PORT:6379}
-    password: ${REDIS_PASSWORD:redis123}
+    password: ${REDIS_PASSWORD}
     database: 0
     lettuce:
       pool:
@@ -43,8 +43,8 @@ spring:
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: 5672
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
     virtual-host: /
     publisher-confirm-type: correlated
     publisher-returns: true
@@ -80,13 +80,19 @@ mybatis:
 
 
 jwt:
-  secret: ${JWT_SECRET:CampusTradeSecretKey2026ForJwtTokenGenerationAndValidation}
+  secret: ${JWT_SECRET}
   access-token-expiration: ${JWT_ACCESS_EXPIRATION:7200000}
   refresh-token-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
+admin:
+  password: ${ADMIN_PASSWORD}
+
+user:
+  password: ${USER_PASSWORD:user123}
+
 cors:
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost,http://localhost:81,http://localhost:5173,http://localhost:5174,http://61.139.2.140,http://61.139.2.140:81}
-  origins: ${CORS_ORIGINS:http://localhost:*,http://61.139.2.140:*}
+  allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  origins: ${CORS_ORIGINS}
 
 file:
   upload:
@@ -99,8 +105,8 @@ alipay:
   alipay-public-key: ${ALIPAY_PUBLIC_KEY:}
   gateway: ${ALIPAY_GATEWAY:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
   sign-type: RSA2
-  notify-url: ${ALIPAY_NOTIFY_URL:http://61.139.2.140/api/order/pay/notify}
-  return-url: ${ALIPAY_RETURN_URL:http://61.139.2.140/order/}
+  notify-url: ${ALIPAY_NOTIFY_URL}
+  return-url: ${ALIPAY_RETURN_URL}
 
 ai:
   enabled: ${AI_ENABLED:true}

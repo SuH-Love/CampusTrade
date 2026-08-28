@@ -18,8 +18,11 @@ import java.util.Set;
 @Component
 public class DataInitializer implements CommandLineRunner {
 
-    @Value("${admin.password:admin123}")
+    @Value("${admin.password}")
     private String adminPassword;
+
+    @Value("${user.password:user123}")
+    private String userPassword;
 
     @Autowired private UserMapper userMapper;
     @Autowired private UserRoleMapper userRoleMapper;
@@ -122,21 +125,21 @@ public class DataInitializer implements CommandLineRunner {
             UserRole userRole = new UserRole();
             userRole.setUserId(admin.getId()); userRole.setRoleId(1L);
             userRoleMapper.insert(userRole);
-            log.info("Admin user created: admin/admin123");
+            log.info("Admin user created with configured password");
         }
     }
 
     private void initNormalUser() {
         if (userMapper.selectByUsername("user") == null) {
             User user = new User();
-            user.setUsername("user"); user.setPassword(passwordEncoder.encode("user123"));
+            user.setUsername("user"); user.setPassword(passwordEncoder.encode(userPassword));
             user.setNickname("普通用户"); user.setAvatar("/default-avatar.svg");
             user.setStatus(1); user.setRealVerified(0);
             userMapper.insert(user);
             UserRole userRole = new UserRole();
             userRole.setUserId(user.getId()); userRole.setRoleId(3L);
             userRoleMapper.insert(userRole);
-            log.info("Normal user created: user/user123");
+            log.info("Normal user created with configured password");
         }
     }
 

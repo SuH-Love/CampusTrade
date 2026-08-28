@@ -207,7 +207,8 @@ CampusTrade/
 - 3个角色: ROLE_SUPER_ADMIN, ROLE_ADMIN, ROLE_USER
 - 11个权限: goods:create/update/delete/audit, user:ban, report:review, log:view 等
 - 6个商品分类: 数码电子, 书籍教材, 生活用品, 服装鞋帽, 运动户外, 其他
-- 1个超级管理员账号: admin / admin123（默认密码，可通过 `.env` 的 `ADMIN_PASSWORD` 覆盖）
+- 1个超级管理员账号: admin / `${ADMIN_PASSWORD}`（密码在 `.env` 中配置，无默认值）
+- 1个测试用户账号: user / `${USER_PASSWORD}`（密码在 `.env` 中配置，默认 `user123`）
 - 10个示例商品（首页展示用）
 - 2个横幅广告
 
@@ -951,13 +952,15 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 
 ### 11.2 环境变量清单
 
+> **重要**: `docker-compose.yml` 中所有敏感变量使用 `${VAR:?error}` 语法，未在 `.env` 中配置将直接报错拒绝启动。
+
 #### MySQL
 
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
 | `MYSQL_URL` | jdbc:mysql://localhost:3306/campus_trade?...&createDatabaseIfNotExist=true | 数据库连接URL(含自动建库) |
 | `MYSQL_USERNAME` | root | 数据库用户名 |
-| `MYSQL_ROOT_PASSWORD` | - | **[必改]** 数据库密码 |
+| `MYSQL_ROOT_PASSWORD` | **无（必填）** | **[必改]** 数据库密码，至少16位强密码 |
 | `MYSQL_DATABASE` | campus_trade | 数据库名 |
 
 #### Redis
@@ -966,21 +969,21 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 |--------|--------|------|
 | `REDIS_HOST` | localhost | Redis主机 |
 | `REDIS_PORT` | 6379 | Redis端口 |
-| `REDIS_PASSWORD` | (空) | **[必改]** Redis密码 |
+| `REDIS_PASSWORD` | **无（必填）** | **[必改]** Redis密码 |
 
 #### RabbitMQ
 
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
 | `RABBITMQ_HOST` | localhost | MQ主机 |
-| `RABBITMQ_USERNAME` | guest | **[必改]** MQ用户名 |
-| `RABBITMQ_PASSWORD` | guest | **[必改]** MQ密码 |
+| `RABBITMQ_USERNAME` | **无（必填）** | **[必改]** MQ用户名（建议 `campustrade`） |
+| `RABBITMQ_PASSWORD` | **无（必填）** | **[必改]** MQ密码 |
 
 #### JWT
 
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
-| `JWT_SECRET` | (硬编码) | **[必改]** JWT签名密钥，至少32字符 |
+| `JWT_SECRET` | **无（必填）** | **[必改]** JWT签名密钥，至少32字符，建议64位随机字符串 |
 | `JWT_ACCESS_EXPIRATION` | 7200000 | AccessToken过期时间(ms) |
 | `JWT_REFRESH_EXPIRATION` | 604800000 | RefreshToken过期时间(ms) |
 
@@ -988,7 +991,8 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
-| `CORS_ALLOWED_ORIGINS` | http://localhost:5173,http://localhost:5174 | 允许的前端域名 |
+| `CORS_ALLOWED_ORIGINS` | **无（必填）** | **[必改]** 允许的前端域名，逗号分隔 |
+| `CORS_ORIGINS` | **无（必填）** | **[必改]** WebSocket/STOMP允许域名 |
 
 #### 文件上传
 
@@ -1004,21 +1008,37 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 | `SPRING_PROFILES_ACTIVE` | prod | Spring Profile |
 | `JAVA_OPTS` | -Xms512m -Xmx1024m -XX:+UseG1GC | JVM参数 |
 | `SERVER_PORT` | 8080 | 后端服务端口 |
-| `ADMIN_PASSWORD` | admin123 | **[必改]** 超级管理员初始密码（代码默认值，部署时建议改为强密码） |
+| `ADMIN_PASSWORD` | **无（必填）** | **[必改]** 超级管理员初始密码，至少12位强密码 |
+| `USER_PASSWORD` | user123 | 测试用户密码（生产环境建议修改） |
 | `FRONTEND_USER_PORT` | 80 | 用户端Nginx端口 |
 | `FRONTEND_ADMIN_PORT` | 81 | 管理端Nginx端口 |
+
+#### 监控
+
+| 变量名 | 默认值 | 说明 |
+|--------|--------|------|
+| `GRAFANA_ADMIN_USER` | admin | Grafana管理员用户名 |
+| `GRAFANA_ADMIN_PASSWORD` | **无（必填）** | **[必改]** Grafana管理员密码 |
+| `PROMETHEUS_PORT` | 9090 | Prometheus端口（绑定127.0.0.1） |
+| `GRAFANA_PORT` | 3000 | Grafana端口（绑定127.0.0.1） |
+
+> **安全提示**: RabbitMQ管理(15672)、Prometheus(9090)、Grafana(3000)、Loki(3100) 端口均绑定 `127.0.0.1`，仅本机可访问，外网无法直接连接。
 
 #### AI助手
 
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
-| `AI_API_KEY` | sk-xxxx... | **[必改]** DeepSeek API密钥 |
-| `AI_BASE_URL` | https://api.siliconflow.cn/v1 | DeepSeek API基础URL |
-| `AI_MODEL` | deepseek-ai/DeepSeek-V4-Flash | 模型名称 |
-| `AI_MAX_TOKENS` | 2048 | 最大输出token数 |
-| `AI_TEMPERATURE` | 0.7 | 温度参数 |
-| `AI_CONTEXT_WINDOW` | 20 | 上下文消息条数 |
-| `AI_RATE_LIMIT` | 20 | 每分钟请求限制 |
+| `DEEPSEEK_API_KEY` | (空) | DeepSeek API密钥，留空则AI功能降级为本地FAQ |
+| `DEEPSEEK_BASE_URL` | https://api.siliconflow.cn/v1 | API基础URL |
+| `DEEPSEEK_MODEL` | deepseek-ai/DeepSeek-V4-Flash | 模型名称 |
+| `AI_ENABLED` | true | 是否启用AI功能 |
+
+#### 支付宝（可选）
+
+| 变量名 | 默认值 | 说明 |
+|--------|--------|------|
+| `ALIPAY_NOTIFY_URL` | **无（必填）** | 支付宝异步回调URL |
+| `ALIPAY_RETURN_URL` | **无（必填）** | 支付宝同步返回URL |
 
 ### 11.3 开发环境配置
 
@@ -1061,8 +1081,8 @@ spring.redis.password: ${REDIS_PASSWORD}
 # RabbitMQ - 环境变量
 spring.rabbitmq.password: ${RABBITMQ_PASSWORD}
 
-# JWT - 环境变量（保留默认值兜底）
-jwt.secret: ${JWT_SECRET:CampusTradeSecretKey2026ForJwtTokenGenerationAndValidation}
+# JWT - 环境变量（无默认值，必须配置）
+jwt.secret: ${JWT_SECRET}
 
 # Knife4j - 生产环境关闭
 knife4j.enable: false
@@ -1117,9 +1137,17 @@ management.endpoints.web.exposure.include: health,info,metrics
 # 1. 克隆项目
 git clone <repo-url> && cd CampusTrade
 
-# 2. 配置环境变量
+# 2. 配置环境变量（必须！未配置将拒绝启动）
 cp .env.example .env
-# 编辑 .env，修改所有 [必改] 变量
+# 编辑 .env，填写所有 [必改] 变量
+# - MYSQL_ROOT_PASSWORD: MySQL密码（openssl rand -base64 24）
+# - REDIS_PASSWORD: Redis密码
+# - RABBITMQ_USERNAME / RABBITMQ_PASSWORD: MQ账号密码
+# - JWT_SECRET: JWT密钥（openssl rand -base64 48）
+# - ADMIN_PASSWORD: 管理员密码
+# - GRAFANA_ADMIN_PASSWORD: Grafana密码
+# - CORS_ALLOWED_ORIGINS / CORS_ORIGINS: 前端域名
+# - ALIPAY_NOTIFY_URL / ALIPAY_RETURN_URL: 支付宝回调URL
 vi .env
 
 # 3. 构建后端
@@ -1147,18 +1175,23 @@ docker-compose logs -f backend
 ```
 
 > **注意**: 无需手动创建数据库，JDBC URL 含 `createDatabaseIfNotExist=true`，DataInitializer 会自动建表和初始化数据。
+>
+> **安全**: `.env` 文件已在 `.gitignore` 中排除，不会提交到版本控制。所有密码/密钥在 `docker-compose.yml` 中使用 `${VAR:?error}` 语法，未配置将直接报错。
 
 ### 12.3 服务端口
 
 | 服务 | 容器内端口 | 宿主机端口 | 说明 |
 |------|------------|------------|------|
-| MySQL | 3306 | 3306 | 数据库 |
-| Redis | 6379 | 6379 | 缓存 |
-| RabbitMQ | 5672 | 5672 | AMQP协议 |
-| RabbitMQ Management | 15672 | 15672 | 管理界面 |
+| MySQL | 3306 | (不暴露) | 数据库（仅Docker网络内访问） |
+| Redis | 6379 | (不暴露) | 缓存（仅Docker网络内访问） |
+| RabbitMQ | 5672 | (不暴露) | AMQP协议（仅Docker网络内访问） |
+| RabbitMQ Management | 15672 | 127.0.0.1:15672 | 管理界面（仅本机访问） |
 | Backend | 8080 | 8080 | 后端API |
 | Frontend-User | 80 | 80 | 用户端 |
 | Frontend-Admin | 80 | 81 | 管理端 |
+| Prometheus | 9090 | 127.0.0.1:9090 | 监控（仅本机访问） |
+| Grafana | 3000 | 127.0.0.1:3000 | 监控面板（仅本机访问） |
+| Loki | 3100 | 127.0.0.1:3100 | 日志聚合（仅本机访问） |
 
 ### 12.4 持久化挂载
 
@@ -1233,7 +1266,7 @@ docker exec -it campus-trade-mysql mysql -uroot -p${MYSQL_ROOT_PASSWORD} campus_
 # 查看Redis
 docker exec -it campus-trade-redis redis-cli -a ${REDIS_PASSWORD}
 
-# 查看RabbitMQ管理界面
+# 查看RabbitMQ管理界面（仅本机可访问，端口绑定127.0.0.1）
 # 浏览器访问 http://localhost:15672
 
 # 查看后端日志
@@ -1251,15 +1284,21 @@ docker-compose down -v
 
 ## 13. 安全注意事项
 
-### 13.1 生产环境必须修改的配置
+### 13.1 生产环境必须配置的变量
+
+> **已加固**: `docker-compose.yml` 和 `application-prod.yml` 中所有弱密码默认值已移除，使用 `${VAR:?error}` 语法强制要求 `.env` 配置，未设置将拒绝启动。
 
 | 配置项 | 风险等级 | 说明 |
 |--------|----------|------|
-| `JWT_SECRET` | **严重** | 默认硬编码密钥，必须替换为随机强密钥 |
-| `MYSQL_ROOT_PASSWORD` | **严重** | 默认 root123，必须替换 |
-| `REDIS_PASSWORD` | **严重** | 默认为空，必须设置密码 |
-| `RABBITMQ_USERNAME/PASSWORD` | **高** | 默认 guest/guest，必须替换 |
-| `CORS_ALLOWED_ORIGINS` | **高** | 生产环境必须限制为实际域名 |
+| `JWT_SECRET` | **严重** | 无默认值，必须配置至少32字符随机密钥 |
+| `MYSQL_ROOT_PASSWORD` | **严重** | 无默认值，必须配置强密码 |
+| `REDIS_PASSWORD` | **严重** | 无默认值，必须配置密码 |
+| `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | **高** | 无默认值，必须配置（不用guest） |
+| `ADMIN_PASSWORD` | **高** | 无默认值，管理员初始密码 |
+| `GRAFANA_ADMIN_PASSWORD` | **高** | 无默认值，Grafana管理员密码 |
+| `CORS_ALLOWED_ORIGINS` / `CORS_ORIGINS` | **高** | 无默认值，必须配置为实际域名 |
+| `ALIPAY_NOTIFY_URL` / `ALIPAY_RETURN_URL` | **中** | 无默认值，支付回调URL |
+| `USER_PASSWORD` | **低** | 默认 `user123`，测试用户密码，生产环境建议修改 |
 
 ### 13.2 JWT密钥生成方法
 
