@@ -132,7 +132,7 @@ docker-compose up -d --build
 | `ADMIN_PASSWORD` | 管理员初始密码（至少12位强密码） | 自定义强密码 |
 | `GRAFANA_ADMIN_PASSWORD` | Grafana管理员密码 | `openssl rand -base64 16` |
 | `CORS_ALLOWED_ORIGINS` | 允许的前端域名 | 如 `https://yourdomain.com,https://admin.yourdomain.com` |
-| `CORS_ORIGINS` | WebSocket允许域名 | 如 `https://yourdomain.com` |
+| `CORS_ORIGINS` | WebSocket允许域名 | 如 `https://yourdomain.com,https://*.yourdomain.com`（逗号分隔，`*.domain`不匹配根域名） |
 | `ALIPAY_NOTIFY_URL` | 支付宝回调URL | 如 `https://yourdomain.com/api/order/pay/notify` |
 | `ALIPAY_RETURN_URL` | 支付宝返回URL | 如 `https://yourdomain.com/order/` |
 

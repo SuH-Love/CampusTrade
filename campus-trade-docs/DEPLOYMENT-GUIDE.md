@@ -1017,7 +1017,7 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
 | `CORS_ALLOWED_ORIGINS` | **无（必填）** | **[必改]** 允许的前端域名，逗号分隔 |
-| `CORS_ORIGINS` | **无（必填）** | **[必改]** WebSocket/STOMP允许域名 |
+| `CORS_ORIGINS` | **无（必填）** | **[必改]** WebSocket/STOMP允许域名，逗号分隔。注意 `https://*.domain.com` 不匹配根域名 `https://domain.com`，需显式列出 |
 
 #### 文件上传
 
@@ -1175,7 +1175,7 @@ cp .env.example .env
 # - JWT_SECRET: JWT密钥（openssl rand -base64 48）
 # - ADMIN_PASSWORD: 管理员密码
 # - GRAFANA_ADMIN_PASSWORD: Grafana密码
-# - CORS_ALLOWED_ORIGINS / CORS_ORIGINS: 前端域名
+# - CORS_ALLOWED_ORIGINS / CORS_ORIGINS: 前端域名（逗号分隔，https://*.domain.com不匹配根域名，需显式列出）
 # - ALIPAY_NOTIFY_URL / ALIPAY_RETURN_URL: 支付宝回调URL
 vi .env
 
@@ -1329,7 +1329,7 @@ docker-compose down -v
 | `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | **高** | 无默认值，必须配置（不用guest） |
 | `ADMIN_PASSWORD` | **高** | 无默认值，管理员初始密码 |
 | `GRAFANA_ADMIN_PASSWORD` | **高** | 无默认值，Grafana管理员密码 |
-| `CORS_ALLOWED_ORIGINS` / `CORS_ORIGINS` | **高** | 无默认值，必须配置为实际域名 |
+| `CORS_ALLOWED_ORIGINS` / `CORS_ORIGINS` | **高** | 无默认值，必须配置为实际域名。逗号分隔，`https://*.domain.com`不匹配根域名需显式列出 |
 | `ALIPAY_NOTIFY_URL` / `ALIPAY_RETURN_URL` | **中** | 无默认值，支付回调URL |
 | `USER_PASSWORD` | **低** | 默认 `user123`，测试用户密码，生产环境建议修改 |
 
