@@ -109,7 +109,7 @@ services:
       - /app/logs:/app/logs
       - /app/upload:/data/uploads
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD-SHELL", "curl -s -o /dev/null http://localhost:8080/actuator/health"]
       interval: 15s
       timeout: 5s
       retries: 10

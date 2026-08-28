@@ -144,6 +144,10 @@ docker-compose up -d --build
 | `DEEPSEEK_API_KEY` | (空) | DeepSeek API Key，留空则AI功能降级为本地FAQ |
 | `DEEPSEEK_BASE_URL` | `https://api.siliconflow.cn/v1` | AI API地址 |
 | `DEEPSEEK_MODEL` | `deepseek-ai/DeepSeek-V4-Flash` | 模型名称 |
+| `FRONTEND_USER_PORT` | `80` | 用户端端口，有宿主机Nginx时设为 `127.0.0.1:8088` |
+| `FRONTEND_ADMIN_PORT` | `81` | 管理端端口，有宿主机Nginx时设为 `127.0.0.1:8181` |
+
+> **生产环境HTTPS部署**：当宿主机Nginx做SSL终止时，需在 `.env` 中将前端端口设为 `127.0.0.1:8088` 和 `127.0.0.1:8181`（绑定本机，由宿主机Nginx反代），避免与宿主机80/443端口冲突。
 
 ### 默认账号
 
@@ -154,8 +158,8 @@ docker-compose up -d --build
 
 > 首次启动时 `DataInitializer` 自动创建上述账号。密码通过 BCrypt 加密存储，日志不输出明文。
 
-管理端访问：`http://<host>:81`
-用户端访问：`http://<host>`
+管理端访问：`http://<host>:81`（或 `https://admin.yourdomain.com`）
+用户端访问：`http://<host>`（或 `https://yourdomain.com`）
 
 ## 核心功能
 

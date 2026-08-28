@@ -1035,8 +1035,8 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 | `SERVER_PORT` | 8080 | 后端服务端口 |
 | `ADMIN_PASSWORD` | **无（必填）** | **[必改]** 超级管理员初始密码，至少12位强密码 |
 | `USER_PASSWORD` | user123 | 测试用户密码（生产环境建议修改） |
-| `FRONTEND_USER_PORT` | 80 | 用户端Nginx端口 |
-| `FRONTEND_ADMIN_PORT` | 81 | 管理端Nginx端口 |
+| `FRONTEND_USER_PORT` | 80 | 用户端Nginx端口，有宿主机Nginx时设为 `127.0.0.1:8088` |
+| `FRONTEND_ADMIN_PORT` | 81 | 管理端Nginx端口，有宿主机Nginx时设为 `127.0.0.1:8181` |
 
 #### 监控
 
@@ -1216,11 +1216,15 @@ docker-compose logs -f backend
 | RabbitMQ | 5672 | (不暴露) | AMQP协议（仅Docker网络内访问） |
 | RabbitMQ Management | 15672 | 127.0.0.1:15672 | 管理界面（仅本机访问） |
 | Backend | 8080 | 8080 | 后端API |
-| Frontend-User | 80 | 80 | 用户端 |
-| Frontend-Admin | 80 | 81 | 管理端 |
+| Frontend-User | 80 | 80 或 127.0.0.1:8088 | 用户端（见下方说明） |
+| Frontend-Admin | 80 | 81 或 127.0.0.1:8181 | 管理端（见下方说明） |
 | Prometheus | 9090 | 127.0.0.1:9090 | 监控（仅本机访问） |
 | Grafana | 3000 | 127.0.0.1:3000 | 监控面板（仅本机访问） |
 | Loki | 3100 | 127.0.0.1:3100 | 日志聚合（仅本机访问） |
+
+> **前端端口配置**：
+> - **直接Docker部署**（无宿主机Nginx）：`.env` 中 `FRONTEND_USER_PORT=80`、`FRONTEND_ADMIN_PORT=81`
+> - **有宿主机Nginx做SSL终止**（生产环境HTTPS）：`.env` 中 `FRONTEND_USER_PORT=127.0.0.1:8088`、`FRONTEND_ADMIN_PORT=127.0.0.1:8181`，由宿主机Nginx反代到这两个端口，避免80/443端口冲突
 
 ### 12.4 持久化挂载
 
