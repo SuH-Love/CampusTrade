@@ -362,10 +362,13 @@ CampusTrade/
 upstream backend {
     server 127.0.0.1:8080;
     keepalive 32;
-    keepalive_timeout 60s;
+    keepalive_timeout 30s;
+    keepalive_requests 1000;
 }
 ```
-> 不配置keepalive时，每个请求新建TCP连接，高并发下会出现 `Connection reset by peer` 导致WebSocket和静态资源加载失败。
+> - 不配置keepalive时，每个请求新建TCP连接，高并发下会出现 `Connection reset by peer` 导致WebSocket和静态资源加载失败。
+> - `keepalive_timeout` 必须 **小于** 后端Tomcat的keepalive超时（默认60s），否则nginx会复用已被后端关闭的过期连接→`ERR_CONNECTION_RESET`。
+> - 配置 `proxy_next_upstream error timeout http_502 http_503 http_504` 让nginx在连接失败时自动重试。
 
 **WebSocket代理（注意不要用http2）：**
 ```nginx
@@ -1552,7 +1555,7 @@ mvn test
 | 图片无法加载 | Nginx缺少/uploads/代理 | 确认nginx.conf中 `/uploads/` location |
 | 页面空白 | 前端未构建 | 执行 `npm run build` |
 | WebSocket连接失败 | Nginx缺少/ws代理 | 确认nginx.conf中 `/ws` location + Upgrade头 |
-| WebSocket ERR_CONNECTION_RESET | nginx缺少upstream keepalive | 添加 `upstream` 块配置 `keepalive 32` + `proxy_http_version 1.1` + `proxy_set_header Connection ""` |
+| WebSocket ERR_CONNECTION_RESET | nginx upstream keepalive过期连接 | `keepalive_timeout 30s`(<后端60s) + `proxy_next_upstream error timeout http_502 http_503 http_504` + `proxy_socket_keepalive on` |
 | WebSocket 403 | CORS_ORIGINS未split逗号 | 后端 `setAllowedOriginPatterns(corsOrigins.split(","))` + `.env`显式列出根域名 |
 | 静态资源ERR_CONNECTION_RESET | nginx到前端容器连接不稳定 | 同WebSocket ERR_CONNECTION_RESET，添加upstream keepalive |
 | `https://*.domain`不匹配根域名 | 通配符只匹配子域名 | `.env`中显式添加 `https://yourdomain.com` |

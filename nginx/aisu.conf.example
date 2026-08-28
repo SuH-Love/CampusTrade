@@ -5,22 +5,26 @@
 # ============================================================
 
 # Upstream pools with keepalive (防止ERR_CONNECTION_RESET)
+# keepalive_timeout必须 < 后端Tomcat的keepalive超时(默认60s)，避免复用过期连接
 upstream backend {
     server 127.0.0.1:8080;
     keepalive 32;
-    keepalive_timeout 60s;
+    keepalive_timeout 30s;
+    keepalive_requests 1000;
 }
 
 upstream frontend_user {
     server 127.0.0.1:8088;
     keepalive 16;
-    keepalive_timeout 60s;
+    keepalive_timeout 30s;
+    keepalive_requests 1000;
 }
 
 upstream frontend_admin {
     server 127.0.0.1:8181;
     keepalive 16;
-    keepalive_timeout 60s;
+    keepalive_timeout 30s;
+    keepalive_requests 1000;
 }
 
 # HTTP -> HTTPS redirect
@@ -57,6 +61,7 @@ server {
         proxy_connect_timeout 10s;
         proxy_read_timeout 60s;
         proxy_send_timeout 60s;
+        proxy_next_upstream error timeout http_502 http_503 http_504;
     }
 
     # API directly to backend
@@ -72,6 +77,7 @@ server {
         proxy_read_timeout 300s;
         proxy_send_timeout 60s;
         proxy_buffering off;
+        proxy_next_upstream error timeout http_502 http_503 http_504;
     }
 
     # WebSocket directly to backend
@@ -87,6 +93,8 @@ server {
         proxy_connect_timeout 10s;
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;
+        proxy_socket_keepalive on;
+        proxy_next_upstream error timeout http_502 http_503 http_504;
     }
 
     # Uploads directly to backend
@@ -98,6 +106,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_connect_timeout 10s;
         proxy_read_timeout 60s;
+        proxy_next_upstream error timeout http_502 http_503 http_504;
     }
 }
 
@@ -128,6 +137,7 @@ server {
         proxy_connect_timeout 10s;
         proxy_read_timeout 60s;
         proxy_send_timeout 60s;
+        proxy_next_upstream error timeout http_502 http_503 http_504;
     }
 
     # API directly to backend
@@ -143,6 +153,7 @@ server {
         proxy_read_timeout 300s;
         proxy_send_timeout 60s;
         proxy_buffering off;
+        proxy_next_upstream error timeout http_502 http_503 http_504;
     }
 
     # Actuator directly to backend
@@ -165,5 +176,6 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_connect_timeout 10s;
         proxy_read_timeout 60s;
+        proxy_next_upstream error timeout http_502 http_503 http_504;
     }
 }
