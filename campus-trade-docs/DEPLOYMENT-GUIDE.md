@@ -355,7 +355,7 @@ CampusTrade/
 
 #### 4.4.1 宿主机Nginx（SSL终止 + 反向代理）
 
-完整配置模板见 `nginx/aisu.conf.example`，关键配置说明：
+完整配置模板见 `nginx/host-nginx.conf.example`，关键配置说明：
 
 **upstream keepalive连接池（防止ERR_CONNECTION_RESET）：**
 ```nginx

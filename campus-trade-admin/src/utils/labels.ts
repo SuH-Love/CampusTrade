@@ -7,7 +7,7 @@ export const moduleLabel = (mod: string): string => {
     SellerRating: '商家评价', NotificationPreference: '通知偏好',
     Banner: '横幅', OrderItem: '订单项', GoodsFavorite: '商品收藏',
     OperationLog: '操作日志', SecurityLog: '安全日志',
-    Announcement: '系统公告', UserBlacklist: '黑名单',
+    Announcement: '系统公告', UserBlacklist: '黑名单', Blacklist: '黑名单',
     PaymentConfig: '收款配置', FundLog: '资金流水', SystemConfig: '系统配置',
     Ai: 'AI助手'
   }
@@ -49,7 +49,7 @@ export const operationLabel = (op: string): string => {
     listFollowing: '关注列表', listFollowers: '粉丝列表',
     getAverageRating: '卖家评分', getRatingList: '评价列表', getRatingDistribution: '评分分布',
     hotKeywords: '热门搜索词',
-    blockUser: '屏蔽用户', unblockUser: '取消屏蔽', getBlacklist: '黑名单列表', isBlocked: '是否已屏蔽',
+    blockUser: '屏蔽用户', unblockUser: '取消屏蔽', getBlacklist: '黑名单列表', isBlocked: '是否已屏蔽', isBlockedBy: '是否被屏蔽',
     getActiveAnnouncements: '获取公告', listAnnouncements: '公告列表', createAnnouncement: '创建公告', updateAnnouncement: '编辑公告', deleteAnnouncement: '删除公告',
     exportUsers: '导出用户CSV', exportOrders: '导出订单CSV',
     recallMessage: '撤回消息', resetPassword: '重置密码',
