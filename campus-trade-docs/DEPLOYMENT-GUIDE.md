@@ -353,14 +353,40 @@ CampusTrade/
 
 ### 4.4 Nginx 代理配置
 
+#### 4.4.1 宿主机Nginx（SSL终止 + 反向代理）
+
+完整配置模板见 `nginx/aisu.conf.example`，关键配置说明：
+
+**upstream keepalive连接池（防止ERR_CONNECTION_RESET）：**
 ```nginx
+upstream backend {
+    server 127.0.0.1:8080;
+    keepalive 32;
+    keepalive_timeout 60s;
+}
+```
+> 不配置keepalive时，每个请求新建TCP连接，高并发下会出现 `Connection reset by peer` 导致WebSocket和静态资源加载失败。
+
+**WebSocket代理（注意不要用http2）：**
+```nginx
+# listen 443 ssl;  ← 不要加 http2，会阻止WebSocket升级
 location /ws {
-    proxy_pass http://backend:8080/ws;
+    proxy_pass http://backend;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
     proxy_read_timeout 3600s;
     proxy_send_timeout 3600s;
+}
+```
+
+**普通HTTP代理（启用keepalive）：**
+```nginx
+location /api/ {
+    proxy_pass http://backend;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";  # 清除Connection头，启用keepalive
+    ...
 }
 ```
 
@@ -1526,6 +1552,10 @@ mvn test
 | 图片无法加载 | Nginx缺少/uploads/代理 | 确认nginx.conf中 `/uploads/` location |
 | 页面空白 | 前端未构建 | 执行 `npm run build` |
 | WebSocket连接失败 | Nginx缺少/ws代理 | 确认nginx.conf中 `/ws` location + Upgrade头 |
+| WebSocket ERR_CONNECTION_RESET | nginx缺少upstream keepalive | 添加 `upstream` 块配置 `keepalive 32` + `proxy_http_version 1.1` + `proxy_set_header Connection ""` |
+| WebSocket 403 | CORS_ORIGINS未split逗号 | 后端 `setAllowedOriginPatterns(corsOrigins.split(","))` + `.env`显式列出根域名 |
+| 静态资源ERR_CONNECTION_RESET | nginx到前端容器连接不稳定 | 同WebSocket ERR_CONNECTION_RESET，添加upstream keepalive |
+| `https://*.domain`不匹配根域名 | 通配符只匹配子域名 | `.env`中显式添加 `https://yourdomain.com` |
 | el-tooltip定位偏移 | backdrop-filter创建新堆叠上下文 | 移除 `.el-card` 上的 `backdrop-filter: blur()` |
 
 ### 16.3 Docker问题
