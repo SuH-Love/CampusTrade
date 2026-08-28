@@ -63,8 +63,8 @@
         <el-table-column label="操作" min-width="160" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewDetail(row)">详情</el-button>
-            <el-button v-if="row.status === 1" v-permission="'user:manage'" type="danger" size="small" @click="openBanDialog(row.id)">封禁</el-button>
-            <el-button v-else v-permission="'user:manage'" type="success" size="small" @click="handleUnban(row.id)">解封</el-button>
+            <el-button v-if="row.status === 1 && row.id !== adminStore.id" v-permission="'user:manage'" type="danger" size="small" @click="openBanDialog(row.id)">封禁</el-button>
+            <el-button v-else-if="row.status === 0" v-permission="'user:manage'" type="success" size="small" @click="handleUnban(row.id)">解封</el-button>
           </template>
         </el-table-column>
         <template #empty><el-empty description="暂无用户" :image-size="60" /></template>
@@ -121,7 +121,10 @@ import { downloadCsv } from '@/utils/download'
 import { useDebounceSearch } from '@/composables/useDebounceSearch'
 import ReasonDialog from '@/components/ReasonDialog.vue'
 import { ElMessage } from 'element-plus'
+import { useAdminStore } from '@/stores/admin'
 import type { AdminUserVO, PageQueryParams } from '@/types'
+
+const adminStore = useAdminStore()
 
 const users = ref<AdminUserVO[]>([])
 const searchKeyword = ref('')
@@ -180,15 +183,21 @@ const handleBan = async (reason: string) => {
     ElMessage.success('已封禁')
     banDialogVisible.value = false
     loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '封禁失败')
   } finally {
     banLoading.value = false
   }
 }
 
 const handleUnban = async (id: number) => {
-  await unbanUser(id)
-  ElMessage.success('已解封')
-  loadData()
+  try {
+    await unbanUser(id)
+    ElMessage.success('已解封')
+    loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.message || '解封失败')
+  }
 }
 
 onMounted(loadData)

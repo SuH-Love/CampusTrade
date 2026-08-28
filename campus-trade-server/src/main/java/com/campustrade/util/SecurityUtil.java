@@ -32,4 +32,11 @@ public class SecurityUtil {
             return "ROLE_ADMIN".equals(g) || "ROLE_SUPER_ADMIN".equals(g);
         });
     }
+
+    public static boolean isSuperAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return false;
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_SUPER_ADMIN".equals(a.getAuthority()));
+    }
 }

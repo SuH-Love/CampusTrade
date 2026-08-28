@@ -5,6 +5,7 @@ import { adminLogin as loginApi, getAdminInfo } from '@/api/admin'
 export const useAdminStore = defineStore('admin', () => {
   const token = ref<string>(localStorage.getItem('admin_token') || '')
   const refreshToken = ref<string>(localStorage.getItem('admin_refresh_token') || '')
+  const id = ref<number>(0)
   const username = ref<string>('')
   const roles = ref<string[]>([])
   const permissions = ref<string[]>([])
@@ -23,6 +24,7 @@ export const useAdminStore = defineStore('admin', () => {
   const clearAuth = () => {
     token.value = ''
     refreshToken.value = ''
+    id.value = 0
     username.value = ''
     roles.value = []
     permissions.value = []
@@ -42,6 +44,7 @@ export const useAdminStore = defineStore('admin', () => {
   const fetchAdminInfo = async () => {
     try {
       const data = await getAdminInfo()
+      id.value = data.id
       username.value = data.username
       nickname.value = data.nickname
       avatar.value = data.avatar
@@ -72,7 +75,7 @@ export const useAdminStore = defineStore('admin', () => {
   }
 
   return {
-    token, refreshToken, username, roles, permissions, avatar, nickname,
+    token, refreshToken, id, username, roles, permissions, avatar, nickname,
     isSuperAdmin,
     login, logout, clearAuth, setAuth, fetchAdminInfo, hasPermission, hasRole
   }

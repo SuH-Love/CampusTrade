@@ -3,13 +3,18 @@ package com.campustrade.service.impl;
 import com.campustrade.common.PageResult;
 import com.campustrade.common.Result;
 import com.campustrade.common.ResultCode;
+import com.campustrade.constant.RedisConstant;
 import com.campustrade.dto.PasswordUpdateDTO;
 import com.campustrade.dto.UserUpdateDTO;
 import com.campustrade.entity.User;
+import com.campustrade.entity.Role;
 import com.campustrade.exception.BusinessException;
+import com.campustrade.mapper.RoleMapper;
 import com.campustrade.mapper.UserMapper;
 import com.campustrade.service.UserService;
+import com.campustrade.util.SecurityUtil;
 import com.campustrade.vo.UserVO;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,13 +22,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private RoleMapper roleMapper;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -136,11 +146,39 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<Void> banUser(Long userId) {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        if (userId.equals(currentUserId)) {
+            return Result.error(400, "不能封禁自己");
+        }
+
         User user = userMapper.selectById(userId);
         if (user == null) return Result.error(ResultCode.NOT_FOUND);
+
+        if (user.getStatus() == 0) {
+            return Result.error(400, "该用户已被封禁");
+        }
+
+        List<Role> targetRoles = roleMapper.selectByUserId(userId);
+        boolean isTargetSuperAdmin = targetRoles.stream()
+                .anyMatch(r -> "ROLE_SUPER_ADMIN".equals(r.getRoleCode()));
+        if (isTargetSuperAdmin && !SecurityUtil.isSuperAdmin()) {
+            return Result.error(403, "无权封禁超级管理员");
+        }
+
         user.setStatus(0);
         userMapper.updateById(user);
-        redisTemplate.opsForValue().set("ban:user:" + userId, "1", 7, java.util.concurrent.TimeUnit.DAYS);
+        redisTemplate.opsForValue().set("ban:user:" + userId, "1");
+
+        String tokenKey = RedisConstant.TOKEN_PREFIX + userId;
+        Object accessToken = redisTemplate.opsForValue().get(tokenKey);
+        if (accessToken != null) {
+            redisTemplate.opsForValue().set(
+                    RedisConstant.BLACKLIST_PREFIX + accessToken.toString(), "1",
+                    RedisConstant.TOKEN_TTL, TimeUnit.SECONDS);
+            log.info("Banned user {} token invalidated", userId);
+        }
+
+        log.info("User {} banned by admin {}", userId, currentUserId);
         return Result.success();
     }
 
@@ -149,9 +187,16 @@ public class UserServiceImpl implements UserService {
     public Result<Void> unbanUser(Long userId) {
         User user = userMapper.selectById(userId);
         if (user == null) return Result.error(ResultCode.NOT_FOUND);
+
+        if (user.getStatus() == 1) {
+            return Result.error(400, "该用户未被封禁");
+        }
+
         user.setStatus(1);
         userMapper.updateById(user);
         redisTemplate.delete("ban:user:" + userId);
+
+        log.info("User {} unbanned by admin {}", userId, SecurityUtil.getCurrentUserId());
         return Result.success();
     }
 
