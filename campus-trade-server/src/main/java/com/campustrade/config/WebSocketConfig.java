@@ -33,11 +33,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        String[] origins = corsOrigins.split(",");
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns(corsOrigins)
+                .setAllowedOriginPatterns(origins)
                 .withSockJS();
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns(corsOrigins);
+                .setAllowedOriginPatterns(origins);
     }
 
     @Override
