@@ -70,7 +70,8 @@ CampusTrade/
 ```bash
 cd campus-trade-server
 # 修改 application.yml 中的数据库/Redis连接信息
-mvn spring-boot:run
+mvn spring-boot:run                          # 默认使用 application.yml (dev)
+mvn spring-boot:run -Dspring-boot.run.profiles=prod  # 使用 application-prod.yml (prod)
 ```
 
 2. 启动用户端前端：
@@ -84,6 +85,17 @@ npm install && npm run dev
 cd campus-trade-admin
 npm install && npm run dev
 ```
+
+### 配置文件切换
+
+项目通过 Spring Boot Profile 机制切换配置文件：
+
+| Profile | 配置文件 | 用途 | 激活方式 |
+|---------|----------|------|----------|
+| dev（默认） | `application.yml` | 本地开发，密码明文 | `mvn spring-boot:run` |
+| prod | `application-prod.yml` | 生产环境，密码从环境变量注入 | `.env` 中 `SPRING_PROFILES_ACTIVE=prod` |
+
+> **Docker 部署**时默认使用 `prod`，通过 `.env` 的 `SPRING_PROFILES_ACTIVE=prod` 激活，所有配置从 `.env` 注入，无需修改任何其他文件。
 
 ### Docker 部署
 

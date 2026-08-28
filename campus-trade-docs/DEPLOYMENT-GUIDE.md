@@ -950,6 +950,31 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 | `.env.example` | Docker | 环境变量模板 |
 | `.env` | Docker | 实际环境变量(不提交到Git) |
 
+### 11.1.1 Profile 切换机制
+
+项目通过 Spring Boot Profile 机制切换配置文件，由 `SPRING_PROFILES_ACTIVE` 变量控制：
+
+| Profile | 配置文件 | 用途 | 激活方式 |
+|---------|----------|------|----------|
+| dev（默认） | `application.yml` | 本地开发，密码明文(root123/redis123/guest) | `mvn spring-boot:run` |
+| prod | `application-prod.yml` | 生产环境，密码从环境变量注入 | 见下方 |
+
+**生产环境激活方式**：
+
+| 部署方式 | 激活方法 |
+|----------|----------|
+| Docker Compose | `.env` 中设置 `SPRING_PROFILES_ACTIVE=prod`（默认值） |
+| 命令行启动 | `java -jar app.jar --spring.profiles.active=prod` |
+| 本地IDE运行生产配置 | `mvn spring-boot:run -Dspring-boot.run.profiles=prod` |
+
+**配置流向**：
+
+```
+.env  →  docker-compose.yml (${VAR:?error})  →  容器环境变量  →  application-prod.yml (${VAR})
+```
+
+> **核心原则**: 生产环境所有配置集中在 `.env` 一个文件中，无需修改 `docker-compose.yml` 或 `application-prod.yml`。未在 `.env` 中配置的敏感变量将导致容器拒绝启动。
+
 ### 11.2 环境变量清单
 
 > **重要**: `docker-compose.yml` 中所有敏感变量使用 `${VAR:?error}` 语法，未在 `.env` 中配置将直接报错拒绝启动。
@@ -1042,7 +1067,9 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 
 ### 11.3 开发环境配置
 
-开发环境使用 `application.yml`，关键配置：
+开发环境使用 `application.yml`（Profile=dev），关键配置：
+
+> **启动方式**: `mvn spring-boot:run`（默认dev）或 `mvn spring-boot:run -Dspring-boot.run.profiles=prod`（使用prod配置）
 
 ```yaml
 # 数据库 - 本地MySQL
@@ -1067,7 +1094,9 @@ knife4j.enable: true
 
 ### 11.4 生产环境配置
 
-生产环境使用 `application-prod.yml`，所有敏感信息通过环境变量注入：
+生产环境使用 `application-prod.yml`（Profile=prod），所有敏感信息通过环境变量注入：
+
+> **启动方式**: Docker部署时 `.env` 中 `SPRING_PROFILES_ACTIVE=prod`（默认值），无需额外配置。所有敏感变量从 `.env` 注入，未配置将拒绝启动。
 
 ```yaml
 # 数据库 - 环境变量 + SSL + 时区
