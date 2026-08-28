@@ -75,7 +75,7 @@ function connect() {
     connectHeaders: {
       Authorization: `Bearer ${store.token}`
     },
-    reconnectDelay: Math.min(1000 * Math.pow(2, reconnectAttempts), 30000),
+    reconnectDelay: 500,
     heartbeatIncoming: 20000,
     heartbeatOutgoing: 20000,
     onConnect: () => {
@@ -88,15 +88,14 @@ function connect() {
     },
     onDisconnect: () => {
       connected.value = false
-      console.log('[STOMP] Disconnected')
     },
     onStompError: (frame) => {
-      console.error('[STOMP] Error:', frame.headers['message'], frame.body)
       connected.value = false
       reconnectAttempts++
     },
     onWebSocketClose: () => {
       connected.value = false
+      reconnectAttempts++
     }
   })
 
