@@ -838,9 +838,13 @@ watch(() => route.params.userId, async (newTarget) => {
     }
     await loadMessages()
     sendRead(userId)
-  } catch {
-    ElMessage.error('用户不存在')
-    router.replace('/chat')
+  } catch (e: any) {
+    if (e?.code === 'ERR_NETWORK' || e?.message?.includes('Network Error')) {
+      ElMessage.error('网络连接失败，请刷新重试')
+    } else {
+      ElMessage.error('用户不存在')
+      router.replace('/chat')
+    }
   }
 })
 
