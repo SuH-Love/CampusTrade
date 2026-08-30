@@ -370,9 +370,14 @@ upstream backend {
 > - `keepalive_timeout` 必须 **小于** 后端Tomcat的keepalive超时（默认60s），否则nginx会复用已被后端关闭的过期连接→`ERR_CONNECTION_RESET`。
 > - 配置 `proxy_next_upstream error timeout http_502 http_503 http_504` 让nginx在连接失败时自动重试。
 
-**WebSocket代理（注意不要用http2）：**
+**HTTP/2启用（解决首次加载多次TLS握手偶发RST）：**
 ```nginx
-# listen 443 ssl;  ← 不要加 http2，会阻止WebSocket升级
+# listen 443 ssl http2;  ← 启用HTTP/2多路复用，所有请求在一个TLS连接上完成
+# 浏览器的 new WebSocket() 会建立独立的HTTP/1.1连接，不受HTTP/2影响
+```
+
+**WebSocket代理：**
+```nginx
 location /ws {
     proxy_pass http://backend;
     proxy_http_version 1.1;
