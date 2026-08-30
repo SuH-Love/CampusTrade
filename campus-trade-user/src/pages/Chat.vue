@@ -825,55 +825,64 @@ watch(() => route.params.userId, async (newTarget) => {
   if (!newTarget) return
   const userId = Number(newTarget)
   if (!Number.isFinite(userId) || !Number.isInteger(userId) || userId <= 0 || userId === currentTarget.value) return
-  try {
-    const userInfo = await getUserPublicInfo(userId)
-    const name = userInfo.nickname || userInfo.username || `用户${userId}`
-    currentTarget.value = userId
-    currentContactName.value = name
-    const existing = contacts.value.find(c => c.userId === userId)
-    if (existing) {
-      existing.unread = 0
-    } else {
-      contacts.value.unshift({ userId, name, avatar: userInfo.avatar || '', lastMessage: '', unread: 0 })
-    }
-    await loadMessages()
-    sendRead(userId)
-  } catch (e: any) {
-    if (e?.code === 'ERR_NETWORK' || e?.message?.includes('Network Error')) {
-      ElMessage.error('网络连接失败，请刷新重试')
-    } else {
-      ElMessage.error('用户不存在')
-      router.replace('/chat')
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const userInfo = await getUserPublicInfo(userId)
+      const name = userInfo.nickname || userInfo.username || `用户${userId}`
+      currentTarget.value = userId
+      currentContactName.value = name
+      const existing = contacts.value.find(c => c.userId === userId)
+      if (existing) {
+        existing.unread = 0
+      } else {
+        contacts.value.unshift({ userId, name, avatar: userInfo.avatar || '', lastMessage: '', unread: 0 })
+      }
+      await loadMessages()
+      sendRead(userId)
+      return
+    } catch (e: any) {
+      const isNetworkError = e?.code === 'ERR_NETWORK' || e?.message?.includes('Network Error')
+      if (!isNetworkError || attempt === 2) {
+        if (isNetworkError) ElMessage.error('网络连接失败，请刷新重试')
+        else { ElMessage.error('用户不存在'); router.replace('/chat') }
+        return
+      }
+      await new Promise(r => setTimeout(r, 500))
     }
   }
 })
 
 const switchToContact = async (userId: number): Promise<boolean> => {
-  try {
-    const userInfo = await getUserPublicInfo(userId)
-    const name = userInfo.nickname || userInfo.username || `用户${userId}`
-    currentTarget.value = userId
-    currentContactName.value = name
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      iBlockedTarget.value = !!(await isBlocked(userId))
-      blockedByTarget.value = !!(await isBlockedBy(userId))
-      const s = new Set(iBlockedSet.value)
-      if (iBlockedTarget.value) s.add(userId); else s.delete(userId)
-      iBlockedSet.value = s
-    } catch { iBlockedTarget.value = false; blockedByTarget.value = false }
-    const existing = contacts.value.find(c => c.userId === userId)
-    if (existing) {
-      existing.unread = 0
-    } else {
-      contacts.value.unshift({ userId, name, avatar: userInfo.avatar || '', lastMessage: '', unread: 0 })
+      const userInfo = await getUserPublicInfo(userId)
+      const name = userInfo.nickname || userInfo.username || `用户${userId}`
+      currentTarget.value = userId
+      currentContactName.value = name
+      try {
+        iBlockedTarget.value = !!(await isBlocked(userId))
+        blockedByTarget.value = !!(await isBlockedBy(userId))
+        const s = new Set(iBlockedSet.value)
+        if (iBlockedTarget.value) s.add(userId); else s.delete(userId)
+        iBlockedSet.value = s
+      } catch { iBlockedTarget.value = false; blockedByTarget.value = false }
+      const existing = contacts.value.find(c => c.userId === userId)
+      if (existing) {
+        existing.unread = 0
+      } else {
+        contacts.value.unshift({ userId, name, avatar: userInfo.avatar || '', lastMessage: '', unread: 0 })
+      }
+      await nextTick()
+      await loadMessages()
+      sendRead(userId)
+      return true
+    } catch (e: any) {
+      const isNetworkError = e?.code === 'ERR_NETWORK' || e?.message?.includes('Network Error')
+      if (!isNetworkError || attempt === 2) return false
+      await new Promise(r => setTimeout(r, 500))
     }
-    await nextTick()
-    await loadMessages()
-    sendRead(userId)
-    return true
-  } catch {
-    return false
   }
+  return false
 }
 
 onMounted(async () => {
