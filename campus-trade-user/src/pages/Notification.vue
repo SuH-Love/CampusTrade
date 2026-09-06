@@ -44,7 +44,7 @@
               <span class="notify-title-text">{{ item.title }}</span>
             </div>
             <div class="notification-content">{{ item.content }}</div>
-            <div class="notification-time">{{ item.createTime }}</div>
+            <div class="notification-time">{{ formatDateTime(item.createTime) }}</div>
           </div>
           <el-button type="danger" size="small" text @click.stop="handleDelete(item.id)">删除</el-button>
         </div>
@@ -63,6 +63,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import type { NotificationVO } from '@/api/notification'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useChatWs } from '@/composables/useChatWs'
+import { formatDateTime } from '@/utils/labels'
 
 interface NotificationItem extends NotificationVO {
   _selected?: boolean

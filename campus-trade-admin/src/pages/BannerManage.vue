@@ -24,7 +24,7 @@
             <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" min-width="150" />
+        <el-table-column prop="createTime" label="创建时间" min-width="150"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
         <el-table-column label="操作" min-width="200" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleEdit(row)">编辑</el-button>
@@ -126,6 +126,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { uploadImage } from '@/utils/upload'
 import { getBannerList, createBanner, updateBanner, toggleBanner, deleteBanner, type BannerVO } from '@/api/admin'
+import { formatDateTime } from '@/utils/labels'
 
 const banners = ref<BannerVO[]>([])
 const pageNum = ref(1)

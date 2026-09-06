@@ -115,6 +115,15 @@ export function formatTime(dateStr: string): string {
   return `${y}-${m}-${day}`
 }
 
+export function formatDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  const d = new Date(dateStr.replace(' ', 'T'))
+  if (isNaN(d.getTime())) return dateStr
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0')
+  const h = String(d.getHours()).padStart(2, '0'), min = String(d.getMinutes()).padStart(2, '0')
+  return `${y}-${m}-${day} ${h}:${min}`
+}
+
 export const orderStatusTagType = (status: string): string => {
   const map: Record<string, string> = {
     PENDING_PAY: 'warning', PAID: 'primary', SHIPPING: '',

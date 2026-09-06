@@ -28,15 +28,15 @@
           <el-descriptions-item label="备注">{{ order.remark || '无' }}</el-descriptions-item>
           <el-descriptions-item label="配送方式">{{ order.deliveryMethod === 1 || order.deliveryMethod === 'DELIVERY' ? '配送' : '自取' }}</el-descriptions-item>
           <el-descriptions-item v-if="order.deliveryMethod === 1 || order.deliveryMethod === 'DELIVERY'" label="配送地址">{{ order.deliveryAddress || order.address || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="创建时间">{{ order.createTime }}</el-descriptions-item>
-          <el-descriptions-item label="支付时间">{{ order.payTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间">{{ formatDateTime(order.createTime) }}</el-descriptions-item>
+          <el-descriptions-item label="支付时间">{{ formatDateTime(order.payTime) }}</el-descriptions-item>
           <el-descriptions-item v-if="order.tradeNo" label="交易单号">
             <span class="trade-no">{{ order.tradeNo }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="发货时间">{{ order.shipTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="发货时间">{{ formatDateTime(order.shipTime) }}</el-descriptions-item>
           <el-descriptions-item v-if="order.trackingNo" label="物流单号">{{ order.trackingNo }}</el-descriptions-item>
-          <el-descriptions-item label="完成时间">{{ order.finishTime || '-' }}</el-descriptions-item>
-          <el-descriptions-item v-if="order.cancelTime" label="取消时间">{{ order.cancelTime }}</el-descriptions-item>
+          <el-descriptions-item label="完成时间">{{ formatDateTime(order.finishTime) }}</el-descriptions-item>
+          <el-descriptions-item v-if="order.cancelTime" label="取消时间">{{ formatDateTime(order.cancelTime) }}</el-descriptions-item>
           <el-descriptions-item v-if="order.cancelReason" label="取消原因">{{ order.cancelReason }}</el-descriptions-item>
         </el-descriptions>
 
@@ -107,7 +107,7 @@ import { useUserStore } from '@/stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Lock } from '@element-plus/icons-vue'
 import type { OrderVO, FundLogVO } from '@/api/order'
-import { orderStatusLabel, orderStatusTagType } from '@/utils/labels'
+import { orderStatusLabel, orderStatusTagType, formatDateTime } from '@/utils/labels'
 import EmptyState from '@/components/EmptyState.vue'
 
 const route = useRoute()

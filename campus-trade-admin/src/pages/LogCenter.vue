@@ -28,7 +28,7 @@
         <el-table-column v-if="activeTab === 'security'" prop="username" label="用户" min-width="100" />
         <el-table-column prop="ip" label="IP" min-width="120" />
         <el-table-column prop="detail" label="详情" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="createTime" label="时间" min-width="150" />
+        <el-table-column prop="createTime" label="时间" min-width="150"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
       </el-table>
       <el-empty v-if="!loading && logs.length === 0" description="暂无日志" />
       <div class="pagination-wrapper" v-if="total > pageSize">
@@ -41,6 +41,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getOperationLogs, getSecurityLogs } from '@/api/admin'
+import { formatDateTime } from '@/utils/labels'
 import { useDebounceSearch } from '@/composables/useDebounceSearch'
 import { operationLabel, moduleLabel, eventTypeLabel } from '@/utils/labels'
 import type { OperationLogVO, SecurityLogVO, PageQueryParams } from '@/types'

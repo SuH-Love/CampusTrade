@@ -45,7 +45,7 @@
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="举报时间" min-width="150" />
+        <el-table-column prop="createTime" label="举报时间" min-width="150"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
         <el-table-column label="操作" min-width="180" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="showDetail(row)">详情</el-button>
@@ -78,7 +78,7 @@
           <el-descriptions-item label="举报原因" :span="2">{{ detailReport.reason }}</el-descriptions-item>
           <el-descriptions-item label="详细描述" :span="2">{{ detailReport.description || '-' }}</el-descriptions-item>
           <el-descriptions-item label="处理结果" :span="2" v-if="detailReport.handleResult">{{ detailReport.handleResult }}</el-descriptions-item>
-          <el-descriptions-item label="举报时间" :span="2">{{ detailReport.createTime }}</el-descriptions-item>
+          <el-descriptions-item label="举报时间" :span="2">{{ formatDateTime(detailReport.createTime) }}</el-descriptions-item>
         </el-descriptions>
         <div v-if="evidenceImageList.length" class="evidence-section">
           <h4 class="section-title">证据图片</h4>
@@ -128,7 +128,7 @@ import { useDebounceSearch } from '@/composables/useDebounceSearch'
 import ReasonDialog from '@/components/ReasonDialog.vue'
 import { ElMessage } from 'element-plus'
 import type { AdminReportVO, PageQueryParams } from '@/types'
-import { reportStatusLabel } from '@/utils/labels'
+import { reportStatusLabel, formatDateTime } from '@/utils/labels'
 
 const reports = ref<AdminReportVO[]>([])
 const searchKeyword = ref('')

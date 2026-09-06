@@ -41,7 +41,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="createTime" label="时间" width="170" />
+        <el-table-column prop="createTime" label="时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
         <template #empty><el-empty description="暂无资金流水" :image-size="60" /></template>
       </el-table>
       <div class="pagination-wrapper" v-if="total > pageSize">
@@ -62,6 +62,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { getFundLogList, type FundLogVO } from '@/api/admin'
+import { formatDateTime } from '@/utils/labels'
 import { fundTypeLabel, fundTypeTag, fundStatusLabel } from '@/utils/labels'
 import type { PageQueryParams } from '@/types'
 

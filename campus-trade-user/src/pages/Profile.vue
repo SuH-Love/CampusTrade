@@ -54,11 +54,11 @@
               <el-descriptions-item label="手机号">{{ userStore.userInfo?.phone || '未绑定' }}</el-descriptions-item>
               <el-descriptions-item label="邮箱">{{ userStore.userInfo?.email || '未绑定' }}</el-descriptions-item>
               <el-descriptions-item label="学号">{{ userStore.userInfo?.studentId || '未填写' }}</el-descriptions-item>
-              <el-descriptions-item label="注册时间">{{ userStore.userInfo?.createTime }}</el-descriptions-item>
+              <el-descriptions-item label="注册时间">{{ formatDateTime(userStore.userInfo?.createTime) }}</el-descriptions-item>
             </template>
             <template v-else>
               <el-descriptions-item label="用户名">{{ profileUser?.username }}</el-descriptions-item>
-              <el-descriptions-item label="注册时间">{{ profileUser?.createTime }}</el-descriptions-item>
+              <el-descriptions-item label="注册时间">{{ formatDateTime(profileUser?.createTime) }}</el-descriptions-item>
             </template>
           </el-descriptions>
           <el-button v-if="isSelf" type="danger" plain round class="logout-btn" @click="handleLogout">退出登录</el-button>
@@ -208,6 +208,7 @@ import { getGoodsList } from '@/api/goods'
 import { getFollowCounts, toggleFollow, isFollowing } from '@/api/follow'
 import { getAverageRating } from '@/api/rating'
 import { getPaymentConfigs, createPaymentConfig, updatePaymentConfig, deletePaymentConfig, setDefaultPaymentConfig, type PaymentConfigVO } from '@/api/paymentConfig'
+import { formatDateTime } from '@/utils/labels'
 import GoodsCard from '@/components/GoodsCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -611,8 +612,13 @@ onMounted(() => {
   :deep(.el-col:first-child) { margin-bottom: 16px; }
   :deep(.el-col:last-child) { height: auto; }
   .profile-card { height: auto; margin-bottom: 16px; }
+  .logout-btn { margin-bottom: 12px; }
   .stats-grid { margin-bottom: 16px; }
-  .edit-card { flex: none; overflow-y: visible; }
+  .stat-card { padding: 12px 10px; }
+  .stat-icon { width: 36px; height: 36px; font-size: 16px; margin-bottom: 6px; }
+  .stat-value { font-size: 22px; }
+  .stat-label { font-size: 12px; }
+  .edit-card { flex: none; overflow-y: visible; margin-bottom: 16px; }
   .other-goods-card { flex: none; overflow-y: visible; }
   .vtab-item { min-width: 80px !important; }
 }

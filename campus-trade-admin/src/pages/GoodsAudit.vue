@@ -53,7 +53,7 @@
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="提交时间" min-width="150" />
+        <el-table-column prop="createTime" label="提交时间" min-width="150"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
         <el-table-column label="操作" min-width="200" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.status === 'PENDING'" v-permission="'goods:audit'" type="success" size="small" @click="handleAudit(row.id, 'APPROVED', row.status)">通过</el-button>
@@ -101,7 +101,7 @@
           <el-descriptions-item label="收藏">{{ currentGoods.favoriteCount }}</el-descriptions-item>
           <el-descriptions-item label="描述" :span="2">{{ currentGoods.description }}</el-descriptions-item>
           <el-descriptions-item label="状态">{{ statusLabel(currentGoods.status) }}</el-descriptions-item>
-          <el-descriptions-item label="提交时间">{{ currentGoods.createTime }}</el-descriptions-item>
+          <el-descriptions-item label="提交时间">{{ formatDateTime(currentGoods.createTime) }}</el-descriptions-item>
         </el-descriptions>
       </template>
     </el-dialog>
@@ -127,7 +127,7 @@ import { useDebounceSearch } from '@/composables/useDebounceSearch'
 import ReasonDialog from '@/components/ReasonDialog.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { AdminGoodsVO, PageQueryParams } from '@/types'
-import { goodsStatusLabel } from '@/utils/labels'
+import { goodsStatusLabel, formatDateTime } from '@/utils/labels'
 
 const goodsList = ref<AdminGoodsVO[]>([])
 const searchKeyword = ref('')

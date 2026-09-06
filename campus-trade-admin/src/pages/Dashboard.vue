@@ -71,7 +71,7 @@
               <template #default="{ row }">{{ moduleLabel(row.module) }}</template>
             </el-table-column>
             <el-table-column prop="ip" label="IP" min-width="130" />
-            <el-table-column prop="createTime" label="时间" min-width="170" />
+            <el-table-column prop="createTime" label="时间" min-width="170"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
           </el-table>
         </el-card>
       </div>
@@ -84,6 +84,7 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { User, Sunny, Plus, Box, ShoppingCart, Tickets, ArrowRight } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import { getDashboardStats, getReportList, getOperationLogs, getAiHealth, getAlipayStatus, getEmailStatus } from '@/api/admin'
+import { formatDateTime } from '@/utils/labels'
 import { operationLabel, moduleLabel, goodsStatusLabel, orderStatusLabel } from '@/utils/labels'
 import type { OperationLogVO, PageQueryParams } from '@/types'
 

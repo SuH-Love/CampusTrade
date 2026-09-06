@@ -68,7 +68,7 @@
             <span v-else class="text-muted">-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" min-width="150" />
+        <el-table-column prop="createTime" label="创建时间" min-width="150"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
         <el-table-column label="操作" min-width="180" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="showDetail(row)">详情</el-button>
@@ -115,8 +115,8 @@
           <el-descriptions-item label="地址" :span="2">{{ detailOrder.address || '-' }}</el-descriptions-item>
           <el-descriptions-item label="备注" :span="2">{{ detailOrder.remark || '-' }}</el-descriptions-item>
           <el-descriptions-item label="取消原因" :span="2" v-if="detailOrder.cancelReason">{{ detailOrder.cancelReason }}</el-descriptions-item>
-          <el-descriptions-item label="创建时间">{{ detailOrder.createTime }}</el-descriptions-item>
-          <el-descriptions-item label="支付时间">{{ detailOrder.payTime || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间">{{ formatDateTime(detailOrder.createTime) }}</el-descriptions-item>
+          <el-descriptions-item label="支付时间">{{ formatDateTime(detailOrder.payTime) }}</el-descriptions-item>
         </el-descriptions>
       </template>
     </el-dialog>
@@ -143,7 +143,7 @@ import { useDebounceSearch } from '@/composables/useDebounceSearch'
 import ReasonDialog from '@/components/ReasonDialog.vue'
 import type { AdminOrderVO, PageQueryParams } from '@/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { orderStatusLabel, deliveryMethodLabel } from '@/utils/labels'
+import { orderStatusLabel, deliveryMethodLabel, formatDateTime } from '@/utils/labels'
 
 interface OrderItemVO {
   goodsId: number

@@ -22,7 +22,7 @@
             <el-tag :type="row.status === 1 ? 'success' : 'info'">{{ row.status === 1 ? '显示' : '隐藏' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" min-width="150" />
+        <el-table-column prop="createTime" label="创建时间" min-width="150"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
         <el-table-column label="操作" min-width="200" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleEdit(row)">编辑</el-button>
@@ -78,6 +78,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { getAnnouncementList, createAnnouncement, updateAnnouncement, deleteAnnouncement, type AnnouncementVO } from '@/api/admin'
+import { formatDateTime } from '@/utils/labels'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const typeLabelMap: Record<number, string> = { 1: '系统通知', 2: '活动公告', 3: '维护通知' }

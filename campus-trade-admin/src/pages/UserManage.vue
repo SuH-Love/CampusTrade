@@ -59,7 +59,7 @@
             <el-tag :type="row.status === 1 ? 'success' : 'danger'" effect="dark" round>{{ row.status === 1 ? '正常' : '禁用' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="注册时间" min-width="150" />
+        <el-table-column prop="createTime" label="注册时间" min-width="150"><template #default="{ row }">{{ formatDateTime(row.createTime) }}</template></el-table-column>
         <el-table-column label="操作" min-width="160" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleViewDetail(row)">详情</el-button>
@@ -97,7 +97,7 @@
         <el-descriptions-item label="状态">
           <el-tag :type="currentUser.status === 1 ? 'success' : 'danger'" size="small">{{ currentUser.status === 1 ? '正常' : '禁用' }}</el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="注册时间" :span="2">{{ currentUser.createTime }}</el-descriptions-item>
+        <el-descriptions-item label="注册时间" :span="2">{{ formatDateTime(currentUser.createTime) }}</el-descriptions-item>
       </el-descriptions>
     </el-dialog>
 
@@ -122,6 +122,7 @@ import { useDebounceSearch } from '@/composables/useDebounceSearch'
 import ReasonDialog from '@/components/ReasonDialog.vue'
 import { ElMessage } from 'element-plus'
 import { useAdminStore } from '@/stores/admin'
+import { formatDateTime } from '@/utils/labels'
 import type { AdminUserVO, PageQueryParams } from '@/types'
 
 const adminStore = useAdminStore()

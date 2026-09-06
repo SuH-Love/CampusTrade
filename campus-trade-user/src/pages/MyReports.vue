@@ -90,7 +90,7 @@
         </div>
         <div class="detail-row">
           <span class="detail-label">提交时间</span>
-          <span class="detail-value">{{ detailData.createTime }}</span>
+          <span class="detail-value">{{ formatDateTime(detailData.createTime) }}</span>
         </div>
         <div v-if="detailData.images" class="detail-images-section">
           <span class="detail-label">证据图片</span>
@@ -119,7 +119,7 @@
 import { ref, onMounted } from 'vue'
 import { listMyReports } from '@/api/report'
 import EmptyState from '@/components/EmptyState.vue'
-import { reportStatusLabel } from '@/utils/labels'
+import { reportStatusLabel, formatDateTime } from '@/utils/labels'
 import type { ReportVO } from '@/api/report'
 
 const reports = ref<ReportVO[]>([])
