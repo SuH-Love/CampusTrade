@@ -1,54 +1,51 @@
 <template>
   <div class="profile-page page-bg">
-    <el-row :gutter="20">
-      <el-col :xs="24" :sm="24" :md="8">
-        <el-card class="profile-card">
-          <div class="profile-banner">
-            <div class="profile-banner-pattern" />
-          </div>
-          <div class="avatar-section">
-            <template v-if="isSelf">
-              <el-upload action="/api/file/upload" :headers="uploadHeaders" :show-file-list="false" :on-success="handleAvatarSuccess" :before-upload="beforeAvatarUpload" accept="image/jpeg,image/png,image/gif,image/webp">
-                <el-avatar :size="100" :src="userStore.userInfo?.avatar" class="avatar-clickable" />
-                <div class="avatar-overlay">更换头像</div>
-              </el-upload>
-            </template>
-            <el-avatar v-else :size="100" :src="profileUser?.avatar || '/default-avatar.svg'" />
+    <!-- 顶部个人信息卡片 -->
+    <el-card class="profile-header-card">
+      <div class="profile-header">
+        <div class="header-avatar">
+          <template v-if="isSelf">
+            <el-upload action="/api/file/upload" :headers="uploadHeaders" :show-file-list="false" :on-success="handleAvatarSuccess" :before-upload="beforeAvatarUpload" accept="image/jpeg,image/png,image/gif,image/webp">
+              <el-avatar :size="90" :src="userStore.userInfo?.avatar" class="avatar-clickable" />
+              <div class="avatar-overlay">更换头像</div>
+            </el-upload>
+          </template>
+          <el-avatar v-else :size="90" :src="profileUser?.avatar || '/default-avatar.svg'" />
+        </div>
+        <div class="header-info">
+          <div class="header-name-row">
             <h3 class="profile-name">{{ isSelf ? (userStore.userInfo?.nickname || userStore.userInfo?.username) : (profileUser?.nickname || profileUser?.username) }}</h3>
             <template v-if="isSelf">
-              <el-tag v-if="userStore.userInfo?.realVerified === 1" type="success" effect="dark" round>已认证</el-tag>
-              <el-tag v-else type="info" effect="plain" round>未认证</el-tag>
-              <div class="profile-stats">
-                <span>{{ selfFollowCounts.following }} 关注</span>
-                <span>·</span>
-                <span>{{ selfFollowCounts.followers }} 粉丝</span>
-                <template v-if="selfAvgRating > 0">
-                  <span>·</span>
-                  <el-rate :model-value="selfAvgRating" disabled size="small" class="rate-inline" />
-                </template>
-              </div>
+              <el-tag v-if="userStore.userInfo?.realVerified === 1" type="success" effect="dark" round size="small">已认证</el-tag>
+              <el-tag v-else type="info" effect="plain" round size="small">未认证</el-tag>
+            </template>
+            <el-tag v-else-if="profileUser?.realVerified === 1" type="success" effect="dark" round size="small">已认证</el-tag>
+          </div>
+          <div class="profile-stats">
+            <template v-if="isSelf">
+              <span>{{ selfFollowCounts.following }} 关注</span>
+              <span class="stat-dot">·</span>
+              <span>{{ selfFollowCounts.followers }} 粉丝</span>
+              <template v-if="selfAvgRating > 0">
+                <span class="stat-dot">·</span>
+                <el-rate :model-value="selfAvgRating" disabled size="small" class="rate-inline" />
+              </template>
             </template>
             <template v-else>
-              <el-tag v-if="profileUser?.realVerified === 1" type="success" effect="dark" round>已认证</el-tag>
-              <div class="profile-stats">
-                <span>{{ followCounts.following }} 关注</span>
-                <span>·</span>
-                <span>{{ followCounts.followers }} 粉丝</span>
-                <template v-if="avgRating > 0">
-                  <span>·</span>
-                  <el-rate :model-value="avgRating" disabled size="small" class="rate-inline" />
-                </template>
-                <template v-else>
-                  <span>·</span>
-                  <span class="text-muted-sm">暂无评价</span>
-                </template>
-              </div>
-              <el-button v-if="userStore.token" :type="isFollowed ? 'warning' : 'default'" @click="handleToggleFollow" :loading="followLoading" round class="follow-btn">
-                {{ isFollowed ? '已关注' : '关注' }}
-              </el-button>
+              <span>{{ followCounts.following }} 关注</span>
+              <span class="stat-dot">·</span>
+              <span>{{ followCounts.followers }} 粉丝</span>
+              <template v-if="avgRating > 0">
+                <span class="stat-dot">·</span>
+                <el-rate :model-value="avgRating" disabled size="small" class="rate-inline" />
+              </template>
+              <template v-else>
+                <span class="stat-dot">·</span>
+                <span class="text-muted-sm">暂无评价</span>
+              </template>
             </template>
           </div>
-          <el-descriptions :column="1" border class="profile-desc">
+          <el-descriptions :column="3" border class="profile-desc" size="small">
             <template v-if="isSelf">
               <el-descriptions-item label="用户名">{{ userStore.userInfo?.username }}</el-descriptions-item>
               <el-descriptions-item label="手机号">{{ userStore.userInfo?.phone || '未绑定' }}</el-descriptions-item>
@@ -61,141 +58,136 @@
               <el-descriptions-item label="注册时间">{{ formatDateTime(profileUser?.createTime) }}</el-descriptions-item>
             </template>
           </el-descriptions>
-          <el-button v-if="isSelf" type="danger" plain round class="logout-btn" @click="handleLogout">退出登录</el-button>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="24" :md="16">
-        <template v-if="isSelf">
-          <div class="stats-grid">
-            <div class="stat-card" @click="$router.push('/my-goods')">
-              <div class="stat-icon stat-icon--sky">📦</div>
-              <div class="stat-value">{{ stats.publishedGoods }}</div>
-              <div class="stat-label">发布商品</div>
-            </div>
-            <div class="stat-card" @click="$router.push('/my-goods?status=ONLINE')">
-              <div class="stat-icon stat-icon--green">🛍️</div>
-              <div class="stat-value">{{ stats.onlineGoods }}</div>
-              <div class="stat-label">在售商品</div>
-            </div>
-            <div class="stat-card" @click="$router.push('/order?tab=buyer')">
-              <div class="stat-icon stat-icon--amber">🛒</div>
-              <div class="stat-value">{{ stats.buyerOrders }}</div>
-              <div class="stat-label">我的订单</div>
-            </div>
-            <div class="stat-card" @click="$router.push('/order?tab=seller')">
-              <div class="stat-icon stat-icon--teal">💰</div>
-              <div class="stat-value">{{ stats.sellerOrders }}</div>
-              <div class="stat-label">出售商品</div>
-            </div>
-            <div class="stat-card" @click="$router.push('/order?tab=buyer&status=FINISHED')">
-              <div class="stat-icon stat-icon--cyan">✅</div>
-              <div class="stat-value">{{ stats.finishedOrders }}</div>
-              <div class="stat-label">完成购物</div>
-            </div>
-            <div class="stat-card" @click="$router.push('/address')">
-              <div class="stat-icon stat-icon--pink">📍</div>
-              <div class="stat-label">收货地址</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon stat-icon--red">💳</div>
-              <div class="stat-value">¥{{ stats.totalSpent || 0 }}</div>
-              <div class="stat-label">累计消费</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon stat-icon--emerald">💵</div>
-              <div class="stat-value">¥{{ stats.totalEarned || 0 }}</div>
-              <div class="stat-label">累计收入</div>
-            </div>
-          </div>
-          <el-card class="edit-card">
-            <div class="vertical-tabs">
-              <div class="vertical-tabs-sidebar">
-                <div class="vtab-item" :class="{ active: activeTab === 'info' }" @click="activeTab = 'info'">
-                  <el-icon><User /></el-icon>
-                  <span>编辑资料</span>
-                </div>
-                <div class="vtab-item" :class="{ active: activeTab === 'password' }" @click="activeTab = 'password'">
-                  <el-icon><Lock /></el-icon>
-                  <span>修改密码</span>
-                </div>
-                <div v-if="userStore.userInfo?.realVerified !== 1" class="vtab-item" :class="{ active: activeTab === 'verify' }" @click="activeTab = 'verify'">
-                  <el-icon><CircleCheck /></el-icon>
-                  <span>实名认证</span>
-                </div>
-                <div class="vtab-item" :class="{ active: activeTab === 'payment' }" @click="activeTab = 'payment'">
-                  <el-icon><CreditCard /></el-icon>
-                  <span>收款管理</span>
-                </div>
+        </div>
+        <div class="header-actions">
+          <el-button v-if="isSelf" type="danger" plain round @click="handleLogout">退出登录</el-button>
+          <el-button v-else-if="userStore.token" :type="isFollowed ? 'warning' : 'primary'" @click="handleToggleFollow" :loading="followLoading" round>
+            {{ isFollowed ? '已关注' : '关注' }}
+          </el-button>
+        </div>
+      </div>
+    </el-card>
+
+    <!-- 下方内容区 -->
+    <template v-if="isSelf">
+      <el-card class="profile-content-card">
+        <el-tabs v-model="activeTab" class="profile-tabs">
+          <el-tab-pane label="我的统计" name="stats">
+            <div class="stats-grid">
+              <div class="stat-card" @click="$router.push('/my-goods')">
+                <div class="stat-icon stat-icon--sky">📦</div>
+                <div class="stat-value">{{ stats.publishedGoods }}</div>
+                <div class="stat-label">发布商品</div>
               </div>
-              <div class="vertical-tabs-content">
-                <el-form v-if="activeTab === 'info'" :model="infoForm" :rules="infoRules" ref="infoFormRef" label-width="80px" class="profile-form">
-                  <el-form-item label="昵称" prop="nickname"><el-input v-model="infoForm.nickname" placeholder="请输入昵称" /></el-form-item>
-                  <el-form-item label="手机号" prop="phone"><el-input v-model="infoForm.phone" placeholder="请输入手机号" /></el-form-item>
-                  <el-form-item label="邮箱" prop="email"><el-input v-model="infoForm.email" placeholder="请输入邮箱" /></el-form-item>
-                  <el-form-item><el-button type="primary" @click="handleUpdateInfo" :loading="infoLoading" round>保存修改</el-button></el-form-item>
-                </el-form>
-                <el-form v-else-if="activeTab === 'password'" :model="pwdForm" :rules="pwdRules" ref="pwdFormRef" label-width="100px" class="profile-form">
-                  <el-form-item label="当前密码" prop="oldPassword"><el-input v-model="pwdForm.oldPassword" type="password" show-password placeholder="请输入当前密码" /></el-form-item>
-                  <el-form-item label="新密码" prop="newPassword"><el-input v-model="pwdForm.newPassword" type="password" show-password placeholder="8-20位密码" /></el-form-item>
-                  <el-form-item label="确认新密码" prop="confirmPassword"><el-input v-model="pwdForm.confirmPassword" type="password" show-password placeholder="再次输入新密码" /></el-form-item>
-                  <el-form-item><el-button type="primary" @click="handleUpdatePwd" :loading="pwdLoading" round>修改密码</el-button></el-form-item>
-                </el-form>
-                <el-form v-else-if="activeTab === 'verify'" :model="verifyForm" :rules="verifyRules" ref="verifyFormRef" label-width="80px" class="profile-form">
-                  <el-form-item label="真实姓名" prop="realName"><el-input v-model="verifyForm.realName" placeholder="请输入真实姓名" /></el-form-item>
-                  <el-form-item label="学号" prop="studentId"><el-input v-model="verifyForm.studentId" placeholder="请输入学号" /></el-form-item>
-                  <el-form-item><el-button type="primary" @click="handleVerify" :loading="verifyLoading" round>提交认证</el-button></el-form-item>
-                </el-form>
-                <div v-else-if="activeTab === 'payment'" class="payment-tab" v-loading="payLoading">
-                  <div class="payment-tab-header">
-                    <el-button type="primary" size="small" round @click="openPayDialog()">添加收款账号</el-button>
-                  </div>
-                  <EmptyState v-if="payConfigs.length === 0 && !payLoading" icon="💳" title="暂无收款配置" description="添加支付宝收款账号，发布商品时自动关联" />
-                  <div v-else class="pay-config-list">
-                    <div v-for="config in payConfigs" :key="config.id" class="pay-config-card" :class="{ 'is-default': config.isDefault === 1 }">
-                      <div class="pay-config-info">
-                        <el-tag :type="config.isDefault === 1 ? 'primary' : 'info'" size="small">{{ config.isDefault === 1 ? '默认' : '支付宝' }}</el-tag>
-                        <div class="pay-config-detail">
-                          <div class="pay-config-account">{{ config.alipayAccount }}</div>
-                          <div class="pay-config-name">{{ config.realName }}</div>
-                        </div>
-                      </div>
-                      <div class="pay-config-actions">
-                        <el-button v-if="config.isDefault !== 1" size="small" @click="handlePaySetDefault(config.id)">设为默认</el-button>
-                        <el-button size="small" @click="openPayDialog(config)">编辑</el-button>
-                        <el-button size="small" type="danger" text @click="handlePayDelete(config.id)">删除</el-button>
-                      </div>
+              <div class="stat-card" @click="$router.push('/my-goods?status=ONLINE')">
+                <div class="stat-icon stat-icon--green">🛍️</div>
+                <div class="stat-value">{{ stats.onlineGoods }}</div>
+                <div class="stat-label">在售商品</div>
+              </div>
+              <div class="stat-card" @click="$router.push('/order?tab=buyer')">
+                <div class="stat-icon stat-icon--amber">🛒</div>
+                <div class="stat-value">{{ stats.buyerOrders }}</div>
+                <div class="stat-label">我的订单</div>
+              </div>
+              <div class="stat-card" @click="$router.push('/order?tab=seller')">
+                <div class="stat-icon stat-icon--teal">💰</div>
+                <div class="stat-value">{{ stats.sellerOrders }}</div>
+                <div class="stat-label">出售商品</div>
+              </div>
+              <div class="stat-card" @click="$router.push('/order?tab=buyer&status=FINISHED')">
+                <div class="stat-icon stat-icon--cyan">✅</div>
+                <div class="stat-value">{{ stats.finishedOrders }}</div>
+                <div class="stat-label">完成购物</div>
+              </div>
+              <div class="stat-card" @click="$router.push('/address')">
+                <div class="stat-icon stat-icon--pink">📍</div>
+                <div class="stat-label">收货地址</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon stat-icon--red">💳</div>
+                <div class="stat-value">¥{{ stats.totalSpent || 0 }}</div>
+                <div class="stat-label">累计消费</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon stat-icon--emerald">💵</div>
+                <div class="stat-value">¥{{ stats.totalEarned || 0 }}</div>
+                <div class="stat-label">累计收入</div>
+              </div>
+            </div>
+          </el-tab-pane>
+          <el-tab-pane label="编辑资料" name="info">
+            <el-form :model="infoForm" :rules="infoRules" ref="infoFormRef" label-width="80px" class="profile-form">
+              <el-form-item label="昵称" prop="nickname"><el-input v-model="infoForm.nickname" placeholder="请输入昵称" /></el-form-item>
+              <el-form-item label="手机号" prop="phone"><el-input v-model="infoForm.phone" placeholder="请输入手机号" /></el-form-item>
+              <el-form-item label="邮箱" prop="email"><el-input v-model="infoForm.email" placeholder="请输入邮箱" /></el-form-item>
+              <el-form-item><el-button type="primary" @click="handleUpdateInfo" :loading="infoLoading" round>保存修改</el-button></el-form-item>
+            </el-form>
+          </el-tab-pane>
+          <el-tab-pane label="修改密码" name="password">
+            <el-form :model="pwdForm" :rules="pwdRules" ref="pwdFormRef" label-width="100px" class="profile-form">
+              <el-form-item label="当前密码" prop="oldPassword"><el-input v-model="pwdForm.oldPassword" type="password" show-password placeholder="请输入当前密码" /></el-form-item>
+              <el-form-item label="新密码" prop="newPassword"><el-input v-model="pwdForm.newPassword" type="password" show-password placeholder="8-20位密码" /></el-form-item>
+              <el-form-item label="确认新密码" prop="confirmPassword"><el-input v-model="pwdForm.confirmPassword" type="password" show-password placeholder="再次输入新密码" /></el-form-item>
+              <el-form-item><el-button type="primary" @click="handleUpdatePwd" :loading="pwdLoading" round>修改密码</el-button></el-form-item>
+            </el-form>
+          </el-tab-pane>
+          <el-tab-pane v-if="userStore.userInfo?.realVerified !== 1" label="实名认证" name="verify">
+            <el-form :model="verifyForm" :rules="verifyRules" ref="verifyFormRef" label-width="80px" class="profile-form">
+              <el-form-item label="真实姓名" prop="realName"><el-input v-model="verifyForm.realName" placeholder="请输入真实姓名" /></el-form-item>
+              <el-form-item label="学号" prop="studentId"><el-input v-model="verifyForm.studentId" placeholder="请输入学号" /></el-form-item>
+              <el-form-item><el-button type="primary" @click="handleVerify" :loading="verifyLoading" round>提交认证</el-button></el-form-item>
+            </el-form>
+          </el-tab-pane>
+          <el-tab-pane label="收款管理" name="payment">
+            <div class="payment-tab" v-loading="payLoading">
+              <div class="payment-tab-header">
+                <el-button type="primary" size="small" round @click="openPayDialog()">添加收款账号</el-button>
+              </div>
+              <EmptyState v-if="payConfigs.length === 0 && !payLoading" icon="💳" title="暂无收款配置" description="添加支付宝收款账号，发布商品时自动关联" />
+              <div v-else class="pay-config-list">
+                <div v-for="config in payConfigs" :key="config.id" class="pay-config-card" :class="{ 'is-default': config.isDefault === 1 }">
+                  <div class="pay-config-info">
+                    <el-tag :type="config.isDefault === 1 ? 'primary' : 'info'" size="small">{{ config.isDefault === 1 ? '默认' : '支付宝' }}</el-tag>
+                    <div class="pay-config-detail">
+                      <div class="pay-config-account">{{ config.alipayAccount }}</div>
+                      <div class="pay-config-name">{{ config.realName }}</div>
                     </div>
                   </div>
-                  <el-dialog v-model="payDialogVisible" :title="editingPayConfig ? '编辑收款账号' : '添加收款账号'" width="440px" append-to-body>
-                    <el-form :model="payForm" label-width="100px">
-                      <el-form-item label="支付宝账号" required><el-input v-model="payForm.alipayAccount" placeholder="请输入支付宝账号" /></el-form-item>
-                      <el-form-item label="真实姓名" required><el-input v-model="payForm.realName" placeholder="请输入真实姓名" /></el-form-item>
-                      <el-form-item label="设为默认"><el-switch v-model="payForm.isDefault" :active-value="1" :inactive-value="0" /></el-form-item>
-                    </el-form>
-                    <template #footer>
-                      <el-button @click="payDialogVisible = false">取消</el-button>
-                      <el-button type="primary" :loading="paySubmitting" @click="handlePaySubmit">确定</el-button>
-                    </template>
-                  </el-dialog>
+                  <div class="pay-config-actions">
+                    <el-button v-if="config.isDefault !== 1" size="small" @click="handlePaySetDefault(config.id)">设为默认</el-button>
+                    <el-button size="small" @click="openPayDialog(config)">编辑</el-button>
+                    <el-button size="small" type="danger" text @click="handlePayDelete(config.id)">删除</el-button>
+                  </div>
                 </div>
               </div>
+              <el-dialog v-model="payDialogVisible" :title="editingPayConfig ? '编辑收款账号' : '添加收款账号'" width="440px" append-to-body>
+                <el-form :model="payForm" label-width="100px">
+                  <el-form-item label="支付宝账号" required><el-input v-model="payForm.alipayAccount" placeholder="请输入支付宝账号" /></el-form-item>
+                  <el-form-item label="真实姓名" required><el-input v-model="payForm.realName" placeholder="请输入真实姓名" /></el-form-item>
+                  <el-form-item label="设为默认"><el-switch v-model="payForm.isDefault" :active-value="1" :inactive-value="0" /></el-form-item>
+                </el-form>
+                <template #footer>
+                  <el-button @click="payDialogVisible = false">取消</el-button>
+                  <el-button type="primary" :loading="paySubmitting" @click="handlePaySubmit">确定</el-button>
+                </template>
+              </el-dialog>
             </div>
-          </el-card>
-        </template>
-        <template v-else>
-          <el-card class="other-goods-card">
-            <h3 class="section-title">在售商品</h3>
-            <el-row :gutter="16">
-              <el-col :xs="12" :sm="8" :md="6" v-for="item in goodsList" :key="item.id">
-                <GoodsCard :goods="item" />
-              </el-col>
-            </el-row>
-            <EmptyState v-if="goodsList.length === 0 && !goodsLoading" icon="🏪" title="暂无在售商品" description="该用户暂无在售商品" />
-            <el-pagination v-if="goodsTotal > goodsPageSize" v-model:current-page="goodsPageNum" :page-size="goodsPageSize" :total="goodsTotal" layout="prev, pager, next" @current-change="loadOtherUserGoods" class="goods-pagination" />
-          </el-card>
-        </template>
-      </el-col>
-    </el-row>
+          </el-tab-pane>
+        </el-tabs>
+      </el-card>
+    </template>
+    <template v-else>
+      <el-card class="other-goods-card">
+        <h3 class="section-title">在售商品</h3>
+        <el-row :gutter="16">
+          <el-col :xs="12" :sm="8" :md="6" v-for="item in goodsList" :key="item.id">
+            <GoodsCard :goods="item" />
+          </el-col>
+        </el-row>
+        <EmptyState v-if="goodsList.length === 0 && !goodsLoading" icon="🏪" title="暂无在售商品" description="该用户暂无在售商品" />
+        <el-pagination v-if="goodsTotal > goodsPageSize" v-model:current-page="goodsPageNum" :page-size="goodsPageSize" :total="goodsTotal" layout="prev, pager, next" @current-change="loadOtherUserGoods" class="goods-pagination" />
+      </el-card>
+    </template>
   </div>
 </template>
 
@@ -212,7 +204,7 @@ import { formatDateTime } from '@/utils/labels'
 import GoodsCard from '@/components/GoodsCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { User, Lock, CircleCheck, CreditCard } from '@element-plus/icons-vue'
+
 import type { FormInstance } from 'element-plus'
 import type { UserVO } from '@/api/user'
 import type { GoodsVO } from '@/api/goods'
@@ -220,7 +212,7 @@ import type { GoodsVO } from '@/api/goods'
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
-const activeTab = ref('info')
+const activeTab = ref('stats')
 
 const isSelf = computed(() => !route.params.id || Number(route.params.id) === userStore.userInfo?.id)
 
@@ -468,47 +460,52 @@ onMounted(() => {
 <style scoped lang="scss">
 .profile-page {
   padding: 20px;
-  :deep(.el-row) { align-items: flex-start; }
-  :deep(.el-col) { display: flex; flex-direction: column; }
-  :deep(.el-col:last-child) { height: calc(100vh - 104px); }
+  display: flex; flex-direction: column; gap: 16px;
   :deep(.el-card) {
     border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
-    transition: var(--transition-slow);
-    &:hover { box-shadow: var(--shadow-md); }
   }
 }
-.profile-card { text-align: center; display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 104px);
-  :deep(.el-card__body) { display: flex; flex-direction: column; flex: 1; padding: 0; overflow-y: auto; }
+
+.profile-header-card { margin-bottom: 0; }
+.profile-header {
+  display: flex; align-items: flex-start; gap: 20px;
 }
-.profile-banner {
-  height: 120px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  position: relative;
-  overflow: hidden;
-  flex-shrink: 0;
-  &::before {
-    content: ''; position: absolute; width: 200px; height: 200px;
-    border-radius: 50%; top: -100px; right: -60px;
-    background: rgba(255,255,255,0.1);
-  }
-  &::after {
-    content: ''; position: absolute; width: 140px; height: 140px;
-    border-radius: 50%; bottom: -80px; left: -40px;
-    background: rgba(255,255,255,0.08);
-  }
+.header-avatar {
+  flex-shrink: 0; position: relative;
+  :deep(.el-avatar) { border: 3px solid var(--bg-card); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
 }
-.profile-banner-pattern {
-  position: absolute; inset: 0;
-  background-image: radial-gradient(circle at 30% 40%, rgba(255,255,255,0.12) 0%, transparent 60%);
+.avatar-clickable { cursor: pointer; position: relative; z-index: 1; }
+.avatar-overlay {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 90px; height: 90px; border-radius: 50%;
+  background: rgba(0,0,0,0.5); color: #fff; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.3s; cursor: pointer; pointer-events: none;
+  z-index: 2;
 }
-.dark .profile-banner {
-  background: linear-gradient(135deg, #134E4A 0%, #0F766E 50%, #115E59 100%);
+.header-avatar:hover .avatar-overlay { opacity: 1; }
+
+.header-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.header-name-row { display: flex; align-items: center; gap: 8px; }
+.profile-name { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; margin: 0; }
+.profile-stats { color: var(--text-secondary); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.stat-dot { color: var(--text-muted); }
+.rate-inline { vertical-align: middle; }
+.text-muted-sm { font-size: 12px; color: var(--text-muted); }
+.profile-desc { margin-top: 4px; }
+
+.header-actions { flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.profile-content-card { flex: 1; min-height: 0; }
+.profile-tabs {
+  :deep(.el-tabs__header) { margin-bottom: 20px; }
+  :deep(.el-tabs__nav-wrap::after) { height: 1px; }
 }
-.profile-name { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; margin-top: 4px; }
+
 .stats-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; flex-shrink: 0;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
   @media (max-width: 768px) { grid-template-columns: repeat(2, 1fr); }
 }
 .stat-card {
@@ -532,64 +529,12 @@ onMounted(() => {
 }
 .stat-value { font-size: 28px; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
 .stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
-.avatar-section {
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  position: relative;
-  padding: 0 20px;
-  margin-top: -55px;
-  margin-bottom: 8px;
-  :deep(.el-avatar) { border: 4px solid var(--bg-card); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
-}
-.avatar-clickable { cursor: pointer; position: relative; z-index: 1; }
-.avatar-overlay {
-  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-  width: 100px; height: 100px; border-radius: 50%;
-  background: rgba(0,0,0,0.5); color: #fff; font-size: 12px;
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0; transition: opacity 0.3s; cursor: pointer; pointer-events: none;
-  z-index: 2;
-}
-.avatar-section:hover .avatar-overlay { opacity: 1; }
-.profile-stats { color: var(--text-secondary); font-size: 13px; display: flex; align-items: center; gap: 6px; }
-.rate-inline { vertical-align: middle; }
-.text-muted-sm { font-size: 12px; color: var(--text-muted); }
-.follow-btn { margin-top: 4px; }
-.profile-desc { padding: 0 20px; margin-top: 4px; }
-.edit-card { margin-top: 20px; flex: 1; min-height: 0; overflow-y: auto; }
-.vertical-tabs {
-  display: flex; gap: 24px; min-height: 320px;
-  @media (max-width: 768px) { flex-direction: column; gap: 16px; }
-}
-.vertical-tabs-sidebar {
-  flex-shrink: 0; width: 180px; display: flex; flex-direction: column; gap: 4px;
-  padding: 8px; background: var(--bg-hover); border-radius: var(--radius-lg);
-  @media (max-width: 768px) { width: 100%; flex-direction: row; flex-wrap: wrap; }
-}
-.vtab-item {
-  display: flex; align-items: center; gap: 10px; padding: 12px 16px;
-  border-radius: var(--radius-md); cursor: pointer; font-size: 14px; font-weight: 500;
-  color: var(--text-secondary); transition: all 0.25s; position: relative;
-  &:hover { background: var(--bg-card); color: var(--primary); transform: translateX(2px); }
-  &.active {
-    background: var(--bg-card); color: var(--primary); font-weight: 600;
-    box-shadow: var(--shadow-sm);
-    &::before {
-      content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
-      width: 3px; height: 60%; border-radius: 2px; background: var(--primary-gradient);
-    }
-  }
-  @media (max-width: 768px) { flex: 1; justify-content: center; min-width: 100px; }
-}
-.vertical-tabs-content {
-  flex: 1; padding: 8px 4px;
-  animation: vtabIn 0.3s ease;
-}
-@keyframes vtabIn { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }
+
 .profile-form { max-width: 500px; }
 .section-title { margin: 0 0 16px; }
-.logout-btn { margin: 12px 20px 0; width: calc(100% - 40px); align-self: center; }
 .goods-pagination { margin-top: 16px; justify-content: center; }
-.other-goods-card { flex: 1; min-height: 0; overflow-y: auto; }
+.other-goods-card { margin-bottom: 16px; }
+
 .payment-tab { max-width: 500px; }
 .payment-tab-header { margin-bottom: 16px; }
 .pay-config-list { display: flex; flex-direction: column; gap: 10px; }
@@ -607,19 +552,15 @@ onMounted(() => {
 .pay-config-actions { display: flex; gap: 4px; }
 
 @media (max-width: 768px) {
-  .profile-page { height: auto; overflow: visible; }
-  :deep(.el-col) { display: block; }
-  :deep(.el-col:first-child) { margin-bottom: 16px; }
-  :deep(.el-col:last-child) { height: auto; }
-  .profile-card { height: auto; margin-bottom: 16px; }
-  .logout-btn { margin-bottom: 12px; }
-  .stats-grid { margin-bottom: 16px; }
+  .profile-page { padding: 16px; }
+  .profile-header { flex-direction: column; align-items: center; text-align: center; }
+  .header-info { align-items: center; }
+  .header-name-row { justify-content: center; }
+  .header-actions { flex-direction: row; }
+  .profile-desc { width: 100%; }
   .stat-card { padding: 12px 10px; }
   .stat-icon { width: 36px; height: 36px; font-size: 16px; margin-bottom: 6px; }
   .stat-value { font-size: 22px; }
   .stat-label { font-size: 12px; }
-  .edit-card { flex: none; overflow-y: visible; margin-bottom: 16px; }
-  .other-goods-card { flex: none; overflow-y: visible; }
-  .vtab-item { min-width: 80px !important; }
 }
 </style>
