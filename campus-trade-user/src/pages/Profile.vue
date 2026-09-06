@@ -511,6 +511,7 @@ onMounted(() => {
 
 .stats-grid {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  padding: 4px 0; margin: -4px 0;
   @media (max-width: 768px) { grid-template-columns: repeat(2, 1fr); }
 }
 .stat-card {
