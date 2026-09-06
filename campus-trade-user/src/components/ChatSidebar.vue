@@ -22,7 +22,9 @@
         <el-icon v-if="blockedSet.has(contact.userId)" class="blocked-icon" :size="20" title="已屏蔽"><Warning /></el-icon>
       </div>
     </div>
-    <el-empty v-if="filteredContacts.length === 0" description="暂无会话" :image-size="60" />
+    <el-empty v-if="filteredContacts.length === 0" description="暂无聊天会话" :image-size="60">
+      <template #image><el-icon :size="48" class="empty-icon"><ChatDotSquare /></el-icon></template>
+    </el-empty>
   </el-aside>
 </template>
 
@@ -56,6 +58,9 @@ const filteredContacts = computed(() => {
 </script>
 
 <style scoped lang="scss">
+.empty-icon { color: var(--text-muted); opacity: 0.35; }
+:deep(.el-empty__image) { display: flex; align-items: center; justify-content: center; }
+:deep(.el-empty__description) { font-size: 14px; color: var(--text-muted); margin-top: 10px; }
 .chat-sidebar {
   width: 280px;
   flex-shrink: 0;

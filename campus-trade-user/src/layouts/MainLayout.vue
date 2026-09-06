@@ -21,7 +21,7 @@
           <template v-if="userStore.token">
             <div class="nav-divider" />
             <router-link to="/my-goods" class="nav-link nav-link--user" :class="{ active: route.path === '/my-goods' }">
-              <el-icon :size="16"><Box /></el-icon><span>我的商品</span>
+              <el-icon :size="16"><Box /></el-icon><span>发布</span>
             </router-link>
             <router-link to="/order" class="nav-link nav-link--user" :class="{ active: route.path.startsWith('/order') }">
               <el-icon :size="16"><List /></el-icon><span>订单</span>
@@ -108,7 +108,7 @@
         <div class="footer-copy">&copy; 2026 CampusTrade 校园贸易平台 · 安全 · 便捷 · 值得信赖</div>
       </div>
     </el-footer>
-    <el-drawer v-model="drawerVisible" direction="ltr" size="260px" :show-close="false">
+    <el-drawer v-model="drawerVisible" direction="ltr" size="200px" :show-close="false">
       <template #header>
         <div class="drawer-logo">
           <div class="logo-icon">
@@ -127,7 +127,7 @@
         <template v-if="userStore.token">
           <div class="drawer-divider" />
           <router-link to="/my-goods" class="drawer-link" :class="{ active: route.path === '/my-goods' }" @click="drawerVisible = false">
-            <el-icon :size="18"><Box /></el-icon><span>我的商品</span>
+            <el-icon :size="18"><Box /></el-icon><span>发布</span>
           </router-link>
           <router-link to="/order" class="drawer-link" :class="{ active: route.path.startsWith('/order') }" @click="drawerVisible = false">
             <el-icon :size="18"><List /></el-icon><span>订单</span>
@@ -163,6 +163,7 @@ const { chatUnread, notifyUnread, onNotification } = useChatWs()
 const isDark = ref(false)
 const drawerVisible = ref(false)
 
+
 const applyDarkMode = (dark: boolean) => {
   isDark.value = dark
   if (dark) {
@@ -186,6 +187,7 @@ onMounted(() => {
   } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
     applyDarkMode(true)
   }
+
 })
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
@@ -222,6 +224,7 @@ const handleLogout = async () => {
 onUnmounted(() => {
   stopPolling()
   removeNotifyHandler()
+
 })
 </script>
 
@@ -475,9 +478,28 @@ onUnmounted(() => {
   margin: 8px 16px;
 }
 
+@media (max-width: 1024px) {
+  .user-name { display: none; }
+  .user-info { padding: 4px; gap: 0; }
+  .logo { margin-right: 12px; }
+  .logo-text { font-size: 17px; }
+}
+
 @media (max-width: 768px) {
   .hamburger-btn { display: flex; }
   .nav-links { display: none; }
-  .header-inner { padding: 0 16px; }
+  .header-inner { padding: 0 12px; gap: 4px; }
+  .logo-text { display: none; }
+  .logo { margin-right: 8px; }
+  .header-right { gap: 2px; }
+  .icon-btn { width: 34px; height: 34px; }
+  .user-info { padding: 2px; }
+  .header-badge { display: flex; align-items: center; }
+}
+
+@media (max-width: 480px) {
+  .header-inner { padding: 0 8px; gap: 2px; }
+  .icon-btn { width: 32px; height: 32px; }
+  .logo-icon { width: 32px; height: 32px; }
 }
 </style>

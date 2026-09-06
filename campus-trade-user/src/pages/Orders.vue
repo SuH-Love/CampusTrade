@@ -16,13 +16,13 @@
               <el-option label="已取消" value="CANCELLED" />
               <el-option label="退款售后" value="REFUND" />
             </el-select>
+            <el-radio-group v-model="activeTab" @change="handleTabChange" class="role-toggle">
+              <el-radio-button label="buyer">我买到的</el-radio-button>
+              <el-radio-button label="seller">我卖出的</el-radio-button>
+            </el-radio-group>
           </div>
         </div>
       </template>
-      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <el-tab-pane label="我买到的" name="buyer" />
-        <el-tab-pane label="我卖出的" name="seller" />
-      </el-tabs>
 
       <el-table v-if="!isMobile" :data="filteredOrders" stripe class="order-table" v-loading="loading">
         <el-table-column prop="orderNo" label="订单号" min-width="180" />
@@ -343,9 +343,30 @@ onUnmounted(() => {
 }
 .orders-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
 .orders-heading { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-primary); }
-.filter-bar { display: flex; gap: 12px; align-items: center; }
+.filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .search-input { width: 200px; }
 .status-select { width: 140px; }
+.role-toggle {
+  flex-shrink: 0;
+  :deep(.el-radio-button__inner) {
+    font-weight: 500;
+    padding: 8px 15px;
+    border-radius: 4px !important;
+    transition: var(--transition-fast);
+  }
+  :deep(.el-radio-button:first-child .el-radio-button__inner) {
+    border-radius: 4px 0 0 4px !important;
+  }
+  :deep(.el-radio-button:last-child .el-radio-button__inner) {
+    border-radius: 0 4px 4px 0 !important;
+  }
+  :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+    box-shadow: -1px 0 0 0 var(--primary);
+  }
+}
 .order-table { width: 100%; }
 .goods-cell { display: flex; align-items: center; gap: 10px; }
 .goods-thumb { width: 44px; height: 44px; border-radius: 6px; flex-shrink: 0; }

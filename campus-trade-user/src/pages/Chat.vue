@@ -96,7 +96,9 @@
               </div>
             </template>
 
-            <el-empty v-if="messages.length === 0" description="暂无消息，发送第一条消息吧" :image-size="60" />
+            <el-empty v-if="messages.length === 0" description="还没有消息，开始聊天吧" :image-size="60">
+              <template #image><el-icon :size="48" class="empty-icon"><ChatLineSquare /></el-icon></template>
+            </el-empty>
           </div>
           <ChatInput
             :current-target="currentTarget"
@@ -110,7 +112,11 @@
           <div v-if="blockedByTarget" class="blocked-hint">对方已将你屏蔽，无法发送消息</div>
           <div v-else-if="iBlockedTarget" class="blocked-hint">你已屏蔽对方，<el-button type="primary" link @click="handleUnblock">解除屏蔽</el-button>后可继续聊天</div>
         </template>
-        <div v-else class="chat-empty"><el-empty description="选择联系人开始聊天" /></div>
+        <div v-else class="chat-empty">
+          <el-empty description="选择联系人开始聊天">
+            <template #image><el-icon :size="56" class="empty-icon"><ChatDotRound /></el-icon></template>
+          </el-empty>
+        </div>
       </el-main>
     </el-container>
 
@@ -123,7 +129,9 @@
             <div class="picker-item-price">¥{{ g.price }}</div>
           </div>
         </div>
-        <el-empty v-if="!goodsPickerLoading && pickerGoodsList.length === 0" description="该商家暂无在售商品" :image-size="50" />
+        <el-empty v-if="!goodsPickerLoading && pickerGoodsList.length === 0" description="暂无在售商品" :image-size="50">
+          <template #image><el-icon :size="40" class="empty-icon"><Goods /></el-icon></template>
+        </el-empty>
       </div>
     </el-dialog>
 
@@ -135,7 +143,9 @@
             <div class="picker-item-sub">¥{{ o.totalAmount }} · {{ orderStatusLabel(o.status) }}</div>
           </div>
         </div>
-        <el-empty v-if="!orderPickerLoading && pickerOrderList.length === 0" description="暂无与该商家的订单" :image-size="50" />
+        <el-empty v-if="!orderPickerLoading && pickerOrderList.length === 0" description="暂无相关订单" :image-size="50">
+          <template #image><el-icon :size="40" class="empty-icon"><List /></el-icon></template>
+        </el-empty>
       </div>
     </el-dialog>
   </div>
@@ -1002,6 +1012,7 @@ onUnmounted(() => {
   flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px;
   background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-hover) 100%);
   scroll-behavior: smooth;
+  :deep(.el-empty) { margin: auto; }
 }
 .message-item {
   display: flex; gap: 10px; animation: msgIn 0.3s ease;
@@ -1034,11 +1045,20 @@ onUnmounted(() => {
 .msg-time { font-size: 11px; color: var(--text-muted); padding: 0 4px; }
 .msg-read { font-size: 11px; color: var(--primary); }
 .msg-unread { font-size: 11px; color: var(--text-muted); }
-.chat-empty { display: flex; align-items: center; justify-content: center; height: 100%; }
+.chat-empty {
+  display: flex; align-items: center; justify-content: center; height: 100%;
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-hover) 100%);
+  :deep(.el-empty) { padding: 0; }
+  :deep(.el-empty__image) { display: flex; align-items: center; justify-content: center; }
+  :deep(.el-empty__description) { font-size: 15px; color: var(--text-muted); margin-top: 12px; }
+}
+.empty-icon { color: var(--text-muted); opacity: 0.35; }
+:deep(.el-empty__image) { display: flex; align-items: center; justify-content: center; }
+:deep(.el-empty__description) { margin-top: 10px; }
 .goods-card-info { flex: 1; min-width: 0; }
 .goods-card-title { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .goods-card-price { font-size: 13px; opacity: 0.85; margin-top: 2px; }
-.picker-list { max-height: 400px; overflow-y: auto; }
+.picker-list { max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; min-height: 200px; :deep(.el-empty) { margin: auto; } }
 .picker-item {
   display: flex; align-items: center; gap: 12px; padding: 12px; cursor: pointer; border-radius: 8px; transition: var(--transition-fast);
   &:hover { background: var(--bg-hover); }
@@ -1054,11 +1074,7 @@ onUnmounted(() => {
 .date-separator { display: flex; align-items: center; justify-content: center; padding: 4px 0; }
 .date-separator-text { font-size: 12px; color: var(--text-muted); background: var(--bg-glass); backdrop-filter: blur(8px); padding: 4px 14px; border-radius: 12px; user-select: none; border: 1px solid var(--border-light); }
 .blocked-hint { text-align: center; padding: 10px; font-size: 13px; color: var(--text-muted); background: var(--bg-glass); backdrop-filter: blur(8px); border-top: 1px solid var(--border); }
-.chat-empty {
-  display: flex; align-items: center; justify-content: center; height: 100%;
-  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-hover) 100%);
-  :deep(.el-empty__description) { font-size: 15px; color: var(--text-muted); }
-}
+
 
 @media (max-width: 768px) {
   .chat-page { padding: 8px; }
