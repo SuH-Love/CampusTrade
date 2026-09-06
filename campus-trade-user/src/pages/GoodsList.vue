@@ -72,7 +72,7 @@
         </div>
         <EmptyState v-else-if="categoryId" icon="📦" title="该分类暂无商品" description="换个分类看看吧，或者查看全部商品" action-text="查看全部商品" @action="setCategory(undefined)" />
         <template v-else>
-          <EmptyState icon="🔍" :title="searchEmptyTitle" :description="keyword ? '换个关键词试试，或者看看下面推荐' : '还没有人发布商品，快来成为第一个吧'" :action-text="keyword ? '查看全部商品' : '发布商品'" @action="keyword ? setCategory(undefined) : $router.push('/goods/publish')" />
+          <EmptyState icon="🔍" :title="searchEmptyTitle" :description="keyword ? '换个关键词试试，或者看看下面推荐' : '还没有人发布商品，快来成为第一个吧'" :action-text="keyword ? '查看全部商品' : '发布商品'" @action="keyword ? resetFilters() : $router.push('/goods/publish')" />
           <div v-if="keyword && recommendGoods.length > 0" class="guess-section">
             <h4 class="guess-title">猜你想找</h4>
             <div class="goods-grid mode-grid">
