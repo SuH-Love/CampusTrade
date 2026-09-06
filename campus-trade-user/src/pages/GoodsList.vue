@@ -342,9 +342,9 @@ onUnmounted(() => { observer?.disconnect() })
   .goods-main { height: auto; max-height: none; overflow-y: visible; }
   .sort-group { display: flex; flex-wrap: nowrap; gap: 4px; }
   :deep(.sort-group .el-radio) { margin-right: 0; }
-  .filter-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .reset-btn, .publish-btn { flex: 1; width: auto; min-width: 0; margin-left: 0 !important; }
-  .mobile-close-btn { display: inline-flex; flex-basis: 100%; width: auto; margin: 0 auto; }
+  .filter-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .reset-btn, .publish-btn { width: calc(50% - 4px) !important; flex: none !important; margin-left: 0 !important; }
+  .mobile-close-btn { display: inline-flex !important; width: auto !important; flex: none !important; margin-top: 0; }
 }
 @media (max-width: 600px) {
   .goods-list-page { padding: var(--spacing-md); }
