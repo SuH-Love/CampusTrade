@@ -507,6 +507,7 @@ onMounted(() => {
 .profile-tabs {
   :deep(.el-tabs__header) { margin-bottom: 20px; }
   :deep(.el-tabs__nav-wrap::after) { height: 1px; }
+  :deep(.el-tabs__content) { overflow: visible; }
 }
 
 .stats-grid {
