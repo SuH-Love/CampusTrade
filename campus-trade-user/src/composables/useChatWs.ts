@@ -181,40 +181,48 @@ async function fetchOnlineUsers() {
 }
 
 function sendChat(receiverId: number, content: string, messageType: number = 1) {
-  if (stompClient && stompClient.active) {
-    stompClient.publish({
-      destination: '/app/chat.send',
-      body: JSON.stringify({ receiverId, content, messageType })
-    })
-    return true
+  if (stompClient && connected.value) {
+    try {
+      stompClient.publish({
+        destination: '/app/chat.send',
+        body: JSON.stringify({ receiverId, content, messageType })
+      })
+      return true
+    } catch { return false }
   }
   return false
 }
 
 function sendTyping(receiverId: number) {
-  if (stompClient && stompClient.active) {
-    stompClient.publish({
-      destination: '/app/chat.typing',
-      body: JSON.stringify({ receiverId })
-    })
+  if (stompClient && connected.value) {
+    try {
+      stompClient.publish({
+        destination: '/app/chat.typing',
+        body: JSON.stringify({ receiverId })
+      })
+    } catch { /* ignore */ }
   }
 }
 
 function sendStopTyping(receiverId: number) {
-  if (stompClient && stompClient.active) {
-    stompClient.publish({
-      destination: '/app/chat.stopTyping',
-      body: JSON.stringify({ receiverId })
-    })
+  if (stompClient && connected.value) {
+    try {
+      stompClient.publish({
+        destination: '/app/chat.stopTyping',
+        body: JSON.stringify({ receiverId })
+      })
+    } catch { /* ignore */ }
   }
 }
 
 function sendRead(receiverId: number) {
-  if (stompClient && stompClient.active) {
-    stompClient.publish({
-      destination: '/app/chat.read',
-      body: JSON.stringify({ receiverId })
-    })
+  if (stompClient && connected.value) {
+    try {
+      stompClient.publish({
+        destination: '/app/chat.read',
+        body: JSON.stringify({ receiverId })
+      })
+    } catch { /* ignore */ }
   }
   const m = new Map(chatUnreadMap.value)
   m.delete(receiverId)

@@ -13,6 +13,23 @@ const processPendingRequests = (token: string) => {
   pendingRequests = []
 }
 
+const MAX_NETWORK_RETRY = 3
+const RETRY_DELAY = 500
+
+const isNetworkError = (error: unknown): boolean => {
+  const err = error as { response?: unknown; code?: string; message?: string }
+  return !err.response && (
+    err.code === 'ERR_NETWORK' ||
+    err.code === 'ECONNABORTED' ||
+    err.code === 'ECONNRESET' ||
+    err.message?.includes('Network Error') ||
+    err.message?.includes('timeout') ||
+    err.message?.includes('ERR_CONNECTION_RESET')
+  )
+}
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const adminStore = useAdminStore()
@@ -35,7 +52,7 @@ service.interceptors.response.use(
     return Promise.reject(new Error(message))
   },
   async (error) => {
-    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
+    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean; _networkRetryCount?: number }
     if (error.response) {
       const { status } = error.response
       if (status === 401 && !originalRequest._retry) {
@@ -82,6 +99,14 @@ service.interceptors.response.use(
       } else {
         ElMessage.error(error.response.data?.message || '系统异常')
       }
+    } else if (isNetworkError(error)) {
+      const retryCount = originalRequest._networkRetryCount || 0
+      if (retryCount < MAX_NETWORK_RETRY) {
+        originalRequest._networkRetryCount = retryCount + 1
+        await sleep(RETRY_DELAY)
+        return service(originalRequest)
+      }
+      ElMessage.error('网络异常，请检查网络连接')
     } else {
       ElMessage.error('网络异常，请检查网络连接')
     }

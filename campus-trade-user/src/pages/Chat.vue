@@ -204,8 +204,15 @@ const markServerRecallable = () => {
 
 const {
   connected, onlineUsers, sendChat, sendTyping, sendStopTyping,
-  sendRead, onChatMessage, chatUnreadMap, getMyId
+  sendRead, onChatMessage, chatUnreadMap, getMyId, connect: wsConnect, disconnect: wsDisconnect
 } = useChatWs()
+
+const handlePageShow = (event: PageTransitionEvent) => {
+  if (event.persisted) {
+    wsDisconnect()
+    wsConnect()
+  }
+}
 
 const contacts = ref<ContactItem[]>([])
 const currentTarget = ref<number | null>(null)
@@ -821,6 +828,14 @@ watch(connected, (val) => {
   }
 })
 
+const isRetryable = (e: any): boolean => {
+  if (!e) return false
+  if (e.code === 'ERR_NETWORK' || e.code === 'ECONNABORTED' || e.code === 'ECONNRESET') return true
+  if (e.message?.includes('Network Error') || e.message?.includes('timeout')) return true
+  const status = e.response?.status
+  return status === 502 || status === 503 || status === 504
+}
+
 watch(() => route.params.userId, async (newTarget) => {
   if (!newTarget) return
   const userId = Number(newTarget)
@@ -841,9 +856,9 @@ watch(() => route.params.userId, async (newTarget) => {
       sendRead(userId)
       return
     } catch (e: any) {
-      const isNetworkError = e?.code === 'ERR_NETWORK' || e?.message?.includes('Network Error')
-      if (!isNetworkError || attempt === 2) {
-        if (isNetworkError) ElMessage.error('网络连接失败，请刷新重试')
+      const retryable = isRetryable(e)
+      if (!retryable || attempt === 2) {
+        if (retryable) ElMessage.error('网络连接失败，请刷新重试')
         else { ElMessage.error('用户不存在'); router.replace('/chat') }
         return
       }
@@ -852,7 +867,9 @@ watch(() => route.params.userId, async (newTarget) => {
   }
 })
 
-const switchToContact = async (userId: number): Promise<boolean> => {
+
+const switchToContact = async (userId: number): Promise<'success' | 'not_found' | 'network_error'> => {
+  let lastWasRetryable = false
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const userInfo = await getUserPublicInfo(userId)
@@ -875,19 +892,21 @@ const switchToContact = async (userId: number): Promise<boolean> => {
       await nextTick()
       await loadMessages()
       sendRead(userId)
-      return true
+      return 'success'
     } catch (e: any) {
-      const isNetworkError = e?.code === 'ERR_NETWORK' || e?.message?.includes('Network Error')
-      if (!isNetworkError || attempt === 2) return false
+      console.warn('[switchToContact] error:', e?.code, e?.message, e?.response?.status)
+      lastWasRetryable = isRetryable(e)
+      if (!lastWasRetryable || attempt === 2) break
       await new Promise(r => setTimeout(r, 500))
     }
   }
-  return false
+  return lastWasRetryable ? 'network_error' : 'not_found'
 }
 
 onMounted(async () => {
   document.addEventListener('click', closeContextMenu)
   document.addEventListener('contextmenu', onDocContextMenu, true)
+  window.addEventListener('pageshow', handlePageShow)
   recallTimer = setInterval(markServerRecallable, 15000)
 
   const rawU = route.params.userId || route.query.u || route.query.targetUserId
@@ -909,10 +928,14 @@ onMounted(async () => {
   } catch (e) { console.error(e) }
 
   if (queryTarget) {
-    const ok = await switchToContact(queryTarget)
-    if (!ok) {
-      ElMessage.error('用户不存在')
-      router.replace('/chat')
+    const result = await switchToContact(queryTarget)
+    if (result !== 'success') {
+      if (result === 'not_found') {
+        ElMessage.error('用户不存在')
+        router.replace('/chat')
+      } else {
+        ElMessage.error('网络异常，请刷新重试')
+      }
       return
     }
 
@@ -949,6 +972,7 @@ onUnmounted(() => {
   removeWsHandler()
   document.removeEventListener('click', closeContextMenu)
   document.removeEventListener('contextmenu', onDocContextMenu, true)
+  window.removeEventListener('pageshow', handlePageShow)
   if (recallTimer) clearInterval(recallTimer)
 })
 
