@@ -395,4 +395,14 @@ onUnmounted(() => {
 .order-card-user { font-size: 13px; color: var(--text-muted); }
 .order-card-countdown { color: var(--danger); font-size: 12px; font-weight: 500; margin-top: 4px; }
 .order-card-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+
+@media (max-width: 576px) {
+  .orders-page { padding: 12px; }
+  .orders-header { flex-direction: column; align-items: flex-start; }
+  .filter-bar { width: 100%; flex-wrap: nowrap; gap: 8px; }
+  .filter-bar > * { flex-shrink: 0; }
+  .search-input { flex: 1; width: 100%; }
+  .status-select { width: 110px; }
+  .role-toggle { :deep(.el-radio-button__inner) { padding: 8px 10px; font-size: 12px; } }
+}
 </style>

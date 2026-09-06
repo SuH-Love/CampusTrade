@@ -555,7 +555,7 @@ onUnmounted(() => {
 
 .category-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; }
 .category-expanded-strip {
-  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;
+  display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; margin: -4px 0;
   align-items: center;
   &::-webkit-scrollbar { height: 6px; }
   &::-webkit-scrollbar-track { background: var(--bg-hover); border-radius: 3px; }
@@ -606,5 +606,16 @@ onUnmounted(() => {
   .hero-slide { height: 220px; }
   .hero-content h1 { font-size: 24px; }
   .hero-content p { font-size: 14px; }
+  .bento-search-card { padding: 12px 14px; gap: 8px; }
+  .search-input { :deep(.el-input__wrapper) { padding: 4px 14px; border-radius: 20px; } :deep(.el-input__inner) { font-size: 13px; } }
+  .category-chips {
+    flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; gap: 6px;
+    padding: 4px 0; margin: -4px 0;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
+    .category-expand-icon { position: sticky; right: 0; z-index: 3; background: var(--bg-card); }
+  }
+  .category-chip { padding: 4px 10px; font-size: 12px; }
+  .category-expand-icon { width: 28px; height: 28px; flex-shrink: 0; }
 }
 </style>

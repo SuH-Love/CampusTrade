@@ -8,10 +8,7 @@
     </div>
     <div class="list-layout">
       <aside class="filter-sidebar" :class="{ 'mobile-show': showFilters }">
-        <div class="filter-section">
-          <h4 class="filter-title">搜索</h4>
-          <el-input v-model="keyword" placeholder="输入关键词..." clearable @keyup.enter="handleSearch" @input="handleSearchInput" @clear="handleSearch" prefix-icon="Search" />
-        </div>
+
         <div class="filter-section filter-section-category">
           <h4 class="filter-title">分类</h4>
           <div class="filter-categories">
@@ -39,13 +36,15 @@
             <el-radio value="views">最多浏览</el-radio>
           </el-radio-group>
         </div>
-        <el-button round class="reset-btn" @click="resetFilters">
-          <el-icon><RefreshLeft /></el-icon> 重置筛选
-        </el-button>
-        <el-button type="primary" round class="publish-btn" @click="$router.push('/goods/publish')">
-          <el-icon><Plus /></el-icon> 发布商品
-        </el-button>
-        <el-button class="mobile-close-btn" @click="showFilters = false">收起筛选</el-button>
+        <div class="filter-actions">
+          <el-button round class="reset-btn" @click="resetFilters">
+            <el-icon><RefreshLeft /></el-icon> 重置筛选
+          </el-button>
+          <el-button type="primary" round class="publish-btn" @click="$router.push('/goods/publish')">
+            <el-icon><Plus /></el-icon> 发布商品
+          </el-button>
+          <el-button class="mobile-close-btn" @click="showFilters = false">收起筛选</el-button>
+        </div>
       </aside>
 
       <main class="goods-main">
@@ -264,8 +263,10 @@ onUnmounted(() => { observer?.disconnect() })
 .sort-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 :deep(.sort-group .el-radio) { margin-right: 0; height: auto; }
 
-.reset-btn { width: 100%; margin-top: 8px; margin-left: 0 !important; flex-shrink: 0; }
-.publish-btn { width: 100%; margin-top: 8px; margin-left: 0 !important; flex-shrink: 0; }
+.filter-actions { display: flex; flex-direction: column; gap: 8px; }
+
+.reset-btn { width: 100%; margin-left: 0 !important; flex-shrink: 0; }
+.publish-btn { width: 100%; margin-left: 0 !important; flex-shrink: 0; }
 .mobile-close-btn { display: none; }
 
 .goods-main {
@@ -334,14 +335,20 @@ onUnmounted(() => { observer?.disconnect() })
     display: none;
     &.mobile-show { display: flex; flex-direction: column; gap: 16px; }
   }
-  .mobile-close-btn { display: flex; margin-top: 4px; }
+
   .filter-section { flex: none; }
   .filter-categories { max-height: 240px; overflow-y: auto; }
   .goods-grid.mode-grid { grid-template-columns: repeat(3, 1fr); }
   .goods-main { height: auto; max-height: none; overflow-y: visible; }
+  .sort-group { display: flex; flex-wrap: nowrap; gap: 4px; }
+  :deep(.sort-group .el-radio) { margin-right: 0; }
+  .filter-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .reset-btn, .publish-btn { flex: 1; width: auto; min-width: 0; margin-left: 0 !important; }
+  .mobile-close-btn { display: inline-flex; flex-basis: 100%; width: auto; margin: 0 auto; }
 }
 @media (max-width: 600px) {
   .goods-list-page { padding: var(--spacing-md); }
   .goods-grid.mode-grid { grid-template-columns: repeat(2, 1fr); }
+
 }
 </style>

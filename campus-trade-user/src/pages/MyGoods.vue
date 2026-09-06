@@ -303,10 +303,10 @@ onUnmounted(() => { window.removeEventListener('resize', handleResize) })
 
 @media (max-width: 576px) {
   .my-goods-page { padding: 12px; }
-
   .my-goods-header { flex-direction: column; align-items: flex-start; }
-  .filter-bar { width: 100%; flex-wrap: wrap; }
-  .search-input { width: 100%; }
-  .status-select { width: 100%; }
+  .filter-bar { width: 100%; flex-wrap: nowrap; gap: 8px; }
+  .filter-bar > * { flex-shrink: 0; }
+  .search-input { flex: 1; width: 100%; }
+  .status-select { width: 110px; }
 }
 </style>

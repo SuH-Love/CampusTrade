@@ -608,9 +608,12 @@ onMounted(() => {
 @media (max-width: 768px) {
   .profile-page { height: auto; overflow: visible; }
   :deep(.el-col) { display: block; }
+  :deep(.el-col:first-child) { margin-bottom: 16px; }
   :deep(.el-col:last-child) { height: auto; }
-  .profile-card { height: auto; }
+  .profile-card { height: auto; margin-bottom: 16px; }
+  .stats-grid { margin-bottom: 16px; }
   .edit-card { flex: none; overflow-y: visible; }
   .other-goods-card { flex: none; overflow-y: visible; }
+  .vtab-item { min-width: 80px !important; }
 }
 </style>

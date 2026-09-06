@@ -255,6 +255,8 @@ onUnmounted(() => { removeNotifyHandler() })
   :deep(.el-card) { height: auto; max-height: none; overflow: visible; }
   :deep(.el-card__body) { overflow-y: visible; }
   .notification-header { flex-direction: column; align-items: flex-start; }
+  .header-actions { width: 100%; }
+  .header-actions > * { flex: 1; }
   .preference-section { flex-wrap: wrap; }
 }
 </style>
