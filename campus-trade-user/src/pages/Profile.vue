@@ -558,11 +558,9 @@ onMounted(() => {
 
 @media (max-width: 768px) {
   .profile-page { padding: 16px; }
-  .profile-header { flex-direction: column; align-items: center; text-align: center; }
-  .header-info { align-items: center; }
-  .header-name-row { justify-content: center; }
-  .header-actions { flex-direction: row; }
-  .profile-info-list { flex-direction: column; gap: 6px; }
+  .profile-header { gap: 12px; }
+  .header-avatar { :deep(.el-avatar) { width: 64px !important; height: 64px !important; } }
+  .avatar-overlay { width: 64px; height: 64px; }
   .stat-card { padding: 12px 10px; }
   .stat-icon { width: 36px; height: 36px; font-size: 16px; margin-bottom: 6px; }
   .stat-value { font-size: 22px; }
