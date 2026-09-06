@@ -335,7 +335,7 @@ onUnmounted(() => { observer?.disconnect() })
   }
   .list-layout { grid-template-columns: 1fr; gap: 16px; }
   .filter-sidebar {
-    position: static; max-height: none; overflow-y: visible;
+    position: static; height: auto; max-height: none; overflow-y: visible;
     display: none;
     &.mobile-show { display: flex; flex-direction: column; gap: 16px; }
   }
