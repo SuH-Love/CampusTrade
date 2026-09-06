@@ -9,6 +9,10 @@
     <div class="list-layout">
       <aside class="filter-sidebar" :class="{ 'mobile-show': showFilters }">
 
+        <div class="filter-section pc-search-section">
+          <h4 class="filter-title">搜索</h4>
+          <el-input v-model="keyword" placeholder="搜索商品..." clearable @keyup.enter="handleSearch" @input="handleSearchInput" @clear="handleSearch" prefix-icon="Search" size="small" />
+        </div>
         <div class="filter-section filter-section-category">
           <h4 class="filter-title">分类</h4>
           <div class="filter-categories">
@@ -337,6 +341,7 @@ onUnmounted(() => { observer?.disconnect() })
   }
 
   .filter-section { flex: none; }
+  .pc-search-section { display: none; }
   .filter-categories { max-height: 240px; overflow-y: auto; }
   .goods-grid.mode-grid { grid-template-columns: repeat(3, 1fr); }
   .goods-main { height: auto; max-height: none; overflow-y: visible; }
