@@ -45,23 +45,22 @@
               </template>
             </template>
           </div>
-          <el-descriptions :column="3" border class="profile-desc" size="small">
+          <div class="profile-info-list">
             <template v-if="isSelf">
-              <el-descriptions-item label="用户名">{{ userStore.userInfo?.username }}</el-descriptions-item>
-              <el-descriptions-item label="手机号">{{ userStore.userInfo?.phone || '未绑定' }}</el-descriptions-item>
-              <el-descriptions-item label="邮箱">{{ userStore.userInfo?.email || '未绑定' }}</el-descriptions-item>
-              <el-descriptions-item label="学号">{{ userStore.userInfo?.studentId || '未填写' }}</el-descriptions-item>
-              <el-descriptions-item label="注册时间">{{ formatDateTime(userStore.userInfo?.createTime) }}</el-descriptions-item>
+              <div class="info-item"><span class="info-label">用户名</span><span class="info-value">{{ userStore.userInfo?.username }}</span></div>
+              <div class="info-item"><span class="info-label">手机号</span><span class="info-value">{{ userStore.userInfo?.phone || '未绑定' }}</span></div>
+              <div class="info-item"><span class="info-label">邮箱</span><span class="info-value">{{ userStore.userInfo?.email || '未绑定' }}</span></div>
+              <div class="info-item"><span class="info-label">学号</span><span class="info-value">{{ userStore.userInfo?.studentId || '未填写' }}</span></div>
+              <div class="info-item"><span class="info-label">注册时间</span><span class="info-value">{{ formatDateTime(userStore.userInfo?.createTime) }}</span></div>
             </template>
             <template v-else>
-              <el-descriptions-item label="用户名">{{ profileUser?.username }}</el-descriptions-item>
-              <el-descriptions-item label="注册时间">{{ formatDateTime(profileUser?.createTime) }}</el-descriptions-item>
+              <div class="info-item"><span class="info-label">用户名</span><span class="info-value">{{ profileUser?.username }}</span></div>
+              <div class="info-item"><span class="info-label">注册时间</span><span class="info-value">{{ formatDateTime(profileUser?.createTime) }}</span></div>
             </template>
-          </el-descriptions>
+          </div>
         </div>
         <div class="header-actions">
-          <el-button v-if="isSelf" type="danger" plain round @click="handleLogout">退出登录</el-button>
-          <el-button v-else-if="userStore.token" :type="isFollowed ? 'warning' : 'primary'" @click="handleToggleFollow" :loading="followLoading" round>
+          <el-button v-if="!isSelf && userStore.token" :type="isFollowed ? 'warning' : 'primary'" @click="handleToggleFollow" :loading="followLoading" round>
             {{ isFollowed ? '已关注' : '关注' }}
           </el-button>
         </div>
@@ -494,7 +493,13 @@ onMounted(() => {
 .stat-dot { color: var(--text-muted); }
 .rate-inline { vertical-align: middle; }
 .text-muted-sm { font-size: 12px; color: var(--text-muted); }
-.profile-desc { margin-top: 4px; }
+
+.profile-info-list {
+  display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 8px;
+}
+.info-item { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.info-label { color: var(--text-muted); flex-shrink: 0; }
+.info-value { color: var(--text-primary); font-weight: 500; }
 
 .header-actions { flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
 
@@ -557,7 +562,7 @@ onMounted(() => {
   .header-info { align-items: center; }
   .header-name-row { justify-content: center; }
   .header-actions { flex-direction: row; }
-  .profile-desc { width: 100%; }
+  .profile-info-list { flex-direction: column; gap: 6px; }
   .stat-card { padding: 12px 10px; }
   .stat-icon { width: 36px; height: 36px; font-size: 16px; margin-bottom: 6px; }
   .stat-value { font-size: 22px; }
