@@ -64,7 +64,7 @@ export const operationLabel = (op: string): string => {
     updateAiConfig: '更新AI配置', getConfigStatus: 'AI配置状态',
     listFaqs: 'FAQ列表', addFaq: '新增FAQ', updateFaq: '更新FAQ', deleteFaq: '删除FAQ',
     submitFeedback: '提交AI反馈', getFeedbackStats: 'AI反馈统计',
-    updateSystemPrompt: '更新系统提示词', getSystemPrompt: '获取系统提示词',
+    updateSystemPrompt: '更新系统提示词', getSystemPromptApi: '获取系统提示词',
     getAiStats: 'AI运行统计'
   }
   return map[op] || op
