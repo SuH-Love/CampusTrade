@@ -887,6 +887,9 @@ public class AiController {
         if (body.get("reasonerModel") != null && !body.get("reasonerModel").trim().isEmpty()) {
             deepSeekClient.updateReasonerModel(body.get("reasonerModel").trim());
         }
+        if (body.containsKey("visionModel")) {
+            deepSeekClient.updateVisionModel(body.get("visionModel"));
+        }
         aiHealthIndicator.clearCache();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("enabled", deepSeekClient.isEnabled());
@@ -898,6 +901,7 @@ public class AiController {
         result.put("embModel", deepSeekClient.getCurrentEmbModel());
         result.put("routingEnabled", deepSeekClient.isCurrentRoutingEnabled());
         result.put("reasonerModel", deepSeekClient.getCurrentReasonerModel());
+        result.put("visionModel", deepSeekClient.getCurrentVisionModel());
         return Result.success(result);
     }
 
@@ -921,6 +925,7 @@ public class AiController {
         config.put("embeddingAvailable", deepSeekClient.isEmbeddingAvailable());
         config.put("routingEnabled", deepSeekClient.isCurrentRoutingEnabled());
         config.put("reasonerModel", deepSeekClient.getCurrentReasonerModel());
+        config.put("visionModel", deepSeekClient.getCurrentVisionModel());
         return Result.success(config);
     }
 

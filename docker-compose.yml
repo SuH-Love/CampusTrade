@@ -100,6 +100,7 @@ services:
       AI_EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
       AI_ROUTING_ENABLED: ${AI_ROUTING_ENABLED:-false}
       AI_ROUTING_REASONER_MODEL: ${AI_ROUTING_REASONER_MODEL:-deepseek-reasoner}
+      AI_VISION_MODEL: ${AI_VISION_MODEL:-}
       AI_ENABLED: ${AI_ENABLED:-true}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       JAVA_OPTS: ${JAVA_OPTS:--Xms512m -Xmx1024m -XX:+UseG1GC -Duser.timezone=Asia/Shanghai}

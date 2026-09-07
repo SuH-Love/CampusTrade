@@ -175,6 +175,18 @@
         </el-form-item>
       </el-form>
 
+      <el-divider content-position="left">多模态（图文）模型配置</el-divider>
+      <el-form label-width="140px" v-loading="aiLoading">
+        <el-alert type="info" :closable="false" show-icon style="margin-bottom: 16px"
+          title="配置后，当用户消息包含图片时自动切换到多模态模型。留空则不启用图文识别，图片仅作为文件名传递。" />
+        <el-form-item label="多模态模型">
+          <el-input v-model="aiForm.visionModel" placeholder="如 deepseek-v4-flash-vision-exp（留空则不启用）" clearable />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="aiSaving" @click="handleSaveAiConfig">保存多模态配置</el-button>
+        </el-form-item>
+      </el-form>
+
       <el-divider />
       <el-descriptions title="配置说明" :column="1" border size="small">
         <el-descriptions-item label="获取方式">
@@ -244,7 +256,8 @@ const aiConfig = ref<AiConfigStatus>({ enabled: false, healthy: false, model: ''
 const aiForm = reactive({
   model: '', baseUrl: '', apiKey: '',
   embApiKey: '', embBaseUrl: '', embModel: '',
-  routingEnabled: false, reasonerModel: ''
+  routingEnabled: false, reasonerModel: '',
+  visionModel: ''
 })
 
 const promptLoading = ref(false)
@@ -263,6 +276,7 @@ const loadAiConfig = async () => {
     aiForm.embModel = aiConfig.value.embModel || ''
     aiForm.routingEnabled = aiConfig.value.routingEnabled || false
     aiForm.reasonerModel = aiConfig.value.reasonerModel || ''
+    aiForm.visionModel = aiConfig.value.visionModel || ''
     showApiKeyInput.value = false
     showEmbKeyInput.value = false
   } catch (e) { console.error(e) } finally { aiLoading.value = false }
@@ -280,6 +294,7 @@ const handleSaveAiConfig = async () => {
     if (aiForm.embModel !== (aiConfig.value.embModel || '')) data.embModel = aiForm.embModel
     if (aiForm.routingEnabled !== (aiConfig.value.routingEnabled || false)) data.routingEnabled = String(aiForm.routingEnabled)
     if (aiForm.reasonerModel !== (aiConfig.value.reasonerModel || '')) data.reasonerModel = aiForm.reasonerModel
+    if (aiForm.visionModel !== (aiConfig.value.visionModel || '')) data.visionModel = aiForm.visionModel
     if (Object.keys(data).length === 0) { ElMessage.info('无变更'); return }
     const res = await updateAiConfig(data)
     aiConfig.value = res
@@ -291,6 +306,7 @@ const handleSaveAiConfig = async () => {
     aiForm.embModel = res.embModel || ''
     aiForm.routingEnabled = res.routingEnabled || false
     aiForm.reasonerModel = res.reasonerModel || ''
+    aiForm.visionModel = res.visionModel || ''
     showApiKeyInput.value = false
     showEmbKeyInput.value = false
     ElMessage.success('AI 配置已保存')

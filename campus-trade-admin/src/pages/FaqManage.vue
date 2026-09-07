@@ -15,8 +15,8 @@
           </div>
         </div>
       </template>
-      <el-table :data="filteredFaqs" stripe v-loading="loading">
-        <el-table-column type="index" label="#" min-width="50" />
+      <el-table :data="pagedFaqs" stripe v-loading="loading">
+        <el-table-column type="index" label="#" min-width="50" :index="indexMethod" />
         <el-table-column prop="category" label="分类" min-width="80">
           <template #default="{ row }">
             <el-tag size="small">{{ row.category }}</el-tag>
@@ -32,6 +32,16 @@
         </el-table-column>
         <template #empty><el-empty description="暂无FAQ" /></template>
       </el-table>
+      <div class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :total="filteredFaqs.length"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+        />
+      </div>
     </el-card>
 
     <el-dialog v-model="dialogVisible" :title="editingIndex >= 0 ? '编辑FAQ' : '新增FAQ'" width="560px" destroy-on-close>
@@ -57,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import { getFaqList, addFaq, updateFaq, deleteFaq, type FaqItem } from '@/api/ai'
@@ -70,6 +80,8 @@ const filterCategory = ref('')
 const dialogVisible = ref(false)
 const editingIndex = ref(-1)
 const form = ref<FaqItem>({ question: '', answer: '', category: '交易' })
+const currentPage = ref(1)
+const pageSize = ref(10)
 
 const categories = computed(() => {
   const set = new Set<string>()
@@ -84,6 +96,15 @@ const filteredFaqs = computed(() => {
     return true
   })
 })
+
+const pagedFaqs = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredFaqs.value.slice(start, start + pageSize.value)
+})
+
+const indexMethod = (index: number) => (currentPage.value - 1) * pageSize.value + index + 1
+
+watch([searchKeyword, filterCategory], () => { currentPage.value = 1 })
 
 const fetchFaqs = async () => {
   loading.value = true
@@ -103,17 +124,19 @@ const handleAdd = () => {
 }
 
 const handleEdit = (row: FaqItem, index: number) => {
-  editingIndex.value = index
+  editingIndex.value = (currentPage.value - 1) * pageSize.value + index
   form.value = { ...row }
   dialogVisible.value = true
 }
 
 const handleDelete = async (index: number) => {
+  const globalIndex = (currentPage.value - 1) * pageSize.value + index
   try {
     await ElMessageBox.confirm('确定删除这条FAQ吗？', '提示', { type: 'warning' })
-    await deleteFaq(index)
+    await deleteFaq(globalIndex)
     ElMessage.success('删除成功')
-    fetchFaqs()
+    await fetchFaqs()
+    if (pagedFaqs.value.length === 0 && currentPage.value > 1) currentPage.value--
   } catch {}
 }
 
@@ -146,4 +169,5 @@ onMounted(fetchFaqs)
 <style scoped>
 .filter-input { width: 200px; }
 .filter-select { width: 120px; }
+.pagination-wrapper { display: flex; justify-content: flex-end; margin-top: 16px; }
 </style>

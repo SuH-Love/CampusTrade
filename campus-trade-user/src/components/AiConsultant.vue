@@ -725,7 +725,7 @@ const handleImageUpload = async (e: Event) => {
     const formData = new FormData()
     formData.append('file', file)
     const token = localStorage.getItem('token') || ''
-    const resp = await fetch('/api/upload', {
+    const resp = await fetch('/api/file/upload', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
       body: formData

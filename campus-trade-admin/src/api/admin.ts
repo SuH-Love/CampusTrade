@@ -174,6 +174,7 @@ export interface AiConfigStatus {
   embeddingAvailable?: boolean
   routingEnabled?: boolean
   reasonerModel?: string
+  visionModel?: string
   rateLimitPerMinute?: number
 }
 
@@ -189,6 +190,7 @@ export const updateAiConfig = (data: {
   embModel?: string
   routingEnabled?: string
   reasonerModel?: string
+  visionModel?: string
 }) =>
   request.put<never, AiConfigStatus>('/ai/config', data)
 

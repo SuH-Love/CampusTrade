@@ -78,6 +78,9 @@ public class DeepSeekClient {
     @Value("${ai.routing.reasoner-model:deepseek-reasoner}")
     private String reasonerModel;
 
+    @Value("${ai.vision.model:}")
+    private String visionModel;
+
     @Autowired
     @Qualifier("aiTaskExecutor")
     private ThreadPoolTaskExecutor aiTaskExecutor;
@@ -96,6 +99,7 @@ public class DeepSeekClient {
     private static final String REDIS_KEY_EMB_MODEL = "ai:config:emb:model";
     private static final String REDIS_KEY_ROUTING_ENABLED = "ai:config:routing:enabled";
     private static final String REDIS_KEY_ROUTING_REASONER = "ai:config:routing:reasoner";
+    private static final String REDIS_KEY_VISION_MODEL = "ai:config:vision:model";
 
 
     private Counter requestCounter;
@@ -110,6 +114,7 @@ public class DeepSeekClient {
     private volatile String currentEmbModel;
     private volatile boolean currentRoutingEnabled;
     private volatile String currentReasonerModel;
+    private volatile String currentVisionModel;
 
     private static final Map<String, String> FALLBACK_ANSWERS = new ConcurrentHashMap<>();
 
@@ -129,6 +134,7 @@ public class DeepSeekClient {
         currentEmbModel = embeddingModel;
         currentRoutingEnabled = routingEnabled;
         currentReasonerModel = reasonerModel;
+        currentVisionModel = visionModel;
         try {
             String savedKey = stringRedisTemplate.opsForValue().get(REDIS_KEY_APIKEY);
             String savedModel = stringRedisTemplate.opsForValue().get(REDIS_KEY_MODEL);
@@ -141,11 +147,13 @@ public class DeepSeekClient {
             String savedEmbModel = stringRedisTemplate.opsForValue().get(REDIS_KEY_EMB_MODEL);
             String savedRoutingEnabled = stringRedisTemplate.opsForValue().get(REDIS_KEY_ROUTING_ENABLED);
             String savedReasoner = stringRedisTemplate.opsForValue().get(REDIS_KEY_ROUTING_REASONER);
+            String savedVisionModel = stringRedisTemplate.opsForValue().get(REDIS_KEY_VISION_MODEL);
             if (savedEmbKey != null && !savedEmbKey.isEmpty()) currentEmbApiKey = savedEmbKey;
             if (savedEmbUrl != null && !savedEmbUrl.isEmpty()) currentEmbBaseUrl = savedEmbUrl;
             if (savedEmbModel != null && !savedEmbModel.isEmpty()) currentEmbModel = savedEmbModel;
             if (savedRoutingEnabled != null) currentRoutingEnabled = "true".equals(savedRoutingEnabled);
             if (savedReasoner != null && !savedReasoner.isEmpty()) currentReasonerModel = savedReasoner;
+            if (savedVisionModel != null && !savedVisionModel.isEmpty()) currentVisionModel = savedVisionModel;
         } catch (Exception e) {
             log.warn("Failed to load AI config from Redis, using defaults", e);
         }
@@ -168,7 +176,6 @@ public class DeepSeekClient {
     }
 
     public String routeModel(List<Map<String, Object>> messages) {
-        if (!currentRoutingEnabled) return currentModel;
         String lastUserMessage = null;
         for (int i = messages.size() - 1; i >= 0; i--) {
             if ("user".equals(messages.get(i).get("role"))) {
@@ -177,6 +184,11 @@ public class DeepSeekClient {
             }
         }
         if (lastUserMessage == null) return currentModel;
+        if (currentVisionModel != null && !currentVisionModel.isEmpty() && lastUserMessage.contains("[图片:")) {
+            log.info("Model routing: message contains image -> vision model: {}", currentVisionModel);
+            return currentVisionModel;
+        }
+        if (!currentRoutingEnabled) return currentModel;
         String lower = lastUserMessage.toLowerCase();
         String[] reasonerKeywords = {
             "分析", "计算", "比较", "推荐", "统计", "趋势", "为什么", "怎么算",
@@ -253,6 +265,12 @@ public class DeepSeekClient {
         }
     }
 
+    public void updateVisionModel(String newModel) {
+        currentVisionModel = newModel != null ? newModel : "";
+        try { stringRedisTemplate.opsForValue().set(REDIS_KEY_VISION_MODEL, currentVisionModel); } catch (Exception ignored) {}
+        log.info("Vision model updated and persisted: {}", currentVisionModel);
+    }
+
     public String getCurrentEmbApiKeyMasked() {
         if (currentEmbApiKey == null || currentEmbApiKey.isEmpty()) return "";
         if (currentEmbApiKey.length() < 8) return "****";
@@ -263,6 +281,7 @@ public class DeepSeekClient {
     public String getCurrentEmbModel() { return currentEmbModel; }
     public boolean isCurrentRoutingEnabled() { return currentRoutingEnabled; }
     public String getCurrentReasonerModel() { return currentReasonerModel; }
+    public String getCurrentVisionModel() { return currentVisionModel != null ? currentVisionModel : ""; }
 
     public String getCurrentApiKeyMasked() {
         if (currentApiKey == null || currentApiKey.length() < 8) return "";
