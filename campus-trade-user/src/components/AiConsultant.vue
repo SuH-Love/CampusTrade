@@ -158,7 +158,17 @@
         </div>
 
         <div class="chat-footer">
+          <div v-if="pendingImages.length > 0" class="image-preview-bar">
+            <div v-for="(img, i) in pendingImages" :key="i" class="image-preview-item">
+              <img :src="img.url" alt="preview" />
+              <button class="remove-img" @click="pendingImages.splice(i, 1)">×</button>
+            </div>
+          </div>
           <div class="input-wrapper" :class="{ disabled: loading }">
+            <button class="upload-btn" :disabled="loading" @click="triggerUpload">
+              <el-icon :size="18"><Picture /></el-icon>
+            </button>
+            <input ref="fileInputRef" type="file" accept="image/*" style="display:none" @change="handleImageUpload" />
             <textarea
               ref="textareaRef"
               v-model="inputText"
@@ -201,7 +211,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { ChatDotRound, Close, Delete, Promotion, Tools, ArrowDown, ArrowUp, Loading, VideoPause, CopyDocument, RefreshRight, FullScreen, CircleCheck } from '@element-plus/icons-vue'
+import { ChatDotRound, Close, Delete, Promotion, Tools, ArrowDown, ArrowUp, Loading, VideoPause, CopyDocument, RefreshRight, FullScreen, CircleCheck, Picture } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { chatStream, getAiStatus, clearSession, getSessionHistory, submitAiFeedback } from '@/api/ai'
 import { useUserStore } from '@/stores/user'
@@ -319,6 +329,8 @@ const messages = ref<Message[]>([])
 const sessionId = ref<string | undefined>(undefined)
 const bodyRef = ref<HTMLElement>()
 const textareaRef = ref<HTMLTextAreaElement>()
+const fileInputRef = ref<HTMLInputElement>()
+const pendingImages = ref<{ url: string; name: string }[]>([])
 const aiEnabled = ref(true)
 const hasNewBadge = ref(true)
 const statusText = ref('在线')
@@ -696,7 +708,48 @@ const sendMessage = async (text: string) => {
   await startAIStream(trimmed, assistantMsg)
 }
 
-const handleSend = () => sendMessage(inputText.value)
+const triggerUpload = () => fileInputRef.value?.click()
+
+const handleImageUpload = async (e: Event) => {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  target.value = ''
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.warning('图片大小不能超过5MB')
+    return
+  }
+  const previewUrl = URL.createObjectURL(file)
+  pendingImages.value.push({ url: previewUrl, name: file.name })
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const token = localStorage.getItem('token') || ''
+    const resp = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    })
+    const json = await resp.json()
+    if (json.code === 200 && json.data) {
+      const idx = pendingImages.value.findIndex(p => p.url === previewUrl)
+      if (idx >= 0) pendingImages.value[idx] = { url: previewUrl, name: json.data }
+    }
+  } catch {
+    ElMessage.warning('图片上传失败')
+    pendingImages.value = pendingImages.value.filter(p => p.url !== previewUrl)
+  }
+}
+
+const handleSend = () => {
+  let text = inputText.value
+  if (pendingImages.value.length > 0) {
+    const imgInfo = pendingImages.value.map(img => `[图片: ${img.name}]`).join(' ')
+    text = imgInfo + ' ' + text
+    pendingImages.value = []
+  }
+  sendMessage(text)
+}
 const handleEnter = (e: KeyboardEvent) => {
   if (e.shiftKey) return
   e.preventDefault()
@@ -1107,6 +1160,8 @@ onUnmounted(() => {
   min-height: 36px;
   &::placeholder { color: var(--text-muted); }
 }
+.upload-btn { flex-shrink: 0; width: 36px; height: 36px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s; &:hover { color: var(--primary); background: rgba(14,165,233,0.08); } &:disabled { opacity: 0.5; cursor: not-allowed; } }
+.image-preview-bar { display: flex; gap: 8px; padding: 6px 12px; flex-wrap: wrap; .image-preview-item { position: relative; width: 60px; height: 60px; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-light); img { width: 100%; height: 100%; object-fit: cover; } .remove-img { position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border: none; border-radius: 50%; background: rgba(0,0,0,0.5); color: white; cursor: pointer; font-size: 12px; line-height: 1; display: flex; align-items: center; justify-content: center; } } }
 .send-btn {
   flex-shrink: 0;
   width: 36px;

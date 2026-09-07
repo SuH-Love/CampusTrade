@@ -260,6 +260,10 @@ public class AiController {
 
         try {
             emitter.send(SseEmitter.event().name("session").data(sid));
+            String traceId = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+            long requestStartTime = System.currentTimeMillis();
+            emitter.send(SseEmitter.event().name("trace").data("{\"traceId\":\"" + traceId + "\",\"startTime\":" + requestStartTime + "}"));
+            log.info("AI chat stream [traceId={}]: message='{}', sessionId={}", traceId, userMessage.substring(0, Math.min(50, userMessage.length())), sid);
         } catch (Exception ignored) {}
 
         if (!safetyService.isInputSafe(userMessage)) {
@@ -511,7 +515,13 @@ public class AiController {
                 String toolCallId = (String) toolCall.get("id");
                 Map<String, Object> function = (Map<String, Object>) toolCall.get("function");
                 String toolName = (String) function.get("name");
-                String toolResult = toolFutures.get(j).join();
+                String toolResult;
+                try {
+                    toolResult = toolFutures.get(j).orTimeout(15, java.util.concurrent.TimeUnit.SECONDS).join();
+                } catch (java.util.concurrent.CompletionException ce) {
+                    toolResult = "{\"error\":\"工具执行超时(15s)\"}";
+                    log.warn("Tool execution timeout: {}", toolName);
+                }
                 completedToolNames.add(toolName);
                 completedToolResults.add(toolResult);
 
@@ -1058,5 +1068,29 @@ public class AiController {
     public Result<?> getSystemPromptApi() {
         String customPrompt = stringRedisTemplate.opsForValue().get("ai:system-prompt:custom");
         return Result.success(customPrompt != null ? customPrompt : systemPrompt);
+    }
+
+    @org.springframework.web.bind.annotation.GetMapping("/stats")
+    @ApiOperation("AI服务运行统计(管理员)")
+    public Result<?> getAiStats() {
+        try {
+            Map<String, Object> stats = new LinkedHashMap<>();
+            stats.put("model", deepSeekClient.getModel());
+            stats.put("enabled", deepSeekClient.isEnabled());
+            stats.put("faqCount", faqVectorService.getAllFaqs().size());
+            stats.put("toolCount", aiToolService.getToolDefinitions().size());
+            stats.put("embeddingAvailable", deepSeekClient.isEmbeddingAvailable());
+            try {
+                Double avgRating = aiFeedbackMapper.selectAvgRating();
+                stats.put("avgRating", avgRating != null ? Math.round(avgRating * 100) / 100.0 : 0);
+            } catch (Exception e) {
+                stats.put("avgRating", 0);
+            }
+            stats.put("timestamp", System.currentTimeMillis());
+            return Result.success(stats);
+        } catch (Exception e) {
+            log.error("获取AI统计失败", e);
+            return Result.error(500, "获取统计失败");
+        }
     }
 }
