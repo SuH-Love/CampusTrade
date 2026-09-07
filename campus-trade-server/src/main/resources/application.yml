@@ -112,6 +112,9 @@ ai:
     api-key: ${AI_EMBEDDING_API_KEY:}
     base-url: ${AI_EMBEDDING_BASE_URL:}
     model: ${AI_EMBEDDING_MODEL:text-embedding-3-small}
+  routing:
+    enabled: ${AI_ROUTING_ENABLED:false}
+    reasoner-model: ${AI_ROUTING_REASONER_MODEL:deepseek-reasoner}
 
 logging:
   config: classpath:log4j2.xml

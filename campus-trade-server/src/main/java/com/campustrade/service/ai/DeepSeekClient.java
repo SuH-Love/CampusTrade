@@ -72,6 +72,12 @@ public class DeepSeekClient {
     @Value("${ai.embedding.model:text-embedding-3-small}")
     private String embeddingModel;
 
+    @Value("${ai.routing.enabled:false}")
+    private boolean routingEnabled;
+
+    @Value("${ai.routing.reasoner-model:deepseek-reasoner}")
+    private String reasonerModel;
+
     @Autowired
     @Qualifier("aiTaskExecutor")
     private ThreadPoolTaskExecutor aiTaskExecutor;
@@ -134,6 +140,30 @@ public class DeepSeekClient {
 
     public boolean isEnabled() {
         return aiEnabled && currentApiKey != null && !currentApiKey.isEmpty();
+    }
+
+    public String routeModel(List<Map<String, Object>> messages) {
+        if (!routingEnabled) return currentModel;
+        String lastUserMessage = null;
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            if ("user".equals(messages.get(i).get("role"))) {
+                lastUserMessage = (String) messages.get(i).get("content");
+                break;
+            }
+        }
+        if (lastUserMessage == null) return currentModel;
+        String lower = lastUserMessage.toLowerCase();
+        String[] reasonerKeywords = {
+            "分析", "计算", "比较", "推荐", "统计", "趋势", "为什么", "怎么算",
+            "哪种好", "区别", "优缺点", "建议", "规划", "预测", "评估", "对比"
+        };
+        for (String kw : reasonerKeywords) {
+            if (lower.contains(kw)) {
+                log.info("Model routing: '{}' -> reasoner model (keyword: {})", lastUserMessage.substring(0, Math.min(20, lastUserMessage.length())), kw);
+                return reasonerModel;
+            }
+        }
+        return currentModel;
     }
 
     public String getModel() {
@@ -211,7 +241,7 @@ public class DeepSeekClient {
                     throw new RuntimeException("AI concurrent request limit reached");
                 }
                 JSONObject payload = new JSONObject();
-                payload.set("model", currentModel);
+                payload.set("model", routeModel(messages));
                 payload.set("messages", JSONUtil.parseArray(messages));
                 payload.set("stream", true);
                 payload.set("temperature", 0.3);
@@ -303,7 +333,7 @@ public class DeepSeekClient {
                 return FALLBACK_ANSWERS.get("faq");
             }
             JSONObject payload = new JSONObject();
-            payload.set("model", currentModel);
+            payload.set("model", routeModel(messages));
             payload.set("messages", JSONUtil.parseArray(messages));
             payload.set("stream", false);
             payload.set("temperature", 0.3);
@@ -387,7 +417,7 @@ public class DeepSeekClient {
                 return result;
             }
             JSONObject payload = new JSONObject();
-            payload.set("model", currentModel);
+            payload.set("model", routeModel(messages));
             payload.set("messages", JSONUtil.parseArray(messages));
             payload.set("stream", false);
             payload.set("temperature", 0.3);
