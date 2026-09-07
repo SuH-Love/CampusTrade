@@ -19,7 +19,10 @@ import java.util.concurrent.TimeUnit;
 public class SessionService {
 
     private static final String SESSION_PREFIX = "ai:session:";
+    private static final String SUMMARY_PREFIX = "ai:session:summary:";
+    private static final String PREFS_PREFIX = "ai:session:prefs:";
     private static final int MAX_CONTEXT_TOKENS = 4000;
+    private static final int SHORT_TERM_KEEP = 10;
 
     @Value("${ai.max-history:20}")
     private int maxHistory;
@@ -119,13 +122,11 @@ public class SessionService {
     }
 
     public void saveSummary(String sessionId, String summary) {
-        String key = SESSION_PREFIX + sessionId;
         try {
-            Map<String, Object> summaryMsg = new HashMap<>();
-            summaryMsg.put("role", "system");
-            summaryMsg.put("content", "之前的对话摘要：\n" + summary);
-            String json = objectMapper.writeValueAsString(summaryMsg);
-            stringRedisTemplate.opsForList().set(key, 0, json);
+            String existing = getLongTermMemory(sessionId);
+            String combined = existing != null ? existing + "\n" + summary : summary;
+            stringRedisTemplate.opsForValue().set(SUMMARY_PREFIX + sessionId, combined);
+            stringRedisTemplate.expire(SUMMARY_PREFIX + sessionId, sessionTtlHours, TimeUnit.HOURS);
         } catch (Exception e) {
             log.error("Failed to save summary", e);
         }
@@ -137,7 +138,26 @@ public class SessionService {
         systemMsg.put("role", "system");
         systemMsg.put("content", systemPrompt);
         messages.add(systemMsg);
-        for (Map<String, Object> msg : truncateByTokens(getHistory(sessionId), MAX_CONTEXT_TOKENS)) {
+
+        String longTermMemory = getLongTermMemory(sessionId);
+        if (longTermMemory != null && !longTermMemory.isEmpty()) {
+            Map<String, Object> memoryMsg = new HashMap<>();
+            memoryMsg.put("role", "system");
+            memoryMsg.put("content", "之前的对话摘要：\n" + longTermMemory);
+            messages.add(memoryMsg);
+        }
+
+        String prefs = getPreferences(sessionId);
+        if (prefs != null && !prefs.isEmpty()) {
+            Map<String, Object> prefsMsg = new HashMap<>();
+            prefsMsg.put("role", "system");
+            prefsMsg.put("content", "用户偏好信息：\n" + prefs);
+            messages.add(prefsMsg);
+        }
+
+        List<Map<String, Object>> history = getHistory(sessionId);
+        int shortTermStart = Math.max(0, history.size() - SHORT_TERM_KEEP * 2);
+        for (Map<String, Object> msg : truncateByTokens(history.subList(shortTermStart, history.size()), MAX_CONTEXT_TOKENS)) {
             Map<String, Object> clean = new HashMap<>();
             clean.put("role", msg.get("role"));
             clean.put("content", msg.get("content"));
@@ -150,19 +170,46 @@ public class SessionService {
         return messages;
     }
 
+    public String getLongTermMemory(String sessionId) {
+        try {
+            return stringRedisTemplate.opsForValue().get(SUMMARY_PREFIX + sessionId);
+        } catch (Exception e) {
+            log.warn("Failed to get long-term memory: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public String getPreferences(String sessionId) {
+        try {
+            return stringRedisTemplate.opsForValue().get(PREFS_PREFIX + sessionId);
+        } catch (Exception e) {
+            log.warn("Failed to get preferences: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public void savePreferences(String sessionId, String prefs) {
+        try {
+            stringRedisTemplate.opsForValue().set(PREFS_PREFIX + sessionId, prefs);
+            stringRedisTemplate.expire(PREFS_PREFIX + sessionId, sessionTtlHours, TimeUnit.HOURS);
+        } catch (Exception e) {
+            log.warn("Failed to save preferences: {}", e.getMessage());
+        }
+    }
+
     public boolean shouldSummarize(String sessionId) {
         String key = SESSION_PREFIX + sessionId;
         Long size = stringRedisTemplate.opsForList().size(key);
-        return size != null && size > maxHistory * 2L - 4;
+        return size != null && size > SHORT_TERM_KEEP * 2L + 4;
     }
 
     public String prepareSummaryContext(String sessionId, String summaryPrompt) {
         String key = SESSION_PREFIX + sessionId;
         Long size = stringRedisTemplate.opsForList().size(key);
-        if (size == null || size <= maxHistory * 2L - 4) return null;
+        if (size == null || size <= SHORT_TERM_KEEP * 2L + 4) return null;
 
         List<Map<String, Object>> allHistory = getHistory(sessionId);
-        int keepCount = Math.min(10, allHistory.size());
+        int keepCount = Math.min(SHORT_TERM_KEEP * 2, allHistory.size());
         List<Map<String, Object>> toSummarize = allHistory.subList(0, allHistory.size() - keepCount);
 
         StringBuilder sb = new StringBuilder(summaryPrompt + "\n\n");
@@ -173,31 +220,24 @@ public class SessionService {
     }
 
     public void applySummary(String sessionId, String summary) {
-        String key = SESSION_PREFIX + sessionId;
-        List<Map<String, Object>> allHistory = getHistory(sessionId);
-        int keepCount = Math.min(10, allHistory.size());
-        List<Map<String, Object>> toKeep = allHistory.subList(Math.max(0, allHistory.size() - keepCount), allHistory.size());
-
         try {
-            Map<String, Object> summaryMsg = new HashMap<>();
-            summaryMsg.put("role", "system");
-            summaryMsg.put("content", "之前的对话摘要：\n" + summary);
-            String summaryJson = objectMapper.writeValueAsString(summaryMsg);
-            List<String> keepJsons = new ArrayList<>(toKeep.size());
-            for (Map<String, Object> msg : toKeep) {
-                keepJsons.add(objectMapper.writeValueAsString(msg));
-            }
+            String existing = getLongTermMemory(sessionId);
+            String combined = existing != null ? existing + "\n" + summary : summary;
+            stringRedisTemplate.opsForValue().set(SUMMARY_PREFIX + sessionId, combined);
+            stringRedisTemplate.expire(SUMMARY_PREFIX + sessionId, sessionTtlHours, TimeUnit.HOURS);
 
-            stringRedisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {
-                byte[] rawKey = stringRedisTemplate.getStringSerializer().serialize(key);
-                connection.del(rawKey);
-                connection.rPush(rawKey, stringRedisTemplate.getStringSerializer().serialize(summaryJson));
-                for (String json : keepJsons) {
-                    connection.rPush(rawKey, stringRedisTemplate.getStringSerializer().serialize(json));
-                }
-                connection.expire(rawKey, sessionTtlHours * 3600);
-                return null;
-            });
+            String key = SESSION_PREFIX + sessionId;
+            List<Map<String, Object>> allHistory = getHistory(sessionId);
+            int keepCount = Math.min(SHORT_TERM_KEEP * 2, allHistory.size());
+            List<Map<String, Object>> toKeep = allHistory.subList(Math.max(0, allHistory.size() - keepCount), allHistory.size());
+
+            stringRedisTemplate.delete(key);
+            for (Map<String, Object> msg : toKeep) {
+                String json = objectMapper.writeValueAsString(msg);
+                stringRedisTemplate.opsForList().rightPush(key, json);
+            }
+            stringRedisTemplate.expire(key, sessionTtlHours, TimeUnit.HOURS);
+            log.info("Session {} summarized: kept {} recent messages, long-term memory updated", sessionId, toKeep.size());
         } catch (Exception e) {
             log.error("Failed to apply summary: {}", sessionId, e);
         }
