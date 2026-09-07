@@ -1074,13 +1074,21 @@ public class AiController {
     }
 
     private String getSystemPrompt() {
+        String basePrompt;
         try {
             String customPrompt = stringRedisTemplate.opsForValue().get("ai:system-prompt:custom");
-            if (customPrompt != null && !customPrompt.trim().isEmpty()) return customPrompt;
+            basePrompt = (customPrompt != null && !customPrompt.trim().isEmpty()) ? customPrompt : systemPrompt;
         } catch (Exception e) {
             log.warn("读取自定义system prompt失败，使用默认: {}", e.getMessage());
+            basePrompt = systemPrompt;
         }
-        return systemPrompt;
+        String visionModel = deepSeekClient.getCurrentVisionModel();
+        boolean visionAvailable = (visionModel != null && !visionModel.isEmpty())
+                || deepSeekClient.getModel().toLowerCase().contains("vision");
+        String visionHint = visionAvailable
+                ? "当用户消息中包含[图片: xxx]标记时，说明用户发送了图片，你具备图片识别能力，可以描述并分析图片内容，请结合图片内容和用户问题进行回答。"
+                : "当用户消息中包含[图片: xxx]标记时，说明用户发送了图片，请友好地告知用户：您已收到该图片，但当前暂不支持图片内容识别功能，图片识别能力正在升级中，请用文字描述您的问题，我会全力帮您解答。不要说\"超出服务范围\"或\"功能限制\"等生硬措辞。";
+        return basePrompt + visionHint;
     }
 
     @org.springframework.web.bind.annotation.PutMapping("/prompt")
