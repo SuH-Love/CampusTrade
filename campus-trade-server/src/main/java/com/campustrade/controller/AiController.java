@@ -171,7 +171,7 @@ public class AiController {
             List<Map<String, Object>> messages = sessionService.buildMessages(sessionId, prompt, userMessage);
             List<Map<String, Object>> tools = aiToolService.getToolDefinitions();
             String answer = null;
-            int maxIterations = 3;
+            int maxIterations = 6;
 
             for (int i = 0; i < maxIterations; i++) {
                 Map<String, Object> aiResult = deepSeekClient.chatWithTools(messages, tools);
@@ -413,9 +413,11 @@ public class AiController {
         String nonStreamAnswer = null;
         boolean toolsUsed = false;
 
-        for (int i = 0; i < 3; i++) {
-            sendThinking(emitter, "理解意图", analyzeIntent(userMessage));
-            collectedThinking.add(Map.of("status", "理解意图", "detail", analyzeIntent(userMessage)));
+        for (int i = 0; i < 6; i++) {
+            String intentStep = i == 0 ? "理解意图" : "继续分析";
+            String intentDetail = i == 0 ? analyzeIntent(userMessage) : "根据工具返回结果继续分析";
+            sendThinking(emitter, intentStep, intentDetail);
+            collectedThinking.add(Map.of("status", intentStep, "detail", intentDetail));
             Map<String, Object> aiResult;
             try {
                 aiResult = deepSeekClient.chatWithTools(messages, tools);
@@ -435,11 +437,6 @@ public class AiController {
                 break;
             }
 
-            if (nonStreamAnswer != null && !nonStreamAnswer.isEmpty()) {
-                try {
-                    emitter.send(SseEmitter.event().name("message").data(jsonContent(nonStreamAnswer)));
-                } catch (Exception ignored) {}
-            }
 
             toolsUsed = true;
             Map<String, Object> assistantMsg = new LinkedHashMap<>();
@@ -545,8 +542,6 @@ public class AiController {
             sendThinking(emitter, "查询完成", queryDetail);
             collectedThinking.add(Map.of("status", "查询完成", "detail", queryDetail));
 
-            nonStreamAnswer = null;
-            break;
         }
 
         if (nonStreamAnswer != null && !nonStreamAnswer.isEmpty()) {
