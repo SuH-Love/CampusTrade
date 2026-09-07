@@ -83,7 +83,10 @@
                       <div class="tool-call-header" @click="tc.expanded = !tc.expanded">
                         <el-icon :size="14"><Tools /></el-icon>
                         <span class="tool-name">{{ toolDisplayName(tc.name) }}</span>
-                        <span v-if="tc.duration" class="tool-duration">{{ tc.duration }}ms</span>
+                        <span v-if="tc.status === 'pending'" class="tool-status tool-status-pending">等待中</span>
+                        <span v-else-if="tc.status === 'running'" class="tool-status tool-status-running">执行中</span>
+                        <span v-else-if="tc.status === 'error'" class="tool-status tool-status-error">失败</span>
+                        <span v-else-if="tc.duration" class="tool-duration">{{ tc.duration }}ms</span>
                         <el-icon :size="12" class="expand-icon">
                           <ArrowDown v-if="!tc.expanded" />
                           <ArrowUp v-else />
@@ -214,6 +217,7 @@ interface ToolCallInfo {
   result: string
   expanded: boolean
   duration?: string
+  status?: 'pending' | 'running' | 'done' | 'error'
 }
 
 interface ThinkingStep {
@@ -460,7 +464,7 @@ const loadHistory = async () => {
           id: ++msgIdCounter,
           role: msg.role as 'user' | 'assistant',
           content: msg.content,
-          toolCalls: (msg.toolCalls || []).map((tc: any) => ({ ...tc, expanded: false })),
+          toolCalls: (msg.toolCalls || []).map((tc: any) => ({ ...tc, expanded: false, status: 'done' as const })),
           timestamp: msg.timestamp || Date.now(),
           thinkingSteps: (msg.thinkingSteps || []).map((ts: any) => ({ ...ts, startTime: ts.startTime || 0, endTime: ts.endTime || 0 }))
         }
@@ -607,7 +611,8 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
           name: toolCall.name,
           args: toolCall.args,
           result: '',
-          expanded: false
+          expanded: false,
+          status: 'pending'
         })
         assistantMsg.thinkingStatus = `正在调用 ${toolDisplayName(toolCall.name)}...`
         assistantMsg.thinkingSteps.push({ status: `调用工具: ${toolDisplayName(toolCall.name)}`, startTime: tcStartTime })
@@ -617,14 +622,31 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
         scrollToBottom()
       },
       (toolResult: { id: string; name: string; result: string }) => {
-        const tc = assistantMsg.toolCalls.find(t => t.callId === toolResult.id && !t.result)
+        const tc = assistantMsg.toolCalls.find(t => t.callId === toolResult.id && t.status !== 'done')
         if (tc) {
           tc.result = toolResult.result
+          tc.status = 'done'
           tc.duration = String(Date.now() - (assistantMsg.thinkingSteps[assistantMsg.thinkingSteps.length - 1]?.startTime || Date.now()))
         }
         assistantMsg.thinkingStatus = undefined
         const lastStep = assistantMsg.thinkingSteps[assistantMsg.thinkingSteps.length - 1]
         if (lastStep) lastStep.endTime = Date.now()
+        scrollToBottom()
+      },
+      (toolStart: { id: string; name: string }) => {
+        const tc = assistantMsg.toolCalls.find(t => t.callId === toolStart.id && t.status === 'pending')
+        if (tc) {
+          tc.status = 'running'
+        }
+        assistantMsg.thinkingStatus = `正在执行 ${toolDisplayName(toolStart.name)}...`
+        scrollToBottom()
+      },
+      (toolError: { id: string; name: string; error: string }) => {
+        const tc = assistantMsg.toolCalls.find(t => t.callId === toolError.id && t.status === 'running')
+        if (tc) {
+          tc.status = 'error'
+          tc.result = `执行失败: ${toolError.error}`
+        }
         scrollToBottom()
       }
     , regenerate)
@@ -1031,11 +1053,12 @@ onUnmounted(() => {
 
 .tool-calls { margin-bottom: 8px; }
 .tool-call-card { background: rgba(14, 165, 233, 0.06); border-radius: 6px; margin-bottom: 4px; overflow: hidden; font-size: 12px; }
-.tool-call-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer; color: var(--text-secondary); .tool-name { font-weight: 600; color: var(--primary); } .tool-duration { font-size: 10px; color: var(--text-muted); margin-left: auto; } .expand-icon { color: var(--text-muted); } &:hover { background: rgba(14, 165, 233, 0.08); } }
+.tool-call-header { display: flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer; color: var(--text-secondary); .tool-name { font-weight: 600; color: var(--primary); } .tool-duration { font-size: 10px; color: var(--text-muted); margin-left: auto; } .tool-status { font-size: 10px; margin-left: auto; padding: 1px 6px; border-radius: 8px; } .tool-status-pending { color: #9ca3af; background: rgba(156,163,175,0.1); } .tool-status-running { color: #f59e0b; background: rgba(245,158,11,0.1); animation: pulse 1.5s infinite; } .tool-status-error { color: #ef4444; background: rgba(239,68,68,0.1); } .expand-icon { color: var(--text-muted); } &:hover { background: rgba(14, 165, 233, 0.08); } }
 .tool-call-body { padding: 6px 10px; border-top: 1px solid var(--border-light); }
 .tool-args, .tool-result { margin: 4px 0; pre { background: var(--bg-hover); padding: 6px 8px; border-radius: 4px; overflow-x: auto; margin: 4px 0; font-size: 11px; white-space: pre-wrap; max-height: 120px; overflow-y: auto; } }
 
 @keyframes rotating { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 .msg-error { display: flex; align-items: center; gap: 8px; color: var(--danger); }
 .msg-footer { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 0 4px; opacity: 0.55; }
 .msg-time { font-size: 11px; color: var(--text-secondary); }

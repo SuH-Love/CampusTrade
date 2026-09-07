@@ -472,12 +472,35 @@ public class AiController {
 
                 final String fnName = toolName;
                 final Map<String, Object> fnArgs = args;
+                final String fnCallId = toolCallId;
                 final org.springframework.security.core.context.SecurityContext secCtx =
                     org.springframework.security.core.context.SecurityContextHolder.getContext();
+                final SseEmitter fnEmitter = emitter;
                 toolFutures.add(java.util.concurrent.CompletableFuture.supplyAsync(() -> {
                     org.springframework.security.core.context.SecurityContextHolder.setContext(secCtx);
                     try {
+                        synchronized (fnEmitter) {
+                            Map<String, Object> startInfo = new LinkedHashMap<>();
+                            startInfo.put("id", fnCallId);
+                            startInfo.put("name", fnName);
+                            fnEmitter.send(SseEmitter.event().name("tool_start").data(
+                                new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(startInfo)));
+                        }
+                    } catch (Exception ignored) {}
+                    try {
                         return aiToolService.executeTool(fnName, fnArgs);
+                    } catch (Exception e) {
+                        try {
+                            synchronized (fnEmitter) {
+                                Map<String, Object> errInfo = new LinkedHashMap<>();
+                                errInfo.put("id", fnCallId);
+                                errInfo.put("name", fnName);
+                                errInfo.put("error", e.getMessage() != null ? e.getMessage() : "执行失败");
+                                fnEmitter.send(SseEmitter.event().name("tool_error").data(
+                                    new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(errInfo)));
+                            }
+                        } catch (Exception ignored2) {}
+                        return "{\"error\":\"" + (e.getMessage() != null ? e.getMessage().replace("\"", "'") : "执行失败") + "\"}";
                     } finally {
                         org.springframework.security.core.context.SecurityContextHolder.clearContext();
                     }
@@ -538,6 +561,11 @@ public class AiController {
                 emitter.complete();
             }
             return emitter;
+        }
+
+        if (toolsUsed) {
+            sendThinking(emitter, "生成回复", "正在根据查询结果生成回答...");
+            collectedThinking.add(Map.of("status", "生成回复", "detail", "正在根据查询结果生成回答..."));
         }
 
         StringBuilder fullResponse = new StringBuilder();

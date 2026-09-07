@@ -43,6 +43,8 @@ export function chatStream(
   onThinking?: (data: { step: string; detail?: string }) => void,
   onToolCall?: (toolCall: { id: string; name: string; args: Record<string, unknown> }) => void,
   onToolResult?: (toolResult: { id: string; name: string; result: string }) => void,
+  onToolStart?: (toolStart: { id: string; name: string }) => void,
+  onToolError?: (toolError: { id: string; name: string; error: string }) => void,
   regenerate?: boolean
 ): { close: () => void } {
   const params = new URLSearchParams({ message })
@@ -96,6 +98,14 @@ export function chatStream(
         } else if (currentEvent === 'tool_call' && onToolCall) {
           try {
             onToolCall(JSON.parse(data))
+          } catch {}
+        } else if (currentEvent === 'tool_start' && onToolStart) {
+          try {
+            onToolStart(JSON.parse(data))
+          } catch {}
+        } else if (currentEvent === 'tool_error' && onToolError) {
+          try {
+            onToolError(JSON.parse(data))
           } catch {}
         } else if (currentEvent === 'tool_result' && onToolResult) {
           try {
