@@ -133,17 +133,17 @@
       <el-divider content-position="left">Embedding 向量检索配置</el-divider>
       <el-form label-width="140px" v-loading="aiLoading">
         <el-alert type="info" :closable="false" show-icon style="margin-bottom: 16px"
-          title="DeepSeek不支持embedding API，须独立配置其他embedding服务（如OpenAI、智谱等）。留空则降级到TF-IDF检索。" />
+          title="DeepSeek提供embedding API(/v1/embeddings)，API Key和地址留空则复用主配置。也可独立配置其他embedding服务（如OpenAI、智谱）。配置不可用时降级到TF-IDF检索。" />
         <el-form-item label="Embedding可用">
           <el-tag :type="aiConfig.embeddingAvailable ? 'success' : 'warning'" size="small">
             {{ aiConfig.embeddingAvailable ? '可用' : '降级到TF-IDF' }}
           </el-tag>
         </el-form-item>
         <el-form-item label="Embedding模型">
-          <el-input v-model="aiForm.embModel" placeholder="如 text-embedding-3-small / embedding-2" clearable />
+          <el-input v-model="aiForm.embModel" placeholder="DeepSeek embedding模型 / text-embedding-3-small / embedding-2" clearable />
         </el-form-item>
         <el-form-item label="Embedding API地址">
-          <el-input v-model="aiForm.embBaseUrl" placeholder="如 https://api.openai.com/v1（留空则用主API地址）" clearable />
+          <el-input v-model="aiForm.embBaseUrl" placeholder="留空复用主API地址，或独立配置如 https://api.openai.com/v1" clearable />
         </el-form-item>
         <el-form-item label="Embedding API Key">
           <el-input :model-value="aiConfig.embApiKeyMasked || '未配置（将用主API Key）'" disabled>
