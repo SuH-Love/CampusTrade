@@ -149,3 +149,20 @@ export function chatStream(
   }
 }
 
+export interface AiFeedbackRequest {
+  sessionId: string
+  messageId: string
+  userMessage: string
+  aiResponse: string
+  rating: number
+  feedback?: string
+}
+
+export const submitAiFeedback = (data: AiFeedbackRequest) =>
+  request.post('/ai/feedback', data)
+
+export const getAiPrompt = () => request.get('/ai/prompt')
+
+export const updateAiPrompt = (prompt: string) =>
+  request.put('/ai/prompt', { prompt })
+

@@ -125,6 +125,24 @@
                       >
                         <el-icon :size="13"><RefreshRight /></el-icon>
                       </button>
+                      <button
+                        v-if="!msg.error && !msg.loading"
+                        class="action-btn"
+                        :class="{ active: msg.feedback === 1 }"
+                        title="有帮助"
+                        @click="handleFeedback(msg, 1, idx)"
+                      >
+                        <span style="font-size:13px">👍</span>
+                      </button>
+                      <button
+                        v-if="!msg.error && !msg.loading"
+                        class="action-btn"
+                        :class="{ active: msg.feedback === -1 }"
+                        title="无帮助"
+                        @click="handleFeedback(msg, -1, idx)"
+                      >
+                        <span style="font-size:13px">👎</span>
+                      </button>
                     </div>
                   </div>
                 </template>
@@ -182,7 +200,7 @@
 import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { ChatDotRound, Close, Delete, Promotion, Tools, ArrowDown, ArrowUp, Loading, VideoPause, CopyDocument, RefreshRight, FullScreen, CircleCheck } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { chatStream, getAiStatus, clearSession, getSessionHistory } from '@/api/ai'
+import { chatStream, getAiStatus, clearSession, getSessionHistory, submitAiFeedback } from '@/api/ai'
 import { useUserStore } from '@/stores/user'
 import MarkdownIt from 'markdown-it'
 
@@ -220,6 +238,7 @@ interface Message {
   thinkingEndTime?: number
   thinkingSteps: ThinkingStep[]
   thinkingExpanded?: boolean
+  feedback?: number
 }
 
 const md = new MarkdownIt({
@@ -714,6 +733,23 @@ const regenerateAnswer = (idx: number) => {
   startAIStream(userMsg.content, assistantMsg, true)
 }
 
+const handleFeedback = async (msg: Message, rating: number, idx: number) => {
+  if (msg.feedback === rating) return
+  const userMsg = messages.value[idx - 1]
+  try {
+    await submitAiFeedback({
+      sessionId: sessionId.value || '',
+      messageId: String(msg.id),
+      userMessage: userMsg?.content || '',
+      aiResponse: msg.content,
+      rating
+    })
+    msg.feedback = rating
+  } catch {
+    ElMessage.warning('反馈提交失败')
+  }
+}
+
 const handleClear = async () => {
   if (streamHandle) {
     streamHandle.close()
@@ -1012,6 +1048,7 @@ onUnmounted(() => {
   transition: color 0.15s, background 0.15s;
   &:hover { color: var(--primary); background: rgba(14, 165, 233, 0.08); }
   &:active { transform: scale(0.92); }
+  &.active { color: var(--primary); background: rgba(14, 165, 233, 0.12); }
 }
 .typing { display: inline-flex; gap: 4px; align-items: center; .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-secondary); animation: typing-bounce 1.4s infinite ease-in-out; &:nth-child(2) { animation-delay: 0.2s; } &:nth-child(3) { animation-delay: 0.4s; } } }
 @keyframes typing-bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
