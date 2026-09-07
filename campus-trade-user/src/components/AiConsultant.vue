@@ -733,7 +733,7 @@ const handleImageUpload = async (e: Event) => {
     const json = await resp.json()
     if (json.code === 200 && json.data) {
       const idx = pendingImages.value.findIndex(p => p.url === previewUrl)
-      if (idx >= 0) pendingImages.value[idx] = { url: previewUrl, name: json.data }
+      if (idx >= 0) pendingImages.value[idx] = { url: previewUrl, name: file.name, uploadedPath: json.data }
     }
   } catch {
     ElMessage.warning('图片上传失败')
