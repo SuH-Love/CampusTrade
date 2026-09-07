@@ -74,6 +74,12 @@ const allRoutes: RouteRecordRaw[] = [
         name: 'FundLogManage',
         component: () => import('@/pages/FundLogManage.vue'),
         meta: { title: '资金流水', icon: 'Coin', permission: 'fund:manage' }
+      },
+      {
+        path: 'faq',
+        name: 'FaqManage',
+        component: () => import('@/pages/FaqManage.vue'),
+        meta: { title: 'AI知识库', icon: 'ChatLineSquare', permission: 'system:config' }
       }
     ]
   },
