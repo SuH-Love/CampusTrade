@@ -168,13 +168,41 @@ export interface AiConfigStatus {
   model: string
   apiKeyMasked: string
   baseUrl: string
+  embApiKeyMasked?: string
+  embBaseUrl?: string
+  embModel?: string
+  embeddingAvailable?: boolean
+  routingEnabled?: boolean
+  reasonerModel?: string
+  rateLimitPerMinute?: number
 }
 
 export const getAiConfigStatus = () =>
   request.get<never, AiConfigStatus>('/ai/config/status')
 
-export const updateAiConfig = (data: { apiKey?: string; model?: string; baseUrl?: string }) =>
+export const updateAiConfig = (data: {
+  apiKey?: string
+  model?: string
+  baseUrl?: string
+  embApiKey?: string
+  embBaseUrl?: string
+  embModel?: string
+  routingEnabled?: string
+  reasonerModel?: string
+}) =>
   request.put<never, AiConfigStatus>('/ai/config', data)
+
+export const getAiSystemPrompt = () =>
+  request.get<never, string>('/ai/prompt')
+
+export const updateAiSystemPrompt = (prompt: string) =>
+  request.put<never, void>('/ai/prompt', { prompt })
+
+export const getAiStats = () =>
+  request.get<never, Record<string, unknown>>('/ai/stats')
+
+export const getAiFeedbackStats = () =>
+  request.get<never, Record<string, unknown>>('/ai/feedback/stats')
 
 export const getAiHealth = async (): Promise<Record<string, unknown>> => {
   const adminStore = (await import('@/stores/admin')).useAdminStore()

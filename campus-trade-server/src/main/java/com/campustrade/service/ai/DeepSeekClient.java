@@ -91,6 +91,11 @@ public class DeepSeekClient {
     private static final String REDIS_KEY_APIKEY = "ai:config:apikey";
     private static final String REDIS_KEY_MODEL = "ai:config:model";
     private static final String REDIS_KEY_BASEURL = "ai:config:baseUrl";
+    private static final String REDIS_KEY_EMB_APIKEY = "ai:config:emb:apikey";
+    private static final String REDIS_KEY_EMB_BASEURL = "ai:config:emb:baseUrl";
+    private static final String REDIS_KEY_EMB_MODEL = "ai:config:emb:model";
+    private static final String REDIS_KEY_ROUTING_ENABLED = "ai:config:routing:enabled";
+    private static final String REDIS_KEY_ROUTING_REASONER = "ai:config:routing:reasoner";
 
 
     private Counter requestCounter;
@@ -100,6 +105,11 @@ public class DeepSeekClient {
     private volatile String currentApiKey;
     private volatile String currentModel;
     private volatile String currentBaseUrl;
+    private volatile String currentEmbApiKey;
+    private volatile String currentEmbBaseUrl;
+    private volatile String currentEmbModel;
+    private volatile boolean currentRoutingEnabled;
+    private volatile String currentReasonerModel;
 
     private static final Map<String, String> FALLBACK_ANSWERS = new ConcurrentHashMap<>();
 
@@ -114,6 +124,11 @@ public class DeepSeekClient {
         currentApiKey = apiKey;
         currentModel = model;
         currentBaseUrl = baseUrl;
+        currentEmbApiKey = embeddingApiKey;
+        currentEmbBaseUrl = embeddingBaseUrl;
+        currentEmbModel = embeddingModel;
+        currentRoutingEnabled = routingEnabled;
+        currentReasonerModel = reasonerModel;
         try {
             String savedKey = stringRedisTemplate.opsForValue().get(REDIS_KEY_APIKEY);
             String savedModel = stringRedisTemplate.opsForValue().get(REDIS_KEY_MODEL);
@@ -121,6 +136,16 @@ public class DeepSeekClient {
             if (savedKey != null && !savedKey.isEmpty()) currentApiKey = savedKey;
             if (savedModel != null && !savedModel.isEmpty()) currentModel = savedModel;
             if (savedUrl != null && !savedUrl.isEmpty()) currentBaseUrl = savedUrl;
+            String savedEmbKey = stringRedisTemplate.opsForValue().get(REDIS_KEY_EMB_APIKEY);
+            String savedEmbUrl = stringRedisTemplate.opsForValue().get(REDIS_KEY_EMB_BASEURL);
+            String savedEmbModel = stringRedisTemplate.opsForValue().get(REDIS_KEY_EMB_MODEL);
+            String savedRoutingEnabled = stringRedisTemplate.opsForValue().get(REDIS_KEY_ROUTING_ENABLED);
+            String savedReasoner = stringRedisTemplate.opsForValue().get(REDIS_KEY_ROUTING_REASONER);
+            if (savedEmbKey != null && !savedEmbKey.isEmpty()) currentEmbApiKey = savedEmbKey;
+            if (savedEmbUrl != null && !savedEmbUrl.isEmpty()) currentEmbBaseUrl = savedEmbUrl;
+            if (savedEmbModel != null && !savedEmbModel.isEmpty()) currentEmbModel = savedEmbModel;
+            if (savedRoutingEnabled != null) currentRoutingEnabled = "true".equals(savedRoutingEnabled);
+            if (savedReasoner != null && !savedReasoner.isEmpty()) currentReasonerModel = savedReasoner;
         } catch (Exception e) {
             log.warn("Failed to load AI config from Redis, using defaults", e);
         }
@@ -143,7 +168,7 @@ public class DeepSeekClient {
     }
 
     public String routeModel(List<Map<String, Object>> messages) {
-        if (!routingEnabled) return currentModel;
+        if (!currentRoutingEnabled) return currentModel;
         String lastUserMessage = null;
         for (int i = messages.size() - 1; i >= 0; i--) {
             if ("user".equals(messages.get(i).get("role"))) {
@@ -160,7 +185,7 @@ public class DeepSeekClient {
         for (String kw : reasonerKeywords) {
             if (lower.contains(kw)) {
                 log.info("Model routing: '{}' -> reasoner model (keyword: {})", lastUserMessage.substring(0, Math.min(20, lastUserMessage.length())), kw);
-                return reasonerModel;
+                return currentReasonerModel;
             }
         }
         return currentModel;
@@ -193,6 +218,51 @@ public class DeepSeekClient {
             log.info("DeepSeek base URL updated and persisted: {}", currentBaseUrl);
         }
     }
+
+    public void updateEmbeddingApiKey(String newKey) {
+        currentEmbApiKey = newKey != null ? newKey : "";
+        try { stringRedisTemplate.opsForValue().set(REDIS_KEY_EMB_APIKEY, currentEmbApiKey); } catch (Exception ignored) {}
+        log.info("Embedding API key updated and persisted");
+    }
+
+    public void updateEmbeddingBaseUrl(String newUrl) {
+        currentEmbBaseUrl = newUrl != null ? newUrl.replaceAll("/+$", "") : "";
+        try { stringRedisTemplate.opsForValue().set(REDIS_KEY_EMB_BASEURL, currentEmbBaseUrl); } catch (Exception ignored) {}
+        log.info("Embedding base URL updated and persisted: {}", currentEmbBaseUrl);
+    }
+
+    public void updateEmbeddingModel(String newModel) {
+        if (newModel != null && !newModel.isEmpty()) {
+            currentEmbModel = newModel;
+            try { stringRedisTemplate.opsForValue().set(REDIS_KEY_EMB_MODEL, newModel); } catch (Exception ignored) {}
+            log.info("Embedding model updated and persisted: {}", newModel);
+        }
+    }
+
+    public void updateRoutingEnabled(boolean enabled) {
+        currentRoutingEnabled = enabled;
+        try { stringRedisTemplate.opsForValue().set(REDIS_KEY_ROUTING_ENABLED, String.valueOf(enabled)); } catch (Exception ignored) {}
+        log.info("Routing enabled updated and persisted: {}", enabled);
+    }
+
+    public void updateReasonerModel(String newModel) {
+        if (newModel != null && !newModel.isEmpty()) {
+            currentReasonerModel = newModel;
+            try { stringRedisTemplate.opsForValue().set(REDIS_KEY_ROUTING_REASONER, newModel); } catch (Exception ignored) {}
+            log.info("Reasoner model updated and persisted: {}", newModel);
+        }
+    }
+
+    public String getCurrentEmbApiKeyMasked() {
+        if (currentEmbApiKey == null || currentEmbApiKey.isEmpty()) return "";
+        if (currentEmbApiKey.length() < 8) return "****";
+        return currentEmbApiKey.substring(0, 4) + "****" + currentEmbApiKey.substring(currentEmbApiKey.length() - 4);
+    }
+
+    public String getCurrentEmbBaseUrl() { return currentEmbBaseUrl != null ? currentEmbBaseUrl : ""; }
+    public String getCurrentEmbModel() { return currentEmbModel; }
+    public boolean isCurrentRoutingEnabled() { return currentRoutingEnabled; }
+    public String getCurrentReasonerModel() { return currentReasonerModel; }
 
     public String getCurrentApiKeyMasked() {
         if (currentApiKey == null || currentApiKey.length() < 8) return "";
@@ -467,8 +537,8 @@ public class DeepSeekClient {
     public List<float[]> embeddings(List<String> texts) {
         List<float[]> result = new ArrayList<>();
         if (texts == null || texts.isEmpty()) return result;
-        String embKey = (embeddingApiKey != null && !embeddingApiKey.isEmpty()) ? embeddingApiKey : currentApiKey;
-        String embUrl = (embeddingBaseUrl != null && !embeddingBaseUrl.isEmpty()) ? embeddingBaseUrl : currentBaseUrl;
+        String embKey = (currentEmbApiKey != null && !currentEmbApiKey.isEmpty()) ? currentEmbApiKey : currentApiKey;
+        String embUrl = (currentEmbBaseUrl != null && !currentEmbBaseUrl.isEmpty()) ? currentEmbBaseUrl : currentBaseUrl;
         if (embKey == null || embKey.isEmpty()) return result;
         try {
             if (!concurrencyLimit.tryAcquire(timeoutMs, TimeUnit.MILLISECONDS)) {
@@ -476,7 +546,7 @@ public class DeepSeekClient {
                 return result;
             }
             JSONObject payload = new JSONObject();
-            payload.set("model", embeddingModel);
+            payload.set("model", currentEmbModel);
             payload.set("input", JSONUtil.parseArray(texts));
             HttpResponse response = HttpRequest.post(embUrl + "/embeddings")
                     .header("Authorization", "Bearer " + embKey)

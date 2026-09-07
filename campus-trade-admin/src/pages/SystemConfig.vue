@@ -130,6 +130,51 @@
         </el-form-item>
       </el-form>
 
+      <el-divider content-position="left">Embedding 向量检索配置</el-divider>
+      <el-form label-width="140px" v-loading="aiLoading">
+        <el-alert type="info" :closable="false" show-icon style="margin-bottom: 16px"
+          title="DeepSeek不支持embedding API，须独立配置其他embedding服务（如OpenAI、智谱等）。留空则降级到TF-IDF检索。" />
+        <el-form-item label="Embedding可用">
+          <el-tag :type="aiConfig.embeddingAvailable ? 'success' : 'warning'" size="small">
+            {{ aiConfig.embeddingAvailable ? '可用' : '降级到TF-IDF' }}
+          </el-tag>
+        </el-form-item>
+        <el-form-item label="Embedding模型">
+          <el-input v-model="aiForm.embModel" placeholder="如 text-embedding-3-small / embedding-2" clearable />
+        </el-form-item>
+        <el-form-item label="Embedding API地址">
+          <el-input v-model="aiForm.embBaseUrl" placeholder="如 https://api.openai.com/v1（留空则用主API地址）" clearable />
+        </el-form-item>
+        <el-form-item label="Embedding API Key">
+          <el-input :model-value="aiConfig.embApiKeyMasked || '未配置（将用主API Key）'" disabled>
+            <template #append>
+              <el-button @click="showEmbKeyInput = !showEmbKeyInput">更新</el-button>
+            </template>
+          </el-input>
+        </el-form-item>
+        <el-form-item v-if="showEmbKeyInput" label="新Embedding Key">
+          <el-input v-model="aiForm.embApiKey" type="password" show-password placeholder="输入embedding服务的API Key" clearable />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="aiSaving" @click="handleSaveAiConfig">保存Embedding配置</el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-divider content-position="left">多模型路由配置</el-divider>
+      <el-form label-width="140px" v-loading="aiLoading">
+        <el-alert type="info" :closable="false" show-icon style="margin-bottom: 16px"
+          title="启用后，含分析/计算/比较/推荐等关键词的问题自动路由到推理模型(deepseek-reasoner)，其余用主模型。" />
+        <el-form-item label="启用路由">
+          <el-switch v-model="aiForm.routingEnabled" />
+        </el-form-item>
+        <el-form-item label="推理模型">
+          <el-input v-model="aiForm.reasonerModel" placeholder="如 deepseek-reasoner" clearable />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="aiSaving" @click="handleSaveAiConfig">保存路由配置</el-button>
+        </el-form-item>
+      </el-form>
+
       <el-divider />
       <el-descriptions title="配置说明" :column="1" border size="small">
         <el-descriptions-item label="获取方式">
@@ -140,13 +185,36 @@
         <el-descriptions-item label="热更新">所有配置更新后立即生效，无需重启服务</el-descriptions-item>
       </el-descriptions>
     </el-card>
+
+    <el-card shadow="never" style="margin-top: 20px">
+      <template #header>
+        <div class="card-header">
+          <span>AI 系统提示词（System Prompt）</span>
+        </div>
+      </template>
+      <el-form label-width="140px" v-loading="promptLoading">
+        <el-form-item label="当前提示词">
+          <el-input v-model="promptForm" type="textarea" :rows="8" placeholder="定义AI助手的角色、职责、行为约束..." />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="promptSaving" @click="handleSavePrompt">保存提示词</el-button>
+          <el-button @click="loadPrompt">重置</el-button>
+        </el-form-item>
+      </el-form>
+      <el-divider />
+      <el-descriptions title="说明" :column="1" border size="small">
+        <el-descriptions-item label="作用">定义AI助手"小苏"的角色、职责、可用工具、回答风格</el-descriptions-item>
+        <el-descriptions-item label="热更新">更新后立即生效，无需重启服务</el-descriptions-item>
+        <el-descriptions-item label="长度限制">最多5000字符</el-descriptions-item>
+      </el-descriptions>
+    </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getSystemConfig, updateSystemConfig, getAlipayStatus, getAiConfigStatus, updateAiConfig, type SystemConfigVO, type AiConfigStatus } from '@/api/admin'
+import { getSystemConfig, updateSystemConfig, getAlipayStatus, getAiConfigStatus, updateAiConfig, getAiSystemPrompt, updateAiSystemPrompt, type SystemConfigVO, type AiConfigStatus } from '@/api/admin'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -171,8 +239,17 @@ const form = reactive<Record<string, string>>({
 const aiLoading = ref(false)
 const aiSaving = ref(false)
 const showApiKeyInput = ref(false)
+const showEmbKeyInput = ref(false)
 const aiConfig = ref<AiConfigStatus>({ enabled: false, healthy: false, model: '', apiKeyMasked: '', baseUrl: '' })
-const aiForm = reactive({ model: '', baseUrl: '', apiKey: '' })
+const aiForm = reactive({
+  model: '', baseUrl: '', apiKey: '',
+  embApiKey: '', embBaseUrl: '', embModel: '',
+  routingEnabled: false, reasonerModel: ''
+})
+
+const promptLoading = ref(false)
+const promptSaving = ref(false)
+const promptForm = ref('')
 
 const loadAiConfig = async () => {
   aiLoading.value = true
@@ -181,26 +258,59 @@ const loadAiConfig = async () => {
     aiForm.model = aiConfig.value.model
     aiForm.baseUrl = aiConfig.value.baseUrl
     aiForm.apiKey = ''
+    aiForm.embApiKey = ''
+    aiForm.embBaseUrl = aiConfig.value.embBaseUrl || ''
+    aiForm.embModel = aiConfig.value.embModel || ''
+    aiForm.routingEnabled = aiConfig.value.routingEnabled || false
+    aiForm.reasonerModel = aiConfig.value.reasonerModel || ''
     showApiKeyInput.value = false
+    showEmbKeyInput.value = false
   } catch (e) { console.error(e) } finally { aiLoading.value = false }
 }
 
 const handleSaveAiConfig = async () => {
   aiSaving.value = true
   try {
-    const data: { apiKey?: string; model?: string; baseUrl?: string } = {}
+    const data: Record<string, string> = {}
     if (aiForm.model !== aiConfig.value.model) data.model = aiForm.model
     if (aiForm.baseUrl !== aiConfig.value.baseUrl) data.baseUrl = aiForm.baseUrl
     if (showApiKeyInput.value && aiForm.apiKey.trim()) data.apiKey = aiForm.apiKey.trim()
+    if (showEmbKeyInput.value) data.embApiKey = aiForm.embApiKey.trim()
+    if (aiForm.embBaseUrl !== (aiConfig.value.embBaseUrl || '')) data.embBaseUrl = aiForm.embBaseUrl
+    if (aiForm.embModel !== (aiConfig.value.embModel || '')) data.embModel = aiForm.embModel
+    if (aiForm.routingEnabled !== (aiConfig.value.routingEnabled || false)) data.routingEnabled = String(aiForm.routingEnabled)
+    if (aiForm.reasonerModel !== (aiConfig.value.reasonerModel || '')) data.reasonerModel = aiForm.reasonerModel
     if (Object.keys(data).length === 0) { ElMessage.info('无变更'); return }
     const res = await updateAiConfig(data)
     aiConfig.value = res
     aiForm.model = res.model
     aiForm.baseUrl = res.baseUrl
     aiForm.apiKey = ''
+    aiForm.embApiKey = ''
+    aiForm.embBaseUrl = res.embBaseUrl || ''
+    aiForm.embModel = res.embModel || ''
+    aiForm.routingEnabled = res.routingEnabled || false
+    aiForm.reasonerModel = res.reasonerModel || ''
     showApiKeyInput.value = false
+    showEmbKeyInput.value = false
     ElMessage.success('AI 配置已保存')
   } catch (e) { console.error(e) } finally { aiSaving.value = false }
+}
+
+const loadPrompt = async () => {
+  promptLoading.value = true
+  try {
+    promptForm.value = await getAiSystemPrompt()
+  } catch (e) { console.error(e) } finally { promptLoading.value = false }
+}
+
+const handleSavePrompt = async () => {
+  if (!promptForm.value.trim()) { ElMessage.warning('提示词不能为空'); return }
+  promptSaving.value = true
+  try {
+    await updateAiSystemPrompt(promptForm.value)
+    ElMessage.success('系统提示词已保存')
+  } catch (e) { console.error(e) } finally { promptSaving.value = false }
 }
 
 const loadData = async () => {
@@ -237,7 +347,7 @@ const handleSave = async () => {
   } catch (e) { console.error(e) } finally { saving.value = false }
 }
 
-onMounted(() => { loadData(); loadAiConfig() })
+onMounted(() => { loadData(); loadAiConfig(); loadPrompt() })
 </script>
 
 <style scoped lang="scss">

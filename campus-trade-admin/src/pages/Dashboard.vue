@@ -43,6 +43,26 @@
             </el-tag>
             <span class="ai-health-text">{{ aiHealthDetail }}</span>
           </div>
+          <div class="ai-stats" v-if="aiStats">
+            <div class="ai-stats-item">
+              <span class="ai-stats-label">📚 FAQ</span>
+              <span class="ai-stats-value">{{ aiStats.faqCount ?? '-' }}</span>
+            </div>
+            <div class="ai-stats-item">
+              <span class="ai-stats-label">🔧 工具</span>
+              <span class="ai-stats-value">{{ aiStats.toolCount ?? '-' }}</span>
+            </div>
+            <div class="ai-stats-item">
+              <span class="ai-stats-label">向量检索</span>
+              <el-tag :type="aiStats.embeddingAvailable ? 'success' : 'warning'" size="small">
+                {{ aiStats.embeddingAvailable ? '可用' : 'TF-IDF' }}
+              </el-tag>
+            </div>
+            <div class="ai-stats-item">
+              <span class="ai-stats-label">⭐ 评分</span>
+              <span class="ai-stats-value">{{ aiStats.avgRating ?? '-' }}</span>
+            </div>
+          </div>
           <el-divider content-position="left">服务配置</el-divider>
           <div class="service-status-row">
             <div class="service-status-item">
@@ -83,7 +103,7 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { User, Sunny, Plus, Box, ShoppingCart, Tickets, ArrowRight } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
-import { getDashboardStats, getReportList, getOperationLogs, getAiHealth, getAlipayStatus, getEmailStatus } from '@/api/admin'
+import { getDashboardStats, getReportList, getOperationLogs, getAiHealth, getAlipayStatus, getEmailStatus, getAiStats } from '@/api/admin'
 import { formatDateTime } from '@/utils/labels'
 import { operationLabel, moduleLabel, goodsStatusLabel, orderStatusLabel } from '@/utils/labels'
 import type { OperationLogVO, PageQueryParams } from '@/types'
@@ -106,6 +126,7 @@ const todoItems = ref([
 const recentLogs = ref<OperationLogVO[]>([])
 const aiHealthStatus = ref('UP')
 const aiHealthDetail = ref('')
+const aiStats = ref<Record<string, unknown> | null>(null)
 const emailConfigured = ref(false)
 const alipayConfigured = ref(false)
 const goodsChartRef = ref<HTMLElement>()
@@ -213,6 +234,9 @@ const loadAiHealth = async () => {
       aiHealthDetail.value = '指标未暴露'
     }
   } catch { aiHealthStatus.value = 'UNKNOWN'; aiHealthDetail.value = '无法获取' }
+  try {
+    aiStats.value = await getAiStats()
+  } catch { /* ignore */ }
 }
 
 const loadServiceStatus = async () => {
@@ -301,6 +325,10 @@ onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeE
 .todo-label { font-size: 13px; font-weight: 500; }
 .ai-health { display: flex; align-items: center; gap: 8px; }
 .ai-health-text { font-size: 13px; color: var(--admin-text-secondary); }
+.ai-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-top: 12px; }
+.ai-stats-item { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.ai-stats-label { font-size: 13px; color: var(--admin-text-secondary); }
+.ai-stats-value { font-size: 14px; font-weight: 600; color: var(--admin-text); }
 .service-status-row { display: flex; gap: 24px; }
 .service-status-item { display: flex; align-items: center; gap: 8px; }
 .service-status-label { font-size: 13px; color: var(--admin-text-secondary); }

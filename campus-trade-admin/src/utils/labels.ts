@@ -61,7 +61,11 @@ export const operationLabel = (op: string): string => {
     adminApproveRefund: '管理员同意退款', adminRejectRefund: '管理员拒绝退款',
     chat: 'AI对话', chatStream: 'AI流式对话', clearSession: '清除AI会话',
     status: 'AI服务状态', getSuggestion: 'AI标题建议', getSessionHistory: 'AI会话历史',
-    updateAiConfig: '更新AI配置', getConfigStatus: 'AI配置状态'
+    updateAiConfig: '更新AI配置', getConfigStatus: 'AI配置状态',
+    listFaqs: 'FAQ列表', addFaq: '新增FAQ', updateFaq: '更新FAQ', deleteFaq: '删除FAQ',
+    submitFeedback: '提交AI反馈', getFeedbackStats: 'AI反馈统计',
+    updateSystemPrompt: '更新系统提示词', getSystemPrompt: '获取系统提示词',
+    getAiStats: 'AI运行统计'
   }
   return map[op] || op
 }

@@ -872,12 +872,32 @@ public class AiController {
         if (body.get("baseUrl") != null && !body.get("baseUrl").trim().isEmpty()) {
             deepSeekClient.updateBaseUrl(body.get("baseUrl").trim());
         }
+        if (body.containsKey("embApiKey")) {
+            deepSeekClient.updateEmbeddingApiKey(body.get("embApiKey"));
+        }
+        if (body.get("embBaseUrl") != null) {
+            deepSeekClient.updateEmbeddingBaseUrl(body.get("embBaseUrl"));
+        }
+        if (body.get("embModel") != null && !body.get("embModel").trim().isEmpty()) {
+            deepSeekClient.updateEmbeddingModel(body.get("embModel").trim());
+        }
+        if (body.containsKey("routingEnabled")) {
+            deepSeekClient.updateRoutingEnabled(Boolean.parseBoolean(body.get("routingEnabled")));
+        }
+        if (body.get("reasonerModel") != null && !body.get("reasonerModel").trim().isEmpty()) {
+            deepSeekClient.updateReasonerModel(body.get("reasonerModel").trim());
+        }
         aiHealthIndicator.clearCache();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("enabled", deepSeekClient.isEnabled());
         result.put("model", deepSeekClient.getModel());
         result.put("apiKeyMasked", deepSeekClient.getCurrentApiKeyMasked());
         result.put("baseUrl", deepSeekClient.getCurrentBaseUrl());
+        result.put("embApiKeyMasked", deepSeekClient.getCurrentEmbApiKeyMasked());
+        result.put("embBaseUrl", deepSeekClient.getCurrentEmbBaseUrl());
+        result.put("embModel", deepSeekClient.getCurrentEmbModel());
+        result.put("routingEnabled", deepSeekClient.isCurrentRoutingEnabled());
+        result.put("reasonerModel", deepSeekClient.getCurrentReasonerModel());
         return Result.success(result);
     }
 
@@ -895,6 +915,12 @@ public class AiController {
         config.put("apiKeyMasked", deepSeekClient.getCurrentApiKeyMasked());
         config.put("baseUrl", deepSeekClient.getCurrentBaseUrl());
         config.put("rateLimitPerMinute", aiRateLimiter.getPerMinute());
+        config.put("embApiKeyMasked", deepSeekClient.getCurrentEmbApiKeyMasked());
+        config.put("embBaseUrl", deepSeekClient.getCurrentEmbBaseUrl());
+        config.put("embModel", deepSeekClient.getCurrentEmbModel());
+        config.put("embeddingAvailable", deepSeekClient.isEmbeddingAvailable());
+        config.put("routingEnabled", deepSeekClient.isCurrentRoutingEnabled());
+        config.put("reasonerModel", deepSeekClient.getCurrentReasonerModel());
         return Result.success(config);
     }
 

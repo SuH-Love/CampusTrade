@@ -22,9 +22,9 @@ const isNetworkError = (error: unknown): boolean => {
     err.code === 'ERR_NETWORK' ||
     err.code === 'ECONNABORTED' ||
     err.code === 'ECONNRESET' ||
-    err.message?.includes('Network Error') ||
-    err.message?.includes('timeout') ||
-    err.message?.includes('ERR_CONNECTION_RESET')
+    (!!err.message && err.message.includes('Network Error')) ||
+    (!!err.message && err.message.includes('timeout')) ||
+    (!!err.message && err.message.includes('ERR_CONNECTION_RESET'))
   )
 }
 

@@ -1,4 +1,4 @@
-import { ref, watch, type Ref } from 'vue'
+import { watch, type Ref } from 'vue'
 
 export function useDebounceSearch(
   searchRef: Ref<string>,
