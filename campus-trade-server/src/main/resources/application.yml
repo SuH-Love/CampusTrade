@@ -108,6 +108,10 @@ ai:
     base-url: ${AI_DEEPSEEK_BASE_URL:https://api.deepseek.com/v1}
     model: ${AI_DEEPSEEK_MODEL:deepseek-chat}
     timeout-ms: ${AI_DEEPSEEK_TIMEOUT_MS:60000}
+  embedding:
+    api-key: ${AI_EMBEDDING_API_KEY:}
+    base-url: ${AI_EMBEDDING_BASE_URL:}
+    model: ${AI_EMBEDDING_MODEL:text-embedding-3-small}
 
 logging:
   config: classpath:log4j2.xml

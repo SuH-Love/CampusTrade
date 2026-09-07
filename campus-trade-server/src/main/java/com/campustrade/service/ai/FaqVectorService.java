@@ -17,12 +17,15 @@ import java.util.*;
 public class FaqVectorService {
 
     private static final double SIMILARITY_THRESHOLD = 0.15;
+    private static final double EMBEDDING_THRESHOLD = 0.35;
     private static final int TOP_K = 3;
 
     private final List<FaqItem> faqItems = new ArrayList<>();
     private final List<Map<String, Double>> faqVectors = new ArrayList<>();
+    private final List<float[]> faqEmbeddings = new ArrayList<>();
     private final Map<String, Double> idfMap = new HashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private volatile boolean useEmbeddings = false;
 
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
@@ -30,9 +33,13 @@ public class FaqVectorService {
     @Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private DeepSeekClient deepSeekClient;
+
     private static final String REDIS_KEY_ITEMS = "ai:faq:items";
     private static final String REDIS_KEY_IDF = "ai:faq:idf";
     private static final String REDIS_KEY_VECTORS = "ai:faq:vectors";
+    private static final String REDIS_KEY_EMBEDDINGS = "ai:faq:embeddings";
 
     public static class FaqItem {
         public Long id;
@@ -62,7 +69,46 @@ public class FaqVectorService {
         } else {
             log.info("FaqVectorService initialized from Redis cache: {} FAQ items loaded", faqItems.size());
         }
+        tryInitEmbeddings();
         syncToDatabaseIfEmpty();
+    }
+
+    private void tryInitEmbeddings() {
+        try {
+            String embeddingsJson = stringRedisTemplate.opsForValue().get(REDIS_KEY_EMBEDDINGS);
+            if (embeddingsJson != null && !embeddingsJson.isEmpty()) {
+                List<float[]> cached = objectMapper.readValue(embeddingsJson, new TypeReference<List<float[]>>() {});
+                if (cached.size() == faqItems.size() && !cached.isEmpty()) {
+                    faqEmbeddings.addAll(cached);
+                    useEmbeddings = true;
+                    log.info("FAQ embeddings loaded from Redis cache: {} vectors", faqEmbeddings.size());
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to load embeddings from Redis: {}", e.getMessage());
+        }
+        if (deepSeekClient != null) {
+            try {
+                List<String> questions = new ArrayList<>();
+                for (FaqItem item : faqItems) {
+                    questions.add(item.question);
+                }
+                List<float[]> embeddings = deepSeekClient.embeddings(questions);
+                if (embeddings.size() == faqItems.size() && !embeddings.isEmpty()) {
+                    faqEmbeddings.addAll(embeddings);
+                    useEmbeddings = true;
+                    try {
+                        stringRedisTemplate.opsForValue().set(REDIS_KEY_EMBEDDINGS, objectMapper.writeValueAsString(faqEmbeddings));
+                    } catch (Exception ignored) {}
+                    log.info("FAQ embeddings computed and cached: {} vectors, dim={}", faqEmbeddings.size(), faqEmbeddings.get(0).length);
+                } else {
+                    log.info("Embedding API returned insufficient results, falling back to TF-IDF");
+                }
+            } catch (Exception e) {
+                log.warn("Failed to compute embeddings, using TF-IDF fallback: {}", e.getMessage());
+            }
+        }
     }
 
     private void syncToDatabaseIfEmpty() {
@@ -160,8 +206,31 @@ public class FaqVectorService {
             faqVectors.add(computeTfIdfVector(item.question));
         }
         saveToRedis();
-        log.info("FAQ vectors rebuilt: {} items", faqItems.size());
+        rebuildEmbeddings();
+        log.info("FAQ vectors rebuilt: {} items, embeddings: {}", faqItems.size(), useEmbeddings ? "on" : "off");
     }
+
+    private void rebuildEmbeddings() {
+        if (deepSeekClient == null || faqItems.isEmpty()) return;
+        try {
+            List<String> questions = new ArrayList<>();
+            for (FaqItem item : faqItems) {
+                questions.add(item.question);
+            }
+            List<float[]> embeddings = deepSeekClient.embeddings(questions);
+            if (embeddings.size() == faqItems.size()) {
+                faqEmbeddings.clear();
+                faqEmbeddings.addAll(embeddings);
+                useEmbeddings = true;
+                try {
+                    stringRedisTemplate.opsForValue().set(REDIS_KEY_EMBEDDINGS, objectMapper.writeValueAsString(faqEmbeddings));
+                } catch (Exception ignored) {}
+            }
+        } catch (Exception e) {
+            log.warn("Failed to rebuild embeddings: {}", e.getMessage());
+        }
+    }
+
 
     private void loadFaqData() {
         try {
@@ -259,7 +328,37 @@ public class FaqVectorService {
         return dotProduct / (norm1 * norm2);
     }
 
+    private double cosineSimilarity(float[] v1, float[] v2) {
+        if (v1 == null || v2 == null || v1.length != v2.length || v1.length == 0) return 0.0;
+        double dotProduct = 0.0, norm1 = 0.0, norm2 = 0.0;
+        for (int i = 0; i < v1.length; i++) {
+            dotProduct += v1[i] * v2[i];
+            norm1 += v1[i] * v1[i];
+            norm2 += v2[i] * v2[i];
+        }
+        if (norm1 == 0 || norm2 == 0) return 0.0;
+        return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+    }
+
     public List<FaqItem> search(String query, int topK) {
+        if (useEmbeddings && !faqEmbeddings.isEmpty() && deepSeekClient != null) {
+            float[] queryEmbedding = deepSeekClient.embedding(query);
+            if (queryEmbedding != null && queryEmbedding.length > 0) {
+                List<Map.Entry<FaqItem, Double>> scored = new ArrayList<>();
+                for (int i = 0; i < faqItems.size(); i++) {
+                    double score = cosineSimilarity(queryEmbedding, faqEmbeddings.get(i));
+                    scored.add(new AbstractMap.SimpleEntry<>(faqItems.get(i), score));
+                }
+                scored.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+                List<FaqItem> results = new ArrayList<>();
+                for (int i = 0; i < Math.min(topK, scored.size()); i++) {
+                    if (scored.get(i).getValue() >= EMBEDDING_THRESHOLD) {
+                        results.add(scored.get(i).getKey());
+                    }
+                }
+                if (!results.isEmpty()) return results;
+            }
+        }
         Map<String, Double> queryVector = computeTfIdfVector(query);
         List<Map.Entry<FaqItem, Double>> scored = new ArrayList<>();
         for (int i = 0; i < faqItems.size(); i++) {
@@ -298,6 +397,30 @@ public class FaqVectorService {
     public <T> List<T> rankBySimilarity(String query, List<T> candidates, java.util.function.Function<T, String> textExtractor, int topK) {
         if (query == null || query.trim().isEmpty() || candidates == null || candidates.isEmpty()) {
             return candidates;
+        }
+        if (useEmbeddings && deepSeekClient != null) {
+            float[] queryEmbedding = deepSeekClient.embedding(query);
+            if (queryEmbedding != null && queryEmbedding.length > 0) {
+                List<String> texts = new ArrayList<>();
+                for (T candidate : candidates) {
+                    String text = textExtractor.apply(candidate);
+                    texts.add(text != null ? text : "");
+                }
+                List<float[]> candidateEmbeddings = deepSeekClient.embeddings(texts);
+                if (candidateEmbeddings.size() == candidates.size()) {
+                    List<Map.Entry<T, Double>> scored = new ArrayList<>();
+                    for (int i = 0; i < candidates.size(); i++) {
+                        double score = cosineSimilarity(queryEmbedding, candidateEmbeddings.get(i));
+                        scored.add(new AbstractMap.SimpleEntry<>(candidates.get(i), score));
+                    }
+                    scored.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+                    List<T> result = new ArrayList<>();
+                    for (int i = 0; i < Math.min(topK, scored.size()); i++) {
+                        result.add(scored.get(i).getKey());
+                    }
+                    return result;
+                }
+            }
         }
         Map<String, Double> queryVector = computeTfIdfVector(query);
         List<Map.Entry<T, Double>> scored = new ArrayList<>();

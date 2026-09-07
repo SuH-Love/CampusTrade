@@ -24,6 +24,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
@@ -60,6 +62,15 @@ public class DeepSeekClient {
 
     @Value("${ai.fallback.model:}")
     private String fallbackModel;
+
+    @Value("${ai.embedding.api-key:}")
+    private String embeddingApiKey;
+
+    @Value("${ai.embedding.base-url:}")
+    private String embeddingBaseUrl;
+
+    @Value("${ai.embedding.model:text-embedding-3-small}")
+    private String embeddingModel;
 
     @Autowired
     @Qualifier("aiTaskExecutor")
@@ -420,6 +431,67 @@ public class DeepSeekClient {
         } finally {
             sample.stop(latencyTimer);
             concurrencyLimit.release();
+        }
+    }
+
+    public List<float[]> embeddings(List<String> texts) {
+        List<float[]> result = new ArrayList<>();
+        if (texts == null || texts.isEmpty()) return result;
+        String embKey = (embeddingApiKey != null && !embeddingApiKey.isEmpty()) ? embeddingApiKey : currentApiKey;
+        String embUrl = (embeddingBaseUrl != null && !embeddingBaseUrl.isEmpty()) ? embeddingBaseUrl : currentBaseUrl;
+        if (embKey == null || embKey.isEmpty()) return result;
+        try {
+            if (!concurrencyLimit.tryAcquire(timeoutMs, TimeUnit.MILLISECONDS)) {
+                log.warn("Embedding request concurrency limit reached");
+                return result;
+            }
+            JSONObject payload = new JSONObject();
+            payload.set("model", embeddingModel);
+            payload.set("input", JSONUtil.parseArray(texts));
+            HttpResponse response = HttpRequest.post(embUrl + "/embeddings")
+                    .header("Authorization", "Bearer " + embKey)
+                    .header("Content-Type", "application/json")
+                    .body(payload.toString())
+                    .timeout(timeoutMs)
+                    .execute();
+            int code = response.getStatus();
+            if (code < 200 || code >= 300) {
+                log.warn("Embedding API error: {} {}", code, response.body());
+                return result;
+            }
+            JSONObject body = JSONUtil.parseObj(response.body());
+            JSONArray data = body.getJSONArray("data");
+            if (data == null) return result;
+            for (int i = 0; i < data.size(); i++) {
+                JSONObject item = data.getJSONObject(i);
+                JSONArray embedding = item.getJSONArray("embedding");
+                float[] vec = new float[embedding.size()];
+                for (int j = 0; j < embedding.size(); j++) {
+                    vec[j] = embedding.getFloat(j);
+                }
+                result.add(vec);
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("Embedding API call failed: {}", e.getMessage());
+            return result;
+        } finally {
+            concurrencyLimit.release();
+        }
+    }
+
+    public float[] embedding(String text) {
+        List<float[]> results = embeddings(java.util.Collections.singletonList(text));
+        return results.isEmpty() ? null : results.get(0);
+    }
+
+    public boolean isEmbeddingAvailable() {
+
+        try {
+            float[] test = embedding("测试");
+            return test != null && test.length > 0;
+        } catch (Exception e) {
+            return false;
         }
     }
 
