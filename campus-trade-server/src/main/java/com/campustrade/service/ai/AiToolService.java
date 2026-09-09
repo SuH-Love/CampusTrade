@@ -45,6 +45,8 @@ public class AiToolService {
         "admin_ban_user", "admin_audit_goods", "admin_handle_refund"
     );
 
+    public Set<String> getWriteToolsSet() { return WRITE_TOOLS; }
+
     private static final Map<String, String> STATUS_MAP = new LinkedHashMap<>();
     private static final Map<String, String> GOODS_STATUS_MAP = new LinkedHashMap<>();
     static {

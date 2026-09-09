@@ -28,9 +28,11 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -46,6 +48,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Autowired
     private UserRoleMapper userRoleMapper;
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -241,6 +246,15 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private Result<TokenVO> generateTokenPair(User user) {
+        String oldToken = (String) redisTemplate.opsForValue().get(RedisConstant.TOKEN_PREFIX + user.getId());
+        if (oldToken != null && !oldToken.isEmpty()) {
+            try {
+                redisTemplate.opsForValue().set(RedisConstant.BLACKLIST_PREFIX + oldToken, "1",
+                        RedisConstant.TOKEN_TTL, TimeUnit.SECONDS);
+                messagingTemplate.convertAndSendToUser(String.valueOf(user.getId()), "/queue/kickout",
+                        Map.of("type", "KICKED", "message", "账号在其他设备登录，请重新登录"));
+            } catch (Exception ignored) {}
+        }
         String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getUsername());
         String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername());
 

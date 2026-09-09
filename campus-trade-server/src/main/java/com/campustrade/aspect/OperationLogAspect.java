@@ -56,6 +56,13 @@ public class OperationLogAspect {
             if (attributes == null) return;
 
             HttpServletRequest request = attributes.getRequest();
+            String uri = request.getRequestURI();
+            String method = request.getMethod();
+
+            if ("GET".equals(method)) return;
+            if (uri.startsWith("/actuator")) return;
+            if (uri.contains("/chat/stream") || uri.contains("/chatStream")) return;
+            if (uri.contains("/ai/status") || uri.contains("/ai/health")) return;
             Long userId = null;
             String username = null;
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

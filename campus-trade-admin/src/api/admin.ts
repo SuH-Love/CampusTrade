@@ -206,6 +206,39 @@ export const getAiStats = () =>
 export const getAiFeedbackStats = () =>
   request.get<never, Record<string, unknown>>('/ai/feedback/stats')
 
+export interface AiChannel {
+  id: string
+  name: string
+  baseUrl: string
+  apiKey: string
+  priority: number
+  enabled: boolean
+}
+
+export interface AiModelReg {
+  channelId: string
+  model: string
+  caps: string[]
+}
+
+export const getAiChannels = () =>
+  request.get<never, string>('/ai/channels')
+
+export const saveAiChannels = (channels: AiChannel[]) =>
+  request.put<never, void>('/ai/channels', JSON.stringify(channels), { headers: { 'Content-Type': 'application/json' } })
+
+export const getAiModels = () =>
+  request.get<never, string>('/ai/models')
+
+export const saveAiModels = (models: AiModelReg[]) =>
+  request.put<never, void>('/ai/models', JSON.stringify(models), { headers: { 'Content-Type': 'application/json' } })
+
+export const getAiTools = () =>
+  request.get<never, Record<string, unknown>[]>('/ai/tools')
+
+export const getAiFeedbackList = (params: { page?: number; size?: number; minRating?: number; maxRating?: number }) =>
+  request.get<never, { list: Record<string, unknown>[]; total: number; page: number; size: number }>('/ai/feedback/list', { params })
+
 export const getAiHealth = async (): Promise<Record<string, unknown>> => {
   const adminStore = (await import('@/stores/admin')).useAdminStore()
   return axios.get('/actuator/health', {

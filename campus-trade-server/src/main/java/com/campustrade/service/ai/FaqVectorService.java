@@ -17,7 +17,7 @@ import java.util.*;
 public class FaqVectorService {
 
     private static final double SIMILARITY_THRESHOLD = 0.15;
-    private static final double EMBEDDING_THRESHOLD = 0.35;
+    private static final double EMBEDDING_THRESHOLD = 0.25;
     private static final int TOP_K = 3;
 
     private final List<FaqItem> faqItems = new ArrayList<>();
@@ -71,6 +71,14 @@ public class FaqVectorService {
         }
         tryInitEmbeddings();
         syncToDatabaseIfEmpty();
+    }
+
+    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 300000)
+    public void retryEmbeddings() {
+        if (!useEmbeddings && !faqItems.isEmpty() && deepSeekClient != null) {
+            log.info("Retrying embedding initialization...");
+            tryInitEmbeddings();
+        }
     }
 
     private void tryInitEmbeddings() {

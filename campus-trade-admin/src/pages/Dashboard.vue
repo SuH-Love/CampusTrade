@@ -63,6 +63,18 @@
               <span class="ai-stats-value">{{ aiStats.avgRating ?? '-' }}</span>
             </div>
           </div>
+          <div class="todo-item" @click="$router.push('/ai-tools')" style="cursor: pointer">
+            <div class="todo-info">
+              <span class="todo-text">🔧 AI工具（{{ aiTools.length }}个）</span>
+            </div>
+            <el-icon class="todo-arrow"><ArrowRight /></el-icon>
+          </div>
+          <div class="todo-item" @click="$router.push('/ai-feedback')" style="cursor: pointer">
+            <div class="todo-info">
+              <span class="todo-text">💬 AI反馈（差评查看）</span>
+            </div>
+            <el-icon class="todo-arrow"><ArrowRight /></el-icon>
+          </div>
           <el-divider content-position="left">服务配置</el-divider>
           <div class="service-status-row">
             <div class="service-status-item">
@@ -103,7 +115,7 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { User, Sunny, Plus, Box, ShoppingCart, Tickets, ArrowRight } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
-import { getDashboardStats, getReportList, getOperationLogs, getAiHealth, getAlipayStatus, getEmailStatus, getAiStats } from '@/api/admin'
+import { getDashboardStats, getReportList, getOperationLogs, getAiHealth, getAlipayStatus, getEmailStatus, getAiStats, getAiTools, getAiFeedbackList } from '@/api/admin'
 import { formatDateTime } from '@/utils/labels'
 import { operationLabel, moduleLabel, goodsStatusLabel, orderStatusLabel } from '@/utils/labels'
 import type { OperationLogVO, PageQueryParams } from '@/types'
@@ -127,6 +139,9 @@ const recentLogs = ref<OperationLogVO[]>([])
 const aiHealthStatus = ref('UP')
 const aiHealthDetail = ref('')
 const aiStats = ref<Record<string, unknown> | null>(null)
+const aiTools = ref<Record<string, unknown>[]>([])
+const aiFeedbackList = ref<Record<string, unknown>[]>([])
+const feedbackLoading = ref(false)
 const emailConfigured = ref(false)
 const alipayConfigured = ref(false)
 const goodsChartRef = ref<HTMLElement>()
@@ -237,6 +252,14 @@ const loadAiHealth = async () => {
   try {
     aiStats.value = await getAiStats()
   } catch { /* ignore */ }
+  try {
+    aiTools.value = await getAiTools()
+  } catch { /* ignore */ }
+  try {
+    feedbackLoading.value = true
+    const res = await getAiFeedbackList({ page: 1, size: 10, maxRating: 3 })
+    aiFeedbackList.value = res.list || []
+  } catch { /* ignore */ } finally { feedbackLoading.value = false }
 }
 
 const loadServiceStatus = async () => {

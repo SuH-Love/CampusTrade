@@ -94,3 +94,6 @@ body {
 .chart-container { height: 300px; }
 .todo-arrow { color: var(--admin-text-secondary); }
 .el-tooltip__trigger { outline: none; }
+
+.fb-tooltip { max-width: 400px; }
+.fb-tooltip .el-tooltip__content { word-wrap: break-word; white-space: normal; line-height: 1.5; }

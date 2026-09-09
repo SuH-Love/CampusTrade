@@ -14,7 +14,18 @@ export const moduleLabel = (mod: string): string => {
   return map[mod] || mod
 }
 
-export const operationLabel = (op: string): string => {
+export const operationLabel = (op: string, mod?: string): string => {
+  const compoundKey = mod ? `${mod}.${op}` : ''
+  const compoundMap: Record<string, string> = {
+    'PaymentConfig.list': '收款配置列表', 'PaymentConfig.getById': '收款配置详情',
+    'PaymentConfig.create': '创建收款配置', 'PaymentConfig.update': '修改收款配置',
+    'PaymentConfig.delete': '删除收款配置', 'PaymentConfig.setDefault': '设为默认收款',
+    'PaymentConfig.getDefault': '获取默认收款',
+    'DeliveryAddress.list': '地址列表', 'DeliveryAddress.getById': '地址详情',
+    'DeliveryAddress.add': '新增地址', 'DeliveryAddress.update': '修改地址',
+    'DeliveryAddress.delete': '删除地址', 'DeliveryAddress.setDefault': '设为默认地址',
+  }
+  if (compoundKey && compoundMap[compoundKey]) return compoundMap[compoundKey]
   const map: Record<string, string> = {
     register: '注册', login: '登录', logout: '退出', refreshToken: '刷新令牌',
     getUserInfo: '获取用户信息', getUserPublicInfo: '获取公开信息', updateUserInfo: '更新用户信息',
@@ -38,8 +49,8 @@ export const operationLabel = (op: string): string => {
     getOnlineUsers: '在线用户', getTotalUnreadCount: '总未读数',
     markAllAsRead: '全部已读', deleteNotification: '删除通知', listNotifications: '通知列表',
     getMyPreferences: '通知偏好', setPreference: '设置偏好',
-    list: '地址列表', getById: '地址详情', add: '新增地址', update: '修改地址',
-    delete: '删除地址', setDefault: '设为默认',
+    list: '列表', getById: '详情', add: '新增', update: '修改',
+    delete: '删除', setDefault: '设为默认',
     createReport: '提交举报', handleReport: '处理举报', listMyReports: '我的举报',
     listActiveBanners: '活跃轮播图', listAllBanners: '轮播图管理列表',
     createBanner: '创建轮播图', updateBanner: '编辑轮播图',
@@ -48,24 +59,26 @@ export const operationLabel = (op: string): string => {
     toggleFollow: '关注/取关', isFollowing: '是否关注', getFollowCounts: '关注数',
     listFollowing: '关注列表', listFollowers: '粉丝列表',
     getAverageRating: '卖家评分', getRatingList: '评价列表', getRatingDistribution: '评分分布',
-    hotKeywords: '热门搜索词',
+    hotKeywords: '热门搜索词', suggest: '搜索建议',
     blockUser: '屏蔽用户', unblockUser: '取消屏蔽', getBlacklist: '黑名单列表', isBlocked: '是否已屏蔽', isBlockedBy: '是否被屏蔽',
     getActiveAnnouncements: '获取公告', listAnnouncements: '公告列表', createAnnouncement: '创建公告', updateAnnouncement: '编辑公告', deleteAnnouncement: '删除公告',
     exportUsers: '导出用户CSV', exportOrders: '导出订单CSV',
-    recallMessage: '撤回消息', resetPassword: '重置密码',
+    recallMessage: '撤回消息', resetPassword: '重置密码', sendResetCode: '发送重置验证码',
     createCategory: '创建分类', updateCategory: '编辑分类', deleteCategory: '删除分类',
     createPayment: '创建支付', payNotify: '支付通知',
-    getDefault: '获取默认收款', setDefaultPayment: '设为默认收款',
+    getDefault: '获取默认', setDefaultPayment: '设为默认收款',
     listSystemConfig: '获取系统配置', updateSystemConfig: '更新系统配置',
     getAlipayStatus: '支付宝配置状态', getEmailStatus: '邮件服务状态', listFundLogs: '资金流水列表',
+    getOrderFundLogs: '订单资金流水',
     adminApproveRefund: '管理员同意退款', adminRejectRefund: '管理员拒绝退款',
     chat: 'AI对话', chatStream: 'AI流式对话', clearSession: '清除AI会话',
     status: 'AI服务状态', getSuggestion: 'AI标题建议', getSessionHistory: 'AI会话历史',
     updateAiConfig: '更新AI配置', getConfigStatus: 'AI配置状态',
     listFaqs: 'FAQ列表', addFaq: '新增FAQ', updateFaq: '更新FAQ', deleteFaq: '删除FAQ',
-    submitFeedback: '提交AI反馈', getFeedbackStats: 'AI反馈统计',
+    submitFeedback: '提交AI反馈', getFeedbackStats: 'AI反馈统计', getFeedbackList: 'AI反馈列表',
     updateSystemPrompt: '更新系统提示词', getSystemPromptApi: '获取系统提示词',
-    getAiStats: 'AI运行统计'
+    getAiStats: 'AI运行统计', getChannels: '获取AI渠道', saveChannels: '保存AI渠道',
+    getModels: '获取AI模型', saveModels: '保存AI模型', getTools: '获取AI工具'
   }
   return map[op] || op
 }

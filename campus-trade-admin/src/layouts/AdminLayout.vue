@@ -97,6 +97,7 @@ import { allRoutes } from '@/router'
 import { getDashboardStats, getReportList, updateAdminPassword } from '@/api/admin'
 import type { DashboardStats, PageQueryParams } from '@/types'
 import { ElMessage } from 'element-plus'
+import { useAdminKickout } from '@/composables/useAdminKickout'
 
 const route = useRoute()
 const router = useRouter()
@@ -223,16 +224,41 @@ const handleChangePassword = async () => {
   }
 }
 
+useAdminKickout()
+
+const checkKickout = async () => {
+  if (!adminStore.token) return
+  try {
+    const resp = await fetch('/api/dashboard/stats', {
+      headers: { Authorization: `Bearer ${adminStore.token}` }
+    })
+    if (resp.status === 401) {
+      const data = await resp.json()
+      if (data.message?.includes('其他设备')) {
+        adminStore.clearAuth()
+        router.push('/login')
+        ElMessage.error({ message: '账号在其他设备登录，您已被自动退出', duration: 5000, grouping: true })
+      }
+    }
+  } catch { /* ignore */ }
+}
+
+const onVisibilityChange = () => {
+  if (document.visibilityState === 'visible') checkKickout()
+}
+
 onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
   document.addEventListener('fullscreenchange', onFullscreenChange)
+  document.addEventListener('visibilitychange', onVisibilityChange)
   fetchStats()
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 </script>
 

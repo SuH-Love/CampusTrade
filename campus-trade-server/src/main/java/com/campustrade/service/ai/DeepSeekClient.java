@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
@@ -184,23 +185,40 @@ public class DeepSeekClient {
             }
         }
         if (lastUserMessage == null) return currentModel;
-        if (currentVisionModel != null && !currentVisionModel.isEmpty() && lastUserMessage.contains("[图片:")) {
-            log.info("Model routing: message contains image -> vision model: {}", currentVisionModel);
-            return currentVisionModel;
-        }
-        if (!currentRoutingEnabled) return currentModel;
-        String lower = lastUserMessage.toLowerCase();
-        String[] reasonerKeywords = {
-            "分析", "计算", "比较", "推荐", "统计", "趋势", "为什么", "怎么算",
-            "哪种好", "区别", "优缺点", "建议", "规划", "预测", "评估", "对比"
-        };
-        for (String kw : reasonerKeywords) {
-            if (lower.contains(kw)) {
-                log.info("Model routing: '{}' -> reasoner model (keyword: {})", lastUserMessage.substring(0, Math.min(20, lastUserMessage.length())), kw);
-                return currentReasonerModel;
+        String scene = "chat";
+        if (lastUserMessage.contains("[图片:")) {
+            scene = "vision";
+        } else {
+            String lower = lastUserMessage.toLowerCase();
+            String[] reasonerKeywords = {
+                "分析", "计算", "比较", "推荐", "统计", "趋势", "为什么", "怎么算",
+                "哪种好", "区别", "优缺点", "建议", "规划", "预测", "评估", "对比"
+            };
+            for (String kw : reasonerKeywords) {
+                if (lower.contains(kw)) { scene = "reasoning"; break; }
             }
         }
+        String[] routed = routeByScene(scene);
+        if (routed != null) {
+            log.info("Model routing via channel: scene={} -> model={}", scene, routed[2]);
+            lastRoutedConfig.set(routed);
+            return routed[2];
+        }
+        lastRoutedConfig.remove();
+        if ("vision".equals(scene) && currentVisionModel != null && !currentVisionModel.isEmpty()) {
+            log.info("Model routing: vision model: {}", currentVisionModel);
+            return currentVisionModel;
+        }
+        if ("reasoning".equals(scene) && currentRoutingEnabled && currentReasonerModel != null) {
+            return currentReasonerModel;
+        }
         return currentModel;
+    }
+
+    private ThreadLocal<String[]> lastRoutedConfig = new ThreadLocal<>();
+
+    public String[] getRoutedConfig() {
+        return lastRoutedConfig.get();
     }
 
     public String getModel() {
@@ -330,14 +348,18 @@ public class DeepSeekClient {
                     throw new RuntimeException("AI concurrent request limit reached");
                 }
                 JSONObject payload = new JSONObject();
-                payload.set("model", routeModel(messages));
+                String routedModel = routeModel(messages);
+                String[] routed = getRoutedConfig();
+                String chatUrl = (routed != null) ? routed[0] : currentBaseUrl;
+                String chatKey = (routed != null) ? routed[1] : currentApiKey;
+                payload.set("model", routedModel);
                 payload.set("messages", JSONUtil.parseArray(messages));
                 payload.set("stream", true);
                 payload.set("temperature", 0.3);
                 payload.set("max_tokens", 2048);
 
-                response = HttpRequest.post(currentBaseUrl + "/chat/completions")
-                        .header("Authorization", "Bearer " + currentApiKey)
+                response = HttpRequest.post(chatUrl + "/chat/completions")
+                        .header("Authorization", "Bearer " + chatKey)
                         .header("Content-Type", "application/json")
                         .body(payload.toString())
                         .timeout(timeoutMs)
@@ -422,14 +444,18 @@ public class DeepSeekClient {
                 return FALLBACK_ANSWERS.get("faq");
             }
             JSONObject payload = new JSONObject();
-            payload.set("model", routeModel(messages));
+            String routedModel = routeModel(messages);
+            String[] routed = getRoutedConfig();
+            String chatUrl = (routed != null) ? routed[0] : currentBaseUrl;
+            String chatKey = (routed != null) ? routed[1] : currentApiKey;
+            payload.set("model", routedModel);
             payload.set("messages", JSONUtil.parseArray(messages));
             payload.set("stream", false);
             payload.set("temperature", 0.3);
             payload.set("max_tokens", 2048);
 
-            HttpResponse response = HttpRequest.post(currentBaseUrl + "/chat/completions")
-                    .header("Authorization", "Bearer " + currentApiKey)
+            HttpResponse response = HttpRequest.post(chatUrl + "/chat/completions")
+                    .header("Authorization", "Bearer " + chatKey)
                     .header("Content-Type", "application/json")
                     .body(payload.toString())
                     .timeout(timeoutMs)
@@ -506,7 +532,11 @@ public class DeepSeekClient {
                 return result;
             }
             JSONObject payload = new JSONObject();
-            payload.set("model", routeModel(messages));
+            String routedModel = routeModel(messages);
+            String[] routed = getRoutedConfig();
+            String chatUrl = (routed != null) ? routed[0] : currentBaseUrl;
+            String chatKey = (routed != null) ? routed[1] : currentApiKey;
+            payload.set("model", routedModel);
             payload.set("messages", JSONUtil.parseArray(messages));
             payload.set("stream", false);
             payload.set("temperature", 0.3);
@@ -515,8 +545,8 @@ public class DeepSeekClient {
                 payload.set("tools", JSONUtil.parseArray(tools));
             }
 
-            HttpResponse response = HttpRequest.post(currentBaseUrl + "/chat/completions")
-                    .header("Authorization", "Bearer " + currentApiKey)
+            HttpResponse response = HttpRequest.post(chatUrl + "/chat/completions")
+                    .header("Authorization", "Bearer " + chatKey)
                     .header("Content-Type", "application/json")
                     .body(payload.toString())
                     .timeout(timeoutMs)
@@ -556,16 +586,26 @@ public class DeepSeekClient {
     public List<float[]> embeddings(List<String> texts) {
         List<float[]> result = new ArrayList<>();
         if (texts == null || texts.isEmpty()) return result;
-        String embKey = (currentEmbApiKey != null && !currentEmbApiKey.isEmpty()) ? currentEmbApiKey : currentApiKey;
-        String embUrl = (currentEmbBaseUrl != null && !currentEmbBaseUrl.isEmpty()) ? currentEmbBaseUrl : currentBaseUrl;
-        if (embKey == null || embKey.isEmpty()) return result;
+        String embKey = null, embUrl = null, embModel = null;
+        String[] routed = routeByScene("embedding");
+        if (routed != null) {
+            embUrl = routed[0];
+            embKey = routed[1];
+            embModel = routed[2];
+        }
+        if (embKey == null || embKey.isEmpty()) {
+            embKey = (currentEmbApiKey != null && !currentEmbApiKey.isEmpty()) ? currentEmbApiKey : currentApiKey;
+            embUrl = (currentEmbBaseUrl != null && !currentEmbBaseUrl.isEmpty()) ? currentEmbBaseUrl : currentBaseUrl;
+            embModel = (currentEmbModel != null && !currentEmbModel.isEmpty()) ? currentEmbModel : null;
+        }
+        if (embKey == null || embKey.isEmpty() || embModel == null) return result;
         try {
             if (!concurrencyLimit.tryAcquire(timeoutMs, TimeUnit.MILLISECONDS)) {
                 log.warn("Embedding request concurrency limit reached");
                 return result;
             }
             JSONObject payload = new JSONObject();
-            payload.set("model", currentEmbModel);
+            payload.set("model", embModel);
             payload.set("input", JSONUtil.parseArray(texts));
             HttpResponse response = HttpRequest.post(embUrl + "/embeddings")
                     .header("Authorization", "Bearer " + embKey)
@@ -612,6 +652,129 @@ public class DeepSeekClient {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    // ==================== 渠道+模型注册管理 ====================
+    private static final String REDIS_KEY_CHANNELS = "ai:channels";
+    private static final String REDIS_KEY_MODELS = "ai:models";
+
+    public String getChannelsJson() {
+        try {
+            String json = stringRedisTemplate.opsForValue().get(REDIS_KEY_CHANNELS);
+            if (json == null) return "[]";
+            JSONArray arr = JSONUtil.parseArray(json);
+            for (int i = 0; i < arr.size(); i++) {
+                JSONObject ch = arr.getJSONObject(i);
+                String key = ch.getStr("apiKey");
+                if (key != null && key.length() > 8) {
+                    ch.set("apiKey", key.substring(0, 4) + "****" + key.substring(key.length() - 4));
+                }
+            }
+            return arr.toString();
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    private String getChannelsJsonRaw() {
+        try {
+            String json = stringRedisTemplate.opsForValue().get(REDIS_KEY_CHANNELS);
+            return json != null ? json : "[]";
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    public void saveChannelsJson(String json) {
+        try {
+            JSONArray incoming = JSONUtil.parseArray(json);
+            String existingJson = stringRedisTemplate.opsForValue().get(REDIS_KEY_CHANNELS);
+            JSONArray existing = existingJson != null ? JSONUtil.parseArray(existingJson) : new JSONArray();
+            for (int i = 0; i < incoming.size(); i++) {
+                JSONObject ch = incoming.getJSONObject(i);
+                String key = ch.getStr("apiKey");
+                if (key != null && key.contains("****")) {
+                    String chId = ch.getStr("id");
+                    for (int j = 0; j < existing.size(); j++) {
+                        JSONObject ex = existing.getJSONObject(j);
+                        if (chId != null && chId.equals(ex.getStr("id"))) {
+                            ch.set("apiKey", ex.getStr("apiKey"));
+                            break;
+                        }
+                    }
+                }
+            }
+            stringRedisTemplate.opsForValue().set(REDIS_KEY_CHANNELS, incoming.toString());
+            log.info("AI channels updated");
+        } catch (Exception e) {
+            log.warn("Failed to save channels: {}", e.getMessage());
+        }
+    }
+
+    public String getModelsJson() {
+        try {
+            String json = stringRedisTemplate.opsForValue().get(REDIS_KEY_MODELS);
+            return json != null ? json : "[]";
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    public void saveModelsJson(String json) {
+        try {
+            stringRedisTemplate.opsForValue().set(REDIS_KEY_MODELS, json);
+            log.info("AI models updated");
+        } catch (Exception e) {
+            log.warn("Failed to save models: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 根据场景路由到渠道+模型
+     * @param scene chat/reasoning/vision/embedding
+     * @return [baseUrl, apiKey, model] 或 null
+     */
+    public String[] routeByScene(String scene) {
+        try {
+            JSONArray channels = JSONUtil.parseArray(getChannelsJsonRaw());
+            JSONArray models = JSONUtil.parseArray(getModelsJson());
+            List<JSONObject> candidates = new ArrayList<>();
+            for (int i = 0; i < models.size(); i++) {
+                JSONObject m = models.getJSONObject(i);
+                JSONArray caps = m.getJSONArray("caps");
+                boolean hasCap = false;
+                if (caps != null) {
+                    for (int j = 0; j < caps.size(); j++) {
+                        if (scene.equals(caps.getStr(j))) { hasCap = true; break; }
+                    }
+                }
+                if (!hasCap) continue;
+                String channelId = m.getStr("channelId");
+                for (int j = 0; j < channels.size(); j++) {
+                    JSONObject ch = channels.getJSONObject(j);
+                    if (channelId.equals(ch.getStr("id")) && ch.getBool("enabled", false)) {
+                        JSONObject candidate = new JSONObject();
+                        candidate.set("baseUrl", ch.getStr("baseUrl"));
+                        candidate.set("apiKey", ch.getStr("apiKey"));
+                        candidate.set("model", m.getStr("model"));
+                        candidate.set("priority", ch.getInt("priority", 99));
+                        candidates.add(candidate);
+                        break;
+                    }
+                }
+            }
+            if (candidates.isEmpty()) return null;
+            candidates.sort(Comparator.comparingInt(c -> c.getInt("priority", 99)));
+            JSONObject best = candidates.get(0);
+            return new String[]{ best.getStr("baseUrl"), best.getStr("apiKey"), best.getStr("model") };
+        } catch (Exception e) {
+            log.warn("routeByScene failed: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public boolean isVisionAvailable() {
+        return routeByScene("vision") != null;
     }
 
 }

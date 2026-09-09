@@ -4,6 +4,7 @@ import { Client, type IMessage, type StompSubscription } from '@stomp/stompjs'
 import { getTotalUnreadCount, getOnlineUsers } from '@/api/chat'
 import type { ChatMessageVO } from '@/api/chat'
 import type { NotificationVO } from '@/api/notification'
+import { ElMessage } from 'element-plus'
 
 export interface ChatWsMessage {
   type: 'CHAT' | 'TYPING' | 'STOP_TYPING' | 'READ' | 'ONLINE_STATUS' | 'BLOCKED' | 'UNBLOCKED' | 'BLOCKED_BY'
@@ -32,6 +33,7 @@ let stompClient: Client | null = null
 let chatSub: StompSubscription | null = null
 let notifySub: StompSubscription | null = null
 let onlineSub: StompSubscription | null = null
+let kickoutSub: StompSubscription | null = null
 let cachedUserId: number | null = null
 let reconnectAttempts = 0
 
@@ -147,12 +149,26 @@ function subscribe(client: Client) {
       }
     } catch { /* ignore */ }
   })
+
+  kickoutSub = client.subscribe(`/user/queue/kickout`, (message: IMessage) => {
+    try {
+      const body = JSON.parse(message.body)
+      if (body.type === 'KICKED') {
+        const store = useUserStore()
+        store.clearAuth()
+        disconnect()
+        ElMessage.error({ message: '账号在其他设备登录，您已被自动退出', duration: 5000, grouping: true })
+        setTimeout(() => { window.location.href = '/login' }, 100)
+      }
+    } catch { /* ignore */ }
+  })
 }
 
 function disconnect() {
   if (chatSub) { chatSub.unsubscribe(); chatSub = null }
   if (notifySub) { notifySub.unsubscribe(); notifySub = null }
   if (onlineSub) { onlineSub.unsubscribe(); onlineSub = null }
+  if (kickoutSub) { kickoutSub.unsubscribe(); kickoutSub = null }
   if (stompClient) {
     stompClient.deactivate()
     stompClient = null

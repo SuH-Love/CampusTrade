@@ -1,10 +1,19 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
 
-const Layout = () => import('@/layouts/AdminLayout.vue')
+const lazyLoad = (importFn: () => Promise<Record<string, unknown>>) => {
+  return () => importFn().catch((error: Error) => {
+    if (error.message?.includes('Failed to fetch dynamically imported module')) {
+      return new Promise(resolve => setTimeout(resolve, 1500)).then(() => importFn())
+    }
+    throw error
+  })
+}
+
+const Layout = lazyLoad(() => import('@/layouts/AdminLayout.vue'))
 
 const allRoutes: RouteRecordRaw[] = [
-  { path: '/login', name: 'Login', component: () => import('@/pages/Login.vue') },
+  { path: '/login', name: 'Login', component: lazyLoad(() => import('@/pages/Login.vue')) },
   {
     path: '/',
     component: Layout,
@@ -12,74 +21,86 @@ const allRoutes: RouteRecordRaw[] = [
       {
         path: '',
         name: 'Dashboard',
-        component: () => import('@/pages/Dashboard.vue'),
+        component: lazyLoad(() => import('@/pages/Dashboard.vue')),
         meta: { title: '仪表盘', icon: 'DataAnalysis', permission: '' }
       },
       {
         path: 'user',
         name: 'UserManage',
-        component: () => import('@/pages/UserManage.vue'),
+        component: lazyLoad(() => import('@/pages/UserManage.vue')),
         meta: { title: '用户管理', icon: 'User', permission: 'user:manage' }
       },
       {
         path: 'goods',
         name: 'GoodsAudit',
-        component: () => import('@/pages/GoodsAudit.vue'),
+        component: lazyLoad(() => import('@/pages/GoodsAudit.vue')),
         meta: { title: '商品审核', icon: 'Goods', permission: 'goods:audit' }
       },
       {
         path: 'order',
         name: 'OrderManage',
-        component: () => import('@/pages/OrderManage.vue'),
+        component: lazyLoad(() => import('@/pages/OrderManage.vue')),
         meta: { title: '订单管理', icon: 'List', permission: 'goods:manage' }
       },
       {
         path: 'report',
         name: 'ReportAudit',
-        component: () => import('@/pages/ReportAudit.vue'),
+        component: lazyLoad(() => import('@/pages/ReportAudit.vue')),
         meta: { title: '举报审核', icon: 'Warning', permission: 'report:manage' }
       },
       {
         path: 'banner',
         name: 'BannerManage',
-        component: () => import('@/pages/BannerManage.vue'),
+        component: lazyLoad(() => import('@/pages/BannerManage.vue')),
         meta: { title: '横幅管理', icon: 'Picture', permission: 'banner:manage' }
       },
       {
         path: 'category',
         name: 'CategoryManage',
-        component: () => import('@/pages/CategoryManage.vue'),
+        component: lazyLoad(() => import('@/pages/CategoryManage.vue')),
         meta: { title: '分类管理', icon: 'Menu', permission: 'goods:audit' }
       },
       {
         path: 'announcement',
         name: 'AnnouncementManage',
-        component: () => import('@/pages/AnnouncementManage.vue'),
+        component: lazyLoad(() => import('@/pages/AnnouncementManage.vue')),
         meta: { title: '公告管理', icon: 'Bell', permission: 'goods:audit' }
       },
       {
         path: 'log',
         name: 'LogCenter',
-        component: () => import('@/pages/LogCenter.vue'),
+        component: lazyLoad(() => import('@/pages/LogCenter.vue')),
         meta: { title: '日志中心', icon: 'Document', permission: 'log:manage' }
       },
       {
         path: 'system-config',
         name: 'SystemConfig',
-        component: () => import('@/pages/SystemConfig.vue'),
+        component: lazyLoad(() => import('@/pages/SystemConfig.vue')),
         meta: { title: '系统配置', icon: 'Setting', permission: 'system:config' }
       },
       {
         path: 'fund-log',
         name: 'FundLogManage',
-        component: () => import('@/pages/FundLogManage.vue'),
+        component: lazyLoad(() => import('@/pages/FundLogManage.vue')),
         meta: { title: '资金流水', icon: 'Coin', permission: 'fund:manage' }
       },
       {
         path: 'faq',
         name: 'FaqManage',
-        component: () => import('@/pages/FaqManage.vue'),
+        component: lazyLoad(() => import('@/pages/FaqManage.vue')),
         meta: { title: 'AI知识库', icon: 'ChatLineSquare', permission: 'system:config' }
+      },
+      {
+        path: 'ai-tools',
+        name: 'AiTools',
+        component: lazyLoad(() => import('@/pages/AiTools.vue')),
+        meta: { title: 'AI工具', icon: 'MagicStick', permission: 'system:config' }
+      },
+      {
+        path: 'ai-feedback',
+        name: 'AiFeedback',
+        component: lazyLoad(() => import('@/pages/AiFeedback.vue')),
+        meta: { title: 'AI反馈', icon: 'ChatDotRound', permission: 'system:config' }
       }
     ]
   },

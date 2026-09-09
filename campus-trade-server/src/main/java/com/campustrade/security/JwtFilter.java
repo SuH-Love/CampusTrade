@@ -38,20 +38,37 @@ public class JwtFilter extends OncePerRequestFilter {
         String token = getTokenFromRequest(request);
 
         if (StringUtils.hasText(token) && jwtUtil.validateToken(token)) {
+            Long userId = jwtUtil.getUserIdFromToken(token);
+            String username = jwtUtil.getUsernameFromToken(token);
+
             String blacklistKey = RedisConstant.BLACKLIST_PREFIX + token;
             Boolean isBlacklisted = redisTemplate.hasKey(blacklistKey);
             if (isBlacklisted != null && isBlacklisted) {
+                String storedAfterBlacklist = (String) redisTemplate.opsForValue().get("token:user:" + userId);
+                if (storedAfterBlacklist != null && !storedAfterBlacklist.isEmpty() && !token.equals(storedAfterBlacklist)) {
+                    log.info("Kicked out: userId={} token blacklisted by another device login", userId);
+                    response.setStatus(401);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"code\":401,\"message\":\"账号在其他设备登录，请重新登录\",\"data\":null}");
+                    return;
+                }
                 filterChain.doFilter(request, response);
                 return;
             }
-
-            Long userId = jwtUtil.getUserIdFromToken(token);
-            String username = jwtUtil.getUsernameFromToken(token);
 
             String banKey = "ban:user:" + userId;
             Boolean isBanned = redisTemplate.hasKey(banKey);
             if (isBanned != null && isBanned) {
                 filterChain.doFilter(request, response);
+                return;
+            }
+
+            String storedToken = (String) redisTemplate.opsForValue().get("token:user:" + userId);
+            if (storedToken != null && !storedToken.isEmpty() && !token.equals(storedToken)) {
+                log.info("Token mismatch for userId={}: token replaced by another device login", userId);
+                response.setStatus(401);
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"code\":401,\"message\":\"账号在其他设备登录，请重新登录\",\"data\":null}");
                 return;
             }
 

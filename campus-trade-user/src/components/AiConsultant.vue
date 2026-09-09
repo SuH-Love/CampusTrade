@@ -212,7 +212,7 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { ChatDotRound, Close, Delete, Promotion, Tools, ArrowDown, ArrowUp, Loading, VideoPause, CopyDocument, RefreshRight, FullScreen, CircleCheck, Picture } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { chatStream, getAiStatus, clearSession, getSessionHistory, submitAiFeedback } from '@/api/ai'
 import { useUserStore } from '@/stores/user'
 import MarkdownIt from 'markdown-it'
@@ -811,15 +811,32 @@ const regenerateAnswer = (idx: number) => {
 const handleFeedback = async (msg: Message, rating: number, idx: number) => {
   if (msg.feedback === rating) return
   const userMsg = messages.value[idx - 1]
+  let feedbackText: string | undefined
+  if (rating === -1) {
+    try {
+      const { value } = await ElMessageBox.prompt('请告诉我们哪里做得不好，我们会努力改进', '反馈建议', {
+        confirmButtonText: '提交',
+        cancelButtonText: '跳过',
+        inputPlaceholder: '请输入您的建议（可选）',
+        inputType: 'textarea',
+        inputValidator: () => true
+      })
+      feedbackText = value || undefined
+    } catch {
+      return
+    }
+  }
   try {
     await submitAiFeedback({
       sessionId: sessionId.value || '',
       messageId: String(msg.id),
       userMessage: userMsg?.content || '',
       aiResponse: msg.content,
-      rating
+      rating,
+      feedback: feedbackText
     })
     msg.feedback = rating
+    ElMessage.success({ message: '感谢您的反馈', duration: 1500 })
   } catch {
     ElMessage.warning('反馈提交失败')
   }

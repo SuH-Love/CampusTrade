@@ -147,15 +147,17 @@
 
 <script setup lang="ts">
 import { onUnmounted, watch, ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useCartStore } from '@/stores/cart'
 import { getUnreadCount as getNotifyUnread } from '@/api/notification'
 import { useChatWs } from '@/composables/useChatWs'
 import { Sunny, Moon, Lock } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import AiConsultant from '@/components/AiConsultant.vue'
 
 const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 const cartStore = useCartStore()
 const { chatUnread, notifyUnread, onNotification } = useChatWs()
@@ -188,6 +190,7 @@ onMounted(() => {
     applyDarkMode(true)
   }
 
+  document.addEventListener('visibilitychange', onVisibilityChange)
 })
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
@@ -207,6 +210,28 @@ const stopPolling = () => {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
 }
 
+const checkKickout = async () => {
+  if (!userStore.token) return
+  try {
+    const resp = await fetch('/api/user/info', {
+      headers: { Authorization: `Bearer ${userStore.token}` }
+    })
+    if (resp.status === 401) {
+      const data = await resp.json()
+      if (data.message?.includes('其他设备')) {
+        stopPolling()
+        userStore.clearAuth()
+        router.push('/login')
+        ElMessage.error({ message: '账号在其他设备登录，您已被自动退出', duration: 5000, grouping: true })
+      }
+    }
+  } catch { /* ignore */ }
+}
+
+const onVisibilityChange = () => {
+  if (document.visibilityState === 'visible') checkKickout()
+}
+
 watch(() => userStore.token, (token) => {
   if (token) startPolling(); else { stopPolling(); notifyUnread.value = 0; cartStore.cartCount = 0 }
 }, { immediate: true })
@@ -223,6 +248,8 @@ const handleLogout = async () => {
 
 onUnmounted(() => {
   stopPolling()
+
+  document.removeEventListener('visibilitychange', onVisibilityChange)
   removeNotifyHandler()
 
 })

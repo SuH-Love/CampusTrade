@@ -32,7 +32,7 @@
       </el-table>
       <el-empty v-if="!loading && logs.length === 0" description="暂无日志" />
       <div class="pagination-wrapper" v-if="total > pageSize">
-        <el-pagination v-model:current-page="pageNum" :page-size="pageSize" :total="total" layout="total, prev, pager, next, sizes" :page-sizes="[10, 20, 50, 100]" @current-change="loadData" @size-change="handleSizeChange" />
+        <el-pagination v-model:current-page="pageNum" v-model:page-size="pageSize" :total="total" layout="total, prev, pager, next, sizes" :page-sizes="[10, 20, 50, 100]" @current-change="loadData" @size-change="handleSizeChange" />
       </div>
     </el-card>
   </div>

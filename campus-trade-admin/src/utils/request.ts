@@ -57,6 +57,13 @@ service.interceptors.response.use(
       const { status } = error.response
       if (status === 401 && !originalRequest._retry) {
         const adminStore = useAdminStore()
+        const respMsg = error.response.data?.message || ''
+        if (respMsg.includes('其他设备')) {
+          adminStore.clearAuth()
+          router.push('/login')
+          ElMessage.error({ message: '账号在其他设备登录，您已被自动退出', duration: 5000, grouping: true })
+          return Promise.reject(error)
+        }
         if (!adminStore.refreshToken) {
           adminStore.clearAuth()
           router.push('/login')

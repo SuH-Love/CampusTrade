@@ -56,6 +56,9 @@ public class AiController {
     private com.campustrade.service.ai.AiToolService aiToolService;
 
     @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @Autowired
     private GoodsMapper goodsMapper;
 
     @Autowired
@@ -1130,6 +1133,92 @@ public class AiController {
         } catch (Exception e) {
             log.error("获取AI统计失败", e);
             return Result.error(500, "获取统计失败");
+        }
+    }
+
+    @ApiOperation("获取AI渠道列表(管理员)")
+    @GetMapping("/channels")
+    public Result<String> getChannels() {
+        if (!SecurityUtil.isAdmin()) return Result.error(403, "无权限");
+        return Result.success(deepSeekClient.getChannelsJson());
+    }
+
+    @ApiOperation("保存AI渠道列表(管理员)")
+    @PutMapping("/channels")
+    public Result<?> saveChannels(@org.springframework.web.bind.annotation.RequestBody String body) {
+        if (!SecurityUtil.isAdmin()) return Result.error(403, "无权限");
+        deepSeekClient.saveChannelsJson(body);
+        return Result.success("保存成功");
+    }
+
+    @ApiOperation("获取AI模型注册列表(管理员)")
+    @GetMapping("/models")
+    public Result<String> getModels() {
+        if (!SecurityUtil.isAdmin()) return Result.error(403, "无权限");
+        return Result.success(deepSeekClient.getModelsJson());
+    }
+
+    @ApiOperation("保存AI模型注册列表(管理员)")
+    @PutMapping("/models")
+    public Result<?> saveModels(@org.springframework.web.bind.annotation.RequestBody String body) {
+        if (!SecurityUtil.isAdmin()) return Result.error(403, "无权限");
+        deepSeekClient.saveModelsJson(body);
+        return Result.success("保存成功");
+    }
+
+    @ApiOperation("获取AI工具列表(管理员)")
+    @GetMapping("/tools")
+    public Result<?> getTools() {
+        if (!SecurityUtil.isAdmin()) return Result.error(403, "无权限");
+        try {
+            List<Map<String, Object>> tools = aiToolService.getToolDefinitions();
+            List<Map<String, Object>> result = new java.util.ArrayList<>();
+            Set<String> writeTools = aiToolService.getWriteToolsSet();
+            for (Map<String, Object> tool : tools) {
+                Map<String, Object> info = new java.util.LinkedHashMap<>();
+                info.put("name", tool.get("function") != null ?
+                    ((Map<?, ?>) tool.get("function")).get("name") : tool.get("name"));
+                info.put("description", tool.get("function") != null ?
+                    ((Map<?, ?>) tool.get("function")).get("description") : tool.get("description"));
+                info.put("writeOperation", writeTools.contains(info.get("name")));
+                result.add(info);
+            }
+            return Result.success(result);
+        } catch (Exception e) {
+            return Result.error(500, "获取工具列表失败");
+        }
+    }
+
+    @ApiOperation("获取AI反馈列表(管理员)")
+    @GetMapping("/feedback/list")
+    public Result<?> getFeedbackList(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Integer minRating,
+            @RequestParam(required = false) Integer maxRating) {
+        if (!SecurityUtil.isAdmin()) return Result.error(403, "无权限");
+        try {
+            int offset = (page - 1) * size;
+            StringBuilder sql = new StringBuilder("SELECT f.*, u.username FROM t_ai_feedback f LEFT JOIN t_user u ON f.user_id = u.id WHERE 1=1");
+            List<Object> params = new java.util.ArrayList<>();
+            if (minRating != null) { sql.append(" AND f.rating >= ?"); params.add(minRating); }
+            if (maxRating != null) { sql.append(" AND f.rating <= ?"); params.add(maxRating); }
+            sql.append(" ORDER BY f.create_time DESC LIMIT ? OFFSET ?");
+            params.add(size); params.add(offset);
+            List<Map<String, Object>> list = jdbcTemplate.queryForList(sql.toString(), params.toArray());
+            String countSql = "SELECT COUNT(*) FROM t_ai_feedback f WHERE 1=1" +
+                (minRating != null ? " AND f.rating >= " + minRating : "") +
+                (maxRating != null ? " AND f.rating <= " + maxRating : "");
+            Long total = jdbcTemplate.queryForObject(countSql, Long.class);
+            Map<String, Object> result = new java.util.LinkedHashMap<>();
+            result.put("list", list);
+            result.put("total", total);
+            result.put("page", page);
+            result.put("size", size);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("获取反馈列表失败", e);
+            return Result.error(500, "获取失败");
         }
     }
 }
