@@ -19,7 +19,7 @@
 ### 前端
 - Vue 3 + TypeScript + Pinia
 - Element Plus
-- STOMP WebSocket (实时聊天)
+- STOMP WebSocket (实时聊天/单设备登录踢出实时推送)
 - Vite
 - markdown-it (AI回复Markdown渲染)
 
@@ -50,7 +50,16 @@ CampusTrade/
 │       ├── api/ai.ts             # AI助手SSE流式API
 │       └── components/AiConsultant.vue  # AI助手对话组件
 ├── campus-trade-admin/           # 管理端 Vue3
+│   └── src/
+│       ├── pages/
+│       │   ├── AiTools.vue       # AI工具列表
+│       │   └── AiFeedback.vue    # AI反馈分析
+│       └── composables/
+│           └── useAdminKickout.ts # WebSocket踢出监听
 ├── nginx/                        # Nginx配置
+│   ├── admin.conf                # 管理端(含/ws WebSocket代理)
+│   ├── user.conf                 # 用户端(含/ws + /api/ai/ SSE代理)
+│   └── host-nginx.conf.example   # 宿主机Nginx模板(SSL+反代)
 └── docker-compose.yml
 ```
 
@@ -141,9 +150,9 @@ docker-compose up -d --build
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `USER_PASSWORD` | `user123` | 测试用户密码（生产环境建议修改） |
-| `DEEPSEEK_API_KEY` | (空) | DeepSeek API Key，留空则AI功能降级为本地FAQ |
-| `DEEPSEEK_BASE_URL` | `https://api.siliconflow.cn/v1` | AI API地址 |
-| `DEEPSEEK_MODEL` | `deepseek-ai/DeepSeek-V4-Flash` | 模型名称 |
+| `DEEPSEEK_API_KEY` | (空) | AI API Key，留空则AI功能降级为本地FAQ。生产环境通过管理后台渠道配置页面设置 |
+| `DEEPSEEK_BASE_URL` | `https://api.siliconflow.cn/v1` | AI API地址（硅基流动） |
+| `DEEPSEEK_MODEL` | `deepseek-ai/DeepSeek-V4-Flash` | 默认模型名称，管理后台可配置多渠道多模型 |
 | `FRONTEND_USER_PORT` | `80` | 用户端端口，有宿主机Nginx时设为 `127.0.0.1:8088` |
 | `FRONTEND_ADMIN_PORT` | `81` | 管理端端口，有宿主机Nginx时设为 `127.0.0.1:8181` |
 
@@ -180,7 +189,7 @@ docker-compose up -d --build
 - 暗色模式/响应式布局
 
 ### 管理端
-- 仪表盘（数据统计/图表/AI服务状态/邮件服务状态/支付宝配置状态）
+- 仪表盘（数据统计/图表/AI服务状态/邮件服务状态/支付宝配置状态/AI工具快捷入口/AI反馈入口）
 - 用户管理（封禁/解封/导出CSV）
 - 商品审核/复审（可对AI审核结果改判）/分类管理
 - 订单管理（退款审批/导出CSV）
@@ -188,12 +197,16 @@ docker-compose up -d --build
 - 横幅管理/公告管理
 - 系统配置
   - 支付宝沙箱密钥配置（AES加密存储）
-  - AI助手API配置（热更新）
+  - AI助手渠道/模型配置（卡片式布局+能力标签+自动路由+API Key掩码+热更新）
+  - AI系统提示词配置（热更新）
   - 邮件服务配置（QQ邮箱SMTP/授权码，AES加密存储，热更新）
+- AI工具列表（查看所有Function Calling工具定义）
+- AI反馈分析（用户反馈列表/有帮助·无帮助筛选/反馈详情弹窗）
 - 资金流水查看
 - 操作日志/安全日志
 
 ### AI助手
+- **渠道+模型能力标签+自动路由**：多API渠道配置（SiliconFlow等），模型按能力标签（对话/分析/图片/向量）自动路由到最优模型
 - **DeepSeek大模型接入**：基于DeepSeek-V4-Flash，支持多轮对话和上下文记忆
 - **平台知识注入**：系统提示词中注入平台规则知识（密码重置流程、商品审核流程、商品状态说明等），确保AI回答准确反映最新平台规则
 - **条件知识注入**：仅当问题需要工具调用时才注入平台知识，简单对话不注入，减少API输入token
@@ -225,6 +238,7 @@ docker-compose up -d --build
 - **工具调用展示**：折叠卡片展示工具名/结果（参数已隐藏），统一底色与思考流程块
 - **中断/重试**：支持发送中中断请求、错误时重试
 - **刷新保留**：localStorage保存思考流程数据，刷新页面后恢复展示
+- **用户反馈**：点赞/点踩评价AI回复，点踩时弹出反馈建议输入框
 
 ### 商品审核系统
 - **AI自动审核**：用户提交审核后，MQ异步触发AI审核，检查内容合规性（违禁品/欺诈/绕过平台等）
@@ -249,6 +263,7 @@ docker-compose up -d --build
 
 - BCrypt密码加密 + 密码强度校验（8-50位，含大小写/数字/特殊字符三种）
 - JWT accessToken(2h) + refreshToken(7d) + Token黑名单
+- 单设备登录踢出：新登录替换旧Token，通过STOMP WebSocket实时推送踢出消息，前端自动弹出提示并跳转登录页（毫秒级响应，无需轮询）
 - RBAC三角色权限(ROLE_USER/ROLE_ADMIN/ROLE_SUPER_ADMIN)
 - 账号锁定(5次失败锁定30分钟)
 - 接口限流 + 防重复提交
