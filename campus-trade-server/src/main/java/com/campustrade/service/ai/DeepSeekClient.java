@@ -18,9 +18,12 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -32,6 +35,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Component
@@ -46,14 +51,23 @@ public class DeepSeekClient {
     @Value("${ai.deepseek.model:deepseek-chat}")
     private String model;
 
-    @Value("${ai.deepseek.timeout-ms:30000}")
+    @Value("${ai.deepseek.timeout-ms:120000}")
     private int timeoutMs;
+
+    @Value("${file.upload.path:/data/uploads}")
+    private String uploadBasePath;
+
+    @Value("${file.upload.url-prefix:/uploads}")
+    private String urlPrefix;
 
     @Value("${ai.enabled:true}")
     private boolean aiEnabled;
 
     @Value("${ai.deepseek.max-concurrent:5}")
     private int maxConcurrent;
+
+    @Value("${ai.deepseek.max-tokens:4096}")
+    private int maxTokens;
 
     @Value("${ai.fallback.api-key:}")
     private String fallbackApiKey;
@@ -124,6 +138,17 @@ public class DeepSeekClient {
         FALLBACK_ANSWERS.put("default", "AI 助手正在休息，请稍后再试。");
     }
 
+    public static class RoutedConfig {
+        public final String baseUrl;
+        public final String apiKey;
+        public final String model;
+        public RoutedConfig(String baseUrl, String apiKey, String model) {
+            this.baseUrl = baseUrl;
+            this.apiKey = apiKey;
+            this.model = model;
+        }
+    }
+
     @PostConstruct
     public void init() {
         concurrencyLimit = new Semaphore(maxConcurrent);
@@ -176,7 +201,7 @@ public class DeepSeekClient {
         return aiEnabled && currentApiKey != null && !currentApiKey.isEmpty();
     }
 
-    public String routeModel(List<Map<String, Object>> messages) {
+    public RoutedConfig routeModel(List<Map<String, Object>> messages) {
         String lastUserMessage = null;
         for (int i = messages.size() - 1; i >= 0; i--) {
             if ("user".equals(messages.get(i).get("role"))) {
@@ -184,7 +209,7 @@ public class DeepSeekClient {
                 break;
             }
         }
-        if (lastUserMessage == null) return currentModel;
+        if (lastUserMessage == null) return new RoutedConfig(currentBaseUrl, currentApiKey, currentModel);
         String scene = "chat";
         if (lastUserMessage.contains("[图片:")) {
             scene = "vision";
@@ -201,24 +226,16 @@ public class DeepSeekClient {
         String[] routed = routeByScene(scene);
         if (routed != null) {
             log.info("Model routing via channel: scene={} -> model={}", scene, routed[2]);
-            lastRoutedConfig.set(routed);
-            return routed[2];
+            return new RoutedConfig(routed[0], routed[1], routed[2]);
         }
-        lastRoutedConfig.remove();
         if ("vision".equals(scene) && currentVisionModel != null && !currentVisionModel.isEmpty()) {
             log.info("Model routing: vision model: {}", currentVisionModel);
-            return currentVisionModel;
+            return new RoutedConfig(currentBaseUrl, currentApiKey, currentVisionModel);
         }
         if ("reasoning".equals(scene) && currentRoutingEnabled && currentReasonerModel != null) {
-            return currentReasonerModel;
+            return new RoutedConfig(currentBaseUrl, currentApiKey, currentReasonerModel);
         }
-        return currentModel;
-    }
-
-    private ThreadLocal<String[]> lastRoutedConfig = new ThreadLocal<>();
-
-    public String[] getRoutedConfig() {
-        return lastRoutedConfig.get();
+        return new RoutedConfig(currentBaseUrl, currentApiKey, currentModel);
     }
 
     public String getModel() {
@@ -348,18 +365,16 @@ public class DeepSeekClient {
                     throw new RuntimeException("AI concurrent request limit reached");
                 }
                 JSONObject payload = new JSONObject();
-                String routedModel = routeModel(messages);
-                String[] routed = getRoutedConfig();
-                String chatUrl = (routed != null) ? routed[0] : currentBaseUrl;
-                String chatKey = (routed != null) ? routed[1] : currentApiKey;
-                payload.set("model", routedModel);
-                payload.set("messages", JSONUtil.parseArray(messages));
+                RoutedConfig routed = routeModel(messages);
+                payload.set("model", routed.model);
+                List<Map<String, Object>> messagesToSend = convertMessagesForVision(messages);
+                payload.set("messages", JSONUtil.parseArray(JSONUtil.toJsonStr(messagesToSend)));
                 payload.set("stream", true);
                 payload.set("temperature", 0.3);
-                payload.set("max_tokens", 2048);
+                payload.set("max_tokens", maxTokens);
 
-                response = HttpRequest.post(chatUrl + "/chat/completions")
-                        .header("Authorization", "Bearer " + chatKey)
+                response = HttpRequest.post(routed.baseUrl + "/chat/completions")
+                        .header("Authorization", "Bearer " + routed.apiKey)
                         .header("Content-Type", "application/json")
                         .body(payload.toString())
                         .timeout(timeoutMs)
@@ -419,24 +434,21 @@ public class DeepSeekClient {
             if (attempt == 0) log.info("Retrying DeepSeek chat after failure");
         }
         if (fallbackApiKey != null && !fallbackApiKey.isEmpty()) {
-            String origKey = currentApiKey, origUrl = currentBaseUrl, origModel = currentModel;
-            currentApiKey = fallbackApiKey;
-            currentBaseUrl = fallbackBaseUrl.isEmpty() ? origUrl : fallbackBaseUrl;
-            currentModel = fallbackModel.isEmpty() ? origModel : fallbackModel;
-            try {
-                log.info("Trying fallback model: {}", currentModel);
-                String result = doChat(messages);
-                if (!FALLBACK_ANSWERS.get("faq").equals(result)) return result;
-            } finally {
-                currentApiKey = origKey;
-                currentBaseUrl = origUrl;
-                currentModel = origModel;
-            }
+            String fbUrl = fallbackBaseUrl.isEmpty() ? currentBaseUrl : fallbackBaseUrl;
+            String fbModel = fallbackModel.isEmpty() ? currentModel : fallbackModel;
+            log.info("Trying fallback model: {}", fbModel);
+            String result = doChatWithConfig(messages, fallbackApiKey, fbUrl, fbModel);
+            if (!FALLBACK_ANSWERS.get("faq").equals(result)) return result;
         }
         return FALLBACK_ANSWERS.get("faq");
     }
 
     private String doChat(List<Map<String, Object>> messages) {
+        RoutedConfig routed = routeModel(messages);
+        return doChatWithConfig(messages, routed.apiKey, routed.baseUrl, routed.model);
+    }
+
+    private String doChatWithConfig(List<Map<String, Object>> messages, String chatKey, String chatUrl, String chatModel) {
         Timer.Sample sample = Timer.start(meterRegistry);
         requestCounter.increment();
         try {
@@ -444,15 +456,12 @@ public class DeepSeekClient {
                 return FALLBACK_ANSWERS.get("faq");
             }
             JSONObject payload = new JSONObject();
-            String routedModel = routeModel(messages);
-            String[] routed = getRoutedConfig();
-            String chatUrl = (routed != null) ? routed[0] : currentBaseUrl;
-            String chatKey = (routed != null) ? routed[1] : currentApiKey;
-            payload.set("model", routedModel);
-            payload.set("messages", JSONUtil.parseArray(messages));
+            payload.set("model", chatModel);
+            List<Map<String, Object>> messagesToSend = convertMessagesForVision(messages);
+            payload.set("messages", JSONUtil.parseArray(JSONUtil.toJsonStr(messagesToSend)));
             payload.set("stream", false);
             payload.set("temperature", 0.3);
-            payload.set("max_tokens", 2048);
+            payload.set("max_tokens", maxTokens);
 
             HttpResponse response = HttpRequest.post(chatUrl + "/chat/completions")
                     .header("Authorization", "Bearer " + chatKey)
@@ -483,6 +492,10 @@ public class DeepSeekClient {
     }
 
     public Map<String, Object> chatWithTools(List<Map<String, Object>> messages, List<Map<String, Object>> tools) {
+        return chatWithToolsForScene(messages, tools, null);
+    }
+
+    public Map<String, Object> chatWithToolsForScene(List<Map<String, Object>> messages, List<Map<String, Object>> tools, String sceneOverride) {
         Map<String, Object> result = new HashMap<>();
         if (!isEnabled()) {
             result.put("content", FALLBACK_ANSWERS.get("faq"));
@@ -490,7 +503,7 @@ public class DeepSeekClient {
             return result;
         }
         for (int attempt = 0; attempt < 2; attempt++) {
-            result = doChatWithTools(messages, tools);
+            result = doChatWithToolsForScene(messages, tools, sceneOverride);
             String content = (String) result.get("content");
             if (content != null && !FALLBACK_ANSWERS.get("faq").equals(content)) {
                 return result;
@@ -498,25 +511,117 @@ public class DeepSeekClient {
             if (attempt == 0) log.info("Retrying DeepSeek chatWithTools after failure");
         }
         if (fallbackApiKey != null && !fallbackApiKey.isEmpty()) {
-            String origKey = currentApiKey, origUrl = currentBaseUrl, origModel = currentModel;
-            currentApiKey = fallbackApiKey;
-            currentBaseUrl = fallbackBaseUrl.isEmpty() ? origUrl : fallbackBaseUrl;
-            currentModel = fallbackModel.isEmpty() ? origModel : fallbackModel;
-            try {
-                log.info("Trying fallback model (tools): {}", currentModel);
-                result = doChatWithTools(messages, tools);
-                String content = (String) result.get("content");
-                if (content != null && !FALLBACK_ANSWERS.get("faq").equals(content)) return result;
-            } finally {
-                currentApiKey = origKey;
-                currentBaseUrl = origUrl;
-                currentModel = origModel;
-            }
+            String fbUrl = fallbackBaseUrl.isEmpty() ? currentBaseUrl : fallbackBaseUrl;
+            String fbModel = fallbackModel.isEmpty() ? currentModel : fallbackModel;
+            log.info("Trying fallback model (tools): {}", fbModel);
+            result = doChatWithToolsConfig(messages, tools, fallbackApiKey, fbUrl, fbModel);
+            String content = (String) result.get("content");
+            if (content != null && !FALLBACK_ANSWERS.get("faq").equals(content)) return result;
         }
         return result;
     }
 
     private Map<String, Object> doChatWithTools(List<Map<String, Object>> messages, List<Map<String, Object>> tools) {
+        return doChatWithToolsForScene(messages, tools, null);
+    }
+
+    private Map<String, Object> doChatWithToolsForScene(List<Map<String, Object>> messages, List<Map<String, Object>> tools, String sceneOverride) {
+        RoutedConfig routed;
+        if (sceneOverride != null && !sceneOverride.isEmpty()) {
+            String[] routedArr = routeByScene(sceneOverride);
+            if (routedArr != null) {
+                routed = new RoutedConfig(routedArr[0], routedArr[1], routedArr[2]);
+                log.info("Model routing via scene override: scene={} -> model={}", sceneOverride, routedArr[2]);
+            } else {
+                routed = routeModel(messages);
+            }
+        } else {
+            routed = routeModel(messages);
+        }
+        return doChatWithToolsConfig(messages, tools, routed.apiKey, routed.baseUrl, routed.model);
+    }
+
+    private List<Map<String, Object>> convertMessagesForVision(List<Map<String, Object>> messages) {
+        boolean hasImage = false;
+        for (Map<String, Object> msg : messages) {
+            if ("user".equals(msg.get("role"))) {
+                Object content = msg.get("content");
+                if (content instanceof String && ((String) content).contains("[图片:")) {
+                    hasImage = true;
+                    break;
+                }
+            }
+        }
+        if (!hasImage) return messages;
+
+        log.info("Converting messages to multimodal format for vision model");
+        List<Map<String, Object>> converted = new ArrayList<>();
+        Pattern imgPattern = Pattern.compile("\\[图片:\\s*([^\\]]+)\\]\\(([^)]+)\\)");
+        for (Map<String, Object> msg : messages) {
+            if ("user".equals(msg.get("role"))) {
+                Object contentObj = msg.get("content");
+                if (contentObj instanceof String) {
+                    String content = (String) contentObj;
+                    if (content.contains("[图片:")) {
+                        List<Object> multimodalContent = new ArrayList<>();
+                        Matcher matcher = imgPattern.matcher(content);
+                        StringBuffer textPart = new StringBuffer();
+                        while (matcher.find()) {
+                            String imageUrl = matcher.group(2);
+                            matcher.appendReplacement(textPart, "");
+                            String dataUrl = imageToDataUrl(imageUrl);
+                            if (dataUrl != null) {
+                                Map<String, Object> imagePart = new HashMap<>();
+                                imagePart.put("type", "image_url");
+                                Map<String, String> urlMap = new HashMap<>();
+                                urlMap.put("url", dataUrl);
+                                imagePart.put("image_url", urlMap);
+                                multimodalContent.add(imagePart);
+                                log.info("Image converted to base64: {} ({} chars)", imageUrl, dataUrl.length());
+                            }
+                        }
+                        matcher.appendTail(textPart);
+                        String remainingText = textPart.toString().trim();
+                        if (!remainingText.isEmpty()) {
+                            Map<String, Object> textPartMap = new HashMap<>();
+                            textPartMap.put("type", "text");
+                            textPartMap.put("text", remainingText);
+                            multimodalContent.add(textPartMap);
+                        }
+                        Map<String, Object> newMsg = new HashMap<>(msg);
+                        newMsg.put("content", multimodalContent);
+                        converted.add(newMsg);
+                        continue;
+                    }
+                }
+            }
+            converted.add(msg);
+        }
+        return converted;
+    }
+
+    private String imageToDataUrl(String urlPath) {
+        try {
+            String filePath = urlPath.replace(urlPrefix, uploadBasePath);
+            File file = new File(filePath);
+            if (!file.exists()) {
+                log.warn("Image file not found: {}", filePath);
+                return null;
+            }
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            String base64 = Base64.getEncoder().encodeToString(bytes);
+            String mimeType = "image/png";
+            if (filePath.endsWith(".jpg") || filePath.endsWith(".jpeg")) mimeType = "image/jpeg";
+            else if (filePath.endsWith(".gif")) mimeType = "image/gif";
+            else if (filePath.endsWith(".webp")) mimeType = "image/webp";
+            return "data:" + mimeType + ";base64," + base64;
+        } catch (Exception e) {
+            log.warn("Failed to convert image to base64: {}", urlPath, e);
+            return null;
+        }
+    }
+
+    private Map<String, Object> doChatWithToolsConfig(List<Map<String, Object>> messages, List<Map<String, Object>> tools, String chatKey, String chatUrl, String chatModel) {
         Map<String, Object> result = new HashMap<>();
         if (!isEnabled()) {
             result.put("content", FALLBACK_ANSWERS.get("faq"));
@@ -532,15 +637,12 @@ public class DeepSeekClient {
                 return result;
             }
             JSONObject payload = new JSONObject();
-            String routedModel = routeModel(messages);
-            String[] routed = getRoutedConfig();
-            String chatUrl = (routed != null) ? routed[0] : currentBaseUrl;
-            String chatKey = (routed != null) ? routed[1] : currentApiKey;
-            payload.set("model", routedModel);
-            payload.set("messages", JSONUtil.parseArray(messages));
+            payload.set("model", chatModel);
+            List<Map<String, Object>> messagesToSend = convertMessagesForVision(messages);
+            payload.set("messages", JSONUtil.parseArray(JSONUtil.toJsonStr(messagesToSend)));
             payload.set("stream", false);
             payload.set("temperature", 0.3);
-            payload.set("max_tokens", 2048);
+            payload.set("max_tokens", maxTokens);
             if (tools != null && !tools.isEmpty()) {
                 payload.set("tools", JSONUtil.parseArray(tools));
             }
@@ -644,14 +746,25 @@ public class DeepSeekClient {
         return results.isEmpty() ? null : results.get(0);
     }
 
-    public boolean isEmbeddingAvailable() {
+    private volatile long embeddingAvailableCacheTime = 0;
+    private volatile boolean embeddingAvailableCachedResult = false;
+    private static final long EMBEDDING_CACHE_TTL_MS = 5 * 60 * 1000;
 
+    public boolean isEmbeddingAvailable() {
+        long now = System.currentTimeMillis();
+        if (now - embeddingAvailableCacheTime < EMBEDDING_CACHE_TTL_MS) {
+            return embeddingAvailableCachedResult;
+        }
+        boolean result;
         try {
             float[] test = embedding("测试");
-            return test != null && test.length > 0;
+            result = test != null && test.length > 0;
         } catch (Exception e) {
-            return false;
+            result = false;
         }
+        embeddingAvailableCachedResult = result;
+        embeddingAvailableCacheTime = now;
+        return result;
     }
 
     // ==================== 渠道+模型注册管理 ====================

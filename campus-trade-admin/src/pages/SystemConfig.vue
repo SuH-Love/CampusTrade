@@ -156,20 +156,71 @@
     </el-card>
 
     <el-card shadow="never" style="margin-top: 20px">
-      <template #header><div class="card-header"><span>AI 系统提示词（System Prompt）</span></div></template>
-      <el-form label-width="140px" v-loading="promptLoading">
-        <el-form-item label="当前提示词">
-          <el-input v-model="promptForm" type="textarea" :rows="8" placeholder="定义AI助手的角色、职责、行为约束..." />
+      <template #header>
+        <div class="card-header">
+          <span>AI Embedding 向量检索配置</span>
+          <el-tag :type="aiConfig.embeddingAvailable ? 'success' : 'warning'" size="small">
+            {{ aiConfig.embeddingAvailable ? '可用' : '降级TF-IDF' }}
+          </el-tag>
+        </div>
+      </template>
+      <el-alert
+        :type="aiConfig.embeddingAvailable ? 'success' : 'warning'"
+        :closable="false" show-icon style="margin-bottom: 20px"
+        :title="aiConfig.embeddingAvailable ? '向量检索已启用，FAQ匹配使用语义相似度' : '向量检索不可用，已降级为TF-IDF关键词匹配。请配置有效的Embedding API'"
+      />
+      <el-form label-width="140px" v-loading="embSaving">
+        <el-form-item label="API Key">
+          <el-input v-model="embForm.embApiKey" :placeholder="aiConfig.embApiKeyMasked ? `已配置: ${aiConfig.embApiKeyMasked}（输入覆盖）` : 'Embedding API Key'" clearable />
+        </el-form-item>
+        <el-form-item label="API 地址">
+          <el-input v-model="embForm.embBaseUrl" :placeholder="aiConfig.embBaseUrl || '如 https://api.siliconflow.cn/v1'" clearable />
+        </el-form-item>
+        <el-form-item label="向量模型">
+          <el-input v-model="embForm.embModel" :placeholder="aiConfig.embModel || '如 BAAI/bge-large-zh-v1.5'" clearable />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="promptSaving" @click="handleSavePrompt">保存提示词</el-button>
-          <el-button @click="loadPrompt">重置</el-button>
+          <el-button type="primary" :loading="embSaving" @click="handleSaveEmbedding">保存配置</el-button>
+          <el-button @click="resetEmbForm">重置</el-button>
         </el-form-item>
       </el-form>
       <el-divider />
       <el-descriptions title="说明" :column="1" border size="small">
+        <el-descriptions-item label="作用">为FAQ知识库提供语义向量检索能力，匹配精度高于TF-IDF关键词匹配</el-descriptions-item>
+        <el-descriptions-item label="独立配置">Embedding服务可独立于对话模型，支持指向不同提供商</el-descriptions-item>
+        <el-descriptions-item label="SiliconFlow模型">BAAI/bge-large-zh-v1.5（推荐）、BAAI/bge-m3等</el-descriptions-item>
+        <el-descriptions-item label="降级机制">API不可用时自动降级为TF-IDF+bigram余弦相似度匹配</el-descriptions-item>
+      </el-descriptions>
+    </el-card>
+
+    <el-card shadow="never" style="margin-top: 20px">
+      <template #header><div class="card-header"><span>AI 系统提示词（System Prompt）</span></div></template>
+      <el-form label-width="140px" v-loading="promptLoading">
+        <el-form-item label="当前提示词">
+          <div style="width: 100%">
+            <el-tag v-if="promptIsCustom" type="warning" size="small" style="margin-bottom: 8px">自定义提示词</el-tag>
+            <el-tag v-else type="success" size="small" style="margin-bottom: 8px">代码默认提示词</el-tag>
+            <el-input v-model="promptForm" type="textarea" :rows="10" placeholder="定义AI助手的角色、职责、行为约束..." />
+          </div>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="promptSaving" @click="handleSavePrompt">保存提示词</el-button>
+          <el-button @click="loadPrompt">重置</el-button>
+          <el-button type="warning" @click="handleResetPrompt">恢复代码默认</el-button>
+          <el-button @click="showDefaultPrompt = !showDefaultPrompt">{{ showDefaultPrompt ? '隐藏' : '查看' }}代码默认值</el-button>
+        </el-form-item>
+      </el-form>
+      <el-collapse-transition>
+        <div v-show="showDefaultPrompt" style="margin-top: 12px">
+          <el-alert title="代码中的默认提示词（buildDefaultSystemPrompt）" type="info" :closable="false" style="margin-bottom: 8px" />
+          <el-input v-model="defaultPromptText" type="textarea" :rows="12" readonly />
+        </div>
+      </el-collapse-transition>
+      <el-divider />
+      <el-descriptions title="说明" :column="1" border size="small">
         <el-descriptions-item label="作用">定义AI助手"小苏"的角色、职责、可用工具、回答风格。图片能力说明由后端自动注入，无需手动添加。</el-descriptions-item>
         <el-descriptions-item label="热更新">更新后立即生效，无需重启服务</el-descriptions-item>
+        <el-descriptions-item label="恢复默认">点击"恢复代码默认"会清除自定义提示词，使用代码中buildDefaultSystemPrompt()的值</el-descriptions-item>
       </el-descriptions>
     </el-card>
   </div>
@@ -177,8 +228,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { getSystemConfig, updateSystemConfig, getAlipayStatus, getAiConfigStatus, getAiSystemPrompt, updateAiSystemPrompt, getAiChannels, saveAiChannels, getAiModels, saveAiModels, type SystemConfigVO, type AiConfigStatus, type AiChannel, type AiModelReg } from '@/api/admin'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getSystemConfig, updateSystemConfig, getAlipayStatus, getAiConfigStatus, updateAiConfig, getAiSystemPrompt, updateAiSystemPrompt, resetAiSystemPrompt, getAiChannels, saveAiChannels, getAiModels, saveAiModels, type SystemConfigVO, type AiConfigStatus, type AiChannel, type AiModelReg } from '@/api/admin'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -268,11 +319,49 @@ const handleSaveModels = async () => {
 const promptLoading = ref(false)
 const promptSaving = ref(false)
 const promptForm = ref('')
+const promptIsCustom = ref(false)
+const defaultPromptText = ref('')
+const showDefaultPrompt = ref(false)
+
+const embSaving = ref(false)
+const embForm = reactive({
+  embApiKey: '',
+  embBaseUrl: '',
+  embModel: ''
+})
+const resetEmbForm = () => {
+  embForm.embApiKey = ''
+  embForm.embBaseUrl = aiConfig.value.embBaseUrl || ''
+  embForm.embModel = aiConfig.value.embModel || ''
+}
+const handleSaveEmbedding = async () => {
+  embSaving.value = true
+  try {
+    const data: Record<string, string> = {}
+    if (embForm.embApiKey) data.embApiKey = embForm.embApiKey
+    if (embForm.embBaseUrl) data.embBaseUrl = embForm.embBaseUrl
+    if (embForm.embModel) data.embModel = embForm.embModel
+    await updateAiConfig(data)
+    await loadAiStatus()
+    ElMessage.success('Embedding配置已保存')
+    resetEmbForm()
+  } catch { ElMessage.error('保存失败') } finally { embSaving.value = false }
+}
+
+const loadAiStatus = async () => {
+  try {
+    aiConfig.value = await getAiConfigStatus()
+    resetEmbForm()
+  } catch {}
+}
 
 const loadPrompt = async () => {
   promptLoading.value = true
   try {
-    promptForm.value = await getAiSystemPrompt()
+    const data = await getAiSystemPrompt()
+    promptForm.value = data.prompt
+    promptIsCustom.value = data.isCustom
+    defaultPromptText.value = data.defaultPrompt
   } catch (e) { console.error(e) } finally { promptLoading.value = false }
 }
 
@@ -282,7 +371,17 @@ const handleSavePrompt = async () => {
   try {
     await updateAiSystemPrompt(promptForm.value)
     ElMessage.success('系统提示词已保存')
+    promptIsCustom.value = true
   } catch (e) { console.error(e) } finally { promptSaving.value = false }
+}
+
+const handleResetPrompt = async () => {
+  try {
+    await ElMessageBox.confirm('确认恢复为代码默认提示词？当前自定义提示词将被清除。', '提示', { type: 'warning' })
+    await resetAiSystemPrompt()
+    await loadPrompt()
+    ElMessage.success('已恢复为代码默认提示词')
+  } catch { /* cancel */ }
 }
 
 const loadData = async () => {
@@ -319,7 +418,7 @@ const handleSave = async () => {
   } catch (e) { console.error(e) } finally { saving.value = false }
 }
 
-onMounted(() => { loadData(); loadChannels(); loadModels(); loadPrompt(); getAiConfigStatus().then(r => aiConfig.value = r).catch(() => {}) })
+onMounted(() => { loadData(); loadChannels(); loadModels(); loadPrompt(); loadAiStatus() })
 </script>
 
 <style scoped lang="scss">

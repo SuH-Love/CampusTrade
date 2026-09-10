@@ -171,6 +171,9 @@ export interface AiFeedbackRequest {
 export const submitAiFeedback = (data: AiFeedbackRequest) =>
   request.post('/ai/feedback', data)
 
+export const getSessionFeedback = (sessionId: string) =>
+  request.get<never, Record<string, number>>('/ai/feedback/session', { params: { sessionId } })
+
 export const getAiPrompt = () => request.get('/ai/prompt')
 
 export const updateAiPrompt = (prompt: string) =>

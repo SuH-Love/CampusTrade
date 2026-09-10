@@ -195,10 +195,16 @@ export const updateAiConfig = (data: {
   request.put<never, AiConfigStatus>('/ai/config', data)
 
 export const getAiSystemPrompt = () =>
-  request.get<never, string>('/ai/prompt')
+  request.get<never, { prompt: string; isCustom: boolean; defaultPrompt: string }>('/ai/prompt')
 
 export const updateAiSystemPrompt = (prompt: string) =>
   request.put<never, void>('/ai/prompt', { prompt })
+
+export const resetAiSystemPrompt = () =>
+  request.delete<never, void>('/ai/prompt')
+
+export const suggestFaqs = () =>
+  request.get<never, Array<{ question: string; answer: string; category: string }>>('/ai/faq/suggest')
 
 export const getAiStats = () =>
   request.get<never, Record<string, unknown>>('/ai/stats')

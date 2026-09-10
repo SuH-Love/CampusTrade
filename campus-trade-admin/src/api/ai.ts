@@ -19,6 +19,9 @@ export const updateFaq = (index: number, data: { question: string; answer: strin
 export const deleteFaq = (index: number) =>
   request.delete(`/ai/faq/${index}`)
 
+export const suggestFaqs = () =>
+  request.get<never, Array<{ question: string; answer: string; category: string }>>('/ai/faq/suggest')
+
 export const getAiPrompt = () =>
   request.get<never, string>('/ai/prompt')
 

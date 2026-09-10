@@ -12,7 +12,7 @@
           </div>
         </div>
       </template>
-      <el-table :data="filteredCategories" stripe v-loading="loading">
+      <el-table :data="pagedCategories" stripe v-loading="loading">
         <el-table-column prop="id" label="ID" min-width="60" />
         <el-table-column prop="categoryName" label="分类名称" min-width="150" />
         <el-table-column prop="sortOrder" label="排序" min-width="80" />
@@ -32,6 +32,16 @@
         </el-table-column>
         <template #empty><el-empty description="暂无分类" /></template>
       </el-table>
+      <div class="pagination-wrap">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 20, 50]"
+          :total="filteredCategories.length"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+        />
+      </div>
     </el-card>
 
     <el-dialog v-model="dialogVisible" :title="editingId ? '编辑分类' : '新增分类'" width="440px" destroy-on-close>
@@ -70,6 +80,8 @@ const dialogVisible = ref(false)
 const submitting = ref(false)
 const editingId = ref<number | null>(null)
 const searchKeyword = ref('')
+const currentPage = ref(1)
+const pageSize = ref(10)
 
 const form = reactive({
   categoryName: '',
@@ -82,6 +94,11 @@ const filteredCategories = computed(() => {
   if (!searchKeyword.value.trim()) return categories.value
   const keyword = searchKeyword.value.trim().toLowerCase()
   return categories.value.filter(item => item.categoryName.toLowerCase().includes(keyword))
+})
+
+const pagedCategories = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredCategories.value.slice(start, start + pageSize.value)
 })
 
 const loadData = async () => {
@@ -151,5 +168,13 @@ const handleDelete = async (row: CategoryVO) => {
 
 onMounted(loadData)
 </script>
+
+<style scoped>
+.pagination-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+</style>
 
 

@@ -12,6 +12,7 @@
               <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
             </el-select>
             <el-button type="primary" @click="handleAdd">新增FAQ</el-button>
+            <el-button type="success" :loading="suggestLoading" @click="handleSuggest">AI智能建议</el-button>
           </div>
         </div>
       </template>
@@ -63,6 +64,30 @@
         <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="suggestDialogVisible" title="AI智能FAQ建议" width="700px" destroy-on-close>
+      <el-alert title="以下FAQ由AI根据用户真实提问自动生成，审核后可加入知识库" type="info" :closable="false" style="margin-bottom: 16px" />
+      <div v-loading="suggestLoading">
+        <div v-if="suggestions.length === 0 && !suggestLoading" style="text-align: center; padding: 20px; color: var(--el-text-color-secondary)">
+          暂无建议，需要更多用户对话数据
+        </div>
+        <div v-for="(item, idx) in suggestions" :key="idx" class="suggest-item">
+          <div class="suggest-header">
+            <el-tag size="small">{{ item.category }}</el-tag>
+            <span class="suggest-question">{{ item.question }}</span>
+            <div class="suggest-actions">
+              <el-button size="small" type="primary" @click="handleApproveSuggestion(idx)">采纳</el-button>
+              <el-button size="small" @click="suggestions.splice(idx, 1)">跳过</el-button>
+            </div>
+          </div>
+          <div class="suggest-answer">{{ item.answer }}</div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="suggestDialogVisible = false">关闭</el-button>
+        <el-button type="primary" @click="handleApproveAll" :disabled="suggestions.length === 0">全部采纳</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -70,7 +95,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
-import { getFaqList, addFaq, updateFaq, deleteFaq, type FaqItem } from '@/api/ai'
+import { getFaqList, addFaq, updateFaq, deleteFaq, suggestFaqs, type FaqItem } from '@/api/ai'
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -82,6 +107,9 @@ const editingIndex = ref(-1)
 const form = ref<FaqItem>({ question: '', answer: '', category: '交易' })
 const currentPage = ref(1)
 const pageSize = ref(10)
+const suggestLoading = ref(false)
+const suggestDialogVisible = ref(false)
+const suggestions = ref<Array<{ question: string; answer: string; category: string }>>([])
 
 const categories = computed(() => {
   const set = new Set<string>()
@@ -164,10 +192,53 @@ const handleSubmit = async () => {
 }
 
 onMounted(fetchFaqs)
+
+const handleSuggest = async () => {
+  suggestLoading.value = true
+  suggestDialogVisible.value = true
+  try {
+    suggestions.value = await suggestFaqs() || []
+  } catch {
+    ElMessage.error('获取建议失败')
+    suggestions.value = []
+  } finally {
+    suggestLoading.value = false
+  }
+}
+
+const handleApproveSuggestion = async (idx: number) => {
+  const item = suggestions.value[idx]
+  try {
+    await addFaq(item)
+    ElMessage.success(`已采纳：${item.question}`)
+    suggestions.value.splice(idx, 1)
+    await fetchFaqs()
+  } catch {
+    ElMessage.error('采纳失败')
+  }
+}
+
+const handleApproveAll = async () => {
+  let success = 0
+  for (const item of [...suggestions.value]) {
+    try {
+      await addFaq(item)
+      success++
+    } catch {}
+  }
+  suggestions.value = []
+  await fetchFaqs()
+  ElMessage.success(`已采纳 ${success} 条建议`)
+}
 </script>
 
 <style scoped>
 .filter-input { width: 200px; }
 .filter-select { width: 120px; }
 .pagination-wrapper { display: flex; justify-content: flex-end; margin-top: 16px; }
+.suggest-item { border: 1px solid var(--el-border-color); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+.suggest-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.suggest-question { font-weight: 600; flex: 1; }
+.suggest-actions { display: flex; gap: 4px; }
+.suggest-answer { color: var(--el-text-color-secondary); font-size: 14px; line-height: 1.6; padding-left: 4px; }
 </style>

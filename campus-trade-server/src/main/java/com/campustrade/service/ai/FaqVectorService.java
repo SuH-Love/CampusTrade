@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -11,19 +12,26 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import java.io.InputStream;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
 public class FaqVectorService {
 
-    private static final double SIMILARITY_THRESHOLD = 0.15;
-    private static final double EMBEDDING_THRESHOLD = 0.25;
-    private static final int TOP_K = 3;
+    @Value("${ai.faq.tfidf-threshold:0.15}")
+    private double similarityThreshold;
 
-    private final List<FaqItem> faqItems = new ArrayList<>();
-    private final List<Map<String, Double>> faqVectors = new ArrayList<>();
-    private final List<float[]> faqEmbeddings = new ArrayList<>();
-    private final Map<String, Double> idfMap = new HashMap<>();
+    @Value("${ai.faq.embedding-threshold:0.25}")
+    private double embeddingThreshold;
+
+    @Value("${ai.faq.top-k:3}")
+    private int topK;
+
+    private final List<FaqItem> faqItems = new CopyOnWriteArrayList<>();
+    private final List<Map<String, Double>> faqVectors = new CopyOnWriteArrayList<>();
+    private final List<float[]> faqEmbeddings = new CopyOnWriteArrayList<>();
+    private final Map<String, Double> idfMap = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private volatile boolean useEmbeddings = false;
 
@@ -209,10 +217,12 @@ public class FaqVectorService {
 
     private void rebuildVectors() {
         computeIdf();
-        faqVectors.clear();
+        List<Map<String, Double>> newVectors = new ArrayList<>();
         for (FaqItem item : faqItems) {
-            faqVectors.add(computeTfIdfVector(item.question));
+            newVectors.add(computeTfIdfVector(item.question));
         }
+        faqVectors.clear();
+        faqVectors.addAll(newVectors);
         saveToRedis();
         rebuildEmbeddings();
         log.info("FAQ vectors rebuilt: {} items, embeddings: {}", faqItems.size(), useEmbeddings ? "on" : "off");
@@ -360,7 +370,7 @@ public class FaqVectorService {
                 scored.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
                 List<FaqItem> results = new ArrayList<>();
                 for (int i = 0; i < Math.min(topK, scored.size()); i++) {
-                    if (scored.get(i).getValue() >= EMBEDDING_THRESHOLD) {
+                    if (scored.get(i).getValue() >= embeddingThreshold) {
                         results.add(scored.get(i).getKey());
                     }
                 }
@@ -376,7 +386,7 @@ public class FaqVectorService {
         scored.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
         List<FaqItem> results = new ArrayList<>();
         for (int i = 0; i < Math.min(topK, scored.size()); i++) {
-            if (scored.get(i).getValue() >= SIMILARITY_THRESHOLD) {
+            if (scored.get(i).getValue() >= similarityThreshold) {
                 results.add(scored.get(i).getKey());
             }
         }
@@ -384,7 +394,7 @@ public class FaqVectorService {
     }
 
     public String buildContext(String query) {
-        List<FaqItem> matches = search(query, TOP_K);
+        List<FaqItem> matches = search(query, topK);
         if (matches.isEmpty()) {
             return "";
         }
