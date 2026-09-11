@@ -23,5 +23,7 @@ public interface AiFeedbackMapper {
 
     int updateRating(@Param("id") Long id, @Param("rating") Integer rating, @Param("feedback") String feedback);
 
+    int deleteByUserSessionAiResponse(@Param("userId") Long userId, @Param("sessionId") String sessionId, @Param("aiResponse") String aiResponse);
+
     List<String> selectRecentUserMessages(@Param("limit") int limit);
 }

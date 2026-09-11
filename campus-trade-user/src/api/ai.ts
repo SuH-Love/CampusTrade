@@ -45,6 +45,7 @@ export function chatStream(
   onToolResult?: (toolResult: { id: string; name: string; result: string }) => void,
   onToolStart?: (toolStart: { id: string; name: string }) => void,
   onToolError?: (toolError: { id: string; name: string; error: string }) => void,
+  onToolConfirm?: (toolConfirm: { id: string; name: string; displayName: string; args: Record<string, unknown> }) => void,
   regenerate?: boolean
 ): { close: () => void } {
   const params = new URLSearchParams({ message })
@@ -106,6 +107,10 @@ export function chatStream(
         } else if (currentEvent === 'tool_error' && onToolError) {
           try {
             onToolError(JSON.parse(data))
+          } catch {}
+        } else if (currentEvent === 'tool_confirm' && onToolConfirm) {
+          try {
+            onToolConfirm(JSON.parse(data))
           } catch {}
         } else if (currentEvent === 'tool_result' && onToolResult) {
           try {
@@ -171,8 +176,14 @@ export interface AiFeedbackRequest {
 export const submitAiFeedback = (data: AiFeedbackRequest) =>
   request.post('/ai/feedback', data)
 
+export const cancelAiFeedback = (data: { sessionId: string; aiResponse: string }) =>
+  request.delete('/ai/feedback', { data })
+
 export const getSessionFeedback = (sessionId: string) =>
   request.get<never, Record<string, number>>('/ai/feedback/session', { params: { sessionId } })
+
+export const confirmTool = (id: string, confirmed: boolean) =>
+  request.post('/ai/tool/confirm', { id, confirmed })
 
 export const getAiPrompt = () => request.get('/ai/prompt')
 

@@ -51,6 +51,12 @@
         WHERE id = #{id}
     </update>
 
+    <delete id="deleteByUserSessionAiResponse">
+        UPDATE t_ai_feedback SET deleted = 1, update_time = NOW()
+        WHERE deleted = 0 AND user_id = #{userId} AND session_id = #{sessionId}
+        AND LEFT(ai_response, 50) = LEFT(#{aiResponse}, 50)
+    </delete>
+
     <select id="selectRecentUserMessages" resultType="java.lang.String">
         SELECT user_message FROM t_ai_feedback
         WHERE deleted = 0 AND user_message IS NOT NULL AND LENGTH(user_message) > 2

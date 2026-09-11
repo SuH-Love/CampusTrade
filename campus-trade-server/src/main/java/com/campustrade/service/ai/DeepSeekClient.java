@@ -367,7 +367,7 @@ public class DeepSeekClient {
                 JSONObject payload = new JSONObject();
                 RoutedConfig routed = routeModel(messages);
                 payload.set("model", routed.model);
-                List<Map<String, Object>> messagesToSend = convertMessagesForVision(messages);
+                List<Map<String, Object>> messagesToSend = convertMessagesForVision(messages, routed.model);
                 payload.set("messages", JSONUtil.parseArray(JSONUtil.toJsonStr(messagesToSend)));
                 payload.set("stream", true);
                 payload.set("temperature", 0.3);
@@ -457,7 +457,7 @@ public class DeepSeekClient {
             }
             JSONObject payload = new JSONObject();
             payload.set("model", chatModel);
-            List<Map<String, Object>> messagesToSend = convertMessagesForVision(messages);
+            List<Map<String, Object>> messagesToSend = convertMessagesForVision(messages, chatModel);
             payload.set("messages", JSONUtil.parseArray(JSONUtil.toJsonStr(messagesToSend)));
             payload.set("stream", false);
             payload.set("temperature", 0.3);
@@ -538,7 +538,29 @@ public class DeepSeekClient {
         return doChatWithToolsConfig(messages, tools, routed.apiKey, routed.baseUrl, routed.model);
     }
 
-    private List<Map<String, Object>> convertMessagesForVision(List<Map<String, Object>> messages) {
+    private boolean isVisionModel(String modelName) {
+        if (modelName == null || modelName.isEmpty()) return false;
+        try {
+            JSONArray models = JSONUtil.parseArray(getModelsJson());
+            for (int i = 0; i < models.size(); i++) {
+                JSONObject m = models.getJSONObject(i);
+                if (modelName.equals(m.getStr("model"))) {
+                    JSONArray caps = m.getJSONArray("caps");
+                    if (caps != null) {
+                        for (int j = 0; j < caps.size(); j++) {
+                            if ("vision".equals(caps.getStr(j))) return true;
+                        }
+                    }
+                    return false;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("isVisionModel check failed: {}", e.getMessage());
+        }
+        return false;
+    }
+
+    private List<Map<String, Object>> convertMessagesForVision(List<Map<String, Object>> messages, String targetModel) {
         boolean hasImage = false;
         for (Map<String, Object> msg : messages) {
             if ("user".equals(msg.get("role"))) {
@@ -551,9 +573,33 @@ public class DeepSeekClient {
         }
         if (!hasImage) return messages;
 
-        log.info("Converting messages to multimodal format for vision model");
-        List<Map<String, Object>> converted = new ArrayList<>();
+        boolean modelSupportsVision = isVisionModel(targetModel);
         Pattern imgPattern = Pattern.compile("\\[图片:\\s*([^\\]]+)\\]\\(([^)]+)\\)");
+
+        if (!modelSupportsVision) {
+            log.info("Target model {} is not VLM, stripping image markers from messages", targetModel);
+            List<Map<String, Object>> stripped = new ArrayList<>();
+            for (Map<String, Object> msg : messages) {
+                if ("user".equals(msg.get("role"))) {
+                    Object contentObj = msg.get("content");
+                    if (contentObj instanceof String) {
+                        String content = (String) contentObj;
+                        if (content.contains("[图片:")) {
+                            String cleaned = imgPattern.matcher(content).replaceAll("[图片]");
+                            Map<String, Object> newMsg = new HashMap<>(msg);
+                            newMsg.put("content", cleaned);
+                            stripped.add(newMsg);
+                            continue;
+                        }
+                    }
+                }
+                stripped.add(msg);
+            }
+            return stripped;
+        }
+
+        log.info("Converting messages to multimodal format for vision model: {}", targetModel);
+        List<Map<String, Object>> converted = new ArrayList<>();
         for (Map<String, Object> msg : messages) {
             if ("user".equals(msg.get("role"))) {
                 Object contentObj = msg.get("content");
@@ -635,7 +681,7 @@ public class DeepSeekClient {
             }
             JSONObject payload = new JSONObject();
             payload.set("model", chatModel);
-            List<Map<String, Object>> messagesToSend = convertMessagesForVision(messages);
+            List<Map<String, Object>> messagesToSend = convertMessagesForVision(messages, chatModel);
             payload.set("messages", JSONUtil.parseArray(JSONUtil.toJsonStr(messagesToSend)));
             payload.set("stream", false);
             payload.set("temperature", 0.3);

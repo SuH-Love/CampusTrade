@@ -171,10 +171,39 @@
                       </button>
                     </div>
                   </div>
+                  <transition name="feedback-slide">
+                    <div v-if="feedbackPanel.msgId === msg.id" class="feedback-panel">
+                      <button class="feedback-close" @click="closeFeedbackPanel">
+                        <el-icon :size="14"><Close /></el-icon>
+                      </button>
+                      <div class="feedback-title">
+                        {{ feedbackPanel.rating === 1 ? '什么让你满意？' : '什么让你不满意？' }}
+                      </div>
+                      <div class="feedback-tags">
+                        <button
+                          v-for="tag in (feedbackPanel.rating === 1 ? positiveFeedbackOptions : negativeFeedbackOptions)"
+                          :key="tag"
+                          class="feedback-tag"
+                          :class="{ active: feedbackPanel.selectedTags.includes(tag) }"
+                          @click="toggleFeedbackTag(tag)"
+                        >{{ tag }}</button>
+                      </div>
+                      <input
+                        v-if="feedbackPanel.selectedTags.includes('其他')"
+                        v-model="feedbackPanel.customText"
+                        class="feedback-custom-input"
+                        placeholder="(可选) 告诉我们更多关于你的使用体验"
+                        maxlength="200"
+                      />
+                      <div class="feedback-submit-row">
+                        <button class="feedback-submit-btn" @click="submitFeedbackPanel(msg, idx)">提交</button>
+                      </div>
+                    </div>
+                  </transition>
                 </template>
               </div>
               <div v-if="msg.role === 'user' && msg.content && !msg.loading && msg.timestamp" class="msg-footer">
-                <span class="msg-time">{{ formatTime(msg.timestamp) }}</span>
+                <span class="msg-time">{{ formatUserTime(msg.timestamp) }}</span>
               </div>
             </div>
           </div>
@@ -255,9 +284,10 @@
 import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { ChatDotRound, Close, Delete, Promotion, Tools, ArrowDown, ArrowUp, Loading, VideoPause, CopyDocument, RefreshRight, FullScreen, CircleCheck, Picture } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { chatStream, getAiStatus, clearSession, getSessionHistory, submitAiFeedback, getSessionFeedback } from '@/api/ai'
+import { chatStream, getAiStatus, clearSession, getSessionHistory, submitAiFeedback, cancelAiFeedback, getSessionFeedback, confirmTool } from '@/api/ai'
 import { useUserStore } from '@/stores/user'
 import MarkdownIt from 'markdown-it'
+import DOMPurify from 'dompurify'
 import hljs from 'highlight.js'
 
 const ThinkingIcon = Loading
@@ -317,7 +347,10 @@ const md = new MarkdownIt({
 })
 
 const renderMarkdown = (text: string): string => {
-  return md.render(text || '')
+  return DOMPurify.sanitize(md.render(text || ''), {
+    ALLOWED_TAGS: ['p','br','code','pre','a','ul','ol','li','strong','em','blockquote','table','thead','tbody','tr','th','td','del','hr','span','div'],
+    ALLOWED_ATTR: ['href','class','target','rel']
+  })
 }
 
 const escapeHtml = (text: string): string => {
@@ -344,6 +377,19 @@ const formatTime = (ts?: number): string => {
   if (!ts) return ''
   const d = new Date(ts)
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+const formatUserTime = (ts?: number): string => {
+  if (!ts) return ''
+  const d = new Date(ts)
+  const now = new Date()
+  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  if (d.toDateString() === now.toDateString()) return hm
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (d.toDateString() === yesterday.toDateString()) return `昨天 ${hm}`
+  if (d.getFullYear() === now.getFullYear()) return `${d.getMonth() + 1}月${d.getDate()}日 ${hm}`
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${hm}`
 }
 
 const copyMessage = async (content: string) => {
@@ -414,6 +460,22 @@ const fileInputRef = ref<HTMLInputElement>()
 const pendingImages = ref<{ url: string; name: string; uploadedPath?: string }[]>([])
 const quotedContent = ref('')
 const aiEnabled = ref(true)
+
+const positiveFeedbackOptions = ['内容准确', '易于理解', '内容完善', '其他']
+const negativeFeedbackOptions = ['有害/不安全', '信息虚假', '没有帮助', '隐私相关', '遗忘上下文/失忆', '记忆使用不当/错误', '其他']
+const feedbackPanel = ref<{
+  msgId: number | null
+  rating: number
+  selectedTags: string[]
+  customText: string
+  comment: string
+}>({
+  msgId: null,
+  rating: 0,
+  selectedTags: [],
+  customText: '',
+  comment: ''
+})
 const hasNewBadge = ref(true)
 const statusText = ref('在线')
 let streamHandle: { close: () => void } | null = null
@@ -609,6 +671,8 @@ const loadHistory = async () => {
 const loadAllHistory = async () => {
   if (!sessionId.value) return
   try {
+    const el = bodyRef.value
+    const distanceFromBottom = el ? el.scrollHeight - el.scrollTop : 0
     const history = await getSessionHistory(sessionId.value)
     if (history && history.length > 0) {
       totalHistoryCount.value = history.length
@@ -627,7 +691,10 @@ const loadAllHistory = async () => {
         return m
       })
       await applyFeedbackStatus()
-      scrollToBottom()
+      await nextTick()
+      if (bodyRef.value) {
+        bodyRef.value.scrollTop = bodyRef.value.scrollHeight - distanceFromBottom
+      }
     }
   } catch {}
 }
@@ -845,6 +912,20 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
           tc.result = `执行失败: ${toolError.error}`
         }
         scrollToBottom()
+      },
+      async (toolConfirm: { id: string; name: string; displayName: string; args: Record<string, unknown> }) => {
+        const argStr = Object.entries(toolConfirm.args)
+          .map(([k, v]) => `${k}: ${v}`).join('\n')
+        try {
+          await ElMessageBox.confirm(
+            `工具：${toolConfirm.displayName}\n参数：\n${argStr}`,
+            '确认执行操作',
+            { confirmButtonText: '确认', cancelButtonText: '取消', type: 'warning' }
+          )
+          await confirmTool(toolConfirm.id, true)
+        } catch {
+          await confirmTool(toolConfirm.id, false)
+        }
       }
     , regenerate)
   } catch (e) {
@@ -1041,23 +1122,51 @@ const regenerateAnswer = (idx: number) => {
   startAIStream(userMsg.content, assistantMsg, true)
 }
 
-const handleFeedback = async (msg: Message, rating: number, idx: number) => {
-  if (msg.feedback === rating) return
-  const userMsg = messages.value[idx - 1]
-  let feedbackText: string | undefined
-  if (rating === -1) {
+const handleFeedback = async (msg: Message, rating: number, _idx: number) => {
+  if (msg.feedback === rating) {
     try {
-      const { value } = await ElMessageBox.prompt('请告诉我们哪里做得不好，我们会努力改进', '反馈建议', {
-        confirmButtonText: '提交',
-        cancelButtonText: '跳过',
-        inputPlaceholder: '请输入您的建议（可选）',
-        inputType: 'textarea',
-        inputValidator: () => true
-      })
-      feedbackText = value || undefined
+      await cancelAiFeedback({ sessionId: sessionId.value || '', aiResponse: msg.content })
+      msg.feedback = 0
+      ElMessage.success({ message: '已取消反馈', duration: 1500 })
     } catch {
-      return
+      ElMessage.warning('取消反馈失败')
     }
+    closeFeedbackPanel()
+    return
+  }
+  feedbackPanel.value = {
+    msgId: msg.id,
+    rating,
+    selectedTags: [],
+    customText: '',
+    comment: ''
+  }
+  nextTick(() => {
+    const panel = bodyRef.value?.querySelector('.feedback-panel')
+    if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  })
+}
+
+const closeFeedbackPanel = () => {
+  feedbackPanel.value = { msgId: null, rating: 0, selectedTags: [], customText: '', comment: '' }
+}
+
+const toggleFeedbackTag = (tag: string) => {
+  const tags = feedbackPanel.value.selectedTags
+  const i = tags.indexOf(tag)
+  if (i >= 0) {
+    tags.splice(i, 1)
+  } else {
+    tags.push(tag)
+  }
+}
+
+const submitFeedbackPanel = async (msg: Message, idx: number) => {
+  const { rating, selectedTags, customText } = feedbackPanel.value
+  const userMsg = messages.value[idx - 1]
+  let feedbackText = selectedTags.filter(t => t !== '其他').join('、')
+  if (selectedTags.includes('其他') && customText.trim()) {
+    feedbackText += (feedbackText ? '；' : '') + customText.trim()
   }
   try {
     await submitAiFeedback({
@@ -1066,9 +1175,10 @@ const handleFeedback = async (msg: Message, rating: number, idx: number) => {
       userMessage: userMsg?.content || '',
       aiResponse: msg.content,
       rating,
-      feedback: feedbackText
+      feedback: feedbackText || undefined
     })
     msg.feedback = rating
+    closeFeedbackPanel()
     ElMessage.success({ message: '感谢您的反馈', duration: 1500 })
   } catch {
     ElMessage.warning('反馈提交失败')
@@ -1404,6 +1514,88 @@ onUnmounted(() => {
   &:active { transform: scale(0.92); }
   &.active { color: var(--primary); background: rgba(14, 165, 233, 0.12); }
 }
+
+.feedback-panel {
+  position: relative;
+  margin-top: 8px;
+  padding: 14px 16px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  animation: feedback-appear 0.2s ease;
+}
+@keyframes feedback-appear {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.feedback-close {
+  position: absolute; top: 8px; right: 8px;
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; cursor: pointer;
+  color: var(--text-muted); border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+  &:hover { color: var(--text-primary); background: var(--bg-hover); }
+}
+.feedback-title {
+  font-size: 13px; font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+.feedback-tags {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 10px;
+}
+.feedback-tag {
+  padding: 4px 12px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  &:hover { border-color: var(--primary); color: var(--primary); }
+  &.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+}
+.feedback-custom-input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input, var(--bg-card));
+  color: var(--text-primary);
+  outline: none;
+  margin-bottom: 10px;
+  transition: border-color 0.15s;
+  &:focus { border-color: var(--primary); }
+}
+
+.feedback-submit-row {
+  display: flex; justify-content: flex-end;
+}
+.feedback-submit-btn {
+  padding: 5px 20px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  &:hover { opacity: 0.9; }
+  &:active { transform: scale(0.97); }
+}
+.feedback-slide-enter-active { transition: all 0.2s ease; }
+.feedback-slide-leave-active { transition: all 0.15s ease; }
+.feedback-slide-enter-from, .feedback-slide-leave-to { opacity: 0; transform: translateY(-6px); }
 .typing { display: inline-flex; gap: 4px; align-items: center; .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-secondary); animation: typing-bounce 1.4s infinite ease-in-out; &:nth-child(2) { animation-delay: 0.2s; } &:nth-child(3) { animation-delay: 0.4s; } } }
 
 .scroll-bottom-btn {

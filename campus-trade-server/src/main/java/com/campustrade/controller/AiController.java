@@ -92,6 +92,7 @@ public class AiController {
     }
 
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+    private final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.CompletableFuture<Boolean>> pendingConfirmations = new java.util.concurrent.ConcurrentHashMap<>();
 
     private String jsonContent(String text) {
         if (text == null) text = "";
@@ -223,7 +224,11 @@ public class AiController {
                     Map<String, Object> toolMsg = new LinkedHashMap<>();
                     toolMsg.put("role", "tool");
                     toolMsg.put("tool_call_id", toolCallId);
-                    toolMsg.put("content", safetyService.sanitizeOutput(toolResult));
+                    String truncatedResult = toolResult;
+                    if (truncatedResult.length() > 2000) {
+                        truncatedResult = truncatedResult.substring(0, 2000) + "\n[结果已截断，如需完整数据请分页查询]";
+                    }
+                    toolMsg.put("content", safetyService.sanitizeOutput(truncatedResult));
                     messages.add(toolMsg);
                     log.info("Tool called: {} -> {}", toolName, toolResult.length() > 100 ? toolResult.substring(0, 100) : toolResult);
                 }
@@ -431,6 +436,9 @@ public class AiController {
                 aiResult = deepSeekClient.chatWithToolsForScene(messages, tools, sceneOverride);
             } catch (Exception e) {
                 log.error("Agent loop chatWithTools failed", e);
+                try {
+                    emitter.send(SseEmitter.event().name("error").data("AI分析失败，请重试"));
+                } catch (Exception ignored) {}
                 break;
             }
 
@@ -493,6 +501,33 @@ public class AiController {
                         }
                     } catch (Exception ignored) {}
                     try {
+                        if (aiToolService.getWriteToolsSet().contains(fnName)) {
+                            String confirmId = fnCallId;
+                            java.util.concurrent.CompletableFuture<Boolean> confirmFuture = new java.util.concurrent.CompletableFuture<>();
+                            pendingConfirmations.put(confirmId, confirmFuture);
+                            try {
+                                Map<String, Object> confirmInfo = new LinkedHashMap<>();
+                                confirmInfo.put("id", confirmId);
+                                confirmInfo.put("name", fnName);
+                                confirmInfo.put("displayName", toolDisplayName(fnName));
+                                confirmInfo.put("args", fnArgs);
+                                synchronized (fnEmitter) {
+                                    fnEmitter.send(SseEmitter.event().name("tool_confirm").data(
+                                        new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(confirmInfo)));
+                                }
+                            } catch (Exception ignored) {}
+                            try {
+                                Boolean confirmed = confirmFuture.orTimeout(60, java.util.concurrent.TimeUnit.SECONDS).join();
+                                if (!confirmed) {
+                                    return "{\"error\":\"用户取消了操作\"}";
+                                }
+                            } catch (Exception e) {
+                                pendingConfirmations.remove(confirmId);
+                                return "{\"error\":\"确认超时，请重试\"}";
+                            } finally {
+                                pendingConfirmations.remove(confirmId);
+                            }
+                        }
                         return aiToolService.executeTool(fnName, fnArgs);
                     } catch (Exception e) {
                         try {
@@ -560,18 +595,9 @@ public class AiController {
 
         if (nonStreamAnswer != null && !nonStreamAnswer.isEmpty()) {
             String content = safetyService.sanitizeOutput(nonStreamAnswer);
-            // 分段流式发送，模拟流式打字效果
-            int chunkSize = 8;
-            for (int start = 0; start < content.length(); start += chunkSize) {
-                int end = Math.min(start + chunkSize, content.length());
-                String chunk = content.substring(start, end);
-                try {
-                    synchronized (emitter) {
-                        emitter.send(SseEmitter.event().name("message").data(jsonContent(chunk)));
-                    }
-                } catch (Exception ignored) {}
-                try { Thread.sleep(15); } catch (InterruptedException ignored) { break; }
-            }
+            try {
+                emitter.send(SseEmitter.event().name("message").data(jsonContent(content)));
+            } catch (Exception ignored) {}
             sessionService.addMessagePair(sid, userMessage, content, collectedThinking, collectedToolCalls);
             // 缓存简单回复（加prompt版本号）
             if (userMessage.length() < 50 && content.length() < 2000) {
@@ -845,6 +871,22 @@ public class AiController {
             }
         }
         sessionService.clearSession(sessionId);
+        return Result.success();
+    }
+
+    @ApiOperation("确认或取消工具执行")
+    @PostMapping("/tool/confirm")
+    public Result<Void> confirmTool(@RequestBody Map<String, Object> body) {
+        String confirmId = (String) body.get("id");
+        Boolean confirmed = (Boolean) body.get("confirmed");
+        if (confirmId == null || confirmed == null) {
+            return Result.error(400, "缺少参数");
+        }
+        java.util.concurrent.CompletableFuture<Boolean> future = pendingConfirmations.remove(confirmId);
+        if (future == null) {
+            return Result.error(404, "确认请求不存在或已超时");
+        }
+        future.complete(confirmed);
         return Result.success();
     }
 
@@ -1262,6 +1304,23 @@ public class AiController {
         } catch (Exception e) {
             log.error("提交AI反馈失败", e);
             return Result.error(500, "提交失败");
+        }
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/feedback")
+    @ApiOperation("取消AI回复反馈")
+    public Result<?> cancelFeedback(@org.springframework.web.bind.annotation.RequestBody Map<String, Object> body) {
+        Long userId = SecurityUtil.getCurrentUserId();
+        if (userId == null) return Result.error(401, "未登录");
+        try {
+            String sessionId = (String) body.get("sessionId");
+            String aiResponse = (String) body.get("aiResponse");
+            if (aiResponse != null && aiResponse.length() > 2000) aiResponse = aiResponse.substring(0, 2000);
+            aiFeedbackMapper.deleteByUserSessionAiResponse(userId, sessionId, aiResponse);
+            return Result.success("反馈已取消");
+        } catch (Exception e) {
+            log.error("取消AI反馈失败", e);
+            return Result.error(500, "取消失败");
         }
     }
 

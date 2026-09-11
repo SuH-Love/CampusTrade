@@ -16,8 +16,10 @@
         <el-table-column prop="id" label="ID" width="70" />
         <el-table-column prop="rating" label="评价" width="110" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.rating > 0 ? 'success' : 'danger'" size="small">
-              {{ row.rating > 0 ? '👍 有帮助' : '👎 无帮助' }}
+            <el-tag :type="row.rating > 0 ? 'success' : 'danger'" size="small" class="rating-tag">
+              <svg v-if="row.rating > 0" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L13.17 1 6.59 8.59C6.22 8.95 6 9.45 6 10v9c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>
+              <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L10.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"/></svg>
+              {{ row.rating > 0 ? '有帮助' : '无帮助' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -53,8 +55,10 @@
         <el-descriptions :column="2" border>
           <el-descriptions-item label="ID">{{ detailRow.id }}</el-descriptions-item>
           <el-descriptions-item label="评价">
-            <el-tag :type="detailRow.rating > 0 ? 'success' : 'danger'" size="small">
-              {{ detailRow.rating > 0 ? '👍 有帮助' : '👎 无帮助' }}
+            <el-tag :type="detailRow.rating > 0 ? 'success' : 'danger'" size="small" class="rating-tag">
+              <svg v-if="detailRow.rating > 0" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L13.17 1 6.59 8.59C6.22 8.95 6 9.45 6 10v9c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>
+              <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px"><path d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L10.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"/></svg>
+              {{ detailRow.rating > 0 ? '有帮助' : '无帮助' }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="用户名">{{ detailRow.username }}</el-descriptions-item>
@@ -115,6 +119,7 @@ onMounted(loadData)
 
 <style scoped lang="scss">
 .card-header { display: flex; justify-content: space-between; align-items: center; }
+.rating-tag { display: inline-flex; align-items: center; }
 .detail-text {
   white-space: pre-wrap; word-wrap: break-word;
   max-height: 300px; overflow-y: auto;

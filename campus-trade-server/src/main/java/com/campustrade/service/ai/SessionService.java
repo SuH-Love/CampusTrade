@@ -200,7 +200,15 @@ public class SessionService {
     public boolean shouldSummarize(String sessionId) {
         String key = SESSION_PREFIX + sessionId;
         Long size = stringRedisTemplate.opsForList().size(key);
-        return size != null && size > SHORT_TERM_KEEP * 2L + 4;
+        if (size == null) return false;
+        if (size > SHORT_TERM_KEEP * 2L + 4) return true;
+        int totalTokens = 0;
+        List<Map<String, Object>> history = getHistory(sessionId);
+        for (Map<String, Object> msg : history) {
+            String content = (String) msg.get("content");
+            totalTokens += estimateTokens(content != null ? content : "");
+        }
+        return totalTokens > MAX_CONTEXT_TOKENS * 0.7;
     }
 
     public String prepareSummaryContext(String sessionId, String summaryPrompt) {
