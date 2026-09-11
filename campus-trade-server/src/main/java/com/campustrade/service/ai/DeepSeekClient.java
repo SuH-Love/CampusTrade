@@ -502,20 +502,17 @@ public class DeepSeekClient {
             result.put("toolCalls", null);
             return result;
         }
-        for (int attempt = 0; attempt < 2; attempt++) {
-            result = doChatWithToolsForScene(messages, tools, sceneOverride);
-            String content = (String) result.get("content");
-            if (content != null && !FALLBACK_ANSWERS.get("faq").equals(content)) {
-                return result;
-            }
-            if (attempt == 0) log.info("Retrying DeepSeek chatWithTools after failure");
+        result = doChatWithToolsForScene(messages, tools, sceneOverride);
+        String content = (String) result.get("content");
+        if (content != null && !FALLBACK_ANSWERS.get("faq").equals(content)) {
+            return result;
         }
         if (fallbackApiKey != null && !fallbackApiKey.isEmpty()) {
             String fbUrl = fallbackBaseUrl.isEmpty() ? currentBaseUrl : fallbackBaseUrl;
             String fbModel = fallbackModel.isEmpty() ? currentModel : fallbackModel;
             log.info("Trying fallback model (tools): {}", fbModel);
             result = doChatWithToolsConfig(messages, tools, fallbackApiKey, fbUrl, fbModel);
-            String content = (String) result.get("content");
+            content = (String) result.get("content");
             if (content != null && !FALLBACK_ANSWERS.get("faq").equals(content)) return result;
         }
         return result;

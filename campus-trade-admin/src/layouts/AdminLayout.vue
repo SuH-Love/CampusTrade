@@ -229,7 +229,7 @@ useAdminKickout()
 const checkKickout = async () => {
   if (!adminStore.token) return
   try {
-    const resp = await fetch('/api/dashboard/stats', {
+    const resp = await fetch('/api/admin/dashboard/stats', {
       headers: { Authorization: `Bearer ${adminStore.token}` }
     })
     if (resp.status === 401) {

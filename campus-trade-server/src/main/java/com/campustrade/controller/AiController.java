@@ -148,7 +148,7 @@ public class AiController {
 
         String faqContext = faqVectorService.buildContext(userMessage);
         boolean needTools = mayNeedTools(userMessage);
-        String prompt = getSystemPrompt() + buildPlatformKnowledge() + buildDateHint();
+        String prompt = getSystemPrompt() + buildPlatformKnowledge(userMessage) + buildDateHint();
         if (!faqContext.isEmpty()) {
             prompt = prompt + "\n\n" + faqContext;
         }
@@ -305,7 +305,7 @@ public class AiController {
 
         String faqContext = faqVectorService.buildContext(userMessage);
         boolean needTools = mayNeedTools(userMessage);
-        String prompt = getSystemPrompt() + buildPlatformKnowledge() + buildDateHint();
+        String prompt = getSystemPrompt() + buildPlatformKnowledge(userMessage) + buildDateHint();
         if (!faqContext.isEmpty()) {
             prompt = prompt + "\n\n" + faqContext;
         }
@@ -378,80 +378,34 @@ public class AiController {
         final List<Map<String, Object>> collectedThinking = new ArrayList<>();
         final List<Map<String, Object>> collectedToolCalls = new ArrayList<>();
 
-        if (!needTools) {
-            String templateResp = getTemplateResponse(userMessage);
-            if (templateResp != null) {
-                try {
-                    emitter.send(SseEmitter.event().name("message").data(jsonContent(templateResp)));
-                    sessionService.addMessagePair(sid, userMessage, templateResp);
+        // 模板回复拦截纯闲聊（OpenAI Function Calling模式：统一走Agent循环，AI自行决定是否调用工具）
+        String templateResp = getTemplateResponse(userMessage);
+        if (templateResp != null) {
+            try {
+                emitter.send(SseEmitter.event().name("message").data(jsonContent(templateResp)));
+                sessionService.addMessagePair(sid, userMessage, templateResp);
+                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                emitter.complete();
+            } catch (Exception ignored) {}
+            return emitter;
+        }
+        // 简单问题缓存（加prompt版本号避免prompt更新后旧缓存命中）
+        String promptHash = String.valueOf(prompt.hashCode());
+        String cacheKey = "ai:cache:simple:" + promptHash + ":" + Math.abs(userMessage.hashCode());
+        if (regenerate) {
+            try { stringRedisTemplate.delete(cacheKey); } catch (Exception ignored) {}
+        }
+        if (!regenerate && userMessage.length() < 50) {
+            try {
+                String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+                if (cached != null && !cached.isEmpty()) {
+                    emitter.send(SseEmitter.event().name("message").data(jsonContent(cached)));
+                    sessionService.addMessagePair(sid, userMessage, cached);
                     emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                     emitter.complete();
-                } catch (Exception ignored) {}
-                return emitter;
-            }
-            String cacheKey = "ai:cache:simple:" + Math.abs(userMessage.hashCode());
-            if (regenerate) {
-                try { stringRedisTemplate.delete(cacheKey); } catch (Exception ignored) {}
-            }
-            if (!regenerate && userMessage.length() < 50) {
-                try {
-                    String cached = stringRedisTemplate.opsForValue().get(cacheKey);
-                    if (cached != null && !cached.isEmpty()) {
-                        emitter.send(SseEmitter.event().name("message").data(jsonContent(cached)));
-                        sessionService.addMessagePair(sid, userMessage, cached);
-                        emitter.send(SseEmitter.event().name("done").data("[DONE]"));
-                        emitter.complete();
-                        return emitter;
-                    }
-                } catch (Exception ignored) {}
-            }
-            sendThinking(emitter, "理解意图", analyzeIntent(userMessage));
-            collectedThinking.add(Map.of("status", "理解意图", "detail", analyzeIntent(userMessage)));
-            StringBuilder fullResponse = new StringBuilder();
-            deepSeekClient.chatStream(messages,
-                    token -> {
-                        try {
-                            if (safetyService.isTokenSafe(token)) {
-                                synchronized (emitter) {
-                                    emitter.send(SseEmitter.event().name("message").data(jsonContent(token)));
-                                }
-                            }
-                            fullResponse.append(token);
-                        } catch (Exception e) {
-                            log.warn("SSE send token failed: {}", e.getMessage());
-                        }
-                    },
-                    done -> {
-                        try {
-                            String sanitizedFull = safetyService.sanitizeOutput(fullResponse.toString());
-                            sessionService.addMessagePair(sid, userMessage, sanitizedFull, collectedThinking, null);
-                            if (userMessage.length() < 50 && sanitizedFull.length() < 2000) {
-                                try {
-                                    stringRedisTemplate.opsForValue().set(cacheKey, sanitizedFull, 1, TimeUnit.HOURS);
-                                } catch (Exception ignored) {}
-                            }
-                            synchronized (emitter) {
-                                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
-                                emitter.complete();
-                            }
-                        } catch (Exception e) {
-                            log.warn("SSE complete failed: {}", e.getMessage());
-                            emitter.complete();
-                        }
-                    },
-                    error -> {
-                        try {
-                            String partial = fullResponse.toString();
-                            String saveContent = partial.isEmpty() ? "AI服务暂时不可用" : safetyService.sanitizeOutput(partial);
-                            sessionService.addMessagePair(sid, userMessage, saveContent, collectedThinking, null);
-                            synchronized (emitter) {
-                                emitter.send(SseEmitter.event().name("error").data("AI服务暂时不可用"));
-                                emitter.complete();
-                            }
-                        } catch (Exception ignored) {}
-                    }
-            );
-            return emitter;
+                    return emitter;
+                }
+            } catch (Exception ignored) {}
         }
 
         List<Map<String, Object>> tools = aiToolService.getToolDefinitions();
@@ -567,9 +521,9 @@ public class AiController {
                 String toolName = (String) function.get("name");
                 String toolResult;
                 try {
-                    toolResult = toolFutures.get(j).orTimeout(15, java.util.concurrent.TimeUnit.SECONDS).join();
+                    toolResult = toolFutures.get(j).orTimeout(getToolTimeout(toolName), java.util.concurrent.TimeUnit.SECONDS).join();
                 } catch (java.util.concurrent.CompletionException ce) {
-                    toolResult = "{\"error\":\"工具执行超时(15s)\"}";
+                    toolResult = "{\"error\":\"工具执行超时(" + getToolTimeout(toolName) + "s)\"}";
                     log.warn("Tool execution timeout: {}", toolName);
                 }
                 completedToolNames.add(toolName);
@@ -606,15 +560,29 @@ public class AiController {
 
         if (nonStreamAnswer != null && !nonStreamAnswer.isEmpty()) {
             String content = safetyService.sanitizeOutput(nonStreamAnswer);
+            // 分段流式发送，模拟流式打字效果
+            int chunkSize = 8;
+            for (int start = 0; start < content.length(); start += chunkSize) {
+                int end = Math.min(start + chunkSize, content.length());
+                String chunk = content.substring(start, end);
+                try {
+                    synchronized (emitter) {
+                        emitter.send(SseEmitter.event().name("message").data(jsonContent(chunk)));
+                    }
+                } catch (Exception ignored) {}
+                try { Thread.sleep(15); } catch (InterruptedException ignored) { break; }
+            }
+            sessionService.addMessagePair(sid, userMessage, content, collectedThinking, collectedToolCalls);
+            // 缓存简单回复（加prompt版本号）
+            if (userMessage.length() < 50 && content.length() < 2000) {
+                try {
+                    stringRedisTemplate.opsForValue().set(cacheKey, content, 1, TimeUnit.HOURS);
+                } catch (Exception ignored) {}
+            }
             try {
-                emitter.send(SseEmitter.event().name("message").data(jsonContent(content)));
-                sessionService.addMessagePair(sid, userMessage, content, collectedThinking, collectedToolCalls);
                 emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                 emitter.complete();
-            } catch (Exception e) {
-                log.warn("SSE send non-stream answer failed: {}", e.getMessage());
-                emitter.complete();
-            }
+            } catch (Exception ignored) {}
             return emitter;
         }
 
@@ -665,6 +633,16 @@ public class AiController {
         );
 
         return emitter;
+    }
+
+    private long getToolTimeout(String toolName) {
+        if (toolName == null) return 15;
+        if (toolName.startsWith("get_") || toolName.startsWith("search_") ||
+            "admin_dashboard".equals(toolName) || "admin_list_users".equals(toolName) ||
+            "admin_list_reports".equals(toolName) || "get_announcements".equals(toolName)) {
+            return 30;
+        }
+        return 15;
     }
 
     private String toolDisplayName(String name) {
@@ -1081,7 +1059,7 @@ public class AiController {
                         .header("Authorization", "Bearer " + routed[1])
                         .header("Content-Type", "application/json")
                         .body(payload.toString())
-                        .timeout(30000)
+                        .timeout(60000)
                         .execute();
                 if (httpResp.getStatus() < 200 || httpResp.getStatus() >= 300) {
                     log.warn("FAQ建议API返回非200: code={}", httpResp.getStatus());
@@ -1140,75 +1118,113 @@ public class AiController {
         return "AI助手暂时不可用，请稍后再试。";
     }
 
-    private String buildPlatformKnowledge() {
-        return "\n\n## 平台知识（回答用户关于平台规则的问题时必须依据以下信息）\n" +
-               "### 密码与账号\n" +
-               "- 注册：需用户名+密码，可选绑定手机号和邮箱。密码要求8-50位，需包含大小写字母、数字、特殊字符中的三种。\n" +
-               "- 重置密码：在登录页点击\"忘记密码\"，需输入用户名和注册时绑定的**邮箱**（非手机号），系统发送6位验证码到邮箱，验证后设置新密码。验证码5分钟有效。\n" +
-               "- 登录安全：连续5次密码错误锁定账号30分钟。\n" +
-               "- 如果用户说忘记密码，引导其通过邮箱验证码重置，不要提到手机号。\n" +
-               "- 如果用户没有绑定邮箱，建议其联系管理员协助重置密码。\n\n" +
-               "### 商品发布与审核\n" +
-               "- 发布流程：创建商品（草稿）→ 提交审核 → AI自动审核 → 审核通过/拒绝 → 用户手动上架 → 在售。\n" +
-               "- AI审核：提交审核后AI自动审核内容合规性（违禁品、欺诈信息、联系方式绕过平台等），通过后状态变为\"已审核\"，拒绝则变为\"审核拒绝\"并附原因。\n" +
-               "- 管理员复审：管理员可在后台对AI审核结果进行复审改判（将通过的改为拒绝，或将拒绝的改为通过），防止AI误判。\n" +
-               "- 编辑重新审核：已审核通过/已上架/已下架的商品，编辑后需重新提交AI审核。\n" +
-               "- 商品状态：草稿(DRAFT)、待审核(PENDING)、已审核(APPROVED)、审核拒绝(REJECTED)、在售(ONLINE)、已下架(OFFLINE)、已售出(SOLD)。\n" +
-               "- 上架条件：只有\"已审核\"或\"已下架\"状态的商品才能上架。\n\n" +
-               "### 订单交易\n" +
-               "- 订单流程：待支付 → 已支付/待发货 → 配送中 → 待评价 → 已完成。可取消（待支付时）、退款（已支付后）。\n" +
-               "- 支付方式：支付宝担保交易，买家付款后资金冻结在平台，确认收货后结算给卖家。\n" +
-               "- 配送方式：快递配送或线下自提。\n" +
-               "- 评价：确认收货后可对卖家评价（1-5星+文字）。\n\n" +
-                "### 其他功能\n" +
-                "- 收藏：可收藏感兴趣的商品。\n" +
-                "- 购物车：可加入购物车后批量下单。\n" +
-                "- 关注：可关注其他用户，关注后其发布新商品会收到通知。\n" +
-                "- 聊天：买卖双方可在线聊天沟通。\n" +
-                "- 举报：可举报违规商品或用户。\n" +
-                "- 通知：订单状态变更、商品审核结果等会收到站内通知。\n" +
-                 "- AI助手（小苏）：可查询订单、商品、统计等数据，也可执行取消订单、确认收货、收藏等操作。\n\n" +
-                "### 前端页面结构与导航（重要！回答页面相关问题时必须依据此信息）\n" +
-                "#### 顶部导航栏（PC端）\n" +
-                "- 从左到右依次为：Logo+首页(/)、商品市场(/goods)、我的商品(/my-goods)、订单(/order)、收藏(/favorites)、关注(/following)\n" +
-                "- 右侧图标按钮：购物车(🛒)、聊天(💬)、通知(🔔)、用户头像下拉菜单\n" +
-                 "- 用户下拉菜单包含：个人中心、收货地址、我的商品、设置等入口\n" +
-                 "- **发布商品入口**：页面底部页脚有\"发布商品\"链接(/goods/publish)，或在用户下拉菜单中\n\n" +
-                 "#### 移动端导航\n" +
-                 "- 顶部导航栏精简，通过左上角菜单(☰)打开抽屉式导航\n" +
-                 "- 抽屉菜单包含：首页、商品市场、我的商品、订单、收藏、关注\n" +
-                 "- **发布商品入口**：底部页脚\"发布商品\"链接，或通过个人中心进入\n\n" +
-                  "#### 主要页面说明\n" +
-                  "- 首页(/)：展示推荐商品、分类入口、搜索栏\n" +
-                  "- 商品市场(/goods)：商品列表，支持搜索、分类筛选、排序\n" +
-                  "- 商品详情(/goods/:id)：商品图片、描述、价格、卖家信息、收藏/加购/购买按钮\n" +
-                  "- 发布商品(/goods/publish)：填写商品标题、描述、价格、分类、成色、上传图片，提交后进入AI审核\n" +
-                  "- 我的商品(/my-goods)：查看自己发布的商品列表，可编辑/上架/下架\n" +
-                  "- 订单(/order)：订单列表，支持按状态筛选(待支付/待发货/待评价/已完成)，支持买家/卖家视角切换\n" +
-                  "- 订单详情(/order/:id)：订单信息+资金流水时间线（支付/退款等记录）\n" +
-                  "- 个人中心(/profile)：标签页式布局，包含以下标签页：\n" +
-                  "  - \"我的统计\"标签页：统计卡片区域，包含：我的订单、出售商品、完成购物、收货地址、累计消费(¥)、累计收入(¥)\n" +
-                  "  - \"编辑资料\"标签页：修改昵称、手机号、邮箱\n" +
-                  "  - \"修改密码\"标签页：修改登录密码\n" +
-                  "  - \"实名认证\"标签页：填写真实姓名和学号进行实名认证（已认证则不显示）\n" +
-                  "  - \"收款管理\"标签页：管理支付宝等收款账号\n" +
-                  "- 收货地址管理(/address)：地址列表，可新增/编辑/删除地址、设置默认地址\n" +
-                  "- 购物车(/cart)：购物车商品列表，可批量下单\n" +
-                  "- 聊天(/chat)：买卖双方在线聊天\n\n" +
-                  "#### 收货地址入口（重要）\n" +
-                  "- 方式1：顶部导航栏右侧用户头像下拉菜单 → 点击\"收货地址\"\n" +
-                  "- 方式2：个人中心(/profile)页面 → \"我的统计\"标签页 → 统计卡片区域 → 点击\"收货地址\"卡片\n" +
-                  "- 进入收货地址管理页面后，点击\"新增地址\"按钮填写姓名、电话、省市区、详细地址\n\n" +
-                  "#### 资金流水/个人流水查看方式（重要）\n" +
-                  "- 平台没有独立的\"资产\"、\"钱包\"或\"流水\"页面，不要编造这些入口\n" +
-                  "- 查看总消费/总收入：个人中心(/profile) → \"我的统计\"标签页 → \"累计消费\"和\"累计收入\"卡片\n" +
-                  "- 查看具体订单的资金流水：订单列表(/order) → 点击某笔订单进入订单详情 → 页面下方有\"资金流水\"时间线\n" +
-                  "- 也可让AI直接查询：用户可说\"查一下订单XXX的资金流水\"，AI通过get_order_fund_logs工具查询\n\n" +
-                "### 回答要求\n" +
-                "- 当用户询问平台功能或规则时，根据以上知识准确回答，不要编造不存在的功能。\n" +
-                "- 当用户询问\"在哪里发布商品\"、\"怎么找到某个功能\"等导航问题时，根据上面的页面结构信息准确指引。\n" +
-                "- 涉及具体数据（订单、商品等）时，调用工具获取真实数据，不要凭空回答。\n" +
-                "- 如果用户发送了截图，先仔细分析截图内容，描述看到了什么，再回答用户问题。";
+    private String buildPlatformKnowledge(String userMessage) {
+        String lower = userMessage != null ? userMessage.toLowerCase() : "";
+        StringBuilder sb = new StringBuilder("\n\n## 平台知识（回答用户关于平台规则的问题时必须依据以下信息）\n");
+        boolean anyMatched = false;
+
+        // 密码与账号
+        if (containsAny(lower, "密码", "注册", "登录", "重置", "忘记", "账号", "邮箱", "验证码", "锁定")) {
+            sb.append("### 密码与账号\n")
+              .append("- 注册：需用户名+密码，可选绑定手机号和邮箱。密码要求8-50位，需包含大小写字母、数字、特殊字符中的三种。\n")
+              .append("- 重置密码：在登录页点击\"忘记密码\"，需输入用户名和注册时绑定的**邮箱**（非手机号），系统发送6位验证码到邮箱，验证后设置新密码。验证码5分钟有效。\n")
+              .append("- 登录安全：连续5次密码错误锁定账号30分钟。\n")
+              .append("- 如果用户说忘记密码，引导其通过邮箱验证码重置，不要提到手机号。\n")
+              .append("- 如果用户没有绑定邮箱，建议其联系管理员协助重置密码。\n\n");
+            anyMatched = true;
+        }
+
+        // 商品发布与审核
+        if (containsAny(lower, "发布", "审核", "上架", "下架", "草稿", "违禁", "商品状态")) {
+            sb.append("### 商品发布与审核\n")
+              .append("- 发布流程：创建商品（草稿）→ 提交审核 → AI自动审核 → 审核通过/拒绝 → 用户手动上架 → 在售。\n")
+              .append("- AI审核：提交审核后AI自动审核内容合规性，通过后状态变为\"已审核\"，拒绝则变为\"审核拒绝\"并附原因。\n")
+              .append("- 商品状态：草稿(DRAFT)、待审核(PENDING)、已审核(APPROVED)、审核拒绝(REJECTED)、在售(ONLINE)、已下架(OFFLINE)、已售出(SOLD)。\n")
+              .append("- 上架条件：只有\"已审核\"或\"已下架\"状态的商品才能上架。\n\n");
+            anyMatched = true;
+        }
+
+        // 订单交易
+        if (containsAny(lower, "订单", "支付", "发货", "退款", "评价", "支付宝", "配送", "买家", "卖家")) {
+            sb.append("### 订单交易\n")
+              .append("- 订单流程：待支付 → 已支付/待发货 → 配送中 → 待评价 → 已完成。可取消（待支付时）、退款（已支付后）。\n")
+              .append("- 支付方式：支付宝担保交易，买家付款后资金冻结在平台，确认收货后结算给卖家。\n")
+              .append("- 配送方式：快递配送或线下自提。\n")
+              .append("- 评价：确认收货后可对卖家评价（1-5星+文字）。\n\n");
+            anyMatched = true;
+        }
+
+        // 其他功能
+        if (containsAny(lower, "收藏", "购物车", "关注", "聊天", "举报", "通知", "粉丝", "小苏")) {
+            sb.append("### 其他功能\n")
+              .append("- 收藏：可收藏感兴趣的商品。购物车：可加入购物车后批量下单。\n")
+              .append("- 关注：可关注其他用户，关注后其发布新商品会收到通知。\n")
+              .append("- 聊天：买卖双方可在线聊天沟通。举报：可举报违规商品或用户。\n")
+              .append("- 通知：订单状态变更、商品审核结果等会收到站内通知。\n\n");
+            anyMatched = true;
+        }
+
+        // 前端页面导航
+        if (containsAny(lower, "在哪", "怎么", "如何", "入口", "页面", "导航", "去哪", "哪里", "哪个", "个人中心", "设置", "profile")) {
+            sb.append("### 前端页面结构与导航\n")
+              .append("#### 顶部导航栏（PC端）\n")
+              .append("- 从左到右：Logo+首页(/)、商品市场(/goods)、我的商品(/my-goods)、订单(/order)、收藏(/favorites)、关注(/following)\n")
+              .append("- 右侧图标：购物车(🛒)、聊天(💬)、通知(🔔)、用户头像下拉菜单（个人中心、收货地址、我的商品、设置）\n")
+              .append("- **发布商品入口**：页面底部页脚\"发布商品\"链接(/goods/publish)，或在用户下拉菜单中\n\n")
+              .append("#### 主要页面\n")
+              .append("- 首页(/)：推荐商品、分类入口、搜索栏\n")
+              .append("- 商品市场(/goods)：商品列表，支持搜索、分类筛选、排序\n")
+              .append("- 发布商品(/goods/publish)：填写商品信息，提交后进入AI审核\n")
+              .append("- 我的商品(/my-goods)：自己发布的商品列表，可编辑/上架/下架\n")
+              .append("- 订单(/order)：订单列表，支持按状态筛选，支持买家/卖家视角切换\n")
+              .append("- 个人中心(/profile)：标签页式布局\n")
+              .append("  - \"我的统计\"标签页：我的订单、出售商品、完成购物、收货地址、累计消费(¥)、累计收入(¥)\n")
+              .append("  - \"编辑资料\"标签页：修改昵称、手机号、邮箱\n")
+              .append("  - \"修改密码\"标签页 / \"实名认证\"标签页 / \"收款管理\"标签页\n")
+              .append("- 购物车(/cart) / 聊天(/chat) / 收货地址管理(/address)\n\n");
+            anyMatched = true;
+        }
+
+        // 收货地址
+        if (containsAny(lower, "地址", "收货")) {
+            sb.append("### 收货地址入口\n")
+              .append("- 方式1：顶部导航栏右侧用户头像下拉菜单 → 点击\"收货地址\"\n")
+              .append("- 方式2：个人中心(/profile) → \"我的统计\"标签页 → 点击\"收货地址\"卡片\n")
+              .append("- 进入后点击\"新增地址\"按钮填写姓名、电话、省市区、详细地址\n\n");
+            anyMatched = true;
+        }
+
+        // 资金流水
+        if (containsAny(lower, "流水", "资金", "消费", "收入", "钱包", "资产", "统计")) {
+            sb.append("### 资金流水查看方式\n")
+              .append("- 平台没有独立的\"资产\"、\"钱包\"或\"流水\"页面，不要编造这些入口\n")
+              .append("- 查看总消费/总收入：个人中心(/profile) → \"我的统计\"标签页 → \"累计消费\"和\"累计收入\"卡片\n")
+              .append("- 查看具体订单资金流水：订单列表(/order) → 点击订单进入详情 → 页面下方有\"资金流水\"时间线\n")
+              .append("- 也可让AI直接查询：用户可说\"查一下订单XXX的资金流水\"，AI通过get_order_fund_logs工具查询\n\n");
+            anyMatched = true;
+        }
+
+        // 无匹配时注入精简概览
+        if (!anyMatched) {
+            sb.append("### 平台概览\n")
+              .append("- 校园二手交易平台，支持商品发布、订单交易、支付宝担保支付、收货地址管理、收藏/购物车/关注等功能。\n")
+              .append("- 个人中心(/profile)包含统计、编辑资料、修改密码、实名认证、收款管理等标签页。\n")
+              .append("- 具体功能位置请参考前端页面导航信息。\n\n");
+        }
+
+        // 回答要求始终注入
+        sb.append("### 回答要求\n")
+          .append("- 根据以上知识准确回答，不要编造不存在的功能。\n")
+          .append("- 涉及具体数据时调用工具获取真实数据，不要凭空回答。\n")
+          .append("- 如果用户发送了截图，先描述图片内容，再回答问题。");
+        return sb.toString();
+    }
+
+    private boolean containsAny(String text, String... keywords) {
+        for (String kw : keywords) {
+            if (text.contains(kw)) return true;
+        }
+        return false;
     }
 
     private String buildDateHint() {

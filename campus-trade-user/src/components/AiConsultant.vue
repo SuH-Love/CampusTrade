@@ -23,7 +23,7 @@
           </div>
         </div>
 
-        <div class="chat-body" ref="bodyRef">
+        <div class="chat-body" ref="bodyRef" @scroll="onBodyScroll">
           <div v-if="messages.length === 0" class="welcome">
             <div class="welcome-icon">
               <el-icon :size="36"><ChatDotRound /></el-icon>
@@ -31,13 +31,17 @@
             <p class="welcome-title">你好，我是小苏</p>
             <p class="welcome-desc">校园贸易平台AI助手，有什么可以帮你的吗？</p>
             <div class="suggestions">
-              <el-button
-                v-for="s in suggestions"
-                :key="s"
-                size="small"
-                round
-                @click="sendMessage(s)"
-              >{{ s }}</el-button>
+              <p class="suggestions-label">猜你想了解</p>
+              <div class="suggestions-grid">
+                <button
+                  v-for="s in displaySuggestions"
+                  :key="s"
+                  class="suggestion-item"
+                  @click="sendMessage(s)"
+                >
+                  <span class="suggestion-text">{{ s }}</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -175,6 +179,14 @@
             </div>
           </div>
         </div>
+
+        <transition name="fade-scale">
+          <div v-if="showScrollBottom" class="scroll-bottom-btn" @click="scrollToBottom(true)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+        </transition>
 
         <div class="chat-footer">
           <div v-if="pendingImages.length > 0" class="image-preview-bar">
@@ -391,6 +403,12 @@ const loading = ref(false)
 const messages = ref<Message[]>([])
 const sessionId = ref<string | undefined>(undefined)
 const bodyRef = ref<HTMLElement>()
+const showScrollBottom = ref(false)
+const onBodyScroll = () => {
+  if (!bodyRef.value) return
+  const { scrollTop, scrollHeight, clientHeight } = bodyRef.value
+  showScrollBottom.value = scrollHeight - scrollTop - clientHeight > 120
+}
 const textareaRef = ref<HTMLTextAreaElement>()
 const fileInputRef = ref<HTMLInputElement>()
 const pendingImages = ref<{ url: string; name: string; uploadedPath?: string }[]>([])
@@ -614,15 +632,58 @@ const loadAllHistory = async () => {
   } catch {}
 }
 
-const suggestions = [
-  '如何发布商品？',
+const allSuggestions = [
+  '怎么发布二手商品？',
+  '商品怎么上架？',
+  '搜索商品怎么用？',
+  '商品审核要多久？',
+  '怎么编辑已发布的商品？',
+  '商品下架后还能上架吗？',
+  '我的订单到哪了？',
   '怎么支付订单？',
-  '忘记密码怎么办？',
-  '平台收手续费吗？'
+  '如何取消订单？',
+  '怎么申请退款？',
+  '怎么确认收货？',
+  '如何给卖家评价？',
+  '订单有哪些状态？',
+  '忘记密码怎么找回？',
+  '怎么修改登录密码？',
+  '如何实名认证？',
+  '怎么修改个人信息？',
+  '怎么绑定邮箱？',
+  '查看我的资金流水',
+  '我总共消费了多少？',
+  '怎么查看收入记录？',
+  '平台收手续费吗？',
+  '支持哪些支付方式？',
+  '怎么设置收货地址？',
+  '怎么管理收款账号？',
+  '如何收藏商品？',
+  '购物车怎么用？',
+  '怎么关注其他用户？',
+  '怎么查看通知消息？',
+  '如何联系卖家？',
+  '怎么举报违规商品？',
+  '商品审核被拒怎么办？',
+  '怎么查看我的商品？',
+  '关注后有什么好处？',
+  '交易安全怎么保障？',
+  '支付宝担保交易是什么？',
+  '怎么区分买家和卖家订单？',
+  '可以线下自提吗？'
 ]
+const displaySuggestions = ref<string[]>([])
+const refreshSuggestions = () => {
+  const shuffled = [...allSuggestions].sort(() => Math.random() - 0.5)
+  displaySuggestions.value = shuffled.slice(0, 4)
+}
 
 let scrollRafId: number | null = null
-const scrollToBottom = () => {
+const scrollToBottom = (smooth = false) => {
+  if (smooth && bodyRef.value) {
+    bodyRef.value.scrollTo({ top: bodyRef.value.scrollHeight, behavior: 'smooth' })
+    return
+  }
   if (scrollRafId !== null) return
   scrollRafId = requestAnimationFrame(() => {
     if (bodyRef.value) {
@@ -1043,6 +1104,7 @@ const handleClear = async () => {
 
 watch(visible, async (val) => {
   if (val) {
+    refreshSuggestions()
     if (!sessionId.value) restoreSession()
     await loadHistory()
   }
@@ -1153,7 +1215,7 @@ onUnmounted(() => {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  width: 460px;
+  width: 430px;
   height: 640px;
   max-height: calc(100vh - 120px);
   background: var(--bg-glass);
@@ -1170,9 +1232,9 @@ onUnmounted(() => {
     bottom: 0;
     right: 0;
     top: 64px;
-    width: 32vw;
-    min-width: 460px;
-    max-width: 720px;
+    width: 30vw;
+    min-width: 430px;
+    max-width: 680px;
     height: auto;
     max-height: none;
     border-radius: 0;
@@ -1219,7 +1281,18 @@ onUnmounted(() => {
   .welcome-icon { color: var(--primary); margin-bottom: 12px; }
   .welcome-title { font-size: 20px; font-weight: 800; margin: 0 0 4px; background: var(--primary-gradient-gloss); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
   .welcome-desc { font-size: 13px; color: var(--text-secondary); margin: 0 0 18px; }
-  .suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .suggestions { margin-top: 4px; }
+  .suggestions-label { font-size: 12px; color: var(--text-muted); margin: 0 0 10px; font-weight: 500; }
+  .suggestions-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .suggestion-item {
+    display: inline-flex; align-items: center;
+    padding: 6px 14px; border: 1px solid var(--border);
+    border-radius: 16px; background: var(--bg-card);
+    cursor: pointer; transition: all 0.2s;
+    .suggestion-text { font-size: 13px; color: var(--text-primary); white-space: nowrap; }
+    &:hover { border-color: var(--primary); background: rgba(14, 165, 233, 0.05); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(14, 165, 233, 0.1); }
+    &:active { transform: translateY(0); }
+  }
 }
 
 .msg-row { display: flex; &.user { justify-content: flex-end; } &.assistant { justify-content: flex-start; } }
@@ -1332,6 +1405,20 @@ onUnmounted(() => {
   &.active { color: var(--primary); background: rgba(14, 165, 233, 0.12); }
 }
 .typing { display: inline-flex; gap: 4px; align-items: center; .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-secondary); animation: typing-bounce 1.4s infinite ease-in-out; &:nth-child(2) { animation-delay: 0.2s; } &:nth-child(3) { animation-delay: 0.4s; } } }
+
+.scroll-bottom-btn {
+  position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--primary-gradient); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 10;
+  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.35);
+  transition: all 0.3s ease;
+  &:hover { transform: translateX(-50%) translateY(-3px); box-shadow: 0 6px 24px rgba(14, 165, 233, 0.45); }
+}
+.fade-scale-enter-active { transition: all 0.3s ease; }
+.fade-scale-leave-active { transition: all 0.2s ease; }
+.fade-scale-enter-from, .fade-scale-leave-to { opacity: 0; transform: translateX(-50%) translateY(20px); }
 @keyframes typing-bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
 
 .chat-footer { padding: 0 12px 14px; flex-shrink: 0; background: var(--bg-hover); }
@@ -1397,8 +1484,9 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .chat-panel {
     width: calc(100vw - 32px);
-    max-width: 520px;
-    &.expanded { width: 100vw; max-width: none; }
+    max-width: 500px;
+    left: 50%; right: auto; transform: translateX(-50%);
+    &.expanded { width: 100vw; max-width: none; left: 0; transform: none; }
   }
   .chat-header .header-text .title { font-size: 14px; }
   .msg-bubble { font-size: 13px; }
@@ -1407,8 +1495,9 @@ onUnmounted(() => {
 
 @media (max-width: 480px) {
   .chat-panel {
-    width: calc(100vw - 32px); height: calc(100vh - 120px); bottom: 16px; right: 16px;
-    &.expanded { width: 100vw; min-width: 0; max-width: none; border-radius: 0; }
+    width: calc(100vw - 32px); height: calc(100vh - 120px); bottom: 16px;
+    left: 50%; right: auto; transform: translateX(-50%);
+    &.expanded { width: 100vw; min-width: 0; max-width: none; left: 0; transform: none; border-radius: 0; }
   }
 }
 </style>

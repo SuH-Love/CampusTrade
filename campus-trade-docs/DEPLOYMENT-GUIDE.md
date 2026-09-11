@@ -586,6 +586,7 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 |--------|---------------------|--------|------|
 | API Key | `ai.api-key` | sk-xxxx... | DeepSeek API密钥 |
 | Base URL | `ai.base-url` | https://api.siliconflow.cn/v1 | API基础URL |
+
 | Model | `ai.model` | deepseek-ai/DeepSeek-V4-Flash | 模型名称 |
 | System Prompt | `ai.system-prompt` | (内置) | 系统提示词 |
 | Max Tokens | `ai.max-tokens` | 2048 | 最大输出token数 |

@@ -360,7 +360,22 @@ public class FaqVectorService {
 
     public List<FaqItem> search(String query, int topK) {
         if (useEmbeddings && !faqEmbeddings.isEmpty() && deepSeekClient != null) {
-            float[] queryEmbedding = deepSeekClient.embedding(query);
+            float[] queryEmbedding = null;
+            String embCacheKey = "ai:emb:cache:" + Math.abs(query.hashCode());
+            try {
+                String cached = stringRedisTemplate.opsForValue().get(embCacheKey);
+                if (cached != null && !cached.isEmpty()) {
+                    queryEmbedding = objectMapper.readValue(cached, float[].class);
+                }
+            } catch (Exception ignored) {}
+            if (queryEmbedding == null) {
+                queryEmbedding = deepSeekClient.embedding(query);
+                if (queryEmbedding != null && queryEmbedding.length > 0) {
+                    try {
+                        stringRedisTemplate.opsForValue().set(embCacheKey, objectMapper.writeValueAsString(queryEmbedding), 1, java.util.concurrent.TimeUnit.HOURS);
+                    } catch (Exception ignored) {}
+                }
+            }
             if (queryEmbedding != null && queryEmbedding.length > 0) {
                 List<Map.Entry<FaqItem, Double>> scored = new ArrayList<>();
                 for (int i = 0; i < faqItems.size(); i++) {
@@ -394,6 +409,9 @@ public class FaqVectorService {
     }
 
     public String buildContext(String query) {
+        if (query == null || query.trim().length() < 4) return "";
+        String lower = query.toLowerCase().trim();
+        if (lower.matches("^(你好|您好|谢谢|感谢|再见|拜拜|晚安|早安|好的|嗯|ok|bye|hi|hello|嗨|哈喽|hey)[啊呀！!。.~]?$")) return "";
         List<FaqItem> matches = search(query, topK);
         if (matches.isEmpty()) {
             return "";
