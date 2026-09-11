@@ -417,18 +417,32 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 
 ```
 用户消息 → AiController → DeepSeekClient → DeepSeek API
-                ↓                              ↓
-          AiSafetyService              Function Calling
-          (Injection检测)                     ↓
-                ↓                    AiToolService.executeTool()
-          AiRateLimiter              (36个业务工具)
-          (Lua原子限流)                      ↓
-                ↓                    业务Service/Mapper
-          SessionService                     ↓
-          (Redis会话管理)              工具结果返回AI
-                ↓                              ↓
-          SseEmitter ← ← ← ← ← ← ← ← 流式SSE输出
+                 ↓                              ↓
+           AiSafetyService              Function Calling
+           (Injection检测)                     ↓
+                 ↓                    AiToolService.executeTool()
+           AiRateLimiter              (36个业务工具)
+           (Lua原子限流)                      ↓
+                 ↓                    业务Service/Mapper
+           SessionService                     ↓
+           (Redis会话管理)              工具结果返回AI
+                 ↓                              ↓
+           SseEmitter ← ← ← ← ← ← ← ← 流式SSE输出
 ```
+
+**多模型协同**：Agent循环中按场景路由模型：
+- i=0且含图片 → 视觉模型（`Qwen/Qwen3.6-35B-A3B`），`convertMessagesForVision`将图片转为base64多模态格式
+- i=0无图片 → 推理模型（`deepseek-ai/DeepSeek-V4-Flash`），分析意图
+- i>0 → 对话模型（`Qwen/Qwen3.6-35B-A3B`），执行工具调用
+
+**视觉模型**：`convertMessagesForVision`方法将`[图片: name](url)`文本转为`{type: "image_url", image_url: {url: "data:image/png;base64,..."}}`多模态格式，AI可真正分析截图内容。
+
+**System Prompt三级优先级**：
+1. Redis `ai:system-prompt:custom`（管理员后台设置）— 最高
+2. 配置文件 `ai.system-prompt`（application-prod.yml）— 次优先（生产环境已置空）
+3. 代码 `buildDefaultSystemPrompt()`（AiController.java）— 兜底默认值
+
+> 管理员可通过 `DELETE /api/ai/prompt` 清除Redis自定义prompt，恢复代码默认值。
 
 ### 5.2 SSE流式接口
 
@@ -438,6 +452,10 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 | /api/ai/chat | POST | 非流式对话 | 是 |
 | /api/ai/config | GET | 获取AI配置状态 | ADMIN+ |
 | /api/ai/config | PUT | 修改AI配置（API Key/Model/Base URL） | ADMIN+ |
+| /api/ai/prompt | GET | 获取当前System Prompt（返回{prompt,isCustom,defaultPrompt}） | ADMIN+ |
+| /api/ai/prompt | PUT | 更新System Prompt（存Redis，热更新） | ADMIN+ |
+| /api/ai/prompt | DELETE | 重置为代码默认System Prompt（清Redis） | ADMIN+ |
+| /api/ai/faq/suggest | GET | AI智能FAQ建议（从用户聊天记录提取候选） | ADMIN+ |
 | /api/ai/history/{sessionId} | GET | 获取会话历史 | 是 |
 | /api/ai/sessions | GET | 获取用户所有会话 | 是 |
 | /api/ai/session/{sessionId} | DELETE | 删除会话 | 是 |
@@ -579,42 +597,76 @@ AI助手基于DeepSeek大模型（DeepSeek-V4-Flash），通过Function Calling�
 
 ### 5.7 平台知识注入
 
-系统提示词中注入平台规则知识，确保AI回答准确反映最新平台规则：
+系统提示词中**始终**注入平台规则知识（不再仅限needTools时），确保AI任何时候都能依据平台知识回答导航问题：
 
 | 知识域 | 内容 |
 |--------|------|
 | 密码与账号 | 注册要求（强密码）、重置密码流程（邮箱验证码非手机号）、登录锁定规则 |
 | 商品发布与审核 | 完整审核流程（草稿→AI审核→管理员复审→上架）、编辑重新审核、7种状态说明 |
 | 订单交易 | 订单流程、支付宝担保交易、配送方式、评价 |
+| 前端页面结构与导航 | 顶部导航栏（Logo/商品市场/我的商品/订单/收藏/关注/购物车/聊天/通知/用户下拉菜单）、移动端抽屉导航、主要页面说明 |
+| 个人中心 | 5个标签页完整说明（我的统计/编辑资料/修改密码/实名认证/收款管理）、统计卡片区域6个卡片 |
+| 收货地址入口 | 2种方式（用户下拉菜单 + 个人中心统计卡片） |
+| 资金流水查看方式 | 总消费/收入在个人中心统计卡片，具体流水在订单详情页资金流水时间线，明确声明无独立资产/钱包/流水页面 |
 | 其他功能 | 收藏、购物车、关注、聊天、举报、通知 |
-| 回答要求 | 依据知识准确回答，不编造功能；涉及具体数据时调用工具获取 |
+| 回答要求 | 依据知识准确回答，不编造功能；涉及具体数据时调用工具获取；收到截图先描述内容再回答 |
 
-**实现**：`AiController.buildPlatformKnowledge()` 方法在每次对话时动态拼接到系统提示词，与 `buildDateHint()` 一起注入。
+**实现**：`AiController.buildPlatformKnowledge()` 方法在每次对话时**无条件**拼接到系统提示词。
+
+### 5.7.1 FAQ知识库
+
+| 项 | 值 |
+|----|-----|
+| FAQ数量 | 43条（覆盖全平台功能） |
+| 存储 | t_faq表（MySQL）+ Redis缓存（ai:faq:items/idf/vectors/embeddings） |
+| 向量检索 | 4096维embedding（Qwen3-VL-Embedding-8B），Top3注入prompt |
+| 降级机制 | API不可用时降级为TF-IDF+bigram余弦相似度匹配 |
+| AI智能建议 | `GET /api/ai/faq/suggest`从t_ai_feedback提取最近30条用户提问，AI生成FAQ候选JSON，管理员审核后加入知识库 |
+
+**FAQ分类覆盖**：
+- 交易（发布/购买/搜索/收藏/购物车/联系卖家/上架下架/成色/图片上传）
+- 订单（状态/确认收货/退款/评价/资金流水/交易记录/订单详情）
+- 支付（支付宝/收款账号配置）
+- 用户（注册/密码/个人信息/头像/收货地址/实名认证/浏览历史）
+- 平台（手续费/举报/安全/AI助手功能/商品审核/通知）
 
 ### 5.8 Agent Loop机制
 
 当用户消息命中工具关键词时，进入Agent Loop（多轮工具调用）：
 
 ```
-1. 用户消息 → AI分析意图
+1. 用户消息 → AI分析意图（i=0: 推理模型 / 含图片: 视觉模型）
 2. AI返回tool_calls → 执行工具 → 结果返回AI
-3. AI根据工具结果继续分析 → 可能再次调用工具
-4. 最多3轮工具调用 → AI生成最终回复
+3. AI根据工具结果继续分析（i>0: 对话模型） → 可能再次调用工具
+4. 最多6轮工具调用 → AI生成最终回复
 5. 全程通过SSE推送 tool_call/tool_result 事件
 ```
 
-**SSE超时**：300秒（Agent Loop最多3轮×60s=180s，预留缓冲）
+**场景路由**：
+- `i==0 && contains("[图片:")` → `"vision"`（视觉模型，图片转base64多模态）
+- `i==0` 无图片 → `"reasoning"`（推理模型，分析意图）
+- `i>0` → `"chat"`（对话模型，执行工具）
+
+**SSE超时**：300秒（Agent Loop最多6轮，单次API超时120秒）
 
 ### 5.9 前端组件
 
 | 组件 | 文件 | 说明 |
 |------|------|------|
-| AI对话组件 | `AiConsultant.vue` | Markdown渲染、工具调用折叠卡片、中断/重试、时间戳/复制 |
+| AI对话组件 | `AiConsultant.vue` | Markdown渲染、工具调用折叠卡片、中断/重试、时间戳/复制、引用功能、粘贴图片 |
 | AI API封装 | `api/ai.ts` | SSE解析、JSON解析message事件、tool_call/tool_result回调 |
+| FAQ管理 | `FaqManage.vue` | FAQ列表/分页/搜索/分类筛选/AI智能建议（从用户聊天记录提取候选） |
+| SystemConfig | `SystemConfig.vue` | Prompt管理（自定义/默认标签/恢复默认/查看代码默认值）、渠道模型配置 |
 
 **Markdown渲染策略**：流式输出过程中用纯文本 `escapeHtml()` 显示（避免DOM重渲染导致逐字丢失），流式结束后才用 `renderMarkdown()` 渲染最终Markdown。
 
 **复制功能**：优先使用 `navigator.clipboard`（HTTPS环境），降级使用 `document.execCommand('copy')`（HTTP环境）。
+
+**引用功能**：引用内容独立显示在输入框上方（单行+省略号+X删除），消息中引用以`> 引用`前缀标记，`parseQuote()`函数解析后显示为独立块（四角圆角+左侧竖线）。
+
+**粘贴图片**：`@paste`事件处理剪贴板图片，自动上传并插入消息，图片URL对用户隐藏（`escapeHtml`中正则替换`[图片: name](url)`为`[图片: name]`）。
+
+**用户反馈**：点赞/点踩评价AI回复，upsert逻辑（同一对话评价更新而非插入新记录），点踩时弹出反馈建议输入框。
 
 ---
 
