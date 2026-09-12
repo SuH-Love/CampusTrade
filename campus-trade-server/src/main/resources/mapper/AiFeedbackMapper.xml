@@ -62,4 +62,21 @@
         WHERE deleted = 0 AND user_message IS NOT NULL AND LENGTH(user_message) > 2
         GROUP BY user_message ORDER BY MAX(create_time) DESC LIMIT #{limit}
     </select>
+
+    <select id="selectAllForRlhf" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_feedback WHERE deleted = 0 AND user_message IS NOT NULL AND ai_response IS NOT NULL
+        ORDER BY create_time DESC LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByRating" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM t_ai_feedback WHERE deleted = 0 AND rating >= #{minRating} AND rating &lt;= #{maxRating}
+    </select>
+
+    <select id="countByDate" resultType="java.util.Map">
+        SELECT DATE(create_time) as date, rating, COUNT(*) as count
+        FROM t_ai_feedback
+        WHERE deleted = 0 AND create_time >= DATE_SUB(CURDATE(), INTERVAL #{days} DAY)
+        GROUP BY DATE(create_time), rating
+        ORDER BY date ASC
+    </select>
 </mapper>

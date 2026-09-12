@@ -2,6 +2,8 @@ package com.campustrade.service.ai;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cn.hutool.json.JSONArray;
+import cn.hutool.json.JSONUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +30,12 @@ public class FaqVectorService {
     @Value("${ai.faq.top-k:3}")
     private int topK;
 
+    @Value("${ai.faq.rerank.enabled:true}")
+    private boolean rerankEnabled;
+
+    @Value("${ai.faq.rerank.candidates:8}")
+    private int rerankCandidates;
+
     private final List<FaqItem> faqItems = new CopyOnWriteArrayList<>();
     private final List<Map<String, Double>> faqVectors = new CopyOnWriteArrayList<>();
     private final List<float[]> faqEmbeddings = new CopyOnWriteArrayList<>();
@@ -47,7 +55,10 @@ public class FaqVectorService {
     private static final String REDIS_KEY_ITEMS = "ai:faq:items";
     private static final String REDIS_KEY_IDF = "ai:faq:idf";
     private static final String REDIS_KEY_VECTORS = "ai:faq:vectors";
-    private static final String REDIS_KEY_EMBEDDINGS = "ai:faq:embeddings";
+    private String getEmbeddingsCacheKey() {
+        String model = deepSeekClient != null ? deepSeekClient.getCurrentEmbModel() : "default";
+        return "ai:faq:embeddings:v2:" + model;
+    }
 
     public static class FaqItem {
         public Long id;
@@ -91,7 +102,7 @@ public class FaqVectorService {
 
     private void tryInitEmbeddings() {
         try {
-            String embeddingsJson = stringRedisTemplate.opsForValue().get(REDIS_KEY_EMBEDDINGS);
+            String embeddingsJson = stringRedisTemplate.opsForValue().get(getEmbeddingsCacheKey());
             if (embeddingsJson != null && !embeddingsJson.isEmpty()) {
                 List<float[]> cached = objectMapper.readValue(embeddingsJson, new TypeReference<List<float[]>>() {});
                 if (cached.size() == faqItems.size() && !cached.isEmpty()) {
@@ -115,7 +126,7 @@ public class FaqVectorService {
                     faqEmbeddings.addAll(embeddings);
                     useEmbeddings = true;
                     try {
-                        stringRedisTemplate.opsForValue().set(REDIS_KEY_EMBEDDINGS, objectMapper.writeValueAsString(faqEmbeddings));
+                        stringRedisTemplate.opsForValue().set(getEmbeddingsCacheKey(), objectMapper.writeValueAsString(faqEmbeddings));
                     } catch (Exception ignored) {}
                     log.info("FAQ embeddings computed and cached: {} vectors, dim={}", faqEmbeddings.size(), faqEmbeddings.get(0).length);
                 } else {
@@ -241,7 +252,7 @@ public class FaqVectorService {
                 faqEmbeddings.addAll(embeddings);
                 useEmbeddings = true;
                 try {
-                    stringRedisTemplate.opsForValue().set(REDIS_KEY_EMBEDDINGS, objectMapper.writeValueAsString(faqEmbeddings));
+                    stringRedisTemplate.opsForValue().set(getEmbeddingsCacheKey(), objectMapper.writeValueAsString(faqEmbeddings));
                 } catch (Exception ignored) {}
             }
         } catch (Exception e) {
@@ -358,10 +369,60 @@ public class FaqVectorService {
         return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
     }
 
+    private List<FaqItem> rerankResults(String query, List<FaqItem> candidates) {
+        if (candidates.size() <= 3) return candidates;
+        try {
+            StringBuilder promptBuilder = new StringBuilder();
+            promptBuilder.append("对以下FAQ与用户问题的相关性打分(0-10)，只输出JSON数组：\n");
+            promptBuilder.append("问题：").append(query).append("\n候选：\n");
+            for (int i = 0; i < candidates.size(); i++) {
+                FaqItem item = candidates.get(i);
+                String aSummary = item.answer.length() > 100 ? item.answer.substring(0, 100) : item.answer;
+                promptBuilder.append(i + 1).append(". ").append(item.question).append("：").append(aSummary).append("\n");
+            }
+            promptBuilder.append("输出格式：[8.5, 3.2, 7.1, ...]");
+            List<Map<String, Object>> msgs = new ArrayList<>();
+            Map<String, Object> m = new HashMap<>();
+            m.put("role", "user");
+            m.put("content", promptBuilder.toString());
+            msgs.add(m);
+            String response = deepSeekClient.chat(msgs);
+            if (response == null || response.isEmpty()) return candidates;
+            int start = response.indexOf('[');
+            int end = response.lastIndexOf(']');
+            if (start < 0 || end < 0) return candidates;
+            JSONArray scores = JSONUtil.parseArray(response.substring(start, end + 1));
+            List<Map.Entry<FaqItem, Double>> reranked = new ArrayList<>();
+            for (int i = 0; i < candidates.size() && i < scores.size(); i++) {
+                reranked.add(new AbstractMap.SimpleEntry<>(candidates.get(i), scores.getDouble(i)));
+            }
+            reranked.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+            List<FaqItem> result = new ArrayList<>();
+            for (Map.Entry<FaqItem, Double> entry : reranked) {
+                result.add(entry.getKey());
+            }
+            log.info("Reranked {} FAQ candidates for query: {}", candidates.size(), query.substring(0, Math.min(30, query.length())));
+            return result;
+        } catch (Exception e) {
+            log.warn("Rerank failed, using original order: {}", e.getMessage());
+            return candidates;
+        }
+    }
+
     public List<FaqItem> search(String query, int topK) {
+        List<Map.Entry<FaqItem, Double>> tfidfScored = new ArrayList<>();
+        Map<String, Double> queryVector = computeTfIdfVector(query);
+        for (int i = 0; i < faqItems.size(); i++) {
+            double score = cosineSimilarity(queryVector, faqVectors.get(i));
+            tfidfScored.add(new AbstractMap.SimpleEntry<>(faqItems.get(i), score));
+        }
+        tfidfScored.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+
+        List<Map.Entry<FaqItem, Double>> embScored = null;
         if (useEmbeddings && !faqEmbeddings.isEmpty() && deepSeekClient != null) {
             float[] queryEmbedding = null;
-            String embCacheKey = "ai:emb:cache:" + Math.abs(query.hashCode());
+            String embModel = deepSeekClient.getCurrentEmbModel();
+            String embCacheKey = "ai:emb:cache:" + embModel + ":" + Math.abs(query.hashCode());
             try {
                 String cached = stringRedisTemplate.opsForValue().get(embCacheKey);
                 if (cached != null && !cached.isEmpty()) {
@@ -377,33 +438,38 @@ public class FaqVectorService {
                 }
             }
             if (queryEmbedding != null && queryEmbedding.length > 0) {
-                List<Map.Entry<FaqItem, Double>> scored = new ArrayList<>();
+                embScored = new ArrayList<>();
                 for (int i = 0; i < faqItems.size(); i++) {
                     double score = cosineSimilarity(queryEmbedding, faqEmbeddings.get(i));
-                    scored.add(new AbstractMap.SimpleEntry<>(faqItems.get(i), score));
+                    embScored.add(new AbstractMap.SimpleEntry<>(faqItems.get(i), score));
                 }
-                scored.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
-                List<FaqItem> results = new ArrayList<>();
-                for (int i = 0; i < Math.min(topK, scored.size()); i++) {
-                    if (scored.get(i).getValue() >= embeddingThreshold) {
-                        results.add(scored.get(i).getKey());
-                    }
-                }
-                if (!results.isEmpty()) return results;
+                embScored.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
             }
         }
-        Map<String, Double> queryVector = computeTfIdfVector(query);
-        List<Map.Entry<FaqItem, Double>> scored = new ArrayList<>();
-        for (int i = 0; i < faqItems.size(); i++) {
-            double score = cosineSimilarity(queryVector, faqVectors.get(i));
-            scored.add(new AbstractMap.SimpleEntry<>(faqItems.get(i), score));
+
+        int rrfK = 60;
+        Map<FaqItem, Double> rrfScores = new LinkedHashMap<>();
+        for (int i = 0; i < tfidfScored.size(); i++) {
+            rrfScores.merge(tfidfScored.get(i).getKey(), 1.0 / (rrfK + i + 1), Double::sum);
         }
-        scored.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+        if (embScored != null) {
+            for (int i = 0; i < embScored.size(); i++) {
+                rrfScores.merge(embScored.get(i).getKey(), 1.0 / (rrfK + i + 1), Double::sum);
+            }
+        }
+        List<Map.Entry<FaqItem, Double>> fused = new ArrayList<>(rrfScores.entrySet());
+        fused.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+
+        List<FaqItem> candidates = new ArrayList<>();
+        for (int i = 0; i < Math.min(rerankCandidates, fused.size()); i++) {
+            candidates.add(fused.get(i).getKey());
+        }
+        if (rerankEnabled && candidates.size() > 3) {
+            candidates = rerankResults(query, candidates);
+        }
         List<FaqItem> results = new ArrayList<>();
-        for (int i = 0; i < Math.min(topK, scored.size()); i++) {
-            if (scored.get(i).getValue() >= similarityThreshold) {
-                results.add(scored.get(i).getKey());
-            }
+        for (int i = 0; i < Math.min(topK, candidates.size()); i++) {
+            results.add(candidates.get(i));
         }
         return results;
     }

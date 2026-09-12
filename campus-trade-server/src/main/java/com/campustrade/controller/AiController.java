@@ -74,6 +74,9 @@ public class AiController {
     @Autowired
     private com.campustrade.mapper.AiFeedbackMapper aiFeedbackMapper;
 
+    @Autowired
+    private com.campustrade.mapper.AiKnowledgeMapper aiKnowledgeMapper;
+
     @Value("${ai.system-prompt:}")
     private String systemPrompt;
 
@@ -149,9 +152,12 @@ public class AiController {
 
         String faqContext = faqVectorService.buildContext(userMessage);
         boolean needTools = mayNeedTools(userMessage);
-        String prompt = getSystemPrompt() + buildPlatformKnowledge(userMessage) + buildDateHint();
-        if (!faqContext.isEmpty()) {
-            prompt = prompt + "\n\n" + faqContext;
+        String prompt = truncateToTokenBudget(getSystemPrompt(), 1500)
+            + truncateToTokenBudget(buildPlatformKnowledge(userMessage), 800)
+            + buildDateHint();
+        String truncatedFaq = truncateToTokenBudget(faqContext, 500);
+        if (!truncatedFaq.isEmpty()) {
+            prompt = prompt + "\n\n" + truncatedFaq;
         }
 
         ChatResponse response = new ChatResponse();
@@ -159,9 +165,7 @@ public class AiController {
         response.setHasFaqContext(!faqContext.isEmpty());
 
         if (!deepSeekClient.isEnabled()) {
-            response.setAnswer(faqVectorService.hasRelevantFaq(userMessage)
-                    ? extractDirectAnswer(faqContext)
-                    : "AI助手暂时不可用，请稍后再试或联系人工客服。");
+            response.setAnswer(getEnhancedFallback(userMessage, faqContext));
             response.setFallback(true);
             return Result.success(response);
         }
@@ -186,6 +190,7 @@ public class AiController {
             List<Map<String, Object>> tools = aiToolService.getToolDefinitions();
             String answer = null;
             int maxIterations = 6;
+            Set<String> calledSignatures = new HashSet<>();
 
             for (int i = 0; i < maxIterations; i++) {
                 String sceneOverride;
@@ -215,6 +220,16 @@ public class AiController {
                     Map<String, Object> function = (Map<String, Object>) toolCall.get("function");
                     String toolName = (String) function.get("name");
                     String argsStr = (String) function.get("arguments");
+                    String signature = toolName + ":" + argsStr;
+                    if (calledSignatures.contains(signature)) {
+                        Map<String, Object> toolMsg = new LinkedHashMap<>();
+                        toolMsg.put("role", "tool");
+                        toolMsg.put("tool_call_id", toolCallId);
+                        toolMsg.put("content", "{\"error\":\"已用相同参数调用过此工具，请尝试不同参数或换一种方法\"}");
+                        messages.add(toolMsg);
+                        continue;
+                    }
+                    calledSignatures.add(signature);
                     Map<String, Object> args = new LinkedHashMap<>();
                     try {
                         args = new com.fasterxml.jackson.databind.ObjectMapper().readValue(argsStr, Map.class);
@@ -224,10 +239,7 @@ public class AiController {
                     Map<String, Object> toolMsg = new LinkedHashMap<>();
                     toolMsg.put("role", "tool");
                     toolMsg.put("tool_call_id", toolCallId);
-                    String truncatedResult = toolResult;
-                    if (truncatedResult.length() > 2000) {
-                        truncatedResult = truncatedResult.substring(0, 2000) + "\n[结果已截断，如需完整数据请分页查询]";
-                    }
+                    String truncatedResult = smartTruncate(toolResult, 2000);
                     toolMsg.put("content", safetyService.sanitizeOutput(truncatedResult));
                     messages.add(toolMsg);
                     log.info("Tool called: {} -> {}", toolName, toolResult.length() > 100 ? toolResult.substring(0, 100) : toolResult);
@@ -310,16 +322,17 @@ public class AiController {
 
         String faqContext = faqVectorService.buildContext(userMessage);
         boolean needTools = mayNeedTools(userMessage);
-        String prompt = getSystemPrompt() + buildPlatformKnowledge(userMessage) + buildDateHint();
-        if (!faqContext.isEmpty()) {
-            prompt = prompt + "\n\n" + faqContext;
+        String prompt = truncateToTokenBudget(getSystemPrompt(), 1500)
+            + truncateToTokenBudget(buildPlatformKnowledge(userMessage), 800)
+            + buildDateHint();
+        String truncatedFaq = truncateToTokenBudget(faqContext, 500);
+        if (!truncatedFaq.isEmpty()) {
+            prompt = prompt + "\n\n" + truncatedFaq;
         }
 
         if (!deepSeekClient.isEnabled()) {
             try {
-                String fallback = faqVectorService.hasRelevantFaq(userMessage)
-                        ? extractDirectAnswer(faqContext)
-                        : "AI助手暂时不可用，请稍后再试或联系人工客服。";
+                String fallback = getEnhancedFallback(userMessage, faqContext);
                 emitter.send(SseEmitter.event().name("message").data(jsonContent(fallback)));
                 emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                 emitter.complete();
@@ -360,8 +373,7 @@ public class AiController {
                      lastContent.contains("已收到") || lastContent.contains("已记录") ||
                      lastContent.contains("请输入") || lastContent.contains("请告诉我") ||
                      lastContent.contains("需要您") || lastContent.contains("请选择"));
-                boolean shortFollowUp = userMessage.length() < 30;
-                if (aiAskingInput || shortFollowUp) {
+                if (aiAskingInput) {
                     StringBuilder ctx = new StringBuilder("[这是对上一个问题的回答，请结合上下文理解");
                     for (int j = histForCtx.size() - 1; j >= 0 && j >= histForCtx.size() - 6; j--) {
                         Map<String, Object> h = histForCtx.get(j);
@@ -417,6 +429,7 @@ public class AiController {
 
         String nonStreamAnswer = null;
         boolean toolsUsed = false;
+        Set<String> streamCalledSignatures = new HashSet<>();
 
         for (int i = 0; i < 6; i++) {
             String intentStep = i == 0 ? "理解意图" : "继续分析";
@@ -467,6 +480,13 @@ public class AiController {
                 Map<String, Object> function = (Map<String, Object>) toolCall.get("function");
                 String toolName = (String) function.get("name");
                 String argsStr = (String) function.get("arguments");
+                String signature = toolName + ":" + argsStr;
+                if (streamCalledSignatures.contains(signature)) {
+                    toolFutures.add(java.util.concurrent.CompletableFuture.completedFuture(
+                        "{\"error\":\"已用相同参数调用过此工具，请尝试不同参数或换一种方法\"}"));
+                    continue;
+                }
+                streamCalledSignatures.add(signature);
                 Map<String, Object> args = new LinkedHashMap<>();
                 try {
                     args = new com.fasterxml.jackson.databind.ObjectMapper().readValue(argsStr, Map.class);
@@ -582,7 +602,7 @@ public class AiController {
                 Map<String, Object> toolMsg = new LinkedHashMap<>();
                 toolMsg.put("role", "tool");
                 toolMsg.put("tool_call_id", toolCallId);
-                toolMsg.put("content", safetyService.sanitizeOutput(toolResult));
+                toolMsg.put("content", safetyService.sanitizeOutput(smartTruncate(toolResult, 2000)));
                 messages.add(toolMsg);
                 log.info("Tool called (stream): {} -> {}", toolName, toolResult.length() > 100 ? toolResult.substring(0, 100) : toolResult);
             }
@@ -669,6 +689,36 @@ public class AiController {
             return 30;
         }
         return 15;
+    }
+
+    private String smartTruncate(String result, int maxLen) {
+        if (result == null || result.length() <= maxLen) return result;
+        int headLen = maxLen * 2 / 3;
+        int tailLen = maxLen / 3;
+        return result.substring(0, headLen)
+            + "\n...[省略" + (result.length() - maxLen) + "字符，如需完整数据请分页查询]...\n"
+            + result.substring(result.length() - tailLen);
+    }
+
+    private String truncateToTokenBudget(String text, int maxTokens) {
+        if (text == null || text.isEmpty()) return text;
+        int estimatedTokens = (int) Math.ceil(text.length() * 0.75);
+        if (estimatedTokens <= maxTokens) return text;
+        int maxChars = (int) (maxTokens / 0.75);
+        return text.substring(0, Math.min(maxChars, text.length())) + "\n[内容已截断]";
+    }
+
+    private String getEnhancedFallback(String userMessage, String faqContext) {
+        if (faqContext != null && !faqContext.isEmpty()) {
+            return extractDirectAnswer(faqContext);
+        }
+        String msg = userMessage.toLowerCase();
+        if (msg.contains("订单")) return "AI服务暂时不可用。您可以在「我的订单」页面直接查看订单状态。";
+        if (msg.contains("商品") || msg.contains("搜索")) return "AI服务暂时不可用。您可以在「商品市场」页面直接搜索商品。";
+        if (msg.contains("退款") || msg.contains("流水")) return "AI服务暂时不可用。您可以在「订单详情」中查看退款和流水信息。";
+        if (msg.contains("收藏") || msg.contains("关注")) return "AI服务暂时不可用。您可以在「个人中心」查看收藏和关注列表。";
+        if (msg.contains("发布") || msg.contains("上架")) return "AI服务暂时不可用。您可以在「发布商品」页面直接发布商品。";
+        return "AI服务暂时不可用，请稍后再试。您也可以联系客服获取帮助。";
     }
 
     private String toolDisplayName(String name) {
@@ -897,7 +947,7 @@ public class AiController {
         status.put("enabled", deepSeekClient.isEnabled());
         Health aiHealth = aiHealthIndicator.health();
         status.put("healthy", "UP".equals(aiHealth.getStatus().getCode()));
-        status.put("model", deepSeekClient.getModel());
+        status.put("model", deepSeekClient.getEffectiveModel());
         return Result.success(status);
     }
 
@@ -994,7 +1044,7 @@ public class AiController {
         config.put("enabled", deepSeekClient.isEnabled());
         Health cfgHealth = aiHealthIndicator.health();
         config.put("healthy", "UP".equals(cfgHealth.getStatus().getCode()));
-        config.put("model", deepSeekClient.getModel());
+        config.put("model", deepSeekClient.getEffectiveModel());
         config.put("apiKeyMasked", deepSeekClient.getCurrentApiKeyMasked());
         config.put("baseUrl", deepSeekClient.getCurrentBaseUrl());
         config.put("rateLimitPerMinute", aiRateLimiter.getPerMinute());
@@ -1160,101 +1210,167 @@ public class AiController {
         return "AI助手暂时不可用，请稍后再试。";
     }
 
+    private static final String[][] PLATFORM_KNOWLEDGE_BLOCKS = {
+        {"密码与账号", "密码 注册 登录 重置 忘记 账号 邮箱 验证码 锁定",
+         "### 密码与账号\n" +
+         "- 注册：需用户名+密码，可选绑定手机号和邮箱。密码要求8-50位，需包含大小写字母、数字、特殊字符中的三种。\n" +
+         "- 重置密码：在登录页点击\"忘记密码\"，需输入用户名和注册时绑定的**邮箱**（非手机号），系统发送6位验证码到邮箱，验证后设置新密码。验证码5分钟有效。\n" +
+         "- 登录安全：连续5次密码错误锁定账号30分钟。\n" +
+         "- 如果用户说忘记密码，引导其通过邮箱验证码重置，不要提到手机号。\n" +
+         "- 如果用户没有绑定邮箱，建议其联系管理员协助重置密码。\n\n"},
+        {"商品发布与审核", "发布 审核 上架 下架 草稿 违禁 商品状态 怎么发布 如何发布 发布商品",
+         "### 商品发布与审核\n" +
+         "- **发布入口**：页面底部页脚有\"发布商品\"链接，点击进入发布页面(/goods/publish)\n" +
+         "- **发布流程（三步表单）**：\n" +
+         "  1. 第一步\"基本信息\"：填写标题(最多50字)、选择分类、选择成色、填写售价、原价(可选)、库存数量、描述(最多500字)\n" +
+         "  2. 第二步\"图片上传\"：上传封面图(1张)和商品图片(最多5张)\n" +
+         "  3. 第三步\"确认预览\"：预览商品信息，确认无误后点击提交\n" +
+         "- **提交后**：商品以草稿状态保存，页面跳转到\"我的商品\"(/my-goods)，需在\"我的商品\"页面手动提交审核\n" +
+         "- **审核流程**：提交审核 → AI自动审核内容合规性 → 通过(状态变为\"已审核\")/拒绝(状态变为\"审核拒绝\"并附原因)\n" +
+         "- **上架**：审核通过后，在\"我的商品\"页面手动点击上架，商品才会在商品市场展示\n" +
+         "- 商品状态：草稿(DRAFT)、待审核(PENDING)、已审核(APPROVED)、审核拒绝(REJECTED)、在售(ONLINE)、已下架(OFFLINE)、已售出(SOLD)\n" +
+         "- 上架条件：只有\"已审核\"或\"已下架\"状态的商品才能上架\n\n"},
+        {"订单交易", "订单 支付 发货 退款 评价 支付宝 配送 买家 卖家",
+         "### 订单交易\n" +
+         "- 订单流程：待支付 → 已支付/待发货 → 配送中 → 待评价 → 已完成。可取消（待支付时）、退款（已支付后）。\n" +
+         "- 支付方式：支付宝担保交易，买家付款后资金冻结在平台，确认收货后结算给卖家。\n" +
+         "- 配送方式：快递配送或线下自提。\n" +
+         "- 评价：确认收货后可对卖家评价（1-5星+文字）。\n\n"},
+        {"其他功能", "收藏 购物车 关注 聊天 举报 通知 粉丝 小苏",
+         "### 其他功能\n" +
+         "- 收藏：可收藏感兴趣的商品。购物车：可加入购物车后批量下单。\n" +
+         "- 关注：可关注其他用户，关注后其发布新商品会收到通知。\n" +
+         "- 聊天：买卖双方可在线聊天沟通。举报：可举报违规商品或用户。\n" +
+         "- 通知：订单状态变更、商品审核结果等会收到站内通知。\n\n"},
+        {"前端页面导航", "在哪 怎么 如何 入口 页面 导航 去哪 哪里 哪个 个人中心 设置 profile",
+         "### 前端页面结构与导航\n" +
+         "#### 顶部导航栏（PC端）\n" +
+         "- 从左到右：Logo+首页(/)、商品市场(/goods)、我的商品(/my-goods)、订单(/order)、收藏(/favorites)、关注(/following)\n" +
+         "- 右侧图标：购物车(🛒)、聊天(💬)、通知(🔔)、用户头像下拉菜单（个人中心、收货地址、我的商品、设置）\n" +
+         "- **发布商品入口**：页面底部页脚\"发布商品\"链接(/goods/publish)，或在用户下拉菜单中\n\n" +
+         "#### 主要页面\n" +
+         "- 首页(/)：推荐商品、分类入口、搜索栏\n" +
+         "- 商品市场(/goods)：商品列表，支持搜索、分类筛选、排序\n" +
+         "- 发布商品(/goods/publish)：填写商品信息，提交后进入AI审核\n" +
+         "- 我的商品(/my-goods)：自己发布的商品列表，可编辑/上架/下架\n" +
+         "- 订单(/order)：订单列表，支持按状态筛选，支持买家/卖家视角切换\n" +
+         "- 个人中心(/profile)：标签页式布局\n" +
+         "  - \"我的统计\"标签页：我的订单、出售商品、完成购物、收货地址、累计消费(¥)、累计收入(¥)\n" +
+         "  - \"编辑资料\"标签页：修改昵称、手机号、邮箱\n" +
+         "  - \"修改密码\"标签页 / \"实名认证\"标签页 / \"收款管理\"标签页\n" +
+         "- 购物车(/cart) / 聊天(/chat) / 收货地址管理(/address)\n\n"},
+        {"收货地址", "地址 收货",
+         "### 收货地址入口\n" +
+         "- 方式1：顶部导航栏右侧用户头像下拉菜单 → 点击\"收货地址\"\n" +
+         "- 方式2：个人中心(/profile) → \"我的统计\"标签页 → 点击\"收货地址\"卡片\n" +
+         "- 进入后点击\"新增地址\"按钮填写姓名、电话、省市区、详细地址\n\n"},
+        {"资金流水", "流水 资金 消费 收入 钱包 资产 统计",
+         "### 资金流水查看方式\n" +
+         "- 平台没有独立的\"资产\"、\"钱包\"或\"流水\"页面，不要编造这些入口\n" +
+         "- 查看总消费/总收入：个人中心(/profile) → \"我的统计\"标签页 → \"累计消费\"和\"累计收入\"卡片\n" +
+         "- 查看具体订单资金流水：订单列表(/order) → 点击订单进入详情 → 页面下方有\"资金流水\"时间线\n" +
+         "- 也可让AI直接查询：用户可说\"查一下订单XXX的资金流水\"，AI通过get_order_fund_logs工具查询\n\n"}
+    };
+
+    private float[][] platformKnowledgeEmbeddings;
+    private volatile boolean platformKnowledgeEmbeddingsReady = false;
+    private List<String[]> activeKnowledgeBlocks = null;
+    private volatile long knowledgeBlocksLoadTime = 0;
+
+    private List<String[]> loadKnowledgeBlocks() {
+        long now = System.currentTimeMillis();
+        if (activeKnowledgeBlocks != null && now - knowledgeBlocksLoadTime < 300000) {
+            return activeKnowledgeBlocks;
+        }
+        try {
+            List<com.campustrade.entity.AiKnowledge> dbBlocks = aiKnowledgeMapper.selectAllEnabled();
+            if (dbBlocks != null && !dbBlocks.isEmpty()) {
+                List<String[]> blocks = new ArrayList<>();
+                for (com.campustrade.entity.AiKnowledge k : dbBlocks) {
+                    blocks.add(new String[]{k.getTitle(), k.getKeywords() != null ? k.getKeywords() : "", k.getContent()});
+                }
+                activeKnowledgeBlocks = blocks;
+                knowledgeBlocksLoadTime = now;
+                platformKnowledgeEmbeddingsReady = false;
+                return blocks;
+            }
+        } catch (Exception e) {
+            log.debug("Failed to load knowledge blocks from DB: {}", e.getMessage());
+        }
+        activeKnowledgeBlocks = java.util.Arrays.asList(PLATFORM_KNOWLEDGE_BLOCKS);
+        knowledgeBlocksLoadTime = now;
+        return activeKnowledgeBlocks;
+    }
+
+    private synchronized void initPlatformKnowledgeEmbeddings() {
+        if (platformKnowledgeEmbeddingsReady) return;
+        List<String[]> blocks = loadKnowledgeBlocks();
+        try {
+            List<String> texts = new ArrayList<>();
+            for (String[] block : blocks) {
+                texts.add(block[0] + " " + block[1]);
+            }
+            List<float[]> embs = deepSeekClient.embeddings(texts);
+            if (embs != null && embs.size() == blocks.size()) {
+                platformKnowledgeEmbeddings = embs.toArray(new float[0][]);
+                platformKnowledgeEmbeddingsReady = true;
+                log.info("Platform knowledge embeddings initialized: {} blocks", blocks.size());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to init platform knowledge embeddings: {}", e.getMessage());
+        }
+    }
+
     private String buildPlatformKnowledge(String userMessage) {
         String lower = userMessage != null ? userMessage.toLowerCase() : "";
         StringBuilder sb = new StringBuilder("\n\n## 平台知识（回答用户关于平台规则的问题时必须依据以下信息）\n");
-        boolean anyMatched = false;
+        List<String[]> blocks = loadKnowledgeBlocks();
 
-        // 密码与账号
-        if (containsAny(lower, "密码", "注册", "登录", "重置", "忘记", "账号", "邮箱", "验证码", "锁定")) {
-            sb.append("### 密码与账号\n")
-              .append("- 注册：需用户名+密码，可选绑定手机号和邮箱。密码要求8-50位，需包含大小写字母、数字、特殊字符中的三种。\n")
-              .append("- 重置密码：在登录页点击\"忘记密码\"，需输入用户名和注册时绑定的**邮箱**（非手机号），系统发送6位验证码到邮箱，验证后设置新密码。验证码5分钟有效。\n")
-              .append("- 登录安全：连续5次密码错误锁定账号30分钟。\n")
-              .append("- 如果用户说忘记密码，引导其通过邮箱验证码重置，不要提到手机号。\n")
-              .append("- 如果用户没有绑定邮箱，建议其联系管理员协助重置密码。\n\n");
-            anyMatched = true;
+        boolean semanticMatched = false;
+        if (deepSeekClient.isEmbeddingAvailable()) {
+            if (!platformKnowledgeEmbeddingsReady) {
+                initPlatformKnowledgeEmbeddings();
+            }
+            if (platformKnowledgeEmbeddingsReady) {
+                try {
+                    float[] queryEmb = deepSeekClient.embedding(userMessage);
+                    if (queryEmb != null) {
+                        List<int[]> scored = new ArrayList<>();
+                        for (int i = 0; i < blocks.size(); i++) {
+                            double score = DeepSeekClient.cosineSim(queryEmb, platformKnowledgeEmbeddings[i]);
+                            scored.add(new int[]{i, (int)(score * 10000)});
+                        }
+                        scored.sort((a, b) -> b[1] - a[1]);
+                        int count = 0;
+                        for (int[] entry : scored) {
+                            double score = entry[1] / 10000.0;
+                            if (score < 0.35 || count >= 2) break;
+                            sb.append(blocks.get(entry[0])[2]);
+                            count++;
+                        }
+                        if (count > 0) semanticMatched = true;
+                    }
+                } catch (Exception e) {
+                    log.debug("Semantic platform knowledge matching failed: {}", e.getMessage());
+                }
+            }
         }
 
-        // 商品发布与审核
-        if (containsAny(lower, "发布", "审核", "上架", "下架", "草稿", "违禁", "商品状态")) {
-            sb.append("### 商品发布与审核\n")
-              .append("- 发布流程：创建商品（草稿）→ 提交审核 → AI自动审核 → 审核通过/拒绝 → 用户手动上架 → 在售。\n")
-              .append("- AI审核：提交审核后AI自动审核内容合规性，通过后状态变为\"已审核\"，拒绝则变为\"审核拒绝\"并附原因。\n")
-              .append("- 商品状态：草稿(DRAFT)、待审核(PENDING)、已审核(APPROVED)、审核拒绝(REJECTED)、在售(ONLINE)、已下架(OFFLINE)、已售出(SOLD)。\n")
-              .append("- 上架条件：只有\"已审核\"或\"已下架\"状态的商品才能上架。\n\n");
-            anyMatched = true;
+        if (!semanticMatched) {
+            boolean anyMatched = false;
+            for (String[] block : blocks) {
+                String[] kws = block[1].split(" ");
+                if (containsAny(lower, kws)) { sb.append(block[2]); anyMatched = true; }
+            }
+
+            if (!anyMatched) {
+                sb.append("### 平台概览\n")
+                  .append("- 校园二手交易平台，支持商品发布、订单交易、支付宝担保支付、收货地址管理、收藏/购物车/关注等功能。\n")
+                  .append("- 个人中心(/profile)包含统计、编辑资料、修改密码、实名认证、收款管理等标签页。\n")
+                  .append("- 具体功能位置请参考前端页面导航信息。\n\n");
+            }
         }
 
-        // 订单交易
-        if (containsAny(lower, "订单", "支付", "发货", "退款", "评价", "支付宝", "配送", "买家", "卖家")) {
-            sb.append("### 订单交易\n")
-              .append("- 订单流程：待支付 → 已支付/待发货 → 配送中 → 待评价 → 已完成。可取消（待支付时）、退款（已支付后）。\n")
-              .append("- 支付方式：支付宝担保交易，买家付款后资金冻结在平台，确认收货后结算给卖家。\n")
-              .append("- 配送方式：快递配送或线下自提。\n")
-              .append("- 评价：确认收货后可对卖家评价（1-5星+文字）。\n\n");
-            anyMatched = true;
-        }
-
-        // 其他功能
-        if (containsAny(lower, "收藏", "购物车", "关注", "聊天", "举报", "通知", "粉丝", "小苏")) {
-            sb.append("### 其他功能\n")
-              .append("- 收藏：可收藏感兴趣的商品。购物车：可加入购物车后批量下单。\n")
-              .append("- 关注：可关注其他用户，关注后其发布新商品会收到通知。\n")
-              .append("- 聊天：买卖双方可在线聊天沟通。举报：可举报违规商品或用户。\n")
-              .append("- 通知：订单状态变更、商品审核结果等会收到站内通知。\n\n");
-            anyMatched = true;
-        }
-
-        // 前端页面导航
-        if (containsAny(lower, "在哪", "怎么", "如何", "入口", "页面", "导航", "去哪", "哪里", "哪个", "个人中心", "设置", "profile")) {
-            sb.append("### 前端页面结构与导航\n")
-              .append("#### 顶部导航栏（PC端）\n")
-              .append("- 从左到右：Logo+首页(/)、商品市场(/goods)、我的商品(/my-goods)、订单(/order)、收藏(/favorites)、关注(/following)\n")
-              .append("- 右侧图标：购物车(🛒)、聊天(💬)、通知(🔔)、用户头像下拉菜单（个人中心、收货地址、我的商品、设置）\n")
-              .append("- **发布商品入口**：页面底部页脚\"发布商品\"链接(/goods/publish)，或在用户下拉菜单中\n\n")
-              .append("#### 主要页面\n")
-              .append("- 首页(/)：推荐商品、分类入口、搜索栏\n")
-              .append("- 商品市场(/goods)：商品列表，支持搜索、分类筛选、排序\n")
-              .append("- 发布商品(/goods/publish)：填写商品信息，提交后进入AI审核\n")
-              .append("- 我的商品(/my-goods)：自己发布的商品列表，可编辑/上架/下架\n")
-              .append("- 订单(/order)：订单列表，支持按状态筛选，支持买家/卖家视角切换\n")
-              .append("- 个人中心(/profile)：标签页式布局\n")
-              .append("  - \"我的统计\"标签页：我的订单、出售商品、完成购物、收货地址、累计消费(¥)、累计收入(¥)\n")
-              .append("  - \"编辑资料\"标签页：修改昵称、手机号、邮箱\n")
-              .append("  - \"修改密码\"标签页 / \"实名认证\"标签页 / \"收款管理\"标签页\n")
-              .append("- 购物车(/cart) / 聊天(/chat) / 收货地址管理(/address)\n\n");
-            anyMatched = true;
-        }
-
-        // 收货地址
-        if (containsAny(lower, "地址", "收货")) {
-            sb.append("### 收货地址入口\n")
-              .append("- 方式1：顶部导航栏右侧用户头像下拉菜单 → 点击\"收货地址\"\n")
-              .append("- 方式2：个人中心(/profile) → \"我的统计\"标签页 → 点击\"收货地址\"卡片\n")
-              .append("- 进入后点击\"新增地址\"按钮填写姓名、电话、省市区、详细地址\n\n");
-            anyMatched = true;
-        }
-
-        // 资金流水
-        if (containsAny(lower, "流水", "资金", "消费", "收入", "钱包", "资产", "统计")) {
-            sb.append("### 资金流水查看方式\n")
-              .append("- 平台没有独立的\"资产\"、\"钱包\"或\"流水\"页面，不要编造这些入口\n")
-              .append("- 查看总消费/总收入：个人中心(/profile) → \"我的统计\"标签页 → \"累计消费\"和\"累计收入\"卡片\n")
-              .append("- 查看具体订单资金流水：订单列表(/order) → 点击订单进入详情 → 页面下方有\"资金流水\"时间线\n")
-              .append("- 也可让AI直接查询：用户可说\"查一下订单XXX的资金流水\"，AI通过get_order_fund_logs工具查询\n\n");
-            anyMatched = true;
-        }
-
-        // 无匹配时注入精简概览
-        if (!anyMatched) {
-            sb.append("### 平台概览\n")
-              .append("- 校园二手交易平台，支持商品发布、订单交易、支付宝担保支付、收货地址管理、收藏/购物车/关注等功能。\n")
-              .append("- 个人中心(/profile)包含统计、编辑资料、修改密码、实名认证、收款管理等标签页。\n")
-              .append("- 具体功能位置请参考前端页面导航信息。\n\n");
-        }
-
-        // 回答要求始终注入
         sb.append("### 回答要求\n")
           .append("- 根据以上知识准确回答，不要编造不存在的功能。\n")
           .append("- 涉及具体数据时调用工具获取真实数据，不要凭空回答。\n")
@@ -1300,11 +1416,41 @@ public class AiController {
             } else {
                 aiFeedbackMapper.insert(feedback);
             }
+            if (feedback.getRating() != null && feedback.getRating() <= -1) {
+                analyzeNegativeFeedbackAsync(feedback.getUserMessage(), aiResponse, feedback.getFeedback(), feedback.getSessionId());
+            }
             return Result.success("反馈已提交");
         } catch (Exception e) {
             log.error("提交AI反馈失败", e);
             return Result.error(500, "提交失败");
         }
+    }
+
+    private void analyzeNegativeFeedbackAsync(String userMessage, String aiResponse, String userFeedback, String sessionId) {
+        if (!deepSeekClient.isEnabled()) return;
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                List<Map<String, Object>> msgs = new ArrayList<>();
+                Map<String, Object> sys = new HashMap<>();
+                sys.put("role", "system");
+                sys.put("content", "你是一个AI回复质量分析专家。用户对AI的回复给了差评，请分析可能的原因并给出改进建议。用JSON格式返回：{\"reasons\":[\"原因1\",\"原因2\"],\"suggestion\":\"改进建议\"}");
+                msgs.add(sys);
+                Map<String, Object> user = new HashMap<>();
+                user.put("role", "user");
+                user.put("content", "用户问题: " + (userMessage != null ? userMessage.substring(0, Math.min(200, userMessage.length())) : "") +
+                        "\nAI回复: " + (aiResponse != null ? aiResponse.substring(0, Math.min(500, aiResponse.length())) : "") +
+                        "\n用户反馈: " + (userFeedback != null ? userFeedback : "无"));
+                msgs.add(user);
+                String analysis = deepSeekClient.chat(msgs);
+                if (analysis != null && !analysis.isEmpty()) {
+                    String key = "ai:feedback:analysis:" + sessionId + ":" + System.currentTimeMillis();
+                    stringRedisTemplate.opsForValue().set(key, analysis, 7, java.util.concurrent.TimeUnit.DAYS);
+                    log.info("Negative feedback analyzed for session {}: {}", sessionId, analysis.substring(0, Math.min(200, analysis.length())));
+                }
+            } catch (Exception e) {
+                log.warn("Failed to analyze negative feedback: {}", e.getMessage());
+            }
+        });
     }
 
     @org.springframework.web.bind.annotation.DeleteMapping("/feedback")
@@ -1358,6 +1504,98 @@ public class AiController {
         }
     }
 
+    @org.springframework.web.bind.annotation.GetMapping("/feedback/rlhf-export")
+    @ApiOperation("导出RLHF训练数据(管理员)")
+    public Result<?> exportRlhfData(@org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") Integer offset,
+                                    @org.springframework.web.bind.annotation.RequestParam(defaultValue = "100") Integer limit) {
+        try {
+            List<com.campustrade.entity.AiFeedback> feedbacks = aiFeedbackMapper.selectAllForRlhf(offset, limit);
+            List<Map<String, Object>> rlhfData = new ArrayList<>();
+            for (com.campustrade.entity.AiFeedback f : feedbacks) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("prompt", f.getUserMessage());
+                item.put("completion", f.getAiResponse());
+                item.put("score", f.getRating());
+                item.put("userFeedback", f.getFeedback());
+                item.put("sessionId", f.getSessionId());
+                item.put("timestamp", f.getCreateTime());
+                rlhfData.add(item);
+            }
+            Map<String, Object> result = new HashMap<>();
+            result.put("data", rlhfData);
+            result.put("count", rlhfData.size());
+            result.put("offset", offset);
+            result.put("limit", limit);
+            return Result.success(result);
+        } catch (Exception e) {
+            log.error("导出RLHF数据失败", e);
+            return Result.error(500, "导出失败");
+        }
+    }
+
+    @org.springframework.web.bind.annotation.GetMapping("/knowledge")
+    @ApiOperation("获取平台知识列表(管理员)")
+    public Result<?> listKnowledge() {
+        try {
+            return Result.success(aiKnowledgeMapper.selectAll());
+        } catch (Exception e) {
+            log.error("获取知识列表失败", e);
+            return Result.error(500, "获取失败");
+        }
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/knowledge")
+    @ApiOperation("创建平台知识(管理员)")
+    public Result<?> createKnowledge(@org.springframework.web.bind.annotation.RequestBody Map<String, Object> body) {
+        try {
+            com.campustrade.entity.AiKnowledge k = new com.campustrade.entity.AiKnowledge();
+            k.setTitle((String) body.get("title"));
+            k.setKeywords((String) body.get("keywords"));
+            k.setContent((String) body.get("content"));
+            k.setEnabled(body.get("enabled") != null ? (Integer) body.get("enabled") : 1);
+            k.setSortOrder(body.get("sortOrder") != null ? (Integer) body.get("sortOrder") : 0);
+            aiKnowledgeMapper.insert(k);
+            activeKnowledgeBlocks = null;
+            return Result.success("创建成功");
+        } catch (Exception e) {
+            log.error("创建知识失败", e);
+            return Result.error(500, "创建失败");
+        }
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/knowledge")
+    @ApiOperation("更新平台知识(管理员)")
+    public Result<?> updateKnowledge(@org.springframework.web.bind.annotation.RequestBody Map<String, Object> body) {
+        try {
+            com.campustrade.entity.AiKnowledge k = new com.campustrade.entity.AiKnowledge();
+            k.setId(((Number) body.get("id")).longValue());
+            k.setTitle((String) body.get("title"));
+            k.setKeywords((String) body.get("keywords"));
+            k.setContent((String) body.get("content"));
+            k.setEnabled(body.get("enabled") != null ? (Integer) body.get("enabled") : 1);
+            k.setSortOrder(body.get("sortOrder") != null ? (Integer) body.get("sortOrder") : 0);
+            aiKnowledgeMapper.update(k);
+            activeKnowledgeBlocks = null;
+            return Result.success("更新成功");
+        } catch (Exception e) {
+            log.error("更新知识失败", e);
+            return Result.error(500, "更新失败");
+        }
+    }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/knowledge")
+    @ApiOperation("删除平台知识(管理员)")
+    public Result<?> deleteKnowledge(@org.springframework.web.bind.annotation.RequestParam Long id) {
+        try {
+            aiKnowledgeMapper.deleteById(id);
+            activeKnowledgeBlocks = null;
+            return Result.success("删除成功");
+        } catch (Exception e) {
+            log.error("删除知识失败", e);
+            return Result.error(500, "删除失败");
+        }
+    }
+
     private String buildDefaultSystemPrompt() {
         return "你是校园贸易平台的AI助手\"小苏\"，服务于在校师生，帮助解答关于校园二手交易的各种问题。\n\n" +
                "## 思考优先（最重要）\n" +
@@ -1377,15 +1615,16 @@ public class AiController {
                "- get_order_by_no：按订单号查询单个订单详情\n" +
                "- search_goods：搜索平台商品（支持关键词、分类、价格筛选）\n" +
                "- get_order_fund_logs：查询订单资金流水/交易流水\n" +
-               "- get_user_goods：查看用户自己发布的商品\n" +
+               "- get_my_goods：查看用户自己发布的商品\n" +
                "- get_user_stats：查看用户个人统计（消费、收入等）\n" +
-               "- get_platform_stats：查看平台运营数据概览\n" +
+               "- admin_dashboard：查看平台运营数据概览\n" +
                "- 其他工具：收藏、购物车、地址、评价、通知等\n\n" +
                "## 工具调用规则\n" +
-               "1. **必须调用工具**：涉及订单、商品、流水等具体数据时，绝不能凭空回答，必须调用工具获取真实数据\n" +
+               "1. **首次查询才调用工具**：涉及订单、商品、流水等具体数据时，如果是本轮对话首次查询该数据，必须调用工具获取真实数据。但如果之前的对话中已查询过相同数据，直接引用已有结果，不要重复调用\n" +
                "2. **工具选择**：查询订单列表用get_order_status，按订单号查详情用get_order_by_no，查询资金流水用get_order_fund_logs，不要混用\n" +
                "3. **参数完整**：调用工具时尽量提供完整参数，如用户提到时间范围，计算为具体日期传入startDate/endDate（格式yyyy-MM-dd）\n" +
-               "4. **结果验证**：工具返回后，检查数据是否合理，如异常可再次调用或向用户确认\n\n" +
+               "4. **结果验证**：工具返回后，检查数据是否合理。如异常，向用户说明情况并询问，不要盲目再次调用相同工具\n" +
+               "5. **避免重复**：同一对话轮次内，绝不调用相同工具获取相同数据。用户追问或确认时，基于已有结果回答\n\n" +
                "## 多意图处理\n" +
                "- 当用户消息包含多个请求时（如\"查订单再查流水\"、\"先查商品再查订单\"），逐一分析每个请求并依次调用对应工具\n" +
                "- 不要遗漏任何请求，也不要合并不同请求的工具调用\n" +
@@ -1397,14 +1636,16 @@ public class AiController {
                "- 如果是界面截图，识别截图中的页面元素，结合平台知识告诉用户如何操作\n" +
                "- 如果是商品图片，描述商品特征，可帮用户搜索类似商品\n" +
                "- 如果看不清或无法识别，诚实告知用户并请求文字描述\n\n" +
-               "## 平台导航回答规则\n" +
+               "## 平台导航与操作指导规则\n" +
                "- 回答\"在哪里\"、\"怎么找到\"、\"怎么进入\"等导航类问题时，依据「平台知识」中的页面结构信息\n" +
                "- 明确告诉用户具体路径（如\"点击顶部导航栏的'商品市场'\"）\n" +
-               "- 不要编造不存在的按钮、菜单或入口\n" +
+               "- **绝不编造UI元素**：不要描述不存在的按钮、菜单、入口、弹窗、图标样式（如\"圆形大按钮带+号\"）。只依据知识库中记录的真实页面结构回答\n" +
+               "- 回答\"怎么发布商品\"、\"怎么操作\"等操作指导时，严格依据「平台知识」中的操作步骤。如果知识库中没有该操作的详细步骤，诚实说\"我暂时没有该操作的详细指南，建议您在对应页面查看操作提示\"\n" +
                "- 如果用户问的功能在知识库中没有记录，诚实说\"我不确定具体位置，建议您在首页或个人中心查找\"\n\n" +
                "## 自我纠正\n" +
-               "- 当用户说\"不对\"、\"错了\"、\"更正\"、\"不是\"等纠正词时，立即放弃之前的理解，以纠正后的内容为准\n" +
-               "- 当用户说\"准确吗\"、\"对吗\"、\"是不是\"等确认词时，重新查询验证数据准确性\n\n" +
+               "- 当用户说\"不对\"、\"错了\"、\"更正\"、\"不是\"等纠正词时，不要立即重新调用工具查询，先询问用户具体哪里不对，根据用户指出的具体问题再决定是否需要重新查询\n" +
+               "- 当用户说\"准确吗\"、\"对吗\"、\"是不是\"等确认词时，基于已有对话上下文回答，不要重复调用工具。如果之前已查询过数据，直接引用已有结果确认即可\n" +
+               "- 绝不因用户的追问或确认词而重复调用同一工具获取相同数据，这会浪费资源并导致重复回答\n\n" +
                "## 上下文记忆\n" +
                "- 请记住用户在之前对话中提到的信息（如订单号、商品名等），后续对话可直接引用\n" +
                "- 当用户追问（如\"呢\"、\"还有呢\"）时，结合上下文理解，不要重复询问已知信息\n" +
@@ -1494,7 +1735,7 @@ public class AiController {
     public Result<?> getAiStats() {
         try {
             Map<String, Object> stats = new LinkedHashMap<>();
-            stats.put("model", deepSeekClient.getModel());
+            stats.put("model", deepSeekClient.getEffectiveModel());
             stats.put("enabled", deepSeekClient.isEnabled());
             stats.put("faqCount", faqVectorService.getAllFaqs().size());
             stats.put("toolCount", aiToolService.getToolDefinitions().size());
@@ -1513,6 +1754,51 @@ public class AiController {
         }
     }
 
+    @org.springframework.web.bind.annotation.GetMapping("/dashboard")
+    @ApiOperation("AI运营看板数据(管理员)")
+    public Result<?> getDashboardData() {
+        try {
+            Map<String, Object> dashboard = new LinkedHashMap<>();
+            dashboard.put("model", deepSeekClient.getEffectiveModel());
+            dashboard.put("enabled", deepSeekClient.isEnabled());
+            dashboard.put("embeddingAvailable", deepSeekClient.isEmbeddingAvailable());
+            dashboard.put("faqCount", faqVectorService.getAllFaqs().size());
+            dashboard.put("toolCount", aiToolService.getToolDefinitions().size());
+            try {
+                int knowledgeCount = aiKnowledgeMapper.selectAll().size();
+                dashboard.put("knowledgeCount", knowledgeCount);
+            } catch (Exception e) {
+                dashboard.put("knowledgeCount", 0);
+            }
+            try {
+                Double avgRating = aiFeedbackMapper.selectAvgRating();
+                dashboard.put("avgRating", avgRating != null ? Math.round(avgRating * 100) / 100.0 : 0);
+                Integer goodCount = aiFeedbackMapper.countByRating(1, 1);
+                Integer badCount = aiFeedbackMapper.countByRating(-1, -1);
+                dashboard.put("goodCount", goodCount != null ? goodCount : 0);
+                dashboard.put("badCount", badCount != null ? badCount : 0);
+                dashboard.put("totalFeedback", (goodCount != null ? goodCount : 0) + (badCount != null ? badCount : 0));
+            } catch (Exception e) {
+                dashboard.put("avgRating", 0);
+                dashboard.put("goodCount", 0);
+                dashboard.put("badCount", 0);
+                dashboard.put("totalFeedback", 0);
+            }
+            try {
+                List<Map<String, Object>> trendData = aiFeedbackMapper.countByDate(7);
+                dashboard.put("trend", trendData);
+            } catch (Exception e) {
+                dashboard.put("trend", new ArrayList<>());
+            }
+            dashboard.put("timestamp", System.currentTimeMillis());
+            dashboard.putAll(deepSeekClient.getApiStats());
+            return Result.success(dashboard);
+        } catch (Exception e) {
+            log.error("获取看板数据失败", e);
+            return Result.error(500, "获取失败");
+        }
+    }
+
     @ApiOperation("获取AI渠道列表(管理员)")
     @GetMapping("/channels")
     public Result<String> getChannels() {
@@ -1525,6 +1811,7 @@ public class AiController {
     public Result<?> saveChannels(@org.springframework.web.bind.annotation.RequestBody String body) {
         if (!SecurityUtil.isAdmin()) return Result.error(403, "无权限");
         deepSeekClient.saveChannelsJson(body);
+        aiHealthIndicator.clearCache();
         return Result.success("保存成功");
     }
 
@@ -1540,6 +1827,7 @@ public class AiController {
     public Result<?> saveModels(@org.springframework.web.bind.annotation.RequestBody String body) {
         if (!SecurityUtil.isAdmin()) return Result.error(403, "无权限");
         deepSeekClient.saveModelsJson(body);
+        aiHealthIndicator.clearCache();
         return Result.success("保存成功");
     }
 

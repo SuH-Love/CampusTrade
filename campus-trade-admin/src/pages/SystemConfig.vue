@@ -101,7 +101,8 @@
       <template #header>
         <div class="card-header">
           <span>AI 助手配置 — 渠道管理</span>
-          <el-tag :type="aiConfig.healthy ? 'success' : 'danger'" size="small">
+          <el-tag v-if="aiStatusLoading" type="info" size="small">检测中...</el-tag>
+          <el-tag v-else :type="aiConfig.healthy ? 'success' : 'danger'" size="small">
             {{ aiConfig.healthy ? '在线' : '离线' }}
           </el-tag>
         </div>
@@ -159,7 +160,8 @@
       <template #header>
         <div class="card-header">
           <span>AI Embedding 向量检索配置</span>
-          <el-tag :type="aiConfig.embeddingAvailable ? 'success' : 'warning'" size="small">
+          <el-tag v-if="aiStatusLoading" type="info" size="small">检测中...</el-tag>
+          <el-tag v-else :type="aiConfig.embeddingAvailable ? 'success' : 'warning'" size="small">
             {{ aiConfig.embeddingAvailable ? '可用' : '降级TF-IDF' }}
           </el-tag>
         </div>
@@ -252,6 +254,7 @@ const form = reactive<Record<string, string>>({
 })
 
 const aiConfig = ref<AiConfigStatus>({ enabled: false, healthy: false, model: '', apiKeyMasked: '', baseUrl: '' })
+const aiStatusLoading = ref(false)
 const channels = ref<AiChannel[]>([])
 const modelRegs = ref<AiModelReg[]>([])
 const channelLoading = ref(false)
@@ -291,6 +294,7 @@ const handleSaveChannels = async () => {
   channelSaving.value = true
   try {
     await saveAiChannels(channels.value)
+    await loadAiStatus()
     ElMessage.success('渠道配置已保存')
   } catch { ElMessage.error('保存失败') } finally { channelSaving.value = false }
 }
@@ -312,6 +316,7 @@ const handleSaveModels = async () => {
   modelSaving.value = true
   try {
     await saveAiModels(modelRegs.value)
+    await loadAiStatus()
     ElMessage.success('模型配置已保存')
   } catch { ElMessage.error('保存失败') } finally { modelSaving.value = false }
 }
@@ -349,10 +354,11 @@ const handleSaveEmbedding = async () => {
 }
 
 const loadAiStatus = async () => {
+  aiStatusLoading.value = true
   try {
     aiConfig.value = await getAiConfigStatus()
     resetEmbForm()
-  } catch {}
+  } catch (e) { console.error('loadAiStatus error:', e) } finally { aiStatusLoading.value = false }
 }
 
 const loadPrompt = async () => {

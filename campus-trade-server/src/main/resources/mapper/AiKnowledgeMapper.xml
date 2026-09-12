@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.AiKnowledgeMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.AiKnowledge">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="keywords" property="keywords"/>
+        <result column="content" property="content"/>
+        <result column="enabled" property="enabled"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_ai_knowledge (title, keywords, content, enabled, sort_order)
+        VALUES (#{title}, #{keywords}, #{content}, #{enabled}, #{sortOrder})
+    </insert>
+
+    <update id="update">
+        UPDATE t_ai_knowledge SET title = #{title}, keywords = #{keywords}, content = #{content},
+        enabled = #{enabled}, sort_order = #{sortOrder}, update_time = NOW()
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <delete id="deleteById">
+        UPDATE t_ai_knowledge SET deleted = 1, update_time = NOW() WHERE id = #{id}
+    </delete>
+
+    <select id="selectAllEnabled" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_knowledge WHERE deleted = 0 AND enabled = 1 ORDER BY sort_order ASC
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_knowledge WHERE deleted = 0 ORDER BY sort_order ASC
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_knowledge WHERE deleted = 0 AND id = #{id}
+    </select>
+</mapper>

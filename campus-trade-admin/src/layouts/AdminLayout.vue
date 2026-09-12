@@ -6,12 +6,23 @@
         <div class="logo-icon small" v-else>C</div>
         <span class="logo-text" v-if="!isCollapse">CampusTrade</span>
       </div>
-      <el-menu :default-active="activeMenu" router :collapse="isCollapse" class="sidebar-menu">
-        <template v-for="item in menuItems" :key="item.path">
+      <el-menu :default-active="activeMenu" router :collapse="isCollapse" class="sidebar-menu" :unique-opened="true">
+        <template v-for="item in topMenuItems" :key="item.path">
           <el-menu-item :index="item.path">
             <el-icon><component :is="item.icon" /></el-icon><span>{{ item.title }}</span>
             <el-badge v-if="item.badge && item.badge > 0" :value="item.badge" :max="99" class="menu-badge" />
           </el-menu-item>
+        </template>
+        <template v-for="group in menuGroups" :key="group.title">
+          <el-sub-menu :index="group.title">
+            <template #title>
+              <el-icon><component :is="group.icon" /></el-icon><span>{{ group.title }}</span>
+            </template>
+            <el-menu-item v-for="item in group.items" :key="item.path" :index="item.path">
+              <el-icon><component :is="item.icon" /></el-icon><span>{{ item.title }}</span>
+              <el-badge v-if="item.badge && item.badge > 0" :value="item.badge" :max="99" class="menu-badge" />
+            </el-menu-item>
+          </el-sub-menu>
         </template>
       </el-menu>
     </el-aside>
@@ -20,12 +31,23 @@
         <div class="logo-icon">C</div>
         <span class="logo-text">CampusTrade</span>
       </div>
-      <el-menu :default-active="activeMenu" router class="sidebar-menu" @select="onMenuSelect">
-        <template v-for="item in menuItems" :key="item.path">
+      <el-menu :default-active="activeMenu" router class="sidebar-menu" :unique-opened="true" @select="onMenuSelect">
+        <template v-for="item in topMenuItems" :key="item.path">
           <el-menu-item :index="item.path">
             <el-icon><component :is="item.icon" /></el-icon><span>{{ item.title }}</span>
             <el-badge v-if="item.badge && item.badge > 0" :value="item.badge" :max="99" class="menu-badge" />
           </el-menu-item>
+        </template>
+        <template v-for="group in menuGroups" :key="group.title">
+          <el-sub-menu :index="group.title">
+            <template #title>
+              <el-icon><component :is="group.icon" /></el-icon><span>{{ group.title }}</span>
+            </template>
+            <el-menu-item v-for="item in group.items" :key="item.path" :index="item.path">
+              <el-icon><component :is="item.icon" /></el-icon><span>{{ item.title }}</span>
+              <el-badge v-if="item.badge && item.badge > 0" :value="item.badge" :max="99" class="menu-badge" />
+            </el-menu-item>
+          </el-sub-menu>
         </template>
       </el-menu>
     </el-drawer>
@@ -118,6 +140,12 @@ interface MenuItem {
   badge?: number
 }
 
+interface MenuGroup {
+  title: string
+  icon: string
+  items: MenuItem[]
+}
+
 const allMenus: MenuItem[] = allRoutes
   .flatMap(r => r.children || [])
   .filter(r => r.meta?.title)
@@ -128,15 +156,57 @@ const allMenus: MenuItem[] = allRoutes
     permission: (r.meta!.permission as string) || '',
   }))
 
-const menuItems = computed(() =>
-  allMenus.filter(m => !m.permission || adminStore.hasPermission(m.permission)).map(m => {
-    if (m.path === '/goods') return { ...m, badge: stats.value?.pendingAudit || 0 }
-    if (m.path === '/report') {
-      return { ...m, badge: reportCount.value > 0 ? reportCount.value : undefined }
-    }
-    return m
-  })
+const groupConfig: Record<string, { group: string; icon: string }> = {
+  '/user': { group: '业务管理', icon: 'Goods' },
+  '/goods': { group: '业务管理', icon: 'Goods' },
+  '/order': { group: '业务管理', icon: 'Goods' },
+  '/report': { group: '业务管理', icon: 'Goods' },
+  '/fund-log': { group: '业务管理', icon: 'Goods' },
+  '/banner': { group: '内容管理', icon: 'Picture' },
+  '/category': { group: '内容管理', icon: 'Picture' },
+  '/announcement': { group: '内容管理', icon: 'Picture' },
+  '/ai-dashboard': { group: 'AI管理', icon: 'ChatDotRound' },
+  '/faq': { group: 'AI管理', icon: 'ChatDotRound' },
+  '/ai-knowledge': { group: 'AI管理', icon: 'ChatDotRound' },
+  '/ai-tools': { group: 'AI管理', icon: 'ChatDotRound' },
+  '/ai-feedback': { group: 'AI管理', icon: 'ChatDotRound' },
+  '/log': { group: '系统', icon: 'Setting' },
+  '/system-config': { group: '系统', icon: 'Setting' },
+}
+
+const groupOrder = ['业务管理', '内容管理', 'AI管理', '系统']
+const groupIcons: Record<string, string> = {
+  '业务管理': 'Briefcase',
+  '内容管理': 'Files',
+  'AI管理': 'Monitor',
+  '系统': 'Tools',
+}
+
+const applyBadges = (m: MenuItem): MenuItem => {
+  if (m.path === '/goods') return { ...m, badge: stats.value?.pendingAudit || 0 }
+  if (m.path === '/report') return { ...m, badge: reportCount.value > 0 ? reportCount.value : undefined }
+  return m
+}
+
+const filterByPermission = (m: MenuItem): boolean => !m.permission || adminStore.hasPermission(m.permission)
+
+const topMenuItems = computed(() =>
+  allMenus.filter(m => !groupConfig[m.path]).filter(filterByPermission).map(applyBadges)
 )
+
+const menuGroups = computed<MenuGroup[]>(() => {
+  const groups: Record<string, MenuItem[]> = {}
+  for (const m of allMenus) {
+    const cfg = groupConfig[m.path]
+    if (!cfg) continue
+    if (!filterByPermission(m)) continue
+    if (!groups[cfg.group]) groups[cfg.group] = []
+    groups[cfg.group].push(applyBadges(m))
+  }
+  return groupOrder
+    .filter(title => groups[title]?.length)
+    .map(title => ({ title, icon: groupIcons[title], items: groups[title] }))
+})
 
 const breadcrumbItems = computed(() => {
   return route.matched
@@ -323,6 +393,22 @@ onUnmounted(() => {
       color: var(--admin-sidebar-active-text) !important;
     }
     &:hover { background: rgba(255,255,255,0.06) !important; }
+  }
+  :deep(.el-sub-menu) {
+    .el-sub-menu__title {
+      color: var(--admin-sidebar-text) !important;
+      height: 48px; line-height: 48px;
+      margin: 2px 8px; border-radius: 8px;
+      &:hover { background: rgba(255,255,255,0.06) !important; }
+    }
+    .el-menu {
+      background: transparent !important;
+    }
+    .el-menu-item {
+      height: 44px; line-height: 44px;
+      padding-left: 52px !important;
+      font-size: 13px;
+    }
   }
 }
 

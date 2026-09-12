@@ -179,7 +179,7 @@ export interface AiConfigStatus {
 }
 
 export const getAiConfigStatus = () =>
-  request.get<never, AiConfigStatus>('/ai/config/status')
+  request.get<never, AiConfigStatus>('/ai/config/status', { params: { _t: Date.now() } })
 
 export const updateAiConfig = (data: {
   apiKey?: string
@@ -244,6 +244,24 @@ export const getAiTools = () =>
 
 export const getAiFeedbackList = (params: { page?: number; size?: number; minRating?: number; maxRating?: number }) =>
   request.get<never, { list: Record<string, unknown>[]; total: number; page: number; size: number }>('/ai/feedback/list', { params })
+
+export const getAiDashboard = () =>
+  request.get<never, Record<string, any>>('/ai/dashboard')
+
+export const exportRlhfData = (params: { offset?: number; limit?: number }) =>
+  request.get<never, { data: Record<string, any>[]; count: number; offset: number; limit: number }>('/ai/feedback/rlhf-export', { params })
+
+export const getAiKnowledge = () =>
+  request.get<never, Record<string, any>[]>('/ai/knowledge')
+
+export const createAiKnowledge = (data: Record<string, any>) =>
+  request.post<never, void>('/ai/knowledge', data)
+
+export const updateAiKnowledge = (data: Record<string, any>) =>
+  request.put<never, void>('/ai/knowledge', data)
+
+export const deleteAiKnowledge = (id: number) =>
+  request.delete<never, void>(`/ai/knowledge?id=${id}`)
 
 export const getAiHealth = async (): Promise<Record<string, unknown>> => {
   const adminStore = (await import('@/stores/admin')).useAdminStore()

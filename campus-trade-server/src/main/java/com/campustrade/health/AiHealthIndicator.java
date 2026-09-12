@@ -51,7 +51,7 @@ public class AiHealthIndicator implements HealthIndicator {
             boolean healthy = deepSeekClient.checkApiHealth();
             if (healthy) {
                 return Health.up()
-                        .withDetail("model", deepSeekClient.getModel())
+                        .withDetail("model", deepSeekClient.getEffectiveModel())
                         .withDetail("status", "responsive")
                         .build();
             } else {

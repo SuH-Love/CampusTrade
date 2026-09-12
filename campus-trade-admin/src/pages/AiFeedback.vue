@@ -4,11 +4,14 @@
       <template #header>
         <div class="card-header">
           <span>AI 反馈列表</span>
-          <el-radio-group v-model="filter" @change="loadData">
-            <el-radio-button value="all">全部</el-radio-button>
-            <el-radio-button value="good">有帮助</el-radio-button>
-            <el-radio-button value="bad">无帮助</el-radio-button>
-          </el-radio-group>
+          <div class="header-actions">
+            <el-radio-group v-model="filter" @change="loadData">
+              <el-radio-button value="all">全部</el-radio-button>
+              <el-radio-button value="good">有帮助</el-radio-button>
+              <el-radio-button value="bad">无帮助</el-radio-button>
+            </el-radio-group>
+            <el-button type="success" size="small" @click="openRlhfExport">RLHF导出</el-button>
+          </div>
         </div>
       </template>
 
@@ -74,12 +77,34 @@
         </template>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="rlhfVisible" title="RLHF 数据导出" width="800px">
+      <div class="rlhf-info">
+        <el-alert title="RLHF数据可用于模型微调，每条数据包含用户问题(prompt)、AI回复(completion)和评分(score)" type="info" :closable="false" show-icon />
+        <div class="rlhf-actions">
+          <el-input-number v-model="rlhfLimit" :min="10" :max="1000" :step="50" size="small" />
+          <el-button type="primary" size="small" @click="loadRlhfData" :loading="rlhfLoading">加载数据</el-button>
+          <el-button type="success" size="small" @click="downloadRlhfJson" :disabled="!rlhfData.length">下载JSON</el-button>
+        </div>
+      </div>
+      <el-table :data="rlhfData" stripe size="small" max-height="400" v-if="rlhfData.length">
+        <el-table-column prop="prompt" label="Prompt" show-overflow-tooltip min-width="200" />
+        <el-table-column prop="completion" label="Completion" show-overflow-tooltip min-width="250" />
+        <el-table-column prop="score" label="Score" width="70" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.score > 0 ? 'success' : 'danger'" size="small">{{ row.score }}</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div v-else class="rlhf-empty">暂无数据，点击"加载数据"获取</div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getAiFeedbackList } from '@/api/admin'
+import { ElMessage } from 'element-plus'
+import { getAiFeedbackList, exportRlhfData } from '@/api/admin'
 import { formatDateTime } from '@/utils/labels'
 
 const list = ref<Record<string, unknown>[]>([])
@@ -114,11 +139,40 @@ const showDetail = (row: Record<string, unknown>) => {
   detailVisible.value = true
 }
 
+const rlhfVisible = ref(false)
+const rlhfData = ref<Record<string, any>[]>([])
+const rlhfLoading = ref(false)
+const rlhfLimit = ref(100)
+
+const openRlhfExport = () => {
+  rlhfVisible.value = true
+  if (!rlhfData.value.length) loadRlhfData()
+}
+
+const loadRlhfData = async () => {
+  rlhfLoading.value = true
+  try {
+    const res = await exportRlhfData({ offset: 0, limit: rlhfLimit.value })
+    rlhfData.value = res.data || []
+  } catch { ElMessage.error('加载失败') } finally { rlhfLoading.value = false }
+}
+
+const downloadRlhfJson = () => {
+  const blob = new Blob([JSON.stringify(rlhfData.value, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `rlhf_export_${Date.now()}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
 .card-header { display: flex; justify-content: space-between; align-items: center; }
+.header-actions { display: flex; align-items: center; gap: 12px; }
 .rating-tag { display: inline-flex; align-items: center; }
 .detail-text {
   white-space: pre-wrap; word-wrap: break-word;
@@ -127,4 +181,7 @@ onMounted(loadData)
   background: var(--el-fill-color-light);
   font-size: 14px; line-height: 1.6;
 }
+.rlhf-info { margin-bottom: 16px; }
+.rlhf-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.rlhf-empty { text-align: center; padding: 40px; color: var(--el-text-color-secondary); }
 </style>

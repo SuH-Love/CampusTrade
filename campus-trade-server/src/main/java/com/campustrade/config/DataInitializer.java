@@ -636,6 +636,34 @@ public class DataInitializer implements CommandLineRunner {
             "UNIQUE KEY uk_config_key (config_key)" +
             ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+        executeSql("CREATE TABLE IF NOT EXISTS t_ai_feedback (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "user_id BIGINT NOT NULL," +
+            "session_id VARCHAR(100) DEFAULT NULL," +
+            "message_id VARCHAR(100) DEFAULT NULL," +
+            "user_message TEXT DEFAULT NULL," +
+            "ai_response TEXT DEFAULT NULL," +
+            "rating INT DEFAULT NULL," +
+            "feedback TEXT DEFAULT NULL," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted INT DEFAULT 0," +
+            "version INT DEFAULT 0" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_ai_knowledge (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "title VARCHAR(100) NOT NULL," +
+            "keywords VARCHAR(500) DEFAULT NULL," +
+            "content TEXT NOT NULL," +
+            "enabled INT DEFAULT 1," +
+            "sort_order INT DEFAULT 0," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "deleted INT DEFAULT 0," +
+            "version INT DEFAULT 0" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
         addColumnIfNotExists("t_goods", "condition", "VARCHAR(20) DEFAULT NULL COMMENT '成色' AFTER original_price");
         addColumnIfNotExists("t_goods", "stock", "INT DEFAULT 1 COMMENT '库存' AFTER favorite_count");
         addColumnIfNotExists("t_order_item", "quantity", "INT DEFAULT 1 COMMENT '数量' AFTER price");

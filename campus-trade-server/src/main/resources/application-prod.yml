@@ -115,7 +115,8 @@ ai:
     api-key: ${AI_DEEPSEEK_API_KEY:}
     base-url: ${AI_DEEPSEEK_BASE_URL:https://api.deepseek.com/v1}
     model: ${AI_DEEPSEEK_MODEL:deepseek-chat}
-    timeout-ms: ${AI_DEEPSEEK_TIMEOUT_MS:30000}
+    timeout-ms: ${AI_DEEPSEEK_TIMEOUT_MS:60000}
+    stream-timeout-ms: ${AI_DEEPSEEK_STREAM_TIMEOUT_MS:90000}
 
 knife4j:
   enable: false

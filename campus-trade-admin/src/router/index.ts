@@ -3,8 +3,10 @@ import { useAdminStore } from '@/stores/admin'
 
 const lazyLoad = (importFn: () => Promise<Record<string, unknown>>) => {
   return () => importFn().catch((error: Error) => {
-    if (error.message?.includes('Failed to fetch dynamically imported module')) {
-      return new Promise(resolve => setTimeout(resolve, 1500)).then(() => importFn())
+    if (error.message?.includes('Failed to fetch dynamically imported module') ||
+        error.message?.includes('Importing a module script failed')) {
+      window.location.reload()
+      return new Promise(() => {})
     }
     throw error
   })
@@ -22,7 +24,7 @@ const allRoutes: RouteRecordRaw[] = [
         path: '',
         name: 'Dashboard',
         component: lazyLoad(() => import('@/pages/Dashboard.vue')),
-        meta: { title: '仪表盘', icon: 'DataAnalysis', permission: '' }
+        meta: { title: '仪表盘', icon: 'Odometer', permission: '' }
       },
       {
         path: 'user',
@@ -85,10 +87,22 @@ const allRoutes: RouteRecordRaw[] = [
         meta: { title: '资金流水', icon: 'Coin', permission: 'fund:manage' }
       },
       {
+        path: 'ai-dashboard',
+        name: 'AiDashboard',
+        component: lazyLoad(() => import('@/pages/AiDashboard.vue')),
+        meta: { title: 'AI看板', icon: 'TrendCharts', permission: 'system:config' }
+      },
+      {
         path: 'faq',
         name: 'FaqManage',
         component: lazyLoad(() => import('@/pages/FaqManage.vue')),
         meta: { title: 'AI知识库', icon: 'ChatLineSquare', permission: 'system:config' }
+      },
+      {
+        path: 'ai-knowledge',
+        name: 'AiKnowledge',
+        component: lazyLoad(() => import('@/pages/AiKnowledge.vue')),
+        meta: { title: '平台知识', icon: 'Collection', permission: 'system:config' }
       },
       {
         path: 'ai-tools',

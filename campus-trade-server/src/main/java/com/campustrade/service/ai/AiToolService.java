@@ -37,7 +37,9 @@ public class AiToolService {
     @Autowired private GoodsService goodsService;
     @Autowired private UserService userService;
     @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    @Autowired private org.springframework.data.redis.core.StringRedisTemplate stringRedisTemplate;
 
+    private static final int TOOL_CACHE_TTL_SECONDS = 120;
     private static final Set<String> WRITE_TOOLS = Set.of(
         "cancel_order", "confirm_receipt", "ship_order", "request_refund", "rate_order",
         "toggle_favorite", "add_to_cart", "toggle_follow_user", "online_offline_goods",
@@ -318,9 +320,34 @@ public class AiToolService {
 
     public String executeTool(String toolName, Map<String, Object> arguments) {
         try {
+            if (!WRITE_TOOLS.contains(toolName)) {
+                String cacheKey = buildToolCacheKey(toolName, arguments);
+                if (cacheKey != null) {
+                    try {
+                        String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+                        if (cached != null) {
+                            log.debug("Tool cache hit: {} {}", toolName, cacheKey);
+                            return cached;
+                        }
+                    } catch (Exception e) {
+                        log.warn("Tool cache read failed: {}", e.getMessage());
+                    }
+                }
+            }
+
             String result = doExecuteTool(toolName, arguments);
             if (WRITE_TOOLS.contains(toolName)) {
                 auditToolCall(toolName, arguments, result, true);
+            } else {
+                String cacheKey = buildToolCacheKey(toolName, arguments);
+                if (cacheKey != null && result != null && result.length() < 5000) {
+                    try {
+                        stringRedisTemplate.opsForValue().set(cacheKey, result,
+                            TOOL_CACHE_TTL_SECONDS, java.util.concurrent.TimeUnit.SECONDS);
+                    } catch (Exception e) {
+                        log.warn("Tool cache write failed: {}", e.getMessage());
+                    }
+                }
             }
             return result;
         } catch (Exception e) {
@@ -329,6 +356,19 @@ public class AiToolService {
                 auditToolCall(toolName, arguments, "工具调用失败: " + e.getMessage(), false);
             }
             return "工具调用失败: " + e.getMessage();
+        }
+    }
+
+    private String buildToolCacheKey(String toolName, Map<String, Object> arguments) {
+        try {
+            Long userId = SecurityUtil.getCurrentUserId();
+            if (userId == null) return null;
+            String argsJson = arguments == null ? "{}" :
+                new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(arguments);
+            String argsHash = Integer.toHexString(argsJson.hashCode());
+            return "ai:tool:cache:" + userId + ":" + toolName + ":" + argsHash;
+        } catch (Exception e) {
+            return null;
         }
     }
 

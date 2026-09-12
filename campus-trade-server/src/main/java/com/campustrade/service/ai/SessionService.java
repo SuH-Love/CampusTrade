@@ -20,9 +20,11 @@ public class SessionService {
 
     private static final String SESSION_PREFIX = "ai:session:";
     private static final String SUMMARY_PREFIX = "ai:session:summary:";
+    private static final String SUMMARY_VEC_PREFIX = "ai:session:summary:vec:";
     private static final String PREFS_PREFIX = "ai:session:prefs:";
     private static final int MAX_CONTEXT_TOKENS = 4000;
     private static final int SHORT_TERM_KEEP = 10;
+    private static final int MAX_SUMMARY_LENGTH = 2000;
 
     @Value("${ai.max-history:20}")
     private int maxHistory;
@@ -32,6 +34,9 @@ public class SessionService {
 
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+
+    @Autowired
+    private DeepSeekClient deepSeekClient;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -77,6 +82,7 @@ public class SessionService {
             List<Map<String, Object>> thinkingSteps, List<Map<String, Object>> toolCalls) {
         String key = SESSION_PREFIX + sessionId;
         try {
+            extractAndSavePreferences(sessionId, userMessage);
             long now = System.currentTimeMillis();
             Map<String, Object> userMsg = new HashMap<>();
             userMsg.put("role", "user");
@@ -125,10 +131,82 @@ public class SessionService {
         try {
             String existing = getLongTermMemory(sessionId);
             String combined = existing != null ? existing + "\n" + summary : summary;
+            if (combined.length() > MAX_SUMMARY_LENGTH) {
+                combined = combined.substring(combined.length() - MAX_SUMMARY_LENGTH);
+                int newline = combined.indexOf('\n');
+                if (newline >= 0) combined = combined.substring(newline + 1);
+            }
             stringRedisTemplate.opsForValue().set(SUMMARY_PREFIX + sessionId, combined);
             stringRedisTemplate.expire(SUMMARY_PREFIX + sessionId, sessionTtlHours, TimeUnit.HOURS);
+            saveSummaryChunkEmbedding(sessionId, summary);
         } catch (Exception e) {
             log.error("Failed to save summary", e);
+        }
+    }
+
+    private void saveSummaryChunkEmbedding(String sessionId, String summary) {
+        if (!deepSeekClient.isEmbeddingAvailable()) return;
+        try {
+            float[] emb = deepSeekClient.embedding(summary);
+            if (emb == null) return;
+            String vecKey = SUMMARY_VEC_PREFIX + sessionId;
+            String existing = stringRedisTemplate.opsForValue().get(vecKey);
+            List<Map<String, Object>> chunks = new ArrayList<>();
+            if (existing != null && !existing.isEmpty()) {
+                chunks = objectMapper.readValue(existing, new TypeReference<List<Map<String, Object>>>() {});
+            }
+            if (chunks.size() >= 20) chunks.remove(0);
+            Map<String, Object> chunk = new HashMap<>();
+            chunk.put("text", summary);
+            chunk.put("emb", emb);
+            chunks.add(chunk);
+            stringRedisTemplate.opsForValue().set(vecKey, objectMapper.writeValueAsString(chunks));
+            stringRedisTemplate.expire(vecKey, sessionTtlHours, TimeUnit.HOURS);
+        } catch (Exception e) {
+            log.warn("Failed to save summary embedding: {}", e.getMessage());
+        }
+    }
+
+    private String getRelevantSummaryContext(String sessionId, String userMessage) {
+        if (!deepSeekClient.isEmbeddingAvailable()) {
+            return getLongTermMemory(sessionId);
+        }
+        try {
+            String vecKey = SUMMARY_VEC_PREFIX + sessionId;
+            String existing = stringRedisTemplate.opsForValue().get(vecKey);
+            if (existing == null || existing.isEmpty()) {
+                return getLongTermMemory(sessionId);
+            }
+            List<Map<String, Object>> chunks = objectMapper.readValue(existing, new TypeReference<List<Map<String, Object>>>() {});
+            if (chunks.isEmpty()) return null;
+            float[] queryEmb = deepSeekClient.embedding(userMessage);
+            if (queryEmb == null) return getLongTermMemory(sessionId);
+            List<double[]> scored = new ArrayList<>();
+            for (int i = 0; i < chunks.size(); i++) {
+                Object embObj = chunks.get(i).get("emb");
+                if (embObj instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<Number> embList = (List<Number>) embObj;
+                    float[] emb = new float[embList.size()];
+                    for (int j = 0; j < embList.size(); j++) emb[j] = embList.get(j).floatValue();
+                    double score = DeepSeekClient.cosineSim(queryEmb, emb);
+                    scored.add(new double[]{i, score});
+                }
+            }
+            scored.sort((a, b) -> Double.compare(b[1], a[1]));
+            StringBuilder sb = new StringBuilder();
+            int count = 0;
+            for (double[] entry : scored) {
+                if (entry[1] < 0.3 || count >= 3) break;
+                String text = (String) chunks.get((int) entry[0]).get("text");
+                if (sb.length() > 0) sb.append("\n");
+                sb.append(text);
+                count++;
+            }
+            return sb.length() > 0 ? sb.toString() : getLongTermMemory(sessionId);
+        } catch (Exception e) {
+            log.warn("Failed to retrieve relevant summary context: {}", e.getMessage());
+            return getLongTermMemory(sessionId);
         }
     }
 
@@ -139,7 +217,7 @@ public class SessionService {
         systemMsg.put("content", systemPrompt);
         messages.add(systemMsg);
 
-        String longTermMemory = getLongTermMemory(sessionId);
+        String longTermMemory = getRelevantSummaryContext(sessionId, userMessage);
         if (longTermMemory != null && !longTermMemory.isEmpty()) {
             Map<String, Object> memoryMsg = new HashMap<>();
             memoryMsg.put("role", "system");
@@ -197,6 +275,44 @@ public class SessionService {
         }
     }
 
+    private static final String[] CATEGORY_KEYWORDS = {"二手书", "教材", "电子产品", "电脑", "手机", "服装", "自行车", "宿舍用品", "文具", "运动器材"};
+    private static final String[] PRICE_KEYWORDS = {"便宜", "低价", "实惠", "免费", "50元以下", "100元以下", "200元以下"};
+
+    public void extractAndSavePreferences(String sessionId, String userMessage) {
+        if (userMessage == null || userMessage.isEmpty()) return;
+        try {
+            String lower = userMessage.toLowerCase();
+            StringBuilder newPrefs = new StringBuilder();
+            for (String cat : CATEGORY_KEYWORDS) {
+                if (lower.contains(cat.toLowerCase())) {
+                    newPrefs.append("关注类别:").append(cat).append(" ");
+                }
+            }
+            for (String price : PRICE_KEYWORDS) {
+                if (lower.contains(price.toLowerCase())) {
+                    newPrefs.append("价格偏好:").append(price).append(" ");
+                }
+            }
+            if (newPrefs.length() == 0) return;
+            String existing = getPreferences(sessionId);
+            String combined = existing != null ? existing + " " + newPrefs : newPrefs.toString();
+            String[] parts = combined.split(" ");
+            java.util.LinkedHashSet<String> unique = new java.util.LinkedHashSet<>(java.util.Arrays.asList(parts));
+            StringBuilder result = new StringBuilder();
+            int count = 0;
+            for (String p : unique) {
+                if (p.isEmpty()) continue;
+                if (count > 0) result.append(" ");
+                result.append(p);
+                count++;
+                if (count >= 10) break;
+            }
+            savePreferences(sessionId, result.toString());
+        } catch (Exception e) {
+            log.debug("Failed to extract preferences: {}", e.getMessage());
+        }
+    }
+
     public boolean shouldSummarize(String sessionId) {
         String key = SESSION_PREFIX + sessionId;
         Long size = stringRedisTemplate.opsForList().size(key);
@@ -231,8 +347,14 @@ public class SessionService {
         try {
             String existing = getLongTermMemory(sessionId);
             String combined = existing != null ? existing + "\n" + summary : summary;
+            if (combined.length() > MAX_SUMMARY_LENGTH) {
+                combined = combined.substring(combined.length() - MAX_SUMMARY_LENGTH);
+                int newline = combined.indexOf('\n');
+                if (newline >= 0) combined = combined.substring(newline + 1);
+            }
             stringRedisTemplate.opsForValue().set(SUMMARY_PREFIX + sessionId, combined);
             stringRedisTemplate.expire(SUMMARY_PREFIX + sessionId, sessionTtlHours, TimeUnit.HOURS);
+            saveSummaryChunkEmbedding(sessionId, summary);
 
             String key = SESSION_PREFIX + sessionId;
             List<Map<String, Object>> allHistory = getHistory(sessionId);
