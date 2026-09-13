@@ -2,8 +2,8 @@
   <el-container class="admin-layout">
     <el-aside v-if="!isMobile" :width="isCollapse ? '64px' : '240px'" class="sidebar">
       <div class="logo-area">
-        <div class="logo-icon" v-if="!isCollapse">C</div>
-        <div class="logo-icon small" v-else>C</div>
+        <div class="logo-icon" v-if="!isCollapse"><img src="/aisu_logo.png" alt="logo" /></div>
+        <div class="logo-icon small" v-else><img src="/aisu_logo.png" alt="logo" /></div>
         <span class="logo-text" v-if="!isCollapse">CampusTrade</span>
       </div>
       <el-menu :default-active="activeMenu" router :collapse="isCollapse" class="sidebar-menu" :unique-opened="true">
@@ -28,7 +28,7 @@
     </el-aside>
     <el-drawer v-if="isMobile" v-model="drawerVisible" direction="ltr" :size="'260px'" :show-close="false" :with-header="false" class="sidebar-drawer">
       <div class="logo-area">
-        <div class="logo-icon">C</div>
+        <div class="logo-icon"><img src="/aisu_logo.png" alt="logo" /></div>
         <span class="logo-text">CampusTrade</span>
       </div>
       <el-menu :default-active="activeMenu" router class="sidebar-menu" :unique-opened="true" @select="onMenuSelect">
@@ -364,14 +364,15 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
+.logo-icon img { width: 100%; height: 100%; object-fit: contain; }
 .logo-icon {
-  width: 36px; height: 36px;
-  background: linear-gradient(135deg, var(--admin-primary), var(--admin-primary-light));
-  border-radius: 10px;
+  width: 44px; height: 44px;
+  
+  
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-weight: 800; font-size: 18px;
   flex-shrink: 0;
-  &.small { width: 32px; height: 32px; font-size: 16px; border-radius: 8px; }
+  &.small { width: 40px; height: 40px; font-size: 16px;  }
 }
 
 .logo-text {

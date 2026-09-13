@@ -75,6 +75,10 @@ public class GoodsServiceImpl implements GoodsService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result<GoodsVO> createGoods(Long userId, GoodsCreateDTO dto) {
+        User user = userMapper.selectById(userId);
+        if (user == null || user.getRealVerified() == null || user.getRealVerified() != 1) {
+            return Result.error(1004, "请先完成实名认证后再发布商品");
+        }
         Goods goods = new Goods();
         goods.setUserId(userId);
         goods.setCategoryId(dto.getCategoryId());

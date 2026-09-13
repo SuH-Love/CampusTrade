@@ -2,7 +2,7 @@
   <div class="auth-page">
     <div class="auth-left">
       <div class="auth-brand">
-        <div class="brand-icon">C</div>
+        <div class="brand-icon"><img src="/aisu_logo.png" alt="logo" /></div>
         <h1>CampusTrade</h1>
         <p>{{ subtitle }}</p>
       </div>
@@ -66,11 +66,12 @@ defineProps<{
   @media (max-width: 768px) { display: none; }
 }
 
+.brand-icon img { width: 100%; height: 100%; object-fit: contain; }
 .brand-icon {
-  width: 56px; height: 56px;
-  background: rgba(255,255,255,0.2);
+  width: 72px; height: 72px;
+  
   backdrop-filter: blur(8px);
-  border-radius: 16px;
+  
   display: flex; align-items: center; justify-content: center;
   font-size: 28px; font-weight: 800; margin-bottom: 20px;
 }

@@ -2,7 +2,7 @@
   <div class="admin-login-page">
     <div class="login-card">
       <div class="login-header">
-        <div class="login-logo">C</div>
+        <div class="login-logo"><img src="/aisu_logo.png" alt="logo" /></div>
         <h2>CampusTrade 管理后台</h2>
         <p>请使用管理员账号登录</p>
       </div>
@@ -80,10 +80,11 @@ const handleLogin = async () => {
 }
 
 .login-header { text-align: center; margin-bottom: 32px; }
+.login-logo img { width: 100%; height: 100%; object-fit: contain; }
 .login-logo {
-  width: 56px; height: 56px;
-  background: linear-gradient(135deg, var(--admin-primary), var(--admin-primary-light));
-  border-radius: 16px;
+  width: 72px; height: 72px;
+  
+  
   display: inline-flex; align-items: center; justify-content: center;
   color: #fff; font-weight: 800; font-size: 24px; margin-bottom: 16px;
 }
