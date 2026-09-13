@@ -189,10 +189,23 @@ public class AiController {
             List<Map<String, Object>> messages = sessionService.buildMessages(sessionId, prompt, userMessage);
             List<Map<String, Object>> tools = aiToolService.getToolDefinitions();
             String answer = null;
-            int maxIterations = 6;
+            int maxIterations = 10;
+            int maxTokenBudget = 8000;
             Set<String> calledSignatures = new HashSet<>();
 
             for (int i = 0; i < maxIterations; i++) {
+                int estimatedTokens = 0;
+                for (Map<String, Object> msg : messages) {
+                    Object content = msg.get("content");
+                    if (content != null) estimatedTokens += content.toString().length() / 2;
+                }
+                if (estimatedTokens > maxTokenBudget) {
+                    if (answer == null || answer.isEmpty()) {
+                        answer = "已查询到部分结果，但由于信息量较大，这里先展示已获取的数据。如需了解更多，请具体说明您想查询的内容。";
+                    }
+                    log.info("Agent loop stopped at iteration {} due to token budget ({}/{})", i, estimatedTokens, maxTokenBudget);
+                    break;
+                }
                 String sceneOverride;
                 if (i == 0 && userMessage.contains("[图片:")) {
                     sceneOverride = "vision";
@@ -1020,6 +1033,7 @@ public class AiController {
             deepSeekClient.updateVisionModel(body.get("visionModel"));
         }
         aiHealthIndicator.clearCache();
+        notifyDashboardRefresh();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("enabled", deepSeekClient.isEnabled());
         result.put("model", deepSeekClient.getModel());
@@ -1269,7 +1283,34 @@ public class AiController {
          "- 平台没有独立的\"资产\"、\"钱包\"或\"流水\"页面，不要编造这些入口\n" +
          "- 查看总消费/总收入：个人中心(/profile) → \"我的统计\"标签页 → \"累计消费\"和\"累计收入\"卡片\n" +
          "- 查看具体订单资金流水：订单列表(/order) → 点击订单进入详情 → 页面下方有\"资金流水\"时间线\n" +
-         "- 也可让AI直接查询：用户可说\"查一下订单XXX的资金流水\"，AI通过get_order_fund_logs工具查询\n\n"}
+         "- 也可让AI直接查询：用户可说\"查一下订单XXX的资金流水\"，AI通过get_order_fund_logs工具查询\n\n"},
+        {"实名认证", "实名 认证 身份 学生 学生证 认证",
+         "### 实名认证\n" +
+         "- 入口：个人中心(/profile) → \"实名认证\"标签页\n" +
+         "- 流程：填写真实姓名 + 学号/身份证号 → 提交 → 系统验证 → 认证成功/失败\n" +
+         "- 认证后可提升交易信任度，部分功能可能需要实名才能使用\n" +
+         "- 认证信息保密存储，不会公开展示\n\n"},
+        {"商品评价", "评价 评分 评论 打分 好评 差评 星级 rate",
+         "### 商品评价\n" +
+         "- 评价时机：确认收货后可对卖家评价\n" +
+         "- 评价内容：1-5星评分 + 文字评论（可选）\n" +
+         "- 评价入口：订单列表(/order) → 已完成订单 → \"评价\"按钮\n" +
+         "- 查看评价：商品详情页可查看卖家评价列表和平均评分\n" +
+         "- AI也可通过get_ratings工具查询卖家评价\n\n"},
+        {"聊天功能", "聊天 消息 私信 在线沟通 聊天室 chat 联系卖家",
+         "### 聊天功能\n" +
+         "- 入口：顶部导航栏右侧聊天图标(💬)，或商品详情页\"联系卖家\"按钮\n" +
+         "- 功能：买卖双方在线文字聊天，可发送图片\n" +
+         "- 消息通知：收到新消息时导航栏聊天图标显示未读数\n" +
+         "- 最近联系人：进入聊天页面可查看最近联系人列表\n" +
+         "- AI可查询：未读消息数(get_unread_message_count)、最近联系人(get_recent_contacts)\n\n"},
+        {"通知系统", "通知 消息提醒 站内信 系统通知 公告",
+         "### 通知系统\n" +
+         "- 入口：顶部导航栏右侧通知图标(🔔)\n" +
+         "- 通知类型：订单状态变更、商品审核结果、系统公告、聊天新消息\n" +
+         "- 未读通知数显示在图标上，点击进入通知列表\n" +
+         "- 系统公告：管理员发布的重要通知，AI可通过get_announcements工具查询\n" +
+         "- AI可查询通知列表(get_notifications工具)\n\n"}
     };
 
     private float[][] platformKnowledgeEmbeddings;
@@ -1504,6 +1545,34 @@ public class AiController {
         }
     }
 
+    @org.springframework.web.bind.annotation.GetMapping("/feedback/analysis")
+    @ApiOperation("获取差评分析结果(管理员)")
+    public Result<?> getFeedbackAnalysis() {
+        try {
+            Set<String> keys = stringRedisTemplate.keys("ai:feedback:analysis:*");
+            List<Map<String, Object>> results = new ArrayList<>();
+            if (keys != null) {
+                for (String key : keys) {
+                    String analysis = stringRedisTemplate.opsForValue().get(key);
+                    if (analysis != null && !analysis.isEmpty()) {
+                        Map<String, Object> item = new LinkedHashMap<>();
+                        String remaining = key.replace("ai:feedback:analysis:", "");
+                        int lastColon = remaining.lastIndexOf(':');
+                        item.put("sessionId", lastColon > 0 ? remaining.substring(0, lastColon) : remaining);
+                        item.put("timestamp", lastColon > 0 ? Long.parseLong(remaining.substring(lastColon + 1)) : 0);
+                        item.put("analysis", analysis);
+                        results.add(item);
+                    }
+                }
+                results.sort((a, b) -> Long.compare((Long) b.get("timestamp"), (Long) a.get("timestamp")));
+            }
+            return Result.success(results);
+        } catch (Exception e) {
+            log.error("获取差评分析失败", e);
+            return Result.error(500, "获取失败");
+        }
+    }
+
     @org.springframework.web.bind.annotation.GetMapping("/feedback/rlhf-export")
     @ApiOperation("导出RLHF训练数据(管理员)")
     public Result<?> exportRlhfData(@org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") Integer offset,
@@ -1610,15 +1679,14 @@ public class AiController {
                "2. 通过工具查询用户的订单、商品、资金流水等真实数据\n" +
                "3. 执行用户请求的操作（取消订单、确认收货、收藏商品等）\n" +
                "4. 提供交易建议和平台使用指导\n\n" +
-               "## 可用工具\n" +
-               "- get_order_status：查询当前用户的订单列表（支持状态筛选、时间范围）\n" +
-               "- get_order_by_no：按订单号查询单个订单详情\n" +
-               "- search_goods：搜索平台商品（支持关键词、分类、价格筛选）\n" +
-               "- get_order_fund_logs：查询订单资金流水/交易流水\n" +
-               "- get_my_goods：查看用户自己发布的商品\n" +
-               "- get_user_stats：查看用户个人统计（消费、收入等）\n" +
-               "- admin_dashboard：查看平台运营数据概览\n" +
-               "- 其他工具：收藏、购物车、地址、评价、通知等\n\n" +
+               "## 可用工具（按类别）\n" +
+               "- **订单类**：get_order_status(订单列表)、get_order_by_no(按订单号查详情)、get_order_fund_logs(资金流水)\n" +
+               "- **商品类**：search_goods(搜索商品)、get_my_goods(我的商品)、get_goods_detail(商品详情)、get_categories(分类列表)\n" +
+               "- **用户类**：get_user_profile(个人资料)、get_user_stats(统计)、get_addresses(收货地址)\n" +
+               "- **互动类**：get_favorites(收藏)、get_cart(购物车)、get_follow_list(关注/粉丝)、get_ratings(评价)、get_notifications(通知)、get_unread_message_count(未读消息)、get_recent_contacts(最近联系人)\n" +
+               "- **平台类**：get_announcements(公告)\n" +
+               "- **写操作**：cancel_order(取消)、confirm_receipt(确认收货)、ship_order(发货)、request_refund(退款)、rate_order(评价)、toggle_favorite(收藏)、add_to_cart(加购)、toggle_follow_user(关注)、online_offline_goods(上下架)、add_address(地址)、submit_report(举报)\n" +
+               "- **管理类**（仅管理员）：admin_dashboard(仪表盘)、admin_list_users(用户列表)、admin_ban_user(封禁)、admin_audit_goods(审核)、admin_list_reports(举报列表)、admin_handle_refund(退款处理)\n\n" +
                "## 工具调用规则\n" +
                "1. **首次查询才调用工具**：涉及订单、商品、流水等具体数据时，如果是本轮对话首次查询该数据，必须调用工具获取真实数据。但如果之前的对话中已查询过相同数据，直接引用已有结果，不要重复调用\n" +
                "2. **工具选择**：查询订单列表用get_order_status，按订单号查详情用get_order_by_no，查询资金流水用get_order_fund_logs，不要混用\n" +
@@ -1759,8 +1827,10 @@ public class AiController {
     public Result<?> getDashboardData() {
         try {
             Map<String, Object> dashboard = new LinkedHashMap<>();
-            dashboard.put("model", deepSeekClient.getEffectiveModel());
-            dashboard.put("enabled", deepSeekClient.isEnabled());
+            String[] chatRoute = deepSeekClient.routeByScene("chat");
+            boolean hasChannel = chatRoute != null && chatRoute[2] != null && !chatRoute[2].isEmpty();
+            dashboard.put("model", hasChannel ? chatRoute[2] : null);
+            dashboard.put("enabled", deepSeekClient.isEnabled() && hasChannel);
             dashboard.put("embeddingAvailable", deepSeekClient.isEmbeddingAvailable());
             dashboard.put("faqCount", faqVectorService.getAllFaqs().size());
             dashboard.put("toolCount", aiToolService.getToolDefinitions().size());
@@ -1787,8 +1857,17 @@ public class AiController {
             try {
                 List<Map<String, Object>> trendData = aiFeedbackMapper.countByDate(7);
                 dashboard.put("trend", trendData);
+                String today = java.time.LocalDate.now().toString();
+                int todayFeedback = 0;
+                for (Map<String, Object> item : trendData) {
+                    if (today.equals(String.valueOf(item.get("date")))) {
+                        todayFeedback += ((Number) item.get("count")).intValue();
+                    }
+                }
+                dashboard.put("todayFeedback", todayFeedback);
             } catch (Exception e) {
                 dashboard.put("trend", new ArrayList<>());
+                dashboard.put("todayFeedback", 0);
             }
             dashboard.put("timestamp", System.currentTimeMillis());
             dashboard.putAll(deepSeekClient.getApiStats());
@@ -1796,6 +1875,27 @@ public class AiController {
         } catch (Exception e) {
             log.error("获取看板数据失败", e);
             return Result.error(500, "获取失败");
+        }
+    }
+
+    private final java.util.concurrent.CopyOnWriteArrayList<org.springframework.web.servlet.mvc.method.annotation.SseEmitter> dashboardEmitters = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    @org.springframework.web.bind.annotation.GetMapping(value = "/dashboard/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
+    @ApiOperation("AI看板实时推送(SSE)")
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter streamDashboard() {
+        org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter = new org.springframework.web.servlet.mvc.method.annotation.SseEmitter(60000L);
+        dashboardEmitters.add(emitter);
+        emitter.onCompletion(() -> dashboardEmitters.remove(emitter));
+        emitter.onTimeout(() -> { dashboardEmitters.remove(emitter); emitter.complete(); });
+        emitter.onError(e -> dashboardEmitters.remove(emitter));
+        try { emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().name("connected").data("ok")); } catch (Exception ignored) {}
+        return emitter;
+    }
+
+    private void notifyDashboardRefresh() {
+        for (org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter : dashboardEmitters) {
+            try { emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().name("refresh").data(System.currentTimeMillis())); }
+            catch (Exception e) { dashboardEmitters.remove(emitter); }
         }
     }
 
@@ -1812,6 +1912,7 @@ public class AiController {
         if (!SecurityUtil.isAdmin()) return Result.error(403, "无权限");
         deepSeekClient.saveChannelsJson(body);
         aiHealthIndicator.clearCache();
+        notifyDashboardRefresh();
         return Result.success("保存成功");
     }
 
@@ -1828,6 +1929,7 @@ public class AiController {
         if (!SecurityUtil.isAdmin()) return Result.error(403, "无权限");
         deepSeekClient.saveModelsJson(body);
         aiHealthIndicator.clearCache();
+        notifyDashboardRefresh();
         return Result.success("保存成功");
     }
 

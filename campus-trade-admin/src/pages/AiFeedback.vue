@@ -1,9 +1,11 @@
 <template>
   <div class="admin-page">
+    <el-tabs v-model="activeTab" class="feedback-tabs">
+      <el-tab-pane label="反馈列表" name="list">
     <el-card shadow="never">
       <template #header>
-        <div class="card-header">
-          <span>AI 反馈列表</span>
+        <div class="admin-card-header">
+          <span class="card-title">AI 反馈列表</span>
           <div class="header-actions">
             <el-radio-group v-model="filter" @change="loadData">
               <el-radio-button value="all">全部</el-radio-button>
@@ -98,15 +100,53 @@
       </el-table>
       <div v-else class="rlhf-empty">暂无数据，点击"加载数据"获取</div>
     </el-dialog>
+      </el-tab-pane>
+
+      <el-tab-pane label="差评分析" name="analysis">
+    <el-card shadow="never" v-loading="analysisLoading">
+      <template #header>
+        <div class="admin-card-header">
+          <span class="card-title">差评自动分析</span>
+          <el-button size="small" @click="loadAnalysis">刷新</el-button>
+        </div>
+      </template>
+      <el-alert title="用户给出差评后，AI自动分析可能的原因和改进建议，结果保留7天" type="info" :closable="false" show-icon class="analysis-alert" />
+      <div v-if="analysisList.length === 0" class="analysis-empty">暂无差评分析数据</div>
+      <div v-else class="analysis-list">
+        <div v-for="(item, idx) in analysisList" :key="idx" class="analysis-item">
+          <div class="analysis-item-header">
+            <el-tag type="danger" size="small">差评</el-tag>
+            <span class="analysis-session">会话: {{ String(item.sessionId).substring(0, 12) }}...</span>
+            <span class="analysis-time">{{ formatTimestamp(item.timestamp) }}</span>
+          </div>
+          <template v-if="parseAnalysis(item.analysis)">
+            <div class="analysis-reasons">
+              <div class="analysis-section-title">可能原因：</div>
+              <ul>
+                <li v-for="(reason, ri) in parseAnalysis(item.analysis)?.reasons" :key="ri">{{ reason }}</li>
+              </ul>
+            </div>
+            <div class="analysis-suggestion">
+              <div class="analysis-section-title">改进建议：</div>
+              <p>{{ parseAnalysis(item.analysis)?.suggestion }}</p>
+            </div>
+          </template>
+          <div v-else class="analysis-raw">{{ item.analysis }}</div>
+        </div>
+      </div>
+    </el-card>
+      </el-tab-pane>
+    </el-tabs>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getAiFeedbackList, exportRlhfData } from '@/api/admin'
+import { getAiFeedbackList, exportRlhfData, getAiFeedbackAnalysis } from '@/api/admin'
 import { formatDateTime } from '@/utils/labels'
 
+const activeTab = ref('list')
 const list = ref<Record<string, unknown>[]>([])
 const loading = ref(false)
 const total = ref(0)
@@ -168,11 +208,38 @@ const downloadRlhfJson = () => {
 }
 
 onMounted(loadData)
+
+const analysisList = ref<Record<string, any>[]>([])
+const analysisLoading = ref(false)
+const analysisLoaded = ref(false)
+
+const loadAnalysis = async () => {
+  analysisLoading.value = true
+  try {
+    analysisList.value = await getAiFeedbackAnalysis() || []
+    analysisLoaded.value = true
+  } catch { ElMessage.error('加载分析数据失败') } finally { analysisLoading.value = false }
+}
+
+const parseAnalysis = (text: string): { reasons: string[]; suggestion: string } | null => {
+  try {
+    const jsonStr = text.replace(/^[^{]*\{/, '{').replace(/\}[^}]*$/, '}')
+    return JSON.parse(jsonStr)
+  } catch { return null }
+}
+
+const formatTimestamp = (ts: number) => {
+  if (!ts) return ''
+  const d = new Date(ts)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+watch(activeTab, (tab) => {
+  if (tab === 'analysis' && !analysisLoaded.value) loadAnalysis()
+})
 </script>
 
 <style scoped lang="scss">
-.card-header { display: flex; justify-content: space-between; align-items: center; }
-.header-actions { display: flex; align-items: center; gap: 12px; }
 .rating-tag { display: inline-flex; align-items: center; }
 .detail-text {
   white-space: pre-wrap; word-wrap: break-word;
@@ -184,4 +251,20 @@ onMounted(loadData)
 .rlhf-info { margin-bottom: 16px; }
 .rlhf-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 .rlhf-empty { text-align: center; padding: 40px; color: var(--el-text-color-secondary); }
+.feedback-tabs { :deep(.el-tabs__header) { margin-bottom: 12px; } }
+.analysis-alert { margin-bottom: 16px; }
+.analysis-empty { text-align: center; padding: 40px; color: var(--el-text-color-secondary); }
+.analysis-list { display: flex; flex-direction: column; gap: 12px; }
+.analysis-item {
+  border: 1px solid var(--el-border-color); border-radius: 8px; padding: 16px;
+  background: var(--el-fill-color-light);
+}
+.analysis-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.analysis-session { font-size: 12px; color: var(--el-text-color-secondary); font-family: monospace; }
+.analysis-time { font-size: 12px; color: var(--el-text-color-secondary); margin-left: auto; }
+.analysis-section-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.analysis-reasons ul { margin: 0; padding-left: 20px; }
+.analysis-reasons li { font-size: 13px; line-height: 1.8; }
+.analysis-suggestion p { font-size: 13px; line-height: 1.6; margin: 0; color: #6366f1; }
+.analysis-raw { font-size: 13px; white-space: pre-wrap; word-break: break-all; }
 </style>

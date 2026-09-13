@@ -251,6 +251,9 @@ export const getAiDashboard = () =>
 export const exportRlhfData = (params: { offset?: number; limit?: number }) =>
   request.get<never, { data: Record<string, any>[]; count: number; offset: number; limit: number }>('/ai/feedback/rlhf-export', { params })
 
+export const getAiFeedbackAnalysis = () =>
+  request.get<never, Record<string, any>[]>('/ai/feedback/analysis')
+
 export const getAiKnowledge = () =>
   request.get<never, Record<string, any>[]>('/ai/knowledge')
 

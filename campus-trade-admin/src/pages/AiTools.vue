@@ -2,8 +2,8 @@
   <div class="admin-page">
     <el-card shadow="never">
       <template #header>
-        <div class="card-header">
-          <span>AI 工具列表</span>
+        <div class="admin-card-header">
+          <span class="card-title">AI 工具列表</span>
           <el-tag size="small">共 {{ tools.length }} 个工具</el-tag>
         </div>
       </template>
@@ -62,7 +62,6 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-.card-header { display: flex; justify-content: space-between; align-items: center; }
 .tool-section { margin-bottom: 24px; }
 .section-title { font-size: 15px; margin-bottom: 12px; color: var(--el-text-color-primary); }
 .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }

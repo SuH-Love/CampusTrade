@@ -124,6 +124,8 @@ public class DeepSeekClient {
     private static final String REDIS_KEY_STAT_SUCCESS = "ai:stats:success_calls";
     private static final String REDIS_KEY_STAT_FAILURE = "ai:stats:failure_calls";
     private static final String REDIS_KEY_STAT_TOKENS = "ai:stats:total_tokens";
+    private static final String REDIS_KEY_STAT_LATENCY_SUM = "ai:stats:latency_sum";
+    private static final String REDIS_KEY_STAT_LATENCY_COUNT = "ai:stats:latency_count";
 
 
     private Counter requestCounter;
@@ -167,6 +169,14 @@ public class DeepSeekClient {
             if (v != null) return Long.parseLong(v);
         } catch (Exception ignored) {}
         return local.get();
+    }
+
+    private void recordLatency(long durationNanos) {
+        try {
+            long ms = durationNanos / 1_000_000;
+            stringRedisTemplate.opsForValue().increment(REDIS_KEY_STAT_LATENCY_SUM, ms);
+            stringRedisTemplate.opsForValue().increment(REDIS_KEY_STAT_LATENCY_COUNT);
+        } catch (Exception ignored) {}
     }
 
     private boolean cbAllowRequest() {
@@ -271,6 +281,27 @@ public class DeepSeekClient {
                 .register(meterRegistry);
     }
 
+    public void reloadConfig() {
+        try {
+            String savedKey = stringRedisTemplate.opsForValue().get(REDIS_KEY_APIKEY);
+            String savedModel = stringRedisTemplate.opsForValue().get(REDIS_KEY_MODEL);
+            String savedUrl = stringRedisTemplate.opsForValue().get(REDIS_KEY_BASEURL);
+            if (savedKey != null && !savedKey.isEmpty()) currentApiKey = savedKey;
+            if (savedModel != null && !savedModel.isEmpty()) currentModel = savedModel;
+            if (savedUrl != null && !savedUrl.isEmpty()) currentBaseUrl = savedUrl;
+            String savedRoutingEnabled = stringRedisTemplate.opsForValue().get(REDIS_KEY_ROUTING_ENABLED);
+            String savedReasoner = stringRedisTemplate.opsForValue().get(REDIS_KEY_ROUTING_REASONER);
+            String savedVisionModel = stringRedisTemplate.opsForValue().get(REDIS_KEY_VISION_MODEL);
+            if (savedRoutingEnabled != null) currentRoutingEnabled = "true".equals(savedRoutingEnabled);
+            if (savedReasoner != null && !savedReasoner.isEmpty()) currentReasonerModel = savedReasoner;
+            if (savedVisionModel != null && !savedVisionModel.isEmpty()) currentVisionModel = savedVisionModel;
+            clearEmbeddingAvailableCache();
+            log.info("AI config reloaded from Redis: model={}, routingEnabled={}", currentModel, currentRoutingEnabled);
+        } catch (Exception e) {
+            log.warn("Failed to reload AI config from Redis: {}", e.getMessage());
+        }
+    }
+
     public boolean isEnabled() {
         return aiEnabled && currentApiKey != null && !currentApiKey.isEmpty();
     }
@@ -288,7 +319,15 @@ public class DeepSeekClient {
         stats.put("successRate", total > 0 ? Math.round((double) success / total * 1000) / 10.0 : 0);
         stats.put("failureRate", total > 0 ? Math.round((double) failure / total * 1000) / 10.0 : 0);
         try {
-            stats.put("avgLatencyMs", Math.round(latencyTimer.mean(java.util.concurrent.TimeUnit.MILLISECONDS) * 10) / 10.0);
+            String sLatencySum = stringRedisTemplate.opsForValue().get(REDIS_KEY_STAT_LATENCY_SUM);
+            String sLatencyCount = stringRedisTemplate.opsForValue().get(REDIS_KEY_STAT_LATENCY_COUNT);
+            long latencySum = sLatencySum != null ? Long.parseLong(sLatencySum) : 0;
+            long latencyCount = sLatencyCount != null ? Long.parseLong(sLatencyCount) : 0;
+            if (latencyCount > 0) {
+                stats.put("avgLatencyMs", Math.round((double) latencySum / latencyCount * 10) / 10.0);
+            } else {
+                stats.put("avgLatencyMs", 0);
+            }
         } catch (Exception e) {
             stats.put("avgLatencyMs", 0);
         }
@@ -633,7 +672,7 @@ public class DeepSeekClient {
                 onError.accept(e);
                 return null;
             } finally {
-                sample.stop(latencyTimer);
+                recordLatency(sample.stop(latencyTimer));
                 concurrencyLimit.release();
                 if (response != null) {
                     try { response.close(); } catch (Exception ignored) {}
@@ -721,7 +760,7 @@ public class DeepSeekClient {
             log.error("DeepSeek API call failed", e);
             return FALLBACK_ANSWERS.get("faq");
         } finally {
-            sample.stop(latencyTimer);
+            recordLatency(sample.stop(latencyTimer));
             concurrencyLimit.release();
         }
     }
@@ -977,7 +1016,7 @@ public class DeepSeekClient {
             result.put("toolCalls", null);
             return result;
         } finally {
-            sample.stop(latencyTimer);
+            recordLatency(sample.stop(latencyTimer));
             concurrencyLimit.release();
         }
     }
@@ -1131,6 +1170,7 @@ public class DeepSeekClient {
             }
             stringRedisTemplate.opsForValue().set(REDIS_KEY_CHANNELS, incoming.toString());
             clearEmbeddingAvailableCache();
+            reloadConfig();
             log.info("AI channels updated");
         } catch (Exception e) {
             log.warn("Failed to save channels: {}", e.getMessage());
@@ -1150,6 +1190,7 @@ public class DeepSeekClient {
         try {
             stringRedisTemplate.opsForValue().set(REDIS_KEY_MODELS, json);
             clearEmbeddingAvailableCache();
+            reloadConfig();
             log.info("AI models updated");
         } catch (Exception e) {
             log.warn("Failed to save models: {}", e.getMessage());

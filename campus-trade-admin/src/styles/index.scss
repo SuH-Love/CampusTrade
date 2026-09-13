@@ -82,6 +82,7 @@ body {
   flex-wrap: wrap;
   gap: 12px;
 }
+.card-title { font-size: 15px; font-weight: 600; }
 .header-actions { display: flex; gap: 12px; align-items: center; }
 .admin-filter-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .filter-input { width: 200px; }

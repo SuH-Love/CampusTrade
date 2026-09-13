@@ -2,8 +2,8 @@
   <div class="admin-page">
     <el-card shadow="never">
       <template #header>
-        <div class="card-header">
-          <span>平台知识管理</span>
+        <div class="admin-card-header">
+          <span class="card-title">平台知识管理</span>
           <el-button type="primary" size="small" @click="openCreate">新增知识块</el-button>
         </div>
       </template>
@@ -116,5 +116,5 @@ onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
-.card-header { display: flex; justify-content: space-between; align-items: center; }
+
 </style>
