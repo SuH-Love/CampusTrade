@@ -143,6 +143,7 @@ import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { ChatDotRound, Star, TrendCharts, Cpu, Monitor, ChatLineRound, Document, Box, Histogram, CircleCheck, CircleClose, Coin, Timer, Connection, Setting } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import { getAiDashboard } from '@/api/admin'
+import { useAdminStore } from '@/stores/admin'
 
 const data = ref<Record<string, any>>({})
 const pieChartRef = ref<HTMLElement>()
@@ -257,19 +258,54 @@ const renderCharts = () => {
 
 const handleResize = () => { pieChart?.resize(); trendChart?.resize() }
 
-let sseSource: EventSource | null = null
+let sseController: AbortController | null = null
+
+const startSSE = async () => {
+  const adminStore = useAdminStore()
+  if (!adminStore.token) return
+  try {
+    await getAiDashboard()
+  } catch {
+    return
+  }
+  if (!adminStore.token) return
+  sseController = new AbortController()
+  fetch('/api/ai/dashboard/stream', {
+    headers: { Authorization: `Bearer ${adminStore.token}` },
+    signal: sseController.signal
+  }).then(response => {
+    if (!response.ok) return
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let eventType = ''
+    const pump = (): Promise<void> => reader.read().then(({ done, value }) => {
+      if (done) return
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        if (line.startsWith('event:')) eventType = line.slice(6).trim()
+        else if (line.startsWith('data:')) {
+          if (eventType === 'refresh') loadData()
+          eventType = ''
+        }
+      }
+      return pump()
+    })
+    return pump()
+  }).catch(() => {})
+}
 
 onMounted(() => {
   loadData()
   window.addEventListener('resize', handleResize)
-  sseSource = new EventSource('/api/ai/dashboard/stream')
-  sseSource.addEventListener('refresh', () => loadData())
-  sseSource.onerror = () => { try { sseSource?.close() } catch {} }
+  startSSE()
 })
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   pieChart?.dispose(); trendChart?.dispose()
-  sseSource?.close()
+  sseController?.abort()
 })
 </script>
 
