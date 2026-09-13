@@ -2,7 +2,7 @@
   <div class="admin-page">
     <el-tabs v-model="activeTab" class="feedback-tabs">
       <el-tab-pane label="反馈列表" name="list">
-    <el-card shadow="never">
+    <el-card>
       <template #header>
         <div class="admin-card-header">
           <h3>AI 反馈列表</h3>
@@ -103,7 +103,7 @@
       </el-tab-pane>
 
       <el-tab-pane label="差评分析" name="analysis">
-    <el-card shadow="never" v-loading="analysisLoading">
+    <el-card v-loading="analysisLoading">
       <template #header>
         <div class="admin-card-header">
           <h3>差评自动分析</h3>

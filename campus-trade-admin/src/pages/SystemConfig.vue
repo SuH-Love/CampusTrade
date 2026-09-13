@@ -1,10 +1,10 @@
 <template>
   <div class="admin-page">
-    <el-card shadow="never">
+    <el-card>
       <template #header>
         <div class="admin-card-header">
           <h3>支付宝沙箱配置</h3>
-          <el-tag :type="alipayConfigured ? 'success' : 'danger'" size="small">
+          <el-tag :type="alipayConfigured ? 'success' : 'danger'" size="default">
             {{ alipayConfigured ? '已配置' : '未配置' }}
           </el-tag>
         </div>
@@ -48,11 +48,11 @@
       </el-descriptions>
     </el-card>
 
-    <el-card shadow="never" style="margin-top: 20px">
+    <el-card style="margin-top: 20px">
       <template #header>
         <div class="admin-card-header">
           <h3>邮件服务配置（QQ邮箱）</h3>
-          <el-tag :type="mailConfigured ? 'success' : 'danger'" size="small">
+          <el-tag :type="mailConfigured ? 'success' : 'danger'" size="default">
             {{ mailConfigured ? '已配置' : '未配置' }}
           </el-tag>
         </div>
@@ -97,12 +97,12 @@
       </el-descriptions>
     </el-card>
 
-    <el-card shadow="never" style="margin-top: 20px">
+    <el-card style="margin-top: 20px">
       <template #header>
         <div class="admin-card-header">
           <h3>AI 助手配置 — 渠道管理</h3>
-          <el-tag v-if="aiStatusLoading" type="info" size="small">检测中...</el-tag>
-          <el-tag v-else :type="aiConfig.healthy ? 'success' : 'danger'" size="small">
+          <el-tag v-if="aiStatusLoading" type="info" size="default">检测中...</el-tag>
+          <el-tag v-else :type="aiConfig.healthy ? 'success' : 'danger'" size="default">
             {{ aiConfig.healthy ? '在线' : '离线' }}
           </el-tag>
         </div>
@@ -156,12 +156,12 @@
       </el-descriptions>
     </el-card>
 
-    <el-card shadow="never" style="margin-top: 20px">
+    <el-card style="margin-top: 20px">
       <template #header>
         <div class="admin-card-header">
           <h3>AI Embedding 向量检索配置</h3>
-          <el-tag v-if="aiStatusLoading" type="info" size="small">检测中...</el-tag>
-          <el-tag v-else :type="aiConfig.embeddingAvailable ? 'success' : 'warning'" size="small">
+          <el-tag v-if="aiStatusLoading" type="info" size="default">检测中...</el-tag>
+          <el-tag v-else :type="aiConfig.embeddingAvailable ? 'success' : 'warning'" size="default">
             {{ aiConfig.embeddingAvailable ? '可用' : '降级TF-IDF' }}
           </el-tag>
         </div>
@@ -195,7 +195,7 @@
       </el-descriptions>
     </el-card>
 
-    <el-card shadow="never" style="margin-top: 20px">
+    <el-card style="margin-top: 20px">
       <template #header><div class="admin-card-header"><h3>AI 系统提示词（System Prompt）</h3></div></template>
       <el-form label-width="140px" v-loading="promptLoading">
         <el-form-item label="当前提示词">

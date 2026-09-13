@@ -1,10 +1,10 @@
 <template>
   <div class="admin-page">
-    <el-card shadow="never">
+    <el-card>
       <template #header>
         <div class="admin-card-header">
           <h3>AI 工具列表</h3>
-          <el-tag size="small">共 {{ tools.length }} 个工具</el-tag>
+          <el-tag size="default">共 {{ tools.length }} 个工具</el-tag>
         </div>
       </template>
 
