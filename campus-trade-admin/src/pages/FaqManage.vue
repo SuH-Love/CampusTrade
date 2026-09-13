@@ -3,7 +3,7 @@
     <el-card>
       <template #header>
         <div class="admin-card-header">
-          <span class="card-title">AI知识库管理</span>
+          <h3>AI知识库管理</h3>
           <div class="header-actions">
             <el-input v-model="searchKeyword" placeholder="搜索问题" clearable class="filter-input">
               <template #prefix><el-icon><Search /></el-icon></template>

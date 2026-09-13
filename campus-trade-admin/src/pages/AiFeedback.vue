@@ -5,7 +5,7 @@
     <el-card shadow="never">
       <template #header>
         <div class="admin-card-header">
-          <span class="card-title">AI 反馈列表</span>
+          <h3>AI 反馈列表</h3>
           <div class="header-actions">
             <el-radio-group v-model="filter" @change="loadData">
               <el-radio-button value="all">全部</el-radio-button>
@@ -106,7 +106,7 @@
     <el-card shadow="never" v-loading="analysisLoading">
       <template #header>
         <div class="admin-card-header">
-          <span class="card-title">差评自动分析</span>
+          <h3>差评自动分析</h3>
           <el-button size="small" @click="loadAnalysis">刷新</el-button>
         </div>
       </template>

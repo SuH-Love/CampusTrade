@@ -3,7 +3,7 @@
     <el-card shadow="never">
       <template #header>
         <div class="admin-card-header">
-          <span class="card-title">支付宝沙箱配置</span>
+          <h3>支付宝沙箱配置</h3>
           <el-tag :type="alipayConfigured ? 'success' : 'danger'" size="small">
             {{ alipayConfigured ? '已配置' : '未配置' }}
           </el-tag>
@@ -51,7 +51,7 @@
     <el-card shadow="never" style="margin-top: 20px">
       <template #header>
         <div class="admin-card-header">
-          <span class="card-title">邮件服务配置（QQ邮箱）</span>
+          <h3>邮件服务配置（QQ邮箱）</h3>
           <el-tag :type="mailConfigured ? 'success' : 'danger'" size="small">
             {{ mailConfigured ? '已配置' : '未配置' }}
           </el-tag>
@@ -100,7 +100,7 @@
     <el-card shadow="never" style="margin-top: 20px">
       <template #header>
         <div class="admin-card-header">
-          <span class="card-title">AI 助手配置 — 渠道管理</span>
+          <h3>AI 助手配置 — 渠道管理</h3>
           <el-tag v-if="aiStatusLoading" type="info" size="small">检测中...</el-tag>
           <el-tag v-else :type="aiConfig.healthy ? 'success' : 'danger'" size="small">
             {{ aiConfig.healthy ? '在线' : '离线' }}
@@ -159,7 +159,7 @@
     <el-card shadow="never" style="margin-top: 20px">
       <template #header>
         <div class="admin-card-header">
-          <span class="card-title">AI Embedding 向量检索配置</span>
+          <h3>AI Embedding 向量检索配置</h3>
           <el-tag v-if="aiStatusLoading" type="info" size="small">检测中...</el-tag>
           <el-tag v-else :type="aiConfig.embeddingAvailable ? 'success' : 'warning'" size="small">
             {{ aiConfig.embeddingAvailable ? '可用' : '降级TF-IDF' }}
@@ -196,7 +196,7 @@
     </el-card>
 
     <el-card shadow="never" style="margin-top: 20px">
-      <template #header><div class="admin-card-header"><span class="card-title">AI 系统提示词（System Prompt）</span></div></template>
+      <template #header><div class="admin-card-header"><h3>AI 系统提示词（System Prompt）</h3></div></template>
       <el-form label-width="140px" v-loading="promptLoading">
         <el-form-item label="当前提示词">
           <div style="width: 100%">

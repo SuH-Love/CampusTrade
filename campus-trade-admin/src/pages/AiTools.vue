@@ -3,7 +3,7 @@
     <el-card shadow="never">
       <template #header>
         <div class="admin-card-header">
-          <span class="card-title">AI 工具列表</span>
+          <h3>AI 工具列表</h3>
           <el-tag size="small">共 {{ tools.length }} 个工具</el-tag>
         </div>
       </template>
