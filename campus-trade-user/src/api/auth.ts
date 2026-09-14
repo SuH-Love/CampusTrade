@@ -10,6 +10,7 @@ export interface RegisterParams {
   password: string
   phone?: string
   email?: string
+  code: string
 }
 
 export interface TokenVO {
@@ -39,5 +40,7 @@ export interface ResetPasswordParams {
 }
 
 export const sendResetCode = (data: SendCodeParams) => request.post('/auth/send-code', data)
+
+export const sendRegisterCode = (data: SendCodeParams) => request.post('/auth/send-register-code', data)
 
 export const resetPassword = (data: ResetPasswordParams) => request.post('/auth/reset-password', data)

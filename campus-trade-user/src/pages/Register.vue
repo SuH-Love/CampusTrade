@@ -16,7 +16,15 @@
         <el-input v-model="form.phone" placeholder="手机号（选填）" autocomplete="tel" maxlength="11" />
       </el-form-item>
       <el-form-item prop="email">
-        <el-input v-model="form.email" placeholder="邮箱（用于重置密码）" autocomplete="email" />
+        <el-input v-model="form.email" placeholder="邮箱（用于验证和重置密码）" autocomplete="email" />
+      </el-form-item>
+      <el-form-item prop="code">
+        <div class="code-row">
+          <el-input v-model="form.code" placeholder="邮箱验证码" maxlength="6" />
+          <el-button :disabled="countdown > 0" :loading="sendingCode" @click="handleSendCode" class="send-btn">
+            {{ countdown > 0 ? `${countdown}s` : '发送验证码' }}
+          </el-button>
+        </div>
       </el-form-item>
       <el-form-item>
         <el-button type="primary" class="w-full" :loading="loading" native-type="submit" round>注册</el-button>
@@ -29,17 +37,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import AuthLayout from '@/components/AuthLayout.vue'
+import { sendRegisterCode } from '@/api/auth'
 
 const router = useRouter()
 const userStore = useUserStore()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
+const sendingCode = ref(false)
+const countdown = ref(0)
+let timer: any = null
 
 const features = [
   { icon: '🔒', title: '安全交易', desc: '实名认证保障买卖安全' },
@@ -47,7 +59,7 @@ const features = [
   { icon: '✅', title: '品质保障', desc: '商品审核确保质量' }
 ]
 
-const form = reactive({ username: '', password: '', confirmPassword: '', phone: '', email: '' })
+const form = reactive({ username: '', password: '', confirmPassword: '', phone: '', email: '', code: '' })
 
 const confirmPwdValidator = (_rule: unknown, value: string, callback: (err?: Error) => void) => {
   if (value !== form.password) callback(new Error('两次密码不一致'))
@@ -85,7 +97,30 @@ const rules = {
   email: [
     { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
+  ],
+  code: [
+    { required: true, message: '请输入验证码', trigger: 'blur' },
+    { len: 6, message: '验证码为6位数字', trigger: 'blur' }
   ]
+}
+
+const handleSendCode = async () => {
+  if (!form.username) { ElMessage.warning('请先输入用户名'); return }
+  if (!form.email) { ElMessage.warning('请先输入邮箱'); return }
+  sendingCode.value = true
+  try {
+    await sendRegisterCode({ username: form.username, email: form.email })
+    ElMessage.success('验证码已发送，请查收邮箱')
+    countdown.value = 60
+    timer = setInterval(() => {
+      countdown.value--
+      if (countdown.value <= 0) { clearInterval(timer); timer = null }
+    }, 1000)
+  } catch (e: any) {
+    ElMessage.error(e.message || '验证码发送失败')
+  } finally {
+    sendingCode.value = false
+  }
 }
 
 const handleRegister = async () => {
@@ -97,10 +132,14 @@ const handleRegister = async () => {
     router.push('/login')
   } catch (e) { console.error(e) } finally { loading.value = false }
 }
+
+onUnmounted(() => { if (timer) clearInterval(timer) })
 </script>
 
 <style scoped lang="scss">
 h2 { font-size: 28px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; letter-spacing: -0.3px; }
 .auth-subtitle { color: var(--text-secondary); margin-bottom: 32px; font-size: 15px; }
 .auth-footer { text-align: center; margin-top: 16px; color: var(--text-secondary); font-size: 14px; }
+.code-row { display: flex; gap: 12px; width: 100%; }
+.send-btn { flex-shrink: 0; width: 120px; }
 </style>

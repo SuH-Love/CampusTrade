@@ -10,6 +10,8 @@ public interface AuthService {
 
     Result<TokenVO> register(RegisterDTO dto);
 
+    Result<Void> sendRegisterCode(SendRegisterCodeDTO dto);
+
     Result<TokenVO> login(LoginDTO dto);
 
     Result<Void> logout(Long userId);

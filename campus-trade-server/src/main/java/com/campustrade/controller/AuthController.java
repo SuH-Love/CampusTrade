@@ -34,6 +34,13 @@ public class AuthController {
         return authService.register(dto);
     }
 
+    @ApiOperation("发送注册验证码")
+    @PostMapping("/send-register-code")
+    @RateLimit
+    public Result<Void> sendRegisterCode(@Validated @RequestBody com.campustrade.dto.SendRegisterCodeDTO dto) {
+        return authService.sendRegisterCode(dto);
+    }
+
     @ApiOperation("登录")
     @PostMapping("/login")
     @RateLimit

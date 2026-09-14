@@ -109,6 +109,16 @@ public class AuthServiceImpl implements AuthService {
             }
         }
 
+        String codeKey = RedisConstant.CAPTCHA_PREFIX + "register:" + dto.getEmail();
+        Object storedCode = redisTemplate.opsForValue().get(codeKey);
+        if (storedCode == null) {
+            return Result.error(400, "验证码已过期，请重新发送");
+        }
+        if (!dto.getCode().equals(storedCode.toString())) {
+            return Result.error(400, "验证码错误");
+        }
+        redisTemplate.delete(codeKey);
+
         User user = new User();
         user.setUsername(dto.getUsername());
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
@@ -130,6 +140,35 @@ public class AuthServiceImpl implements AuthService {
                 RedisConstant.TOKEN_TTL, TimeUnit.SECONDS);
 
         return generateTokenPair(user);
+    }
+
+    @Override
+    public Result<Void> sendRegisterCode(SendRegisterCodeDTO dto) {
+        String username = dto.getUsername().trim();
+        String email = dto.getEmail().trim();
+
+        User existUser = userMapper.selectByUsername(username);
+        if (existUser != null) return Result.error(ResultCode.USERNAME_EXISTS);
+        User emailUser = userMapper.selectByEmail(email);
+        if (emailUser != null) return Result.error(ResultCode.EMAIL_EXISTS);
+        if (SensitiveWordUtil.containsSensitiveWord(username)) {
+            return Result.error(400, "用户名包含敏感词");
+        }
+        if (!emailService.isConfigured()) {
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "邮件服务未配置，请联系管理员");
+        }
+
+        String code = String.valueOf(100000 + new java.security.SecureRandom().nextInt(900000));
+        String key = RedisConstant.CAPTCHA_PREFIX + "register:" + email;
+        redisTemplate.opsForValue().set(key, code, RedisConstant.CAPTCHA_TTL, java.util.concurrent.TimeUnit.SECONDS);
+        try {
+            emailService.sendVerificationCode(email, code);
+            log.info("Register verification code sent to [{}] for username [{}]", email, username);
+        } catch (Exception e) {
+            redisTemplate.delete(key);
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "验证码发送失败：" + e.getMessage());
+        }
+        return Result.success();
     }
 
     @Override

@@ -39,7 +39,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const userStore = useUserStore()
-    const noAuthUrls = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/send-code', '/auth/reset-password']
+    const noAuthUrls = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/send-code', '/auth/send-register-code', '/auth/reset-password']
     const isNoAuth = noAuthUrls.some(url => config.url?.includes(url))
     if (userStore.token && !isNoAuth) {
       config.headers.Authorization = `Bearer ${userStore.token}`

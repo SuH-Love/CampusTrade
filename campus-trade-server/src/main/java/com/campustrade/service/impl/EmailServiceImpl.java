@@ -63,8 +63,8 @@ public class EmailServiceImpl implements EmailService {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(username);
         message.setTo(toEmail);
-        message.setSubject("【CampusTrade】重置密码验证码");
-        message.setText("您正在重置密码，验证码为：" + code + "\n\n验证码有效期为5分钟，请尽快使用。\n如非本人操作，请忽略此邮件。\n\n—— CampusTrade校园贸易平台");
+        message.setSubject("【CampusTrade】验证码");
+        message.setText("您的验证码为：" + code + "\n\n验证码有效期为5分钟，请尽快使用。\n如非本人操作，请忽略此邮件。\n\n—— CampusTrade校园贸易平台");
 
         try {
             mailSender.send(message);
