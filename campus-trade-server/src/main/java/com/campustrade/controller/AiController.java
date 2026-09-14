@@ -152,12 +152,13 @@ public class AiController {
 
         String faqContext = faqVectorService.buildContext(userMessage);
         boolean needTools = mayNeedTools(userMessage);
-        String prompt = truncateToTokenBudget(getSystemPrompt(), 1500)
-            + truncateToTokenBudget(buildPlatformKnowledge(userMessage), 800)
-            + buildDateHint();
-        String truncatedFaq = truncateToTokenBudget(faqContext, 500);
-        if (!truncatedFaq.isEmpty()) {
-            prompt = prompt + "\n\n" + truncatedFaq;
+        String systemPart = truncateToTokenBudget(getSystemPrompt(), 1500);
+        String knowledgePart = truncateToTokenBudget(buildPlatformKnowledge(userMessage), 600);
+        String prompt = systemPart + knowledgePart + buildDateHint();
+        String truncatedFaq = truncateToTokenBudget(faqContext, 400);
+        String dedupedFaq = deduplicateFaq(knowledgePart, truncatedFaq);
+        if (!dedupedFaq.isEmpty()) {
+            prompt = prompt + "\n\n" + dedupedFaq;
         }
 
         ChatResponse response = new ChatResponse();
@@ -197,7 +198,7 @@ public class AiController {
                 int estimatedTokens = 0;
                 for (Map<String, Object> msg : messages) {
                     Object content = msg.get("content");
-                    if (content != null) estimatedTokens += content.toString().length() / 2;
+                    if (content != null) estimatedTokens += SessionService.estimateTokens(content.toString());
                 }
                 if (estimatedTokens > maxTokenBudget) {
                     if (answer == null || answer.isEmpty()) {
@@ -341,12 +342,13 @@ public class AiController {
 
         String faqContext = faqVectorService.buildContext(userMessage);
         boolean needTools = mayNeedTools(userMessage);
-        String prompt = truncateToTokenBudget(getSystemPrompt(), 1500)
-            + truncateToTokenBudget(buildPlatformKnowledge(userMessage), 800)
-            + buildDateHint();
-        String truncatedFaq = truncateToTokenBudget(faqContext, 500);
-        if (!truncatedFaq.isEmpty()) {
-            prompt = prompt + "\n\n" + truncatedFaq;
+        String systemPart = truncateToTokenBudget(getSystemPrompt(), 1500);
+        String knowledgePart = truncateToTokenBudget(buildPlatformKnowledge(userMessage), 600);
+        String prompt = systemPart + knowledgePart + buildDateHint();
+        String truncatedFaq = truncateToTokenBudget(faqContext, 400);
+        String dedupedFaq = deduplicateFaq(knowledgePart, truncatedFaq);
+        if (!dedupedFaq.isEmpty()) {
+            prompt = prompt + "\n\n" + dedupedFaq;
         }
 
         if (!deepSeekClient.isEnabled()) {
@@ -721,10 +723,44 @@ public class AiController {
 
     private String truncateToTokenBudget(String text, int maxTokens) {
         if (text == null || text.isEmpty()) return text;
-        int estimatedTokens = (int) Math.ceil(text.length() * 0.75);
+        int estimatedTokens = SessionService.estimateTokens(text);
         if (estimatedTokens <= maxTokens) return text;
-        int maxChars = (int) (maxTokens / 0.75);
-        return text.substring(0, Math.min(maxChars, text.length())) + "\n[内容已截断]";
+        int lo = 0, hi = text.length(), best = 0;
+        while (lo <= hi) {
+            int mid = (lo + hi) / 2;
+            if (SessionService.estimateTokens(text.substring(0, mid)) <= maxTokens) {
+                best = mid;
+                lo = mid + 1;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        return text.substring(0, best) + "\n[内容已截断]";
+    }
+
+    private String deduplicateFaq(String platformKnowledge, String faqContext) {
+        if (faqContext == null || faqContext.isEmpty() || platformKnowledge == null || platformKnowledge.isEmpty()) {
+            return faqContext;
+        }
+        StringBuilder result = new StringBuilder();
+        String[] blocks = faqContext.split("\n\n");
+        for (String block : blocks) {
+            if (block.startsWith("以下是与用户问题相关") || block.startsWith("请基于以上参考")) {
+                result.append(block).append("\n\n");
+                continue;
+            }
+            int qStart = block.indexOf("问题：");
+            if (qStart >= 0) {
+                int qEnd = block.indexOf("\n", qStart);
+                String question = qEnd > qStart ? block.substring(qStart + 3, qEnd) : block.substring(qStart + 3);
+                String checkKey = question.length() > 5 ? question.substring(0, 5) : question;
+                if (platformKnowledge.contains(checkKey)) {
+                    continue;
+                }
+            }
+            result.append(block).append("\n\n");
+        }
+        return result.toString().trim();
     }
 
     private String getEnhancedFallback(String userMessage, String faqContext) {
@@ -1381,7 +1417,7 @@ public class AiController {
         StringBuilder sb = new StringBuilder("\n\n## 平台知识（回答用户关于平台规则的问题时必须依据以下信息）\n");
         List<String[]> blocks = loadKnowledgeBlocks();
 
-        boolean semanticMatched = false;
+        List<int[]> embRanking = null;
         if (deepSeekClient.isEmbeddingAvailable()) {
             if (!platformKnowledgeEmbeddingsReady) {
                 initPlatformKnowledgeEmbeddings();
@@ -1390,20 +1426,12 @@ public class AiController {
                 try {
                     float[] queryEmb = deepSeekClient.embedding(userMessage);
                     if (queryEmb != null) {
-                        List<int[]> scored = new ArrayList<>();
+                        embRanking = new ArrayList<>();
                         for (int i = 0; i < blocks.size(); i++) {
                             double score = DeepSeekClient.cosineSim(queryEmb, platformKnowledgeEmbeddings[i]);
-                            scored.add(new int[]{i, (int)(score * 10000)});
+                            embRanking.add(new int[]{i, (int)(score * 10000)});
                         }
-                        scored.sort((a, b) -> b[1] - a[1]);
-                        int count = 0;
-                        for (int[] entry : scored) {
-                            double score = entry[1] / 10000.0;
-                            if (score < 0.35 || count >= 2) break;
-                            sb.append(blocks.get(entry[0])[2]);
-                            count++;
-                        }
-                        if (count > 0) semanticMatched = true;
+                        embRanking.sort((a, b) -> b[1] - a[1]);
                     }
                 } catch (Exception e) {
                     log.debug("Semantic platform knowledge matching failed: {}", e.getMessage());
@@ -1411,19 +1439,57 @@ public class AiController {
             }
         }
 
-        if (!semanticMatched) {
-            boolean anyMatched = false;
-            for (String[] block : blocks) {
-                String[] kws = block[1].split(" ");
-                if (containsAny(lower, kws)) { sb.append(block[2]); anyMatched = true; }
+        List<int[]> kwRanking = new ArrayList<>();
+        for (int i = 0; i < blocks.size(); i++) {
+            String[] kws = blocks.get(i)[1].split(" ");
+            int matchCount = 0;
+            for (String kw : kws) {
+                if (lower.contains(kw)) matchCount++;
             }
+            kwRanking.add(new int[]{i, matchCount});
+        }
+        kwRanking.sort((a, b) -> b[1] - a[1]);
 
-            if (!anyMatched) {
-                sb.append("### 平台概览\n")
-                  .append("- 校园二手交易平台，支持商品发布、订单交易、支付宝担保支付、收货地址管理、收藏/购物车/关注等功能。\n")
-                  .append("- 个人中心(/profile)包含统计、编辑资料、修改密码、实名认证、收款管理等标签页。\n")
-                  .append("- 具体功能位置请参考前端页面导航信息。\n\n");
+        int rrfK = 60;
+        Map<Integer, Double> rrfScores = new HashMap<>();
+        if (embRanking != null) {
+            for (int rank = 0; rank < embRanking.size(); rank++) {
+                rrfScores.merge(embRanking.get(rank)[0], 1.0 / (rrfK + rank + 1), Double::sum);
             }
+        }
+        for (int rank = 0; rank < kwRanking.size(); rank++) {
+            if (kwRanking.get(rank)[1] > 0) {
+                rrfScores.merge(kwRanking.get(rank)[0], 1.0 / (rrfK + rank + 1), Double::sum);
+            }
+        }
+
+        List<Map.Entry<Integer, Double>> fused = new ArrayList<>(rrfScores.entrySet());
+        fused.sort((a, b) -> Double.compare(b.getValue(), a.getValue()));
+
+        int count = 0;
+        for (Map.Entry<Integer, Double> entry : fused) {
+            if (count >= 2) break;
+            int blockIdx = entry.getKey();
+            boolean embOk = false;
+            if (embRanking != null) {
+                for (int[] r : embRanking) {
+                    if (r[0] == blockIdx && r[1] / 10000.0 >= 0.35) { embOk = true; break; }
+                }
+            }
+            boolean kwOk = false;
+            for (int[] r : kwRanking) {
+                if (r[0] == blockIdx && r[1] > 0) { kwOk = true; break; }
+            }
+            if (!embOk && !kwOk) continue;
+            sb.append(blocks.get(blockIdx)[2]);
+            count++;
+        }
+
+        if (count == 0) {
+            sb.append("### 平台概览\n")
+              .append("- 校园二手交易平台，支持商品发布、订单交易、支付宝担保支付、收货地址管理、收藏/购物车/关注等功能。\n")
+              .append("- 个人中心(/profile)包含统计、编辑资料、修改密码、实名认证、收款管理等标签页。\n")
+              .append("- 具体功能位置请参考前端页面导航信息。\n\n");
         }
 
         sb.append("### 回答要求\n")

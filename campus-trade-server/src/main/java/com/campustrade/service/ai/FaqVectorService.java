@@ -236,7 +236,19 @@ public class FaqVectorService {
         faqVectors.addAll(newVectors);
         saveToRedis();
         rebuildEmbeddings();
+        clearRerankCache();
         log.info("FAQ vectors rebuilt: {} items, embeddings: {}", faqItems.size(), useEmbeddings ? "on" : "off");
+    }
+
+    private void clearRerankCache() {
+        try {
+            Set<String> keys = stringRedisTemplate.keys("ai:rerank:cache:*");
+            if (keys != null && !keys.isEmpty()) {
+                stringRedisTemplate.delete(keys);
+            }
+        } catch (Exception e) {
+            log.debug("Failed to clear rerank cache: {}", e.getMessage());
+        }
     }
 
     private void rebuildEmbeddings() {
@@ -371,6 +383,26 @@ public class FaqVectorService {
 
     private List<FaqItem> rerankResults(String query, List<FaqItem> candidates) {
         if (candidates.size() <= 3) return candidates;
+
+        StringBuilder cacheKeyBuilder = new StringBuilder(query);
+        for (FaqItem item : candidates) {
+            cacheKeyBuilder.append("|").append(item.question);
+        }
+        String rerankCacheKey = "ai:rerank:cache:" + Math.abs(cacheKeyBuilder.toString().hashCode());
+        try {
+            String cached = stringRedisTemplate.opsForValue().get(rerankCacheKey);
+            if (cached != null && !cached.isEmpty()) {
+                List<String> orderedQuestions = objectMapper.readValue(cached, new TypeReference<List<String>>() {});
+                List<FaqItem> result = new ArrayList<>();
+                for (String q : orderedQuestions) {
+                    for (FaqItem c : candidates) {
+                        if (c.question.equals(q)) { result.add(c); break; }
+                    }
+                }
+                if (result.size() == candidates.size()) return result;
+            }
+        } catch (Exception ignored) {}
+
         try {
             StringBuilder promptBuilder = new StringBuilder();
             promptBuilder.append("对以下FAQ与用户问题的相关性打分(0-10)，只输出JSON数组：\n");
@@ -388,6 +420,7 @@ public class FaqVectorService {
             msgs.add(m);
             String response = deepSeekClient.chat(msgs);
             if (response == null || response.isEmpty()) return candidates;
+
             int start = response.indexOf('[');
             int end = response.lastIndexOf(']');
             if (start < 0 || end < 0) return candidates;
@@ -401,6 +434,11 @@ public class FaqVectorService {
             for (Map.Entry<FaqItem, Double> entry : reranked) {
                 result.add(entry.getKey());
             }
+            try {
+                List<String> orderedQuestions = new ArrayList<>();
+                for (FaqItem item : result) orderedQuestions.add(item.question);
+                stringRedisTemplate.opsForValue().set(rerankCacheKey, objectMapper.writeValueAsString(orderedQuestions), 1, java.util.concurrent.TimeUnit.HOURS);
+            } catch (Exception ignored) {}
             log.info("Reranked {} FAQ candidates for query: {}", candidates.size(), query.substring(0, Math.min(30, query.length())));
             return result;
         } catch (Exception e) {
@@ -408,6 +446,7 @@ public class FaqVectorService {
             return candidates;
         }
     }
+
 
     public List<FaqItem> search(String query, int topK) {
         List<Map.Entry<FaqItem, Double>> tfidfScored = new ArrayList<>();
@@ -422,7 +461,8 @@ public class FaqVectorService {
         if (useEmbeddings && !faqEmbeddings.isEmpty() && deepSeekClient != null) {
             float[] queryEmbedding = null;
             String embModel = deepSeekClient.getCurrentEmbModel();
-            String embCacheKey = "ai:emb:cache:" + embModel + ":" + Math.abs(query.hashCode());
+            int embDim = faqEmbeddings.isEmpty() ? 0 : faqEmbeddings.get(0).length;
+            String embCacheKey = "ai:emb:cache:" + embModel + ":" + embDim + ":" + Math.abs(query.hashCode());
             try {
                 String cached = stringRedisTemplate.opsForValue().get(embCacheKey);
                 if (cached != null && !cached.isEmpty()) {
