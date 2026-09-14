@@ -32,6 +32,43 @@ public class AiDocumentService {
 
     private static final String VECTOR_PREFIX = "doc:";
 
+    @javax.annotation.PostConstruct
+    public void initVectorStore() {
+        if (!deepSeekClient.isEmbeddingAvailable()) return;
+        try {
+            List<AiDocumentChunk> allChunks = chunkMapper.selectAllReady();
+            if (allChunks.isEmpty()) return;
+            log.info("Loading {} document chunks into vector store", allChunks.size());
+            Map<Long, List<AiDocumentChunk>> byDoc = new LinkedHashMap<>();
+            for (AiDocumentChunk chunk : allChunks) {
+                byDoc.computeIfAbsent(chunk.getDocumentId(), k -> new ArrayList<>()).add(chunk);
+            }
+            int loaded = 0;
+            for (Map.Entry<Long, List<AiDocumentChunk>> entry : byDoc.entrySet()) {
+                AiDocument doc = documentMapper.selectById(entry.getKey());
+                if (doc == null) continue;
+                List<String> texts = new ArrayList<>();
+                for (AiDocumentChunk c : entry.getValue()) texts.add(c.getContent());
+                List<float[]> embeddings = batchEmbeddings(texts);
+                for (int i = 0; i < embeddings.size() && i < entry.getValue().size(); i++) {
+                    AiDocumentChunk chunk = entry.getValue().get(i);
+                    String vectorId = VECTOR_PREFIX + doc.getId() + ":" + chunk.getId();
+                    Map<String, Object> metadata = new HashMap<>();
+                    metadata.put("documentId", doc.getId());
+                    metadata.put("chunkIndex", chunk.getChunkIndex());
+                    metadata.put("pageNum", chunk.getPageNum());
+                    metadata.put("title", doc.getTitle());
+                    metadata.put("content", chunk.getContent());
+                    vectorStore.upsert(vectorId, embeddings.get(i), metadata);
+                    loaded++;
+                }
+            }
+            log.info("Loaded {} document chunks into vector store", loaded);
+        } catch (Exception e) {
+            log.warn("Failed to load document chunks into vector store: {}", e.getMessage());
+        }
+    }
+
     public AiDocument uploadDocument(String fileName, byte[] content) {
         String fileType = determineFileType(fileName);
         String savedPath = saveFile(fileName, content);
@@ -178,6 +215,26 @@ public class AiDocumentService {
 
     public List<AiDocumentChunk> getChunks(Long docId) {
         return chunkMapper.selectByDocumentId(docId);
+    }
+
+    public void reprocessDocument(Long id) {
+        AiDocument doc = documentMapper.selectById(id);
+        if (doc == null) return;
+        vectorStore.deleteByPrefix(VECTOR_PREFIX + id + ":");
+        chunkMapper.deleteByDocumentId(id);
+        documentMapper.updateStatus(id, "processing", null, 0);
+        try {
+            File file = new File(doc.getFileUrl());
+            if (!file.exists()) {
+                documentMapper.updateStatus(id, "error", "原始文件不存在", 0);
+                return;
+            }
+            byte[] content = java.nio.file.Files.readAllBytes(file.toPath());
+            processDocumentAsync(id, content, doc.getTitle());
+        } catch (Exception e) {
+            log.error("Failed to reprocess document {}: {}", id, e.getMessage());
+            documentMapper.updateStatus(id, "error", e.getMessage(), 0);
+        }
     }
 
     public void deleteDocument(Long id) {

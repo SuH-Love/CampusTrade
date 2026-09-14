@@ -99,6 +99,14 @@ public class AiDocumentController {
         return Result.success(result);
     }
 
+    @ApiOperation("重新处理文档")
+    @PostMapping("/{id}/reprocess")
+    public Result<Void> reprocess(@PathVariable Long id) {
+        if (!SecurityUtil.isAdmin()) return Result.error(403, "无权限");
+        documentService.reprocessDocument(id);
+        return Result.success();
+    }
+
     @ApiOperation("删除文档")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {

@@ -157,16 +157,16 @@ public class AiController {
         boolean needTools = mayNeedTools(userMessage);
         String systemPart = truncateToTokenBudget(getSystemPrompt(), 1500);
         String knowledgePart = truncateToTokenBudget(buildPlatformKnowledge(userMessage), 600);
-        String prompt = systemPart + knowledgePart + buildDateHint();
-        String truncatedFaq = truncateToTokenBudget(faqContext, 400);
-        String dedupedFaq = deduplicateFaq(knowledgePart, truncatedFaq);
-        if (!dedupedFaq.isEmpty()) {
-            prompt = prompt + "\n\n" + dedupedFaq;
-        }
         String docContext = aiDocumentService.buildDocumentContext(userMessage);
         String truncatedDoc = truncateToTokenBudget(docContext, 500);
+        String prompt = systemPart + knowledgePart + buildDateHint();
         if (!truncatedDoc.isEmpty()) {
             prompt = prompt + "\n\n" + truncatedDoc;
+        }
+        String truncatedFaq = truncateToTokenBudget(faqContext, 400);
+        String dedupedFaq = deduplicateFaq(knowledgePart + truncatedDoc, truncatedFaq);
+        if (!dedupedFaq.isEmpty()) {
+            prompt = prompt + "\n\n" + dedupedFaq;
         }
 
         ChatResponse response = new ChatResponse();
@@ -352,16 +352,16 @@ public class AiController {
         boolean needTools = mayNeedTools(userMessage);
         String systemPart = truncateToTokenBudget(getSystemPrompt(), 1500);
         String knowledgePart = truncateToTokenBudget(buildPlatformKnowledge(userMessage), 600);
-        String prompt = systemPart + knowledgePart + buildDateHint();
-        String truncatedFaq = truncateToTokenBudget(faqContext, 400);
-        String dedupedFaq = deduplicateFaq(knowledgePart, truncatedFaq);
-        if (!dedupedFaq.isEmpty()) {
-            prompt = prompt + "\n\n" + dedupedFaq;
-        }
         String docContext = aiDocumentService.buildDocumentContext(userMessage);
         String truncatedDoc = truncateToTokenBudget(docContext, 500);
+        String prompt = systemPart + knowledgePart + buildDateHint();
         if (!truncatedDoc.isEmpty()) {
             prompt = prompt + "\n\n" + truncatedDoc;
+        }
+        String truncatedFaq = truncateToTokenBudget(faqContext, 400);
+        String dedupedFaq = deduplicateFaq(knowledgePart + truncatedDoc, truncatedFaq);
+        if (!dedupedFaq.isEmpty()) {
+            prompt = prompt + "\n\n" + dedupedFaq;
         }
 
         if (!deepSeekClient.isEnabled()) {
