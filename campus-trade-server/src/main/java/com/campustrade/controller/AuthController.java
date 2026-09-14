@@ -49,6 +49,7 @@ public class AuthController {
 
     @ApiOperation("刷新Token")
     @PostMapping("/refresh")
+    @RateLimit
     public Result<TokenVO> refreshToken(@Validated @RequestBody RefreshTokenDTO dto) {
         return authService.refreshToken(dto);
     }

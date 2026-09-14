@@ -269,18 +269,25 @@ docker-compose up -d --build
 ## 安全特性
 
 - BCrypt密码加密 + 密码强度校验（8-50位，含大小写/数字/特殊字符三种）
-- JWT accessToken(2h) + refreshToken(7d) + Token黑名单
+- JWT accessToken(2h) + refreshToken(7d) + Token黑名单 + token类型校验（refreshToken不能当accessToken用）
 - 单设备登录踢出：新登录替换旧Token，通过STOMP WebSocket实时推送踢出消息，前端自动弹出提示并跳转登录页（毫秒级响应，无需轮询）
 - RBAC三角色权限(ROLE_USER/ROLE_ADMIN/ROLE_SUPER_ADMIN)
 - 账号锁定(5次失败锁定30分钟)
-- 接口限流 + 防重复提交
-- XSS过滤 + SQL注入防御 + 敏感词过滤
-- 安全响应头(CSP/X-Frame-Options/HSTS等)
+- 接口限流（支持注解参数化count/seconds） + 防重复提交
+- XSS过滤（覆盖svg/onload、details/ontoggle、img/onerror等新型向量） + SQL注入防御 + 敏感词过滤
+- 安全响应头(CSP/X-Frame-Options/HSTS等)，CSP覆盖img-src/connect-src/font-src/object-src/base-uri/form-action
 - CORS可配置白名单
 - 操作日志 + 安全日志全记录
-- 邮箱验证码重置密码（验证码Redis存储，5分钟TTL）
+- 邮箱验证码重置密码（验证码Redis存储，5分钟TTL，SecureRandom生成，统一返回防用户枚举）
 - 系统配置AES加密存储（支付宝密钥/邮件授权码）
-- AI安全：Prompt Injection检测(中英文) + 敏感值脱敏 + 管理员工具过滤 + AI配置修改鉴权 + Lua原子限流 + 平台知识注入
+- AI安全：Prompt Injection检测(中英文+jailbreak/exec/eval等) + 敏感值脱敏 + 输出安全检查 + 管理员工具过滤 + AI配置修改鉴权 + Lua原子限流 + 平台知识注入 + 会话隔离校验
+- 文件上传安全：扩展名+MIME+magic bytes校验+路径遍历防护
+- IDOR防护：订单资金流水等接口添加用户归属校验
+- 数据库连接SSL可配置 + 明文凭据改环境变量注入
+- Actuator端点权限收紧（/actuator/info需ADMIN角色）
+- STOMP WebSocket连接校验accessToken类型（拒绝refreshToken）
+- AI工具缓存键使用SHA-256防hash碰撞
+- 管理端解封操作二次确认
 
 ## API文档
 

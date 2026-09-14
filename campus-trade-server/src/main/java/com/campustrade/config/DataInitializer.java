@@ -21,7 +21,7 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${admin.password}")
     private String adminPassword;
 
-    @Value("${user.password:user123}")
+    @Value("${user.password}")
     private String userPassword;
 
     @Autowired private UserMapper userMapper;

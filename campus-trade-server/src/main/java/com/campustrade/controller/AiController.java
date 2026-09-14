@@ -260,6 +260,7 @@ public class AiController {
             }
 
             answer = safetyService.sanitizeOutput(answer);
+            if (!safetyService.isOutputSafe(answer)) answer = "抱歉，回答内容包含敏感信息，已被过滤。";
             response.setAnswer(answer);
             response.setFallback(false);
 
@@ -299,7 +300,12 @@ public class AiController {
             return emitter;
         }
 
-        String sid = sessionId != null && !sessionId.isEmpty() ? sessionId : UUID.randomUUID().toString();
+        String sidTemp = sessionId != null && !sessionId.isEmpty() ? sessionId : UUID.randomUUID().toString();
+        Long currentUserId = com.campustrade.util.SecurityUtil.requireCurrentUserId();
+        if (sidTemp.startsWith("user:") && !sidTemp.equals("user:" + currentUserId)) {
+            sidTemp = "user:" + currentUserId;
+        }
+        final String sid = sidTemp;
         String userMessage = message.trim();
 
 
@@ -1091,6 +1097,7 @@ public class AiController {
     @ApiOperation("新增FAQ（管理员）")
     @PostMapping("/faq")
     public Result<Void> addFaq(@RequestBody Map<String, String> body) {
+        if (!com.campustrade.util.SecurityUtil.isAdmin()) return Result.error(403, "无权限");
         FaqVectorService.FaqItem item = new FaqVectorService.FaqItem(
                 body.get("question"), body.get("answer"), body.getOrDefault("category", "通用"));
         faqVectorService.addFaq(item);
@@ -1100,6 +1107,7 @@ public class AiController {
     @ApiOperation("更新FAQ（管理员）")
     @PutMapping("/faq/{index}")
     public Result<Void> updateFaq(@PathVariable int index, @RequestBody Map<String, String> body) {
+        if (!com.campustrade.util.SecurityUtil.isAdmin()) return Result.error(403, "无权限");
         FaqVectorService.FaqItem item = new FaqVectorService.FaqItem(
                 body.get("question"), body.get("answer"), body.getOrDefault("category", "通用"));
         faqVectorService.updateFaq(index, item);
@@ -1109,6 +1117,7 @@ public class AiController {
     @ApiOperation("删除FAQ（管理员）")
     @DeleteMapping("/faq/{index}")
     public Result<Void> deleteFaq(@PathVariable int index) {
+        if (!com.campustrade.util.SecurityUtil.isAdmin()) return Result.error(403, "无权限");
         faqVectorService.deleteFaq(index);
         return Result.success();
     }
@@ -1202,8 +1211,13 @@ public class AiController {
     }
 
     private String resolveSessionId(ChatRequest request) {
+        Long currentUserId = com.campustrade.util.SecurityUtil.requireCurrentUserId();
         if (request.getSessionId() != null && !request.getSessionId().isEmpty()) {
-            return request.getSessionId();
+            String sid = request.getSessionId();
+            if (sid.startsWith("user:") && !sid.equals("user:" + currentUserId)) {
+                return "user:" + currentUserId;
+            }
+            return sid;
         }
         Long userId = SecurityUtil.getCurrentUserId();
         if (userId != null) {

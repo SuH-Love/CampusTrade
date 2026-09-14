@@ -276,16 +276,13 @@ public class AuthServiceImpl implements AuthService {
         String username = dto.getUsername().trim();
         String email = dto.getEmail().trim();
         User user = userMapper.selectByUsername(username);
-        if (user == null) {
-            return Result.error(ResultCode.NOT_FOUND.getCode(), "用户不存在");
-        }
-        if (user.getEmail() == null || !email.equals(user.getEmail())) {
-            return Result.error(ResultCode.PARAM_ERROR.getCode(), "邮箱与注册时不匹配");
+        if (user == null || user.getEmail() == null || !email.equals(user.getEmail())) {
+            return Result.success();
         }
         if (!emailService.isConfigured()) {
             return Result.error(ResultCode.PARAM_ERROR.getCode(), "邮件服务未配置，请联系管理员");
         }
-        String code = String.valueOf((int) ((Math.random() * 900000) + 100000));
+        String code = String.valueOf(100000 + new java.security.SecureRandom().nextInt(900000));
         String key = RedisConstant.CAPTCHA_PREFIX + "reset:" + username;
         redisTemplate.opsForValue().set(key, code, RedisConstant.CAPTCHA_TTL, java.util.concurrent.TimeUnit.SECONDS);
         try {
@@ -310,11 +307,8 @@ public class AuthServiceImpl implements AuthService {
         }
 
         User user = userMapper.selectByUsername(username);
-        if (user == null) {
-            return Result.error(ResultCode.NOT_FOUND.getCode(), "用户不存在");
-        }
-        if (user.getEmail() == null || !email.equals(user.getEmail())) {
-            return Result.error(ResultCode.PARAM_ERROR.getCode(), "邮箱与注册时不匹配");
+        if (user == null || user.getEmail() == null || !email.equals(user.getEmail())) {
+            return Result.error(ResultCode.PARAM_ERROR.getCode(), "用户名或邮箱不正确");
         }
 
         String key = RedisConstant.CAPTCHA_PREFIX + "reset:" + username;

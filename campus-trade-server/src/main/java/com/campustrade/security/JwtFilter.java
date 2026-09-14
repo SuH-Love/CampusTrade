@@ -2,6 +2,7 @@ package com.campustrade.security;
 
 import com.campustrade.constant.RedisConstant;
 import com.campustrade.util.JwtUtil;
+import io.jsonwebtoken.Claims;
 import com.campustrade.util.TraceIdUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +39,13 @@ public class JwtFilter extends OncePerRequestFilter {
         String token = getTokenFromRequest(request);
 
         if (StringUtils.hasText(token) && jwtUtil.validateToken(token)) {
+            try {
+                Claims claims = jwtUtil.parseToken(token);
+                if (claims.get("type") != null && !"access".equals(claims.get("type"))) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+            } catch (Exception ignored) {}
             Long userId = jwtUtil.getUserIdFromToken(token);
             String username = jwtUtil.getUsernameFromToken(token);
 

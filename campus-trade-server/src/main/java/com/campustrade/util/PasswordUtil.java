@@ -10,7 +10,7 @@ public class PasswordUtil {
     private static final Pattern SPECIAL_PATTERN = Pattern.compile("[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?]");
 
     public static boolean isStrongPassword(String password) {
-        if (password == null || password.length() < 8) {
+        if (password == null || password.length() < 8 || password.length() > 50) {
             return false;
         }
         int typeCount = 0;

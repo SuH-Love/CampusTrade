@@ -1437,40 +1437,55 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 
 | 机制 | 实现位置 | 说明 |
 |------|----------|------|
-| XSS过滤 | `XssFilter.java` | 7种XSS正则 + 4种SQL注入正则 |
+| XSS过滤 | `XssFilter.java` | 7种XSS正则 + 4种SQL注入正则 + svg/onload、details/ontoggle、img/onerror等新型向量 |
 | SQL注入防御 | `XssFilter.java` | 参数/请求体/请求头全过滤 |
 | 敏感词过滤 | `SensitiveWordUtil.java` | 14个敏感词库 |
-| 安全响应头 | `SecurityHeaderFilter.java` | 8个安全头(X-Content-Type-Options/X-Frame-Options/X-XSS-Protection/Referrer-Policy/CSP/HSTS/Cache-Control/Pragma) |
+| 安全响应头 | `SecurityHeaderFilter.java` | 8个安全头 + CSP覆盖img-src/connect-src/font-src/object-src/base-uri/form-action |
 | Token黑名单 | `JwtFilter.java` + Redis | 退出登录后Token立即失效 |
+| Token类型校验 | `JwtFilter.java` | refreshToken不能当accessToken用，校验type=access |
 | 登录限流 | `AuthServiceImpl.java` + Redis | 5次/分钟/IP |
 | 注册限流 | `AuthServiceImpl.java` + Redis | 3次/小时/IP |
 | 账号锁定 | `AuthServiceImpl.java` + Redis | 5次失败锁定30分钟 |
-| 密码强度 | `PasswordUtil.java` | 至少8位+3种字符类型 |
-| 接口限流 | `@RateLimit` + `RateLimitAspect` | 60次/分钟/IP |
+| 密码强度 | `PasswordUtil.java` | 8-50位+3种字符类型（上限防BCrypt DoS） |
+| 接口限流 | `@RateLimit` + `RateLimitAspect` | 注解参数化(count/seconds)，按接口分别限流 |
 | 防重复提交 | `@RepeatSubmit` + `RepeatSubmitAspect` | 5秒窗口 |
-| 文件上传校验 | `FileUploadUtil.java` | 扩展名+MIME+大小+路径遍历 |
+| 文件上传校验 | `FileUploadUtil.java` + `FileUploadServiceImpl.java` | 扩展名+MIME+大小+路径遍历+magic bytes校验 |
 | RBAC权限 | `@PreAuthorize` | 方法级权限控制 |
 | CORS限制 | `CorsConfig.java` | 可配置allowed-origins |
 | 支付通知验签 | `OrderServiceImpl.handlePayNotify()` | 支付宝RSA2签名验证 |
 | 支付分布式锁 | Redis `lock:pay:notify:{orderId}` | 防止并发重复处理 |
 | 支付配置加密 | `SystemConfigServiceImpl` | 私钥/公钥AES加密存储 |
 | 资金流水保护 | `safeInsertFundLog()` | 写入异常不影响主流程 |
-| AI Prompt Injection检测 | `AiSafetyService.checkInput()` | 中英文双语模式匹配(12种中文+多种英文)，预编译Pattern |
+| IDOR防护 | `OrderController.java` | 订单资金流水等接口添加用户归属校验 |
+| 用户枚举防护 | `AuthServiceImpl.java` | sendResetCode/resetPassword统一返回，不泄露用户是否存在 |
+| 验证码安全 | `AuthServiceImpl.java` | SecureRandom生成6位验证码 |
+| Actuator端点 | `SecurityConfig.java` | /actuator/info需ADMIN角色，/actuator/health和/prometheus开放 |
+| STOMP认证 | `StompAuthInterceptor.java` | 校验accessToken类型，拒绝refreshToken建立WS连接 |
+| DB连接安全 | `application.yml` | useSSL/allowPublicKeyRetrieval可配置，密码环境变量注入 |
+| AI Prompt Injection检测 | `AiSafetyService.java` | 中英文双语模式匹配+jailbreak/exec/eval/subprocess等，预编译Pattern |
 | AI敏感值脱敏 | `AiSafetyService.sanitizeOutput()` | 正则匹配实际敏感值，只脱敏值部分 |
+| AI输出安全检查 | `AiSafetyService.isOutputSafe()` | 检查输出是否包含系统提示词/API key等敏感信息 |
+| AI会话隔离 | `AiController.resolveSessionId()` | 校验sessionId归属，流式/非流式接口均适用 |
 | AI管理员工具过滤 | `AiToolService.getToolDefinitions()` | 按角色动态过滤工具定义 |
 | AI配置修改鉴权 | `AiController.updateAiConfig()` | 仅ADMIN+可修改AI配置 |
+| AI FAQ权限 | `AiController.addFaq/updateFaq/deleteFaq` | 全部FAQ接口后端校验isAdmin |
+| AI工具缓存 | `AiToolService.buildToolCacheKey()` | SHA-256摘要防hash碰撞 |
 | AI限流 | `AiRateLimiter` + Lua脚本 | 原子化INCR+EXPIRE，每用户20次/分钟 |
 | AI SSE超时保护 | `SseEmitter(300s)` | Agent Loop最多3轮×60s=180s，预留缓冲 |
+| 管理端解封确认 | `UserManage.vue` | ElMessageBox二次确认防误触 |
 
 ### 13.4 生产环境检查清单
 
 - [ ] 所有 `.env` 中 `[必改]` 变量已修改
 - [ ] JWT_SECRET 已替换为随机强密钥(≥32字符)
 - [ ] MySQL/Redis/RabbitMQ 密码已设置
+- [ ] ADMIN_PASSWORD/USER_PASSWORD 已设置（DataInitializer无默认值）
 - [ ] CORS_ALLOWED_ORIGINS 已限制为实际域名
 - [ ] Knife4j 已关闭 (`knife4j.enable=false`)
-- [ ] Actuator 仅开放必要端点
+- [ ] Actuator 仅开放必要端点（/actuator/info需ADMIN角色）
 - [ ] SSL/TLS 已配置(Nginx层面)
+- [ ] DB连接useSSL已启用（生产环境）
+- [ ] 文件上传magic bytes校验已生效
 - [ ] 防火墙已配置(仅开放80/443/8080)
 - [ ] 数据库端口(3306)不对外暴露
 - [ ] Redis端口(6379)不对外暴露

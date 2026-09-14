@@ -51,9 +51,13 @@ public class FileUploadServiceImpl implements FileUploadService {
         String relativePath = userId + "/" + datePath + "/" + safeFilename;
 
         try {
+            byte[] fileBytes = file.getBytes();
+            if (!isValidImageMagicBytes(fileBytes, originalFilename)) {
+                throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "文件内容与类型不匹配");
+            }
             Path fullPath = Paths.get(uploadBasePath, relativePath);
             Files.createDirectories(fullPath.getParent());
-            Files.copy(file.getInputStream(), fullPath);
+            Files.write(fullPath, fileBytes);
             String fileUrl = urlPrefix + "/" + relativePath;
             log.info("文件上传成功: userId={}, fileUrl={}", userId, fileUrl);
             return Result.success(fileUrl);
@@ -69,12 +73,15 @@ public class FileUploadServiceImpl implements FileUploadService {
             throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "无效的文件URL");
         }
         String relativePath = fileUrl.substring(urlPrefix.length() + 1);
+        Path basePath = Paths.get(uploadBasePath).toAbsolutePath().normalize();
+        Path fullPath = basePath.resolve(relativePath).normalize();
+        if (!fullPath.startsWith(basePath)) throw new com.campustrade.exception.BusinessException("非法路径");
+        if (!fullPath.startsWith(Paths.get(uploadBasePath, String.valueOf(userId)))) throw new com.campustrade.exception.BusinessException("无权删除");
         String sanitizedPath = FileUploadUtil.sanitizePath(relativePath);
         if (!sanitizedPath.startsWith(userId + "/")) {
             throw new BusinessException(ResultCode.FORBIDDEN.getCode(), "无权删除该文件");
         }
         try {
-            Path fullPath = Paths.get(uploadBasePath, relativePath);
             Files.deleteIfExists(fullPath);
             log.info("文件删除成功: userId={}, fileUrl={}", userId, fileUrl);
             return Result.success();
@@ -82,5 +89,16 @@ public class FileUploadServiceImpl implements FileUploadService {
             log.error("文件删除失败: userId={}, fileUrl={}", userId, fileUrl, e);
             throw new BusinessException(ResultCode.SYSTEM_ERROR.getCode(), "文件删除失败");
         }
+    }
+
+    private boolean isValidImageMagicBytes(byte[] bytes, String originalFilename) {
+        if (bytes == null || bytes.length < 4) return false;
+        String ext = originalFilename != null ? originalFilename.toLowerCase() : "";
+        if (bytes[0] == (byte) 0xFF && bytes[1] == (byte) 0xD8 && bytes[2] == (byte) 0xFF) return ext.endsWith(".jpg") || ext.endsWith(".jpeg");
+        if (bytes[0] == (byte) 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) return ext.endsWith(".png");
+        if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46) return ext.endsWith(".gif");
+        if (bytes[0] == 0x42 && bytes[1] == 0x4D) return ext.endsWith(".bmp");
+        if (bytes.length >= 12 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 && bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50) return ext.endsWith(".webp");
+        return false;
     }
 }

@@ -28,15 +28,26 @@ public class RateLimitAspect {
 
     @Around("rateLimitPointcut()")
     public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
+        int maxCount = 60;
+        int ttlSeconds = 60;
+        try {
+            java.lang.reflect.Method method = ((org.aspectj.lang.reflect.MethodSignature) joinPoint.getSignature()).getMethod();
+            RateLimit rl = method.getAnnotation(RateLimit.class);
+            if (rl != null) {
+                maxCount = rl.count();
+                ttlSeconds = rl.seconds();
+            }
+        } catch (Exception ignored) {}
+
         String ip = IpUtil.getIpAddr();
-        String rateLimitKey = RedisConstant.RATE_LIMIT_PREFIX + ip;
+        String rateLimitKey = RedisConstant.RATE_LIMIT_PREFIX + ip + ":" + joinPoint.getSignature().toShortString();
 
         Long count = redisTemplate.opsForValue().increment(rateLimitKey);
         if (count != null && count == 1) {
-            redisTemplate.expire(rateLimitKey, RedisConstant.RATE_LIMIT_TTL, TimeUnit.SECONDS);
+            redisTemplate.expire(rateLimitKey, ttlSeconds, TimeUnit.SECONDS);
         }
-        if (count != null && count > 60) {
-            log.warn("接口限流: ip={}", ip);
+        if (count != null && count > maxCount) {
+            log.warn("接口限流: ip={}, key={}", ip, rateLimitKey);
             return Result.error(ResultCode.RATE_LIMIT_EXCEEDED);
         }
 

@@ -365,8 +365,10 @@ public class AiToolService {
             if (userId == null) return null;
             String argsJson = arguments == null ? "{}" :
                 new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(arguments);
-            String argsHash = Integer.toHexString(argsJson.hashCode());
-            return "ai:tool:cache:" + userId + ":" + toolName + ":" + argsHash;
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(argsJson.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            String argsHash = java.util.Base64.getEncoder().encodeToString(digest);
+            return "ai:tool:cache:" + userId + ":" + toolName + ":" + argsHash.substring(0, Math.min(argsHash.length(), 32));
         } catch (Exception e) {
             return null;
         }

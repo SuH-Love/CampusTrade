@@ -388,7 +388,7 @@ public class SessionService {
         return history.subList(cutoff, history.size());
     }
 
-    private int estimateTokens(String text) {
+    public static int estimateTokens(String text) {
         int chineseChars = 0, otherChars = 0;
         for (char c : text.toCharArray()) {
             if (c >= 0x4E00 && c <= 0x9FFF) chineseChars++;

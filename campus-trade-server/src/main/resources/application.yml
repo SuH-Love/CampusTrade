@@ -12,7 +12,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/campus_trade?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
     username: root
-    password: root123
+    password: ${MYSQL_PASSWORD:root123}
     hikari:
       minimum-idle: 5
       maximum-pool-size: 20
@@ -26,7 +26,7 @@ spring:
   redis:
     host: localhost
     port: 6379
-    password: redis123
+    password: ${REDIS_PASSWORD:redis123}
     database: 0
     lettuce:
       pool:
@@ -70,7 +70,7 @@ mybatis:
     log-impl: org.apache.ibatis.logging.log4j2.Log4j2Impl
 
 jwt:
-  secret: ${JWT_SECRET:CampusTradeSecretKey2026ForJwtTokenGenerationAndValidation}
+  secret: ${JWT_SECRET:${JWT_SECRET:CampusTradeSecretKey2026ForJwtTokenGenerationAndValidation}}
   access-token-expiration: 7200000
   refresh-token-expiration: 604800000
 
@@ -116,6 +116,12 @@ ai:
   routing:
     enabled: ${AI_ROUTING_ENABLED:false}
     reasoner-model: ${AI_ROUTING_REASONER_MODEL:deepseek-reasoner}
+
+admin:
+  password: ${ADMIN_PASSWORD:Admin@123456}
+
+user:
+  password: ${USER_PASSWORD:User@123456}
 
 logging:
   config: classpath:log4j2.xml

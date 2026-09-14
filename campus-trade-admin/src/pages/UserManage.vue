@@ -120,7 +120,7 @@ import { getUserList, banUser, unbanUser } from '@/api/admin'
 import { downloadCsv } from '@/utils/download'
 import { useDebounceSearch } from '@/composables/useDebounceSearch'
 import ReasonDialog from '@/components/ReasonDialog.vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAdminStore } from '@/stores/admin'
 import { formatDateTime } from '@/utils/labels'
 import type { AdminUserVO, PageQueryParams } from '@/types'
@@ -193,11 +193,12 @@ const handleBan = async (reason: string) => {
 
 const handleUnban = async (id: number) => {
   try {
+    await ElMessageBox.confirm('确定要解封该用户吗？', '解封确认', { type: 'warning' })
     await unbanUser(id)
     ElMessage.success('已解封')
     loadData()
   } catch (e: any) {
-    ElMessage.error(e?.message || '解封失败')
+    if (e !== 'cancel' && e !== 'close') ElMessage.error(e?.message || '解封失败')
   }
 }
 

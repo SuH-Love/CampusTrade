@@ -137,6 +137,11 @@ public class OrderController {
     @ApiOperation("订单资金流水")
     @GetMapping("/{id}/fund-logs")
     public Result<java.util.List<FundLog>> getOrderFundLogs(@PathVariable Long id) {
+        Long userId = com.campustrade.util.SecurityUtil.requireCurrentUserId();
+        Result<?> result = orderService.getOrderDetail(userId, id);
+        if (result.getCode() != 200 || result.getData() == null) {
+            return Result.error(403, "无权访问");
+        }
         return Result.success(fundLogMapper.selectByOrderId(id));
     }
 

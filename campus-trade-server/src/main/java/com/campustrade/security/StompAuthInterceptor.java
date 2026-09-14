@@ -46,7 +46,7 @@ public class StompAuthInterceptor implements ChannelInterceptor {
                 }
             }
 
-            if (StringUtils.hasText(token) && jwtUtil.validateToken(token)) {
+            if (StringUtils.hasText(token) && jwtUtil.validateToken(token) && !jwtUtil.isRefreshToken(token)) {
                 Long userId = jwtUtil.getUserIdFromToken(token);
                 String username = jwtUtil.getUsernameFromToken(token);
                 accessor.setUser(new StompPrincipal(userId, username));
