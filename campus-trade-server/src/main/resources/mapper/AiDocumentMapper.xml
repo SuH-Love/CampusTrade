@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.AiDocumentMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.AiDocument">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="file_url" property="fileUrl"/>
+        <result column="file_type" property="fileType"/>
+        <result column="file_size" property="fileSize"/>
+        <result column="status" property="status"/>
+        <result column="chunk_count" property="chunkCount"/>
+        <result column="error_message" property="errorMessage"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_ai_document (title, file_url, file_type, file_size, status, chunk_count)
+        VALUES (#{title}, #{fileUrl}, #{fileType}, #{fileSize}, #{status}, #{chunkCount})
+    </insert>
+
+    <update id="update">
+        UPDATE t_ai_document SET title = #{title}, file_url = #{fileUrl}, file_type = #{fileType},
+        file_size = #{fileSize}, status = #{status}, chunk_count = #{chunkCount},
+        error_message = #{errorMessage}, update_time = NOW()
+        WHERE id = #{id} AND deleted = 0
+    </update>
+
+    <delete id="deleteById">
+        UPDATE t_ai_document SET deleted = 1, update_time = NOW() WHERE id = #{id}
+    </delete>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_document WHERE deleted = 0 AND id = #{id}
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_document WHERE deleted = 0 ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_document WHERE deleted = 0 AND status = #{status} ORDER BY create_time DESC
+    </select>
+
+    <update id="updateStatus">
+        UPDATE t_ai_document SET status = #{status}, error_message = #{errorMessage},
+        chunk_count = #{chunkCount}, update_time = NOW()
+        WHERE id = #{id} AND deleted = 0
+    </update>
+</mapper>

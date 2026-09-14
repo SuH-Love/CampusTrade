@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.AiDocumentChunkMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.AiDocumentChunk">
+        <id column="id" property="id"/>
+        <result column="document_id" property="documentId"/>
+        <result column="chunk_index" property="chunkIndex"/>
+        <result column="content" property="content"/>
+        <result column="page_num" property="pageNum"/>
+        <result column="image_urls" property="imageUrls"/>
+        <result column="metadata" property="metadata"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="deleted" property="deleted"/>
+        <result column="version" property="version"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_ai_document_chunk (document_id, chunk_index, content, page_num, image_urls, metadata)
+        VALUES (#{documentId}, #{chunkIndex}, #{content}, #{pageNum}, #{imageUrls}, #{metadata})
+    </insert>
+
+    <insert id="insertBatch">
+        INSERT INTO t_ai_document_chunk (document_id, chunk_index, content, page_num, image_urls, metadata)
+        VALUES
+        <foreach collection="list" item="chunk" separator=",">
+            (#{chunk.documentId}, #{chunk.chunkIndex}, #{chunk.content}, #{chunk.pageNum}, #{chunk.imageUrls}, #{chunk.metadata})
+        </foreach>
+    </insert>
+
+    <delete id="deleteByDocumentId">
+        UPDATE t_ai_document_chunk SET deleted = 1 WHERE document_id = #{documentId}
+    </delete>
+
+    <select id="selectByDocumentId" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_document_chunk WHERE deleted = 0 AND document_id = #{documentId} ORDER BY chunk_index ASC
+    </select>
+
+    <select id="selectAllReady" resultMap="BaseResultMap">
+        SELECT c.* FROM t_ai_document_chunk c
+        INNER JOIN t_ai_document d ON c.document_id = d.id
+        WHERE c.deleted = 0 AND d.deleted = 0 AND d.status = 'ready'
+        ORDER BY d.id, c.chunk_index
+    </select>
+
+    <select id="countByDocumentId" resultType="int">
+        SELECT COUNT(*) FROM t_ai_document_chunk WHERE deleted = 0 AND document_id = #{documentId}
+    </select>
+</mapper>

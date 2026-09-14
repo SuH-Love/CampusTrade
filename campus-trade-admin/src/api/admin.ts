@@ -266,6 +266,20 @@ export const updateAiKnowledge = (data: Record<string, any>) =>
 export const deleteAiKnowledge = (id: number) =>
   request.delete<never, void>(`/ai/knowledge?id=${id}`)
 
+export const getAiDocuments = () =>
+  request.get<never, Record<string, any>[]>('/ai/document')
+
+export const uploadAiDocument = (formData: FormData) =>
+  request.post<never, void>('/ai/document/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+
+export const getAiDocumentDetail = (id: number) =>
+  request.get<never, Record<string, any>>(`/ai/document/${id}`)
+
+export const deleteAiDocument = (id: number) =>
+  request.delete<never, void>(`/ai/document/${id}`)
+
 export const getAiHealth = async (): Promise<Record<string, unknown>> => {
   const adminStore = (await import('@/stores/admin')).useAdminStore()
   return axios.get('/actuator/health', {

@@ -77,6 +77,9 @@ public class AiController {
     @Autowired
     private com.campustrade.mapper.AiKnowledgeMapper aiKnowledgeMapper;
 
+    @Autowired
+    private com.campustrade.service.ai.AiDocumentService aiDocumentService;
+
     @Value("${ai.system-prompt:}")
     private String systemPrompt;
 
@@ -159,6 +162,11 @@ public class AiController {
         String dedupedFaq = deduplicateFaq(knowledgePart, truncatedFaq);
         if (!dedupedFaq.isEmpty()) {
             prompt = prompt + "\n\n" + dedupedFaq;
+        }
+        String docContext = aiDocumentService.buildDocumentContext(userMessage);
+        String truncatedDoc = truncateToTokenBudget(docContext, 500);
+        if (!truncatedDoc.isEmpty()) {
+            prompt = prompt + "\n\n" + truncatedDoc;
         }
 
         ChatResponse response = new ChatResponse();
@@ -349,6 +357,11 @@ public class AiController {
         String dedupedFaq = deduplicateFaq(knowledgePart, truncatedFaq);
         if (!dedupedFaq.isEmpty()) {
             prompt = prompt + "\n\n" + dedupedFaq;
+        }
+        String docContext = aiDocumentService.buildDocumentContext(userMessage);
+        String truncatedDoc = truncateToTokenBudget(docContext, 500);
+        if (!truncatedDoc.isEmpty()) {
+            prompt = prompt + "\n\n" + truncatedDoc;
         }
 
         if (!deepSeekClient.isEnabled()) {

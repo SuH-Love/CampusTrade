@@ -105,6 +105,12 @@ const allRoutes: RouteRecordRaw[] = [
         meta: { title: '平台知识', icon: 'Collection', permission: 'system:config' }
       },
       {
+        path: 'ai-document',
+        name: 'AiDocument',
+        component: lazyLoad(() => import('@/pages/AiDocument.vue')),
+        meta: { title: '文档知识', icon: 'Document', permission: 'system:config' }
+      },
+      {
         path: 'ai-tools',
         name: 'AiTools',
         component: lazyLoad(() => import('@/pages/AiTools.vue')),

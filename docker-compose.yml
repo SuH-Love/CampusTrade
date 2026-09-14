@@ -114,6 +114,7 @@ services:
     volumes:
       - /app/logs:/app/logs
       - /app/upload:/data/uploads
+      - /app/ai-documents:/app/ai-documents
     healthcheck:
       test: ["CMD-SHELL", "curl -s -o /dev/null http://localhost:8080/actuator/health"]
       interval: 15s
