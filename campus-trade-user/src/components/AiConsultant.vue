@@ -284,7 +284,7 @@
 import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { ChatDotRound, Close, Delete, Promotion, Tools, ArrowDown, ArrowUp, Loading, VideoPause, CopyDocument, RefreshRight, FullScreen, CircleCheck, Picture } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { chatStream, getAiStatus, clearSession, getSessionHistory, submitAiFeedback, cancelAiFeedback, getSessionFeedback, confirmTool } from '@/api/ai'
+import { chatStream, getAiStatus, clearSession, getSessionHistory, submitAiFeedback, cancelAiFeedback, getSessionFeedback, confirmTool, getQuickQuestions } from '@/api/ai'
 import { useUserStore } from '@/stores/user'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
@@ -699,7 +699,7 @@ const loadAllHistory = async () => {
   } catch {}
 }
 
-const allSuggestions = [
+const fallbackSuggestions = [
   '怎么发布二手商品？',
   '商品怎么上架？',
   '搜索商品怎么用？',
@@ -739,10 +739,21 @@ const allSuggestions = [
   '怎么区分买家和卖家订单？',
   '可以线下自提吗？'
 ]
+const allSuggestions = ref<string[]>([...fallbackSuggestions])
 const displaySuggestions = ref<string[]>([])
 const refreshSuggestions = () => {
-  const shuffled = [...allSuggestions].sort(() => Math.random() - 0.5)
+  const shuffled = [...allSuggestions.value].sort(() => Math.random() - 0.5)
   displaySuggestions.value = shuffled.slice(0, 4)
+}
+const loadQuickQuestions = async () => {
+  try {
+    const data = await getQuickQuestions()
+    if (data && data.length > 0) {
+      allSuggestions.value = data.map(q => q.question)
+    }
+  } catch {
+    // API失败时保留fallback
+  }
 }
 
 let scrollRafId: number | null = null
@@ -1241,6 +1252,7 @@ const onResize = () => {
 }
 
 onMounted(async () => {
+  loadQuickQuestions()
   const savedPos = localStorage.getItem('ai:btnPos')
   if (savedPos) {
     try {

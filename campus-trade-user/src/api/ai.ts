@@ -185,6 +185,16 @@ export const getSessionFeedback = (sessionId: string) =>
 export const confirmTool = (id: string, confirmed: boolean) =>
   request.post('/ai/tool/confirm', { id, confirmed })
 
+export interface QuickQuestion {
+  id: number
+  question: string
+  category: string
+  sortOrder: number
+}
+
+export const getQuickQuestions = () =>
+  request.get<never, QuickQuestion[]>('/ai/quick-questions')
+
 export const getAiPrompt = () => request.get('/ai/prompt')
 
 export const updateAiPrompt = (prompt: string) =>

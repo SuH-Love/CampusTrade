@@ -22,9 +22,6 @@ public class SessionService {
     private static final String SUMMARY_PREFIX = "ai:session:summary:";
     private static final String SUMMARY_VEC_PREFIX = "ai:session:summary:vec:";
     private static final String PREFS_PREFIX = "ai:session:prefs:";
-    private static final int MAX_CONTEXT_TOKENS = 4000;
-    private static final int SHORT_TERM_KEEP = 10;
-    private static final int MAX_SUMMARY_LENGTH = 2000;
 
     @Value("${ai.max-history:20}")
     private int maxHistory;
@@ -37,6 +34,9 @@ public class SessionService {
 
     @Autowired
     private DeepSeekClient deepSeekClient;
+
+    @Autowired
+    private AiConfigService configService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -131,8 +131,8 @@ public class SessionService {
         try {
             String existing = getLongTermMemory(sessionId);
             String combined = existing != null ? existing + "\n" + summary : summary;
-            if (combined.length() > MAX_SUMMARY_LENGTH) {
-                combined = combined.substring(combined.length() - MAX_SUMMARY_LENGTH);
+            if (combined.length() > configService.getInt("session", "max_summary_length", 2000)) {
+                combined = combined.substring(combined.length() - configService.getInt("session", "max_summary_length", 2000));
                 int newline = combined.indexOf('\n');
                 if (newline >= 0) combined = combined.substring(newline + 1);
             }
@@ -234,8 +234,8 @@ public class SessionService {
         }
 
         List<Map<String, Object>> history = getHistory(sessionId);
-        int shortTermStart = Math.max(0, history.size() - SHORT_TERM_KEEP * 2);
-        for (Map<String, Object> msg : truncateByTokens(history.subList(shortTermStart, history.size()), MAX_CONTEXT_TOKENS)) {
+        int shortTermStart = Math.max(0, history.size() - configService.getInt("session", "short_term_keep", 10) * 2);
+        for (Map<String, Object> msg : truncateByTokens(history.subList(shortTermStart, history.size()), configService.getInt("session", "max_context_tokens", 4000))) {
             Map<String, Object> clean = new HashMap<>();
             clean.put("role", msg.get("role"));
             clean.put("content", msg.get("content"));
@@ -317,23 +317,23 @@ public class SessionService {
         String key = SESSION_PREFIX + sessionId;
         Long size = stringRedisTemplate.opsForList().size(key);
         if (size == null) return false;
-        if (size > SHORT_TERM_KEEP * 2L + 4) return true;
+        if (size > configService.getInt("session", "short_term_keep", 10) * 2L + 4) return true;
         int totalTokens = 0;
         List<Map<String, Object>> history = getHistory(sessionId);
         for (Map<String, Object> msg : history) {
             String content = (String) msg.get("content");
             totalTokens += estimateTokens(content != null ? content : "");
         }
-        return totalTokens > MAX_CONTEXT_TOKENS * 0.7;
+        return totalTokens > configService.getInt("session", "max_context_tokens", 4000) * 0.7;
     }
 
     public String prepareSummaryContext(String sessionId, String summaryPrompt) {
         String key = SESSION_PREFIX + sessionId;
         Long size = stringRedisTemplate.opsForList().size(key);
-        if (size == null || size <= SHORT_TERM_KEEP * 2L + 4) return null;
+        if (size == null || size <= configService.getInt("session", "short_term_keep", 10) * 2L + 4) return null;
 
         List<Map<String, Object>> allHistory = getHistory(sessionId);
-        int keepCount = Math.min(SHORT_TERM_KEEP * 2, allHistory.size());
+        int keepCount = Math.min(configService.getInt("session", "short_term_keep", 10) * 2, allHistory.size());
         List<Map<String, Object>> toSummarize = allHistory.subList(0, allHistory.size() - keepCount);
 
         StringBuilder sb = new StringBuilder(summaryPrompt + "\n\n");
@@ -347,8 +347,8 @@ public class SessionService {
         try {
             String existing = getLongTermMemory(sessionId);
             String combined = existing != null ? existing + "\n" + summary : summary;
-            if (combined.length() > MAX_SUMMARY_LENGTH) {
-                combined = combined.substring(combined.length() - MAX_SUMMARY_LENGTH);
+            if (combined.length() > configService.getInt("session", "max_summary_length", 2000)) {
+                combined = combined.substring(combined.length() - configService.getInt("session", "max_summary_length", 2000));
                 int newline = combined.indexOf('\n');
                 if (newline >= 0) combined = combined.substring(newline + 1);
             }
@@ -358,7 +358,7 @@ public class SessionService {
 
             String key = SESSION_PREFIX + sessionId;
             List<Map<String, Object>> allHistory = getHistory(sessionId);
-            int keepCount = Math.min(SHORT_TERM_KEEP * 2, allHistory.size());
+            int keepCount = Math.min(configService.getInt("session", "short_term_keep", 10) * 2, allHistory.size());
             List<Map<String, Object>> toKeep = allHistory.subList(Math.max(0, allHistory.size() - keepCount), allHistory.size());
 
             stringRedisTemplate.delete(key);

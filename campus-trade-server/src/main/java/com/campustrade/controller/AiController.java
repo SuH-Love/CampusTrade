@@ -4,6 +4,8 @@ import com.campustrade.common.Result;
 import com.campustrade.entity.Goods;
 import com.campustrade.health.AiHealthIndicator;
 import com.campustrade.mapper.GoodsMapper;
+import com.campustrade.entity.AiQuickQuestion;
+import com.campustrade.service.ai.AiConfigService;
 import com.campustrade.service.ai.AiSafetyService;
 import com.campustrade.service.ai.DeepSeekClient;
 import com.campustrade.service.ai.FaqVectorService;
@@ -48,6 +50,9 @@ public class AiController {
 
     @Autowired
     private AiSafetyService safetyService;
+
+    @Autowired
+    private AiConfigService configService;
 
     @Autowired
     private AiHealthIndicator aiHealthIndicator;
@@ -155,15 +160,15 @@ public class AiController {
 
         String faqContext = faqVectorService.buildContext(userMessage);
         boolean needTools = mayNeedTools(userMessage);
-        String systemPart = truncateToTokenBudget(getSystemPrompt(), 1500);
-        String knowledgePart = truncateToTokenBudget(buildPlatformKnowledge(userMessage), 600);
+        String systemPart = truncateToTokenBudget(getSystemPrompt(), configService.getInt("rag", "token_budget_system", 1500));
+        String knowledgePart = truncateToTokenBudget(buildPlatformKnowledge(userMessage), configService.getInt("rag", "token_budget_knowledge", 600));
         String docContext = aiDocumentService.buildDocumentContext(userMessage);
-        String truncatedDoc = truncateToTokenBudget(docContext, 500);
+        String truncatedDoc = truncateToTokenBudget(docContext, configService.getInt("rag", "token_budget_doc", 500));
         String prompt = systemPart + knowledgePart + buildDateHint();
         if (!truncatedDoc.isEmpty()) {
             prompt = prompt + "\n\n" + truncatedDoc;
         }
-        String truncatedFaq = truncateToTokenBudget(faqContext, 400);
+        String truncatedFaq = truncateToTokenBudget(faqContext, configService.getInt("rag", "token_budget_faq", 400));
         String dedupedFaq = deduplicateFaq(knowledgePart + truncatedDoc, truncatedFaq);
         if (!dedupedFaq.isEmpty()) {
             prompt = prompt + "\n\n" + dedupedFaq;
@@ -198,8 +203,8 @@ public class AiController {
             List<Map<String, Object>> messages = sessionService.buildMessages(sessionId, prompt, userMessage);
             List<Map<String, Object>> tools = aiToolService.getToolDefinitions();
             String answer = null;
-            int maxIterations = 10;
-            int maxTokenBudget = 8000;
+            int maxIterations = configService.getInt("agent", "max_iterations", 10);
+            int maxTokenBudget = configService.getInt("agent", "max_token_budget", 8000);
             Set<String> calledSignatures = new HashSet<>();
 
             for (int i = 0; i < maxIterations; i++) {
@@ -261,7 +266,7 @@ public class AiController {
                     Map<String, Object> toolMsg = new LinkedHashMap<>();
                     toolMsg.put("role", "tool");
                     toolMsg.put("tool_call_id", toolCallId);
-                    String truncatedResult = smartTruncate(toolResult, 2000);
+                    String truncatedResult = smartTruncate(toolResult, configService.getInt("agent", "tool_result_truncate", 2000));
                     toolMsg.put("content", safetyService.sanitizeOutput(truncatedResult));
                     messages.add(toolMsg);
                     log.info("Tool called: {} -> {}", toolName, toolResult.length() > 100 ? toolResult.substring(0, 100) : toolResult);
@@ -350,15 +355,15 @@ public class AiController {
 
         String faqContext = faqVectorService.buildContext(userMessage);
         boolean needTools = mayNeedTools(userMessage);
-        String systemPart = truncateToTokenBudget(getSystemPrompt(), 1500);
-        String knowledgePart = truncateToTokenBudget(buildPlatformKnowledge(userMessage), 600);
+        String systemPart = truncateToTokenBudget(getSystemPrompt(), configService.getInt("rag", "token_budget_system", 1500));
+        String knowledgePart = truncateToTokenBudget(buildPlatformKnowledge(userMessage), configService.getInt("rag", "token_budget_knowledge", 600));
         String docContext = aiDocumentService.buildDocumentContext(userMessage);
-        String truncatedDoc = truncateToTokenBudget(docContext, 500);
+        String truncatedDoc = truncateToTokenBudget(docContext, configService.getInt("rag", "token_budget_doc", 500));
         String prompt = systemPart + knowledgePart + buildDateHint();
         if (!truncatedDoc.isEmpty()) {
             prompt = prompt + "\n\n" + truncatedDoc;
         }
-        String truncatedFaq = truncateToTokenBudget(faqContext, 400);
+        String truncatedFaq = truncateToTokenBudget(faqContext, configService.getInt("rag", "token_budget_faq", 400));
         String dedupedFaq = deduplicateFaq(knowledgePart + truncatedDoc, truncatedFaq);
         if (!dedupedFaq.isEmpty()) {
             prompt = prompt + "\n\n" + dedupedFaq;
@@ -636,7 +641,7 @@ public class AiController {
                 Map<String, Object> toolMsg = new LinkedHashMap<>();
                 toolMsg.put("role", "tool");
                 toolMsg.put("tool_call_id", toolCallId);
-                toolMsg.put("content", safetyService.sanitizeOutput(smartTruncate(toolResult, 2000)));
+                toolMsg.put("content", safetyService.sanitizeOutput(smartTruncate(toolResult, configService.getInt("agent", "tool_result_truncate", 2000))));
                 messages.add(toolMsg);
                 log.info("Tool called (stream): {} -> {}", toolName, toolResult.length() > 100 ? toolResult.substring(0, 100) : toolResult);
             }
@@ -1017,6 +1022,27 @@ public class AiController {
         status.put("healthy", "UP".equals(aiHealth.getStatus().getCode()));
         status.put("model", deepSeekClient.getEffectiveModel());
         return Result.success(status);
+    }
+
+    @ApiOperation("获取快捷问题列表")
+    @GetMapping("/quick-questions")
+    public Result<List<Map<String, Object>>> getQuickQuestions() {
+        try {
+            List<AiQuickQuestion> questions = configService.getActiveQuickQuestions();
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (AiQuickQuestion q : questions) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("id", q.getId());
+                item.put("question", q.getQuestion());
+                item.put("category", q.getCategory());
+                item.put("sortOrder", q.getSortOrder());
+                result.add(item);
+            }
+            return Result.success(result);
+        } catch (Exception e) {
+            log.warn("Failed to load quick questions, returning empty list", e);
+            return Result.success(new ArrayList<>());
+        }
     }
 
     @ApiOperation("获取AI会话历史")
