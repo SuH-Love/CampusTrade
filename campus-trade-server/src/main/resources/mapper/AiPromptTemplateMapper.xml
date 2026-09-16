@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.AiPromptTemplateMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.AiPromptTemplate">
+        <id column="id" property="id"/>
+        <result column="template_key" property="templateKey"/>
+        <result column="template_name" property="templateName"/>
+        <result column="category" property="category"/>
+        <result column="content" property="content"/>
+        <result column="variables" property="variables"/>
+        <result column="description" property="description"/>
+        <result column="is_active" property="isActive"/>
+        <result column="config_version" property="configVersion"/>
+        <result column="updated_by" property="updatedBy"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_ai_prompt_template (template_key, template_name, category, content, variables, description, is_active, config_version, updated_by)
+        VALUES (#{templateKey}, #{templateName}, #{category}, #{content}, #{variables}, #{description}, #{isActive}, #{configVersion}, #{updatedBy})
+    </insert>
+
+    <select id="selectByKey" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_prompt_template WHERE template_key = #{templateKey}
+    </select>
+
+    <select id="selectByKeyForUpdate" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_prompt_template WHERE template_key = #{templateKey} FOR UPDATE
+    </select>
+
+    <select id="selectAllActive" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_prompt_template WHERE is_active = 1 ORDER BY category, id
+    </select>
+
+    <select id="selectByCategory" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_prompt_template WHERE is_active = 1 AND category = #{category} ORDER BY id
+    </select>
+
+    <update id="updateContent">
+        UPDATE t_ai_prompt_template
+        SET content = #{content}, config_version = #{configVersion}, updated_by = #{updatedBy}, update_time = NOW()
+        WHERE template_key = #{templateKey} AND config_version = #{oldVersion}
+    </update>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM t_ai_prompt_template
+    </select>
+</mapper>

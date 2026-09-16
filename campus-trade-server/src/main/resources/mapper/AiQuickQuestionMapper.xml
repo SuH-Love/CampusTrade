@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.AiQuickQuestionMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.AiQuickQuestion">
+        <id column="id" property="id"/>
+        <result column="question" property="question"/>
+        <result column="category" property="category"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="is_active" property="isActive"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_ai_quick_question (question, category, sort_order, is_active)
+        VALUES (#{question}, #{category}, #{sortOrder}, #{isActive})
+    </insert>
+
+    <select id="selectAllActive" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_quick_question WHERE is_active = 1 ORDER BY sort_order
+    </select>
+
+    <select id="selectByCategory" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_quick_question WHERE is_active = 1 AND category = #{category} ORDER BY sort_order
+    </select>
+
+    <update id="update">
+        UPDATE t_ai_quick_question
+        SET question = #{question}, category = #{category}, sort_order = #{sortOrder}, is_active = #{isActive}, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        UPDATE t_ai_quick_question SET is_active = 0, update_time = NOW() WHERE id = #{id}
+    </update>
+
+    <update id="toggleActive">
+        UPDATE t_ai_quick_question SET is_active = #{isActive}, update_time = NOW() WHERE id = #{id}
+    </update>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM t_ai_quick_question
+    </select>
+</mapper>

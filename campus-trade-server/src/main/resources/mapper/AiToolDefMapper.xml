@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.AiToolDefMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.AiToolDef">
+        <id column="id" property="id"/>
+        <result column="tool_name" property="toolName"/>
+        <result column="display_name" property="displayName"/>
+        <result column="tool_group" property="toolGroup"/>
+        <result column="description" property="description"/>
+        <result column="parameters" property="parameters"/>
+        <result column="handler_class" property="handlerClass"/>
+        <result column="handler_method" property="handlerMethod"/>
+        <result column="required_role" property="requiredRole"/>
+        <result column="is_write_operation" property="isWriteOperation"/>
+        <result column="need_confirm" property="needConfirm"/>
+        <result column="is_active" property="isActive"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="config_version" property="configVersion"/>
+        <result column="updated_by" property="updatedBy"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_ai_tool_def (tool_name, display_name, tool_group, description, parameters, handler_class, handler_method, required_role, is_write_operation, need_confirm, is_active, sort_order, config_version, updated_by)
+        VALUES (#{toolName}, #{displayName}, #{toolGroup}, #{description}, #{parameters}, #{handlerClass}, #{handlerMethod}, #{requiredRole}, #{isWriteOperation}, #{needConfirm}, #{isActive}, #{sortOrder}, #{configVersion}, #{updatedBy})
+    </insert>
+
+    <select id="selectByName" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_tool_def WHERE tool_name = #{toolName}
+    </select>
+
+    <select id="selectAllActive" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_tool_def WHERE is_active = 1 ORDER BY tool_group, sort_order
+    </select>
+
+    <select id="selectByGroup" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_tool_def WHERE is_active = 1 AND tool_group = #{toolGroup} ORDER BY sort_order
+    </select>
+
+    <update id="update">
+        UPDATE t_ai_tool_def
+        SET display_name = #{displayName}, description = #{description}, parameters = #{parameters},
+            required_role = #{requiredRole}, is_write_operation = #{isWriteOperation}, need_confirm = #{needConfirm},
+            is_active = #{isActive}, sort_order = #{sortOrder}, config_version = config_version + 1,
+            updated_by = #{updatedBy}, update_time = NOW()
+        WHERE tool_name = #{toolName}
+    </update>
+
+    <update id="toggleActive">
+        UPDATE t_ai_tool_def SET is_active = #{isActive}, update_time = NOW() WHERE tool_name = #{toolName}
+    </update>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM t_ai_tool_def
+    </select>
+</mapper>

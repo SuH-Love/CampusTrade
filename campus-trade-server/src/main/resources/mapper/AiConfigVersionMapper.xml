@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.AiConfigVersionMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.AiConfigVersion">
+        <id column="id" property="id"/>
+        <result column="config_type" property="configType"/>
+        <result column="config_id" property="configId"/>
+        <result column="config_key" property="configKey"/>
+        <result column="config_version" property="configVersion"/>
+        <result column="snapshot" property="snapshot"/>
+        <result column="change_note" property="changeNote"/>
+        <result column="created_by" property="createdBy"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_ai_config_version (config_type, config_id, config_key, config_version, snapshot, change_note, created_by)
+        VALUES (#{configType}, #{configId}, #{configKey}, #{configVersion}, #{snapshot}, #{changeNote}, #{createdBy})
+    </insert>
+
+    <select id="selectByTypeKey" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_config_version WHERE config_type = #{configType} AND config_key = #{configKey}
+        ORDER BY config_version DESC
+    </select>
+
+    <select id="selectByTypeId" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_config_version WHERE config_type = #{configType} AND config_id = #{configId}
+        ORDER BY config_version DESC
+    </select>
+
+    <select id="selectByVersion" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_config_version
+        WHERE config_type = #{configType} AND config_key = #{configKey} AND config_version = #{configVersion}
+    </select>
+</mapper>

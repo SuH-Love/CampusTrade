@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campustrade.mapper.AiSafetyRuleMapper">
+
+    <resultMap id="BaseResultMap" type="com.campustrade.entity.AiSafetyRule">
+        <id column="id" property="id"/>
+        <result column="rule_type" property="ruleType"/>
+        <result column="rule_pattern" property="rulePattern"/>
+        <result column="rule_action" property="ruleAction"/>
+        <result column="replacement" property="replacement"/>
+        <result column="description" property="description"/>
+        <result column="is_active" property="isActive"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="updated_by" property="updatedBy"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_ai_safety_rule (rule_type, rule_pattern, rule_action, replacement, description, is_active, sort_order, updated_by)
+        VALUES (#{ruleType}, #{rulePattern}, #{ruleAction}, #{replacement}, #{description}, #{isActive}, #{sortOrder}, #{updatedBy})
+    </insert>
+
+    <select id="selectByType" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_safety_rule WHERE is_active = 1 AND rule_type = #{ruleType} ORDER BY sort_order
+    </select>
+
+    <select id="selectAllActive" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_safety_rule WHERE is_active = 1 ORDER BY rule_type, sort_order
+    </select>
+
+    <update id="update">
+        UPDATE t_ai_safety_rule
+        SET rule_pattern = #{rulePattern}, rule_action = #{ruleAction}, replacement = #{replacement},
+            description = #{description}, is_active = #{isActive}, sort_order = #{sortOrder},
+            updated_by = #{updatedBy}, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="deleteById">
+        UPDATE t_ai_safety_rule SET is_active = 0, update_time = NOW() WHERE id = #{id}
+    </update>
+
+    <update id="toggleActive">
+        UPDATE t_ai_safety_rule SET is_active = #{isActive}, update_time = NOW() WHERE id = #{id}
+    </update>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM t_ai_safety_rule
+    </select>
+</mapper>

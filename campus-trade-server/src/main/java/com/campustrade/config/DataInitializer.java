@@ -664,6 +664,99 @@ public class DataInitializer implements CommandLineRunner {
             "version INT DEFAULT 0" +
             ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+        executeSql("CREATE TABLE IF NOT EXISTS t_ai_prompt_template (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "template_key VARCHAR(100) NOT NULL," +
+            "template_name VARCHAR(200) NOT NULL," +
+            "category VARCHAR(50) NOT NULL," +
+            "content TEXT NOT NULL," +
+            "variables JSON DEFAULT NULL," +
+            "description VARCHAR(500) DEFAULT NULL," +
+            "is_active INT DEFAULT 1," +
+            "config_version INT DEFAULT 1," +
+            "updated_by BIGINT DEFAULT NULL," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "UNIQUE KEY uk_template_key (template_key)," +
+            "INDEX idx_category_active (category, is_active)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_ai_tool_def (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "tool_name VARCHAR(100) NOT NULL," +
+            "display_name VARCHAR(200) DEFAULT NULL," +
+            "tool_group VARCHAR(50) NOT NULL," +
+            "description TEXT NOT NULL," +
+            "parameters JSON NOT NULL," +
+            "handler_class VARCHAR(200) NOT NULL," +
+            "handler_method VARCHAR(100) NOT NULL," +
+            "required_role VARCHAR(50) DEFAULT 'USER'," +
+            "is_write_operation INT DEFAULT 0," +
+            "need_confirm INT DEFAULT 0," +
+            "is_active INT DEFAULT 1," +
+            "sort_order INT DEFAULT 0," +
+            "config_version INT DEFAULT 1," +
+            "updated_by BIGINT DEFAULT NULL," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "UNIQUE KEY uk_tool_name (tool_name)," +
+            "INDEX idx_group_active (tool_group, is_active)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_ai_safety_rule (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "rule_type VARCHAR(50) NOT NULL," +
+            "rule_pattern VARCHAR(500) NOT NULL," +
+            "rule_action VARCHAR(20) NOT NULL," +
+            "replacement VARCHAR(100) DEFAULT NULL," +
+            "description VARCHAR(500) DEFAULT NULL," +
+            "is_active INT DEFAULT 1," +
+            "sort_order INT DEFAULT 0," +
+            "updated_by BIGINT DEFAULT NULL," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "INDEX idx_type_active (rule_type, is_active)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_ai_config (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "config_group VARCHAR(50) NOT NULL," +
+            "config_key VARCHAR(100) NOT NULL," +
+            "config_value VARCHAR(2000) NOT NULL," +
+            "config_type VARCHAR(20) NOT NULL," +
+            "description VARCHAR(500) DEFAULT NULL," +
+            "is_active INT DEFAULT 1," +
+            "updated_by BIGINT DEFAULT NULL," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "UNIQUE KEY uk_group_key (config_group, config_key)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_ai_quick_question (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "question TEXT NOT NULL," +
+            "category VARCHAR(50) DEFAULT NULL," +
+            "sort_order INT DEFAULT 0," +
+            "is_active INT DEFAULT 1," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+            "INDEX idx_category_active (category, is_active)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        executeSql("CREATE TABLE IF NOT EXISTS t_ai_config_version (" +
+            "id BIGINT PRIMARY KEY AUTO_INCREMENT," +
+            "config_type VARCHAR(50) NOT NULL," +
+            "config_id BIGINT NOT NULL," +
+            "config_key VARCHAR(100) DEFAULT NULL," +
+            "config_version INT NOT NULL," +
+            "snapshot JSON NOT NULL," +
+            "change_note VARCHAR(500) DEFAULT NULL," +
+            "created_by BIGINT DEFAULT NULL," +
+            "create_time DATETIME DEFAULT CURRENT_TIMESTAMP," +
+            "INDEX idx_type_key (config_type, config_key)," +
+            "INDEX idx_type_id (config_type, config_id)" +
+            ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
         addColumnIfNotExists("t_goods", "condition", "VARCHAR(20) DEFAULT NULL COMMENT '成色' AFTER original_price");
         addColumnIfNotExists("t_goods", "stock", "INT DEFAULT 1 COMMENT '库存' AFTER favorite_count");
         addColumnIfNotExists("t_order_item", "quantity", "INT DEFAULT 1 COMMENT '数量' AFTER price");
