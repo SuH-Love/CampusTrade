@@ -340,3 +340,21 @@ export const toggleQuickQuestion = (id: number, isActive: number) =>
 
 export const getConfigVersions = (type?: string, key?: string) =>
   request.get('/ai/config/versions', { params: { type, key } })
+
+export const getConfigTools = (group?: string) =>
+  request.get('/ai/config/tools', { params: group ? { group } : {} })
+
+export const updateConfigTool = (name: string, data: Record<string, any>) =>
+  request.put(`/ai/config/tools/${name}`, data)
+
+export const toggleConfigTool = (name: string, isActive: number) =>
+  request.patch(`/ai/config/tools/${name}/toggle`, { isActive })
+
+export const previewPrompt = () =>
+  request.post<never, Record<string, any>>('/ai/config/prompts/preview')
+
+export const testPrompt = (message: string) =>
+  request.post<never, Record<string, any>>('/ai/config/prompts/test', { message })
+
+export const compareVersions = (type: string, key: string, v1: number, v2: number) =>
+  request.get<never, Record<string, any>>('/ai/config/versions/compare', { params: { type, key, v1, v2 } })

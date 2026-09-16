@@ -1785,6 +1785,8 @@ public class AiController {
     }
 
     private String buildDefaultSystemPrompt() {
+        String assembled = configService.getAssembledSystemPrompt();
+        if (assembled != null && !assembled.isEmpty()) return assembled;
         return "你是校园贸易平台的AI助手\"小苏\"，服务于在校师生，帮助解答关于校园二手交易的各种问题。\n\n" +
                "## 思考优先（最重要）\n" +
                "在回答任何问题之前，你必须先进行内部分析：\n" +

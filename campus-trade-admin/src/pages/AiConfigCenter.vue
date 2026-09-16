@@ -156,6 +156,54 @@
           </el-table>
         </el-card>
       </el-tab-pane>
+      <!-- 工具管理 -->
+      <el-tab-pane label="工具管理" name="tools">
+        <el-card>
+          <template #header>
+            <div class="card-header">
+              <span class="count-tag">共 {{ tools.length }} 个工具</span>
+            </div>
+          </template>
+          <el-table :data="tools" stripe v-loading="loading.tools">
+            <el-table-column prop="toolName" label="工具名" width="200" />
+            <el-table-column prop="displayName" label="显示名" width="150" />
+            <el-table-column prop="toolGroup" label="分组" width="100" />
+            <el-table-column prop="description" label="描述" show-overflow-tooltip />
+            <el-table-column label="状态" width="80">
+              <template #default="{ row }">
+                <el-tag :type="row.isActive === 1 ? 'success' : 'info'">{{ row.isActive === 1 ? '启用' : '禁用' }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="150">
+              <template #default="{ row }">
+                <el-button size="small" :type="row.isActive === 1 ? 'warning' : 'success'" @click="toggleTool(row)">{{ row.isActive === 1 ? '禁用' : '启用' }}</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-tab-pane>
+
+      <!-- Prompt预览/测试 -->
+      <el-tab-pane label="预览/测试" name="preview">
+        <el-card>
+          <template #header>
+            <div class="card-header">
+              <el-button type="primary" @click="loadPreview">刷新预览</el-button>
+            </div>
+          </template>
+          <el-descriptions :column="3" border v-if="previewData">
+            <el-descriptions-item label="模板数量">{{ previewData.templateCount }}</el-descriptions-item>
+            <el-descriptions-item label="字符长度">{{ previewData.length }}</el-descriptions-item>
+            <el-descriptions-item label="估算Token">{{ previewData.estimatedTokens }}</el-descriptions-item>
+          </el-descriptions>
+          <el-input v-if="previewData" :model-value="previewData.assembled" type="textarea" :rows="12" readonly style="margin-top: 12px" />
+          <el-divider />
+          <h4>在线测试</h4>
+          <el-input v-model="testMessage" placeholder="输入测试消息" style="margin-bottom: 12px" />
+          <el-button type="primary" @click="runTest" :loading="testing">发送测试</el-button>
+          <el-input v-if="testResult" :model-value="testResult" type="textarea" :rows="8" readonly style="margin-top: 12px" />
+        </el-card>
+      </el-tab-pane>
     </el-tabs>
 
     <!-- 提示词编辑弹窗 -->
@@ -265,7 +313,10 @@ import {
   getSafetyRules, addSafetyRule, updateSafetyRule, deleteSafetyRule, toggleSafetyRule,
   getConfigParams, updateConfigParam,
   getConfigQuickQuestions, addQuickQuestion, updateQuickQuestion, deleteQuickQuestion, toggleQuickQuestion,
-  getConfigVersions
+  getConfigVersions,
+  getConfigTools, toggleConfigTool,
+  previewPrompt, testPrompt,
+  compareVersions
 } from '@/api/admin'
 
 const activeTab = ref('prompts')
@@ -276,7 +327,7 @@ const prompts = ref<Record<string, any>[]>([])
 const promptCategory = ref('')
 const promptDialog = ref(false)
 const promptForm = reactive<Record<string, any>>({})
-const loading = reactive({ prompts: false, safety: false, params: false, questions: false, versions: false })
+const loading = reactive({ prompts: false, safety: false, params: false, questions: false, versions: false, tools: false })
 
 const loadPrompts = async () => {
   loading.prompts = true
@@ -450,8 +501,40 @@ const rollbackVersion = async (row: Record<string, any>) => {
   } catch {}
 }
 
+// 工具管理
+const tools = ref<Record<string, any>[]>([])
+const loadTools = async () => {
+  loading.tools = true
+  try { tools.value = await getConfigTools() }
+  catch { ElMessage.error('加载失败') }
+  finally { loading.tools = false }
+}
+const toggleTool = async (row: Record<string, any>) => {
+  try { await toggleConfigTool(row.toolName, row.isActive === 1 ? 0 : 1); ElMessage.success('操作成功'); loadTools() }
+  catch { ElMessage.error('操作失败') }
+}
+
+// Prompt预览/测试
+const previewData = ref<Record<string, any> | null>(null)
+const testMessage = ref('')
+const testResult = ref('')
+const testing = ref(false)
+const loadPreview = async () => {
+  try { previewData.value = await previewPrompt() }
+  catch { ElMessage.error('预览失败') }
+}
+const runTest = async () => {
+  if (!testMessage.value) return ElMessage.warning('请输入测试消息')
+  testing.value = true
+  try { const r = await testPrompt(testMessage.value); testResult.value = r.answer }
+  catch { ElMessage.error('测试失败') }
+  finally { testing.value = false }
+}
+
 onMounted(() => {
   loadPrompts()
+  loadTools()
+  loadPreview()
   loadSafetyRules()
   loadParams()
   loadQuestions()

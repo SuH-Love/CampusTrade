@@ -31,6 +31,10 @@ public class AiConfigController {
     private AiQuickQuestionMapper quickQuestionMapper;
     @Autowired
     private AiConfigVersionMapper versionMapper;
+    @Autowired
+    private com.campustrade.mapper.AiToolDefMapper toolDefMapper;
+    @Autowired
+    private com.campustrade.service.ai.DeepSeekClient deepSeekClient;
 
     private Long currentAdminId() {
         Long uid = SecurityUtil.getCurrentUserId();
@@ -233,5 +237,101 @@ public class AiConfigController {
     @GetMapping("/versions/{type}/{key}")
     public Result<List<AiConfigVersion>> versions(@PathVariable String type, @PathVariable String key) {
         return Result.success(versionMapper.selectByTypeKey(type, key));
+    }
+
+    // ==================== 工具定义管理 ====================
+
+    @ApiOperation("工具定义列表")
+    @GetMapping("/tools")
+    public Result<List<com.campustrade.entity.AiToolDef>> listTools(@RequestParam(required = false) String group) {
+        List<com.campustrade.entity.AiToolDef> tools = toolDefMapper.selectAllActive();
+        if (group != null && !group.isEmpty()) {
+            tools = tools.stream().filter(t -> group.equals(t.getToolGroup())).collect(java.util.stream.Collectors.toList());
+        }
+        return Result.success(tools);
+    }
+
+    @ApiOperation("更新工具定义")
+    @PutMapping("/tools/{name}")
+    public Result<Void> updateTool(@PathVariable String name, @RequestBody Map<String, Object> body) {
+        com.campustrade.entity.AiToolDef tool = toolDefMapper.selectByName(name);
+        if (tool == null) return Result.error(404, "工具不存在");
+        if (body.containsKey("description")) tool.setDescription((String) body.get("description"));
+        if (body.containsKey("displayName")) tool.setDisplayName((String) body.get("displayName"));
+        toolDefMapper.update(tool);
+        configService.refreshCache();
+        return Result.success(null);
+    }
+
+    @ApiOperation("启用/禁用工具")
+    @PatchMapping("/tools/{name}/toggle")
+    public Result<Void> toggleTool(@PathVariable String name, @RequestBody Map<String, Integer> body) {
+        toolDefMapper.toggleActive(name, body.get("isActive"));
+        configService.refreshCache();
+        return Result.success(null);
+    }
+
+    // ==================== Prompt预览/测试 ====================
+
+    @ApiOperation("预览系统提示词组装结果")
+    @PostMapping("/prompts/preview")
+    public Result<Map<String, Object>> previewPrompt() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        String assembled = configService.getAssembledSystemPrompt();
+        result.put("assembled", assembled);
+        result.put("length", assembled != null ? assembled.length() : 0);
+        result.put("estimatedTokens", assembled != null ? assembled.length() / 3 : 0);
+        List<AiPromptTemplate> templates = promptMapper.selectByCategory("system");
+        result.put("templateCount", templates != null ? templates.size() : 0);
+        return Result.success(result);
+    }
+
+    @ApiOperation("在线测试提示词")
+    @PostMapping("/prompts/test")
+    public Result<Map<String, Object>> testPrompt(@RequestBody Map<String, String> body) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        String testMessage = body.get("message");
+        if (testMessage == null || testMessage.isEmpty()) {
+            return Result.error(400, "测试消息不能为空");
+        }
+        try {
+            List<Map<String, Object>> messages = new ArrayList<>();
+            Map<String, Object> sysMsg = new HashMap<>();
+            sysMsg.put("role", "system");
+            sysMsg.put("content", configService.getAssembledSystemPrompt());
+            messages.add(sysMsg);
+            Map<String, Object> userMsg = new HashMap<>();
+            userMsg.put("role", "user");
+            userMsg.put("content", testMessage);
+            messages.add(userMsg);
+            String answer = deepSeekClient.chat(messages);
+            result.put("answer", answer);
+            result.put("success", true);
+        } catch (Exception e) {
+            result.put("answer", "测试失败: " + e.getMessage());
+            result.put("success", false);
+        }
+        return Result.success(result);
+    }
+
+    // ==================== 版本对比 ====================
+
+    @ApiOperation("对比两个版本")
+    @GetMapping("/versions/compare")
+    public Result<Map<String, Object>> compareVersions(@RequestParam String type,
+                                                        @RequestParam String key,
+                                                        @RequestParam Integer v1,
+                                                        @RequestParam Integer v2) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        AiConfigVersion ver1 = versionMapper.selectByVersion(type, key, v1);
+        AiConfigVersion ver2 = versionMapper.selectByVersion(type, key, v2);
+        result.put("v1", ver1);
+        result.put("v2", ver2);
+        if (ver1 != null && ver2 != null && ver1.getSnapshot() != null && ver2.getSnapshot() != null) {
+            result.put("v1Length", ver1.getSnapshot().length());
+            result.put("v2Length", ver2.getSnapshot().length());
+            result.put("identical", ver1.getSnapshot().equals(ver2.getSnapshot()));
+        }
+        return Result.success(result);
     }
 }

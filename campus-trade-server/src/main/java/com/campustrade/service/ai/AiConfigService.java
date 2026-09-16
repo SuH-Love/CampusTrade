@@ -58,6 +58,24 @@ public class AiConfigService {
         loadAllToCache();
     }
 
+    public String getAssembledSystemPrompt() {
+        try {
+            List<AiPromptTemplate> templates = promptMapper.selectByCategory("system");
+            if (templates == null || templates.isEmpty()) return null;
+            StringBuilder sb = new StringBuilder();
+            for (AiPromptTemplate t : templates) {
+                if (t.getIsActive() != null && t.getIsActive() == 1 && t.getContent() != null) {
+                    if (sb.length() > 0) sb.append("\n\n");
+                    sb.append(t.getContent());
+                }
+            }
+            return sb.length() > 0 ? sb.toString() : null;
+        } catch (Exception e) {
+            log.warn("Failed to assemble system prompt from DB: {}", e.getMessage());
+            return null;
+        }
+    }
+
     private void loadAllToCache() {
         try {
             List<AiPromptTemplate> prompts = promptMapper.selectAllActive();
