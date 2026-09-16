@@ -286,3 +286,57 @@ export const getAiHealth = async (): Promise<Record<string, unknown>> => {
     headers: adminStore.token ? { Authorization: `Bearer ${adminStore.token}` } : {}
   }).then(res => res.data)
 }
+// ===== AI配置中心 =====
+export const getConfigPrompts = (category?: string) =>
+  request.get('/ai/config/prompts', { params: category ? { category } : {} })
+
+export const getConfigPrompt = (key: string) =>
+  request.get<never, Record<string, any>>(`/ai/config/prompts/${key}`)
+
+export const updateConfigPrompt = (key: string, data: { content: string; note?: string }) =>
+  request.put(`/ai/config/prompts/${key}`, data)
+
+export const getPromptVersions = (key: string) =>
+  request.get<never, Record<string, any>[]>(`/ai/config/prompts/${key}/versions`)
+
+export const rollbackPrompt = (key: string, ver: number) =>
+  request.post(`/ai/config/prompts/${key}/rollback/${ver}`)
+
+export const getSafetyRules = (ruleType?: string) =>
+  request.get('/ai/config/safety-rules', { params: ruleType ? { ruleType } : {} })
+
+export const addSafetyRule = (data: Record<string, any>) =>
+  request.post('/ai/config/safety-rules', data)
+
+export const updateSafetyRule = (id: number, data: Record<string, any>) =>
+  request.put(`/ai/config/safety-rules/${id}`, data)
+
+export const deleteSafetyRule = (id: number) =>
+  request.delete(`/ai/config/safety-rules/${id}`)
+
+export const toggleSafetyRule = (id: number, isActive: number) =>
+  request.patch(`/ai/config/safety-rules/${id}/toggle`, { isActive })
+
+export const getConfigParams = () =>
+  request.get<never, Record<string, Record<string, any>[]>>('/ai/config/params')
+
+export const updateConfigParam = (group: string, key: string, value: string) =>
+  request.put(`/ai/config/params/${group}/${key}`, { value })
+
+export const getConfigQuickQuestions = () =>
+  request.get<never, Record<string, any>[]>('/ai/config/quick-questions')
+
+export const addQuickQuestion = (data: Record<string, any>) =>
+  request.post('/ai/config/quick-questions', data)
+
+export const updateQuickQuestion = (id: number, data: Record<string, any>) =>
+  request.put(`/ai/config/quick-questions/${id}`, data)
+
+export const deleteQuickQuestion = (id: number) =>
+  request.delete(`/ai/config/quick-questions/${id}`)
+
+export const toggleQuickQuestion = (id: number, isActive: number) =>
+  request.patch(`/ai/config/quick-questions/${id}/toggle`, { isActive })
+
+export const getConfigVersions = (type?: string, key?: string) =>
+  request.get('/ai/config/versions', { params: { type, key } })

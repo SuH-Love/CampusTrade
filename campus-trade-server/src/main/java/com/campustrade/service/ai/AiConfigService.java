@@ -54,6 +54,10 @@ public class AiConfigService {
         loadAllToCache();
     }
 
+    public void refreshCache() {
+        loadAllToCache();
+    }
+
     private void loadAllToCache() {
         try {
             List<AiPromptTemplate> prompts = promptMapper.selectAllActive();

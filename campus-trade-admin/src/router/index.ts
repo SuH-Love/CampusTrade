@@ -121,6 +121,12 @@ const allRoutes: RouteRecordRaw[] = [
         name: 'AiFeedback',
         component: lazyLoad(() => import('@/pages/AiFeedback.vue')),
         meta: { title: 'AI反馈', icon: 'ChatDotRound', permission: 'system:config' }
+      },
+      {
+        path: 'ai-config',
+        name: 'AiConfigCenter',
+        component: lazyLoad(() => import('@/pages/AiConfigCenter.vue')),
+        meta: { title: 'AI配置中心', icon: 'Setting', permission: 'system:config' }
       }
     ]
   },
