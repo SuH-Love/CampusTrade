@@ -362,7 +362,7 @@ const loadPrompts = async () => {
 }
 
 const editPrompt = (row: Record<string, any>) => {
-  Object.assign(promptForm, row)
+  Object.keys(promptForm).forEach(k => delete promptForm[k]); Object.assign(promptForm, row)
   promptForm.note = ''
   promptDialog.value = true
 }
@@ -399,7 +399,7 @@ const loadSafetyRules = async () => {
 }
 
 const editSafetyRule = (row: Record<string, any>) => {
-  Object.assign(safetyForm, row)
+  Object.keys(safetyForm).forEach(k => delete safetyForm[k]); Object.assign(safetyForm, row)
   safetyDialog.value = true
 }
 
@@ -416,11 +416,14 @@ const saveSafety = async () => {
 }
 
 const toggleSafety = async (row: Record<string, any>) => {
+  if (togglingIds.value.has(row.id)) return
+  togglingIds.value.add(row.id)
   try {
     await toggleSafetyRule(row.id, row.isActive === 1 ? 0 : 1)
     ElMessage.success('操作成功')
     loadSafetyRules()
   } catch { ElMessage.error('操作失败') }
+  finally { togglingIds.value.delete(row.id) }
 }
 
 const removeSafety = async (row: Record<string, any>) => {
@@ -473,7 +476,7 @@ const loadQuestions = async () => {
 }
 
 const editQuestion = (row: Record<string, any>) => {
-  Object.assign(questionForm, row)
+  Object.keys(questionForm).forEach(k => delete questionForm[k]); Object.assign(questionForm, row)
   questionDialog.value = true
 }
 
@@ -490,11 +493,14 @@ const saveQuestion = async () => {
 }
 
 const toggleQuestion = async (row: Record<string, any>) => {
+  if (togglingIds.value.has(row.id)) return
+  togglingIds.value.add(row.id)
   try {
     await toggleQuickQuestion(row.id, row.isActive === 1 ? 0 : 1)
     ElMessage.success('操作成功')
     loadQuestions()
   } catch { ElMessage.error('操作失败') }
+  finally { togglingIds.value.delete(row.id) }
 }
 
 const removeQuestion = async (row: Record<string, any>) => {
@@ -547,6 +553,7 @@ const compareSelected = async () => {
 }
 
 // 工具管理
+const togglingIds = ref<Set<number | string>>(new Set())
 const tools = ref<Record<string, any>[]>([])
 const loadTools = async () => {
   loading.tools = true
@@ -555,8 +562,11 @@ const loadTools = async () => {
   finally { loading.tools = false }
 }
 const toggleTool = async (row: Record<string, any>) => {
+  if (togglingIds.value.has(row.toolName)) return
+  togglingIds.value.add(row.toolName)
   try { await toggleConfigTool(row.toolName, row.isActive === 1 ? 0 : 1); ElMessage.success('操作成功'); loadTools() }
   catch { ElMessage.error('操作失败') }
+  finally { togglingIds.value.delete(row.toolName) }
 }
 
 // Prompt预览/测试
@@ -571,7 +581,7 @@ const loadPreview = async () => {
 const runTest = async () => {
   if (!testMessage.value) return ElMessage.warning('请输入测试消息')
   testing.value = true
-  try { const r = await testPrompt(testMessage.value); testResult.value = r.answer }
+  try { const r = await testPrompt(testMessage.value); testResult.value = r.answer || '' }
   catch { ElMessage.error('测试失败') }
   finally { testing.value = false }
 }

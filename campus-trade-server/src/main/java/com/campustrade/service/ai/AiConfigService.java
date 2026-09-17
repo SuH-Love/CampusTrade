@@ -79,7 +79,7 @@ public class AiConfigService {
     private void loadAllToCache() {
         try {
             List<AiPromptTemplate> prompts = promptMapper.selectAllActive();
-            if (prompts != null) prompts.forEach(t -> promptCache.put(t.getTemplateKey(), t.getContent()));
+            if (prompts != null) prompts.forEach(t -> { if (t.getContent() != null) promptCache.put(t.getTemplateKey(), t.getContent()); });
 
             List<AiToolDef> tools = toolMapper.selectAllActive();
             if (tools != null) tools.forEach(t -> toolCache.put(t.getToolName(), t));
@@ -131,11 +131,12 @@ public class AiConfigService {
             version.setConfigType("prompt");
             version.setConfigId(old.getId());
             version.setConfigKey(key);
-            version.setConfigVersion(old.getConfigVersion());
+            version.setConfigVersion(old.getConfigVersion() != null ? old.getConfigVersion() : 0);
             version.setSnapshot(old.getContent());
             version.setCreatedBy(userId);
             versionMapper.insert(version);
-            int rows = promptMapper.updateContent(key, content, old.getConfigVersion() + 1, userId, old.getConfigVersion());
+            int currentVer = old.getConfigVersion() != null ? old.getConfigVersion() : 0;
+            int rows = promptMapper.updateContent(key, content, currentVer + 1, userId, currentVer);
             if (rows == 0) throw new RuntimeException("配置已被其他人修改，请刷新重试");
         }
         promptCache.invalidate(key);

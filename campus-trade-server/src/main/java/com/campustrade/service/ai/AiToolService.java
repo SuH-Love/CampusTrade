@@ -166,8 +166,7 @@ public class AiToolService {
 
     private void syncToolDefsToDb() {
         try {
-            if (toolDefMapper.count() > 0) return;
-            log.info("Syncing tool definitions to DB...");
+            log.info("Syncing tool definitions to DB (upsert mode)...");
             Set<String> writeOps = new HashSet<>(Arrays.asList(
                 "cancel_order", "confirm_receipt", "ship_order", "request_refund", "rate_order",
                 "toggle_favorite", "add_to_cart", "toggle_follow_user", "online_offline_goods",
@@ -194,7 +193,7 @@ public class AiToolService {
                     def.setNeedConfirm(0);
                     def.setSortOrder(order++);
                     def.setConfigVersion(1);
-                    toolDefMapper.insert(def);
+                    if (toolDefMapper.selectByName(name) == null) toolDefMapper.insert(def);
                 }
             }
             log.info("Tool definitions synced to DB: {} tools", order);

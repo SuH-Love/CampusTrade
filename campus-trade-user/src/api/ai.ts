@@ -191,6 +191,7 @@ export interface QuickQuestion {
   question: string
   category: string
   sortOrder: number
+  isActive?: number
 }
 
 export const getQuickQuestions = () =>

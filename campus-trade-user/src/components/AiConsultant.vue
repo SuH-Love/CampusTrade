@@ -749,7 +749,7 @@ const loadQuickQuestions = async () => {
   try {
     const data = await getQuickQuestions()
     if (data && data.length > 0) {
-      allSuggestions.value = data.map(q => q.question)
+      allSuggestions.value = data.filter(q => q.isActive === 1 || q.isActive === undefined).map(q => q.question)
       if (visible.value) refreshSuggestions()
     }
   } catch {

@@ -288,67 +288,67 @@ export const getAiHealth = async (): Promise<Record<string, unknown>> => {
 }
 // ===== AI配置中心 =====
 export const getConfigPrompts = (category?: string) =>
-  request.get('/ai/config/prompts', { params: category ? { category } : {} })
+  request.get<never, Record<string, any>[]>('/ai/config/prompts', { params: category ? { category } : {} })
 
 export const getConfigPrompt = (key: string) =>
   request.get<never, Record<string, any>>(`/ai/config/prompts/${key}`)
 
 export const updateConfigPrompt = (key: string, data: { content: string; note?: string }) =>
-  request.put(`/ai/config/prompts/${key}`, data)
+  request.put<never, void>(`/ai/config/prompts/${key}`, data)
 
 export const getPromptVersions = (key: string) =>
   request.get<never, Record<string, any>[]>(`/ai/config/prompts/${key}/versions`)
 
 export const rollbackPrompt = (key: string, ver: number) =>
-  request.post(`/ai/config/prompts/${key}/rollback/${ver}`)
+  request.post<never, void>(`/ai/config/prompts/${key}/rollback/${ver}`)
 
 export const getSafetyRules = (ruleType?: string) =>
-  request.get('/ai/config/safety-rules', { params: ruleType ? { ruleType } : {} })
+  request.get<never, Record<string, any>[]>('/ai/config/safety-rules', { params: ruleType ? { ruleType } : {} })
 
 export const addSafetyRule = (data: Record<string, any>) =>
-  request.post('/ai/config/safety-rules', data)
+  request.post<never, void>('/ai/config/safety-rules', data)
 
 export const updateSafetyRule = (id: number, data: Record<string, any>) =>
-  request.put(`/ai/config/safety-rules/${id}`, data)
+  request.put<never, void>(`/ai/config/safety-rules/${id}`, data)
 
 export const deleteSafetyRule = (id: number) =>
-  request.delete(`/ai/config/safety-rules/${id}`)
+  request.delete<never, void>(`/ai/config/safety-rules/${id}`)
 
 export const toggleSafetyRule = (id: number, isActive: number) =>
-  request.patch(`/ai/config/safety-rules/${id}/toggle`, { isActive })
+  request.patch<never, void>(`/ai/config/safety-rules/${id}/toggle`, { isActive })
 
 export const getConfigParams = () =>
   request.get<never, Record<string, Record<string, any>[]>>('/ai/config/params')
 
 export const updateConfigParam = (group: string, key: string, value: string) =>
-  request.put(`/ai/config/params/${group}/${key}`, { value })
+  request.put<never, void>(`/ai/config/params/${group}/${key}`, { value })
 
 export const getConfigQuickQuestions = () =>
   request.get<never, Record<string, any>[]>('/ai/config/quick-questions')
 
 export const addQuickQuestion = (data: Record<string, any>) =>
-  request.post('/ai/config/quick-questions', data)
+  request.post<never, void>('/ai/config/quick-questions', data)
 
 export const updateQuickQuestion = (id: number, data: Record<string, any>) =>
-  request.put(`/ai/config/quick-questions/${id}`, data)
+  request.put<never, void>(`/ai/config/quick-questions/${id}`, data)
 
 export const deleteQuickQuestion = (id: number) =>
-  request.delete(`/ai/config/quick-questions/${id}`)
+  request.delete<never, void>(`/ai/config/quick-questions/${id}`)
 
 export const toggleQuickQuestion = (id: number, isActive: number) =>
-  request.patch(`/ai/config/quick-questions/${id}/toggle`, { isActive })
+  request.patch<never, void>(`/ai/config/quick-questions/${id}/toggle`, { isActive })
 
 export const getConfigVersions = (type?: string, key?: string) =>
-  request.get('/ai/config/versions', { params: { type, key } })
+  request.get<never, Record<string, any>[]>('/ai/config/versions', { params: { type, key } })
 
 export const getConfigTools = (group?: string) =>
-  request.get('/ai/config/tools', { params: group ? { group } : {} })
+  request.get<never, Record<string, any>[]>('/ai/config/tools', { params: group ? { group } : {} })
 
 export const updateConfigTool = (name: string, data: Record<string, any>) =>
-  request.put(`/ai/config/tools/${name}`, data)
+  request.put<never, void>(`/ai/config/tools/${name}`, data)
 
 export const toggleConfigTool = (name: string, isActive: number) =>
-  request.patch(`/ai/config/tools/${name}/toggle`, { isActive })
+  request.patch<never, void>(`/ai/config/tools/${name}/toggle`, { isActive })
 
 export const previewPrompt = () =>
   request.post<never, Record<string, any>>('/ai/config/prompts/preview')
