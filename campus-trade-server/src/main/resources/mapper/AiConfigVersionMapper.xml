@@ -24,6 +24,14 @@
         ORDER BY config_version DESC
     </select>
 
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_config_version ORDER BY config_version DESC LIMIT 200
+    </select>
+
+    <select id="selectByType" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_config_version WHERE config_type = #{configType} ORDER BY config_version DESC LIMIT 200
+    </select>
+
     <select id="selectByTypeId" resultMap="BaseResultMap">
         SELECT * FROM t_ai_config_version WHERE config_type = #{configType} AND config_id = #{configId}
         ORDER BY config_version DESC

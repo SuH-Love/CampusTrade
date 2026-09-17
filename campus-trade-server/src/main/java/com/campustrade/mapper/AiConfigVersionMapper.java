@@ -17,4 +17,8 @@ public interface AiConfigVersionMapper {
 
     AiConfigVersion selectByVersion(@Param("configType") String configType, @Param("configKey") String configKey,
                                     @Param("configVersion") Integer configVersion);
+
+    java.util.List<AiConfigVersion> selectAll();
+
+    java.util.List<AiConfigVersion> selectByType(@Param("configType") String configType);
 }

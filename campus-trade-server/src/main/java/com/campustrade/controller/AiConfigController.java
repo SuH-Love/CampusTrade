@@ -227,10 +227,13 @@ public class AiConfigController {
     @GetMapping("/versions")
     public Result<List<AiConfigVersion>> listVersions(@RequestParam(required = false) String type,
                                                        @RequestParam(required = false) String key) {
-        if (type != null && key != null) {
+        if (type != null && !type.isEmpty() && key != null && !key.isEmpty()) {
             return Result.success(versionMapper.selectByTypeKey(type, key));
         }
-        return Result.success(versionMapper.selectByTypeKey(type != null ? type : "", key != null ? key : ""));
+        if (type != null && !type.isEmpty()) {
+            return Result.success(versionMapper.selectByType(type));
+        }
+        return Result.success(versionMapper.selectAll());
     }
 
     @ApiOperation("指定配置版本历史")

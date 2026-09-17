@@ -28,6 +28,7 @@ public class AiToolService {
     @Autowired private NotificationMapper notificationMapper;
     @Autowired private ChatMessageMapper chatMessageMapper;
     @Autowired private UserFollowMapper followMapper;
+    @Autowired private com.campustrade.mapper.AiToolDefMapper toolDefMapper;
     @Autowired private GoodsCategoryMapper categoryMapper;
     @Autowired private GoodsFavoriteMapper favoriteMapper;
     @Autowired private FundLogMapper fundLogMapper;
@@ -115,14 +116,75 @@ public class AiToolService {
             synchronized (AiToolService.class) {
                 if (CACHED_BASE_TOOLS == null) {
                     buildToolCache();
+                    syncToolDefsToDb();
                 }
             }
         }
-        List<Map<String, Object>> tools = new ArrayList<>(CACHED_BASE_TOOLS);
+        Set<String> disabledTools = getDisabledToolNames();
+        List<Map<String, Object>> tools = new ArrayList<>();
+        for (Map<String, Object> t : CACHED_BASE_TOOLS) {
+            Map<String, Object> fn = (Map<String, Object>) t.get("function");
+            String name = (String) fn.get("name");
+            if (!disabledTools.contains(name)) tools.add(t);
+        }
         if (isAdmin()) {
-            tools.addAll(CACHED_ADMIN_TOOLS);
+            for (Map<String, Object> t : CACHED_ADMIN_TOOLS) {
+                Map<String, Object> fn = (Map<String, Object>) t.get("function");
+                String name = (String) fn.get("name");
+                if (!disabledTools.contains(name)) tools.add(t);
+            }
         }
         return tools;
+    }
+
+    private Set<String> getDisabledToolNames() {
+        Set<String> disabled = new HashSet<>();
+        try {
+            List<com.campustrade.entity.AiToolDef> all = toolDefMapper.selectAllActive();
+            if (all != null) {
+                for (com.campustrade.entity.AiToolDef t : all) {
+                    if (t.getIsActive() != null && t.getIsActive() == 0) disabled.add(t.getToolName());
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to load tool states from DB: {}", e.getMessage());
+        }
+        return disabled;
+    }
+
+    private void syncToolDefsToDb() {
+        try {
+            if (toolDefMapper.count() > 0) return;
+            log.info("Syncing tool definitions to DB...");
+            Set<String> writeOps = new HashSet<>(Arrays.asList(
+                "cancel_order", "confirm_receipt", "ship_order", "request_refund", "rate_order",
+                "toggle_favorite", "add_to_cart", "toggle_follow_user", "online_offline_goods",
+                "add_address", "submit_report", "admin_ban_user", "admin_audit_goods", "admin_handle_refund"
+            ));
+            int order = 0;
+            for (List<Map<String, Object>> list : Arrays.asList(CACHED_BASE_TOOLS, CACHED_ADMIN_TOOLS)) {
+                if (list == null) continue;
+                for (Map<String, Object> t : list) {
+                    Map<String, Object> fn = (Map<String, Object>) t.get("function");
+                    String name = (String) fn.get("name");
+                    String desc = (String) fn.get("description");
+                    com.campustrade.entity.AiToolDef def = new com.campustrade.entity.AiToolDef();
+                    def.setToolName(name);
+                    def.setDisplayName(name);
+                    def.setToolGroup(name.startsWith("admin_") ? "admin" : "base");
+                    def.setDescription(desc != null && desc.length() > 500 ? desc.substring(0, 500) : desc);
+                    def.setIsActive(1);
+                    def.setIsWriteOperation(writeOps.contains(name) ? 1 : 0);
+                    def.setNeedConfirm(0);
+                    def.setSortOrder(order++);
+                    def.setConfigVersion(1);
+                    toolDefMapper.insert(def);
+                }
+            }
+            log.info("Tool definitions synced to DB: {} tools", order);
+        } catch (Exception e) {
+            log.warn("Failed to sync tool defs to DB: {}", e.getMessage());
+        }
     }
 
     private static void buildToolCache() {

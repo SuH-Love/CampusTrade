@@ -135,9 +135,11 @@
               </el-select>
               <el-input v-model="versionKey" placeholder="配置标识" clearable style="width: 200px" />
               <el-button type="primary" @click="loadVersions">查询</el-button>
+              <el-button type="warning" @click="compareSelected" :disabled="selectedVersions.length !== 2">对比选中({{ selectedVersions.length }}/2)</el-button>
             </div>
           </template>
-          <el-table :data="versions" stripe v-loading="loading.versions">
+          <el-table :data="versions" stripe v-loading="loading.versions" @selection-change="onVersionSelect">
+            <el-table-column type="selection" width="40" />
             <el-table-column prop="configType" label="类型" width="100" />
             <el-table-column prop="configKey" label="标识" width="200" />
             <el-table-column prop="configVersion" label="版本" width="80" />
@@ -301,6 +303,29 @@
         <el-button @click="questionDialog = false">取消</el-button>
         <el-button type="primary" @click="saveQuestion" :loading="saving">保存</el-button>
       </template>
+    </el-dialog>
+
+    <!-- 版本对比弹窗 -->
+    <el-dialog v-model="compareDialog" title="版本对比" width="80%" top="5vh">
+      <div v-if="compareData">
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <h4>版本 {{ compareData.v1?.configVersion }}</h4>
+            <el-input :model-value="compareData.v1?.snapshot" type="textarea" :rows="20" readonly />
+          </el-col>
+          <el-col :span="12">
+            <h4>版本 {{ compareData.v2?.configVersion }}</h4>
+            <el-input :model-value="compareData.v2?.snapshot" type="textarea" :rows="20" readonly />
+          </el-col>
+        </el-row>
+        <el-descriptions :column="3" border style="margin-top: 12px">
+          <el-descriptions-item label="V1长度">{{ compareData.v1Length }}</el-descriptions-item>
+          <el-descriptions-item label="V2长度">{{ compareData.v2Length }}</el-descriptions-item>
+          <el-descriptions-item label="是否相同">
+            <el-tag :type="compareData.identical ? 'success' : 'warning'">{{ compareData.identical ? '完全相同' : '存在差异' }}</el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -499,6 +524,20 @@ const rollbackVersion = async (row: Record<string, any>) => {
     await rollbackPrompt(row.configKey, row.configVersion)
     ElMessage.success('回滚成功')
   } catch {}
+}
+
+// 版本对比
+const selectedVersions = ref<Record<string, any>[]>([])
+const compareDialog = ref(false)
+const compareData = ref<Record<string, any> | null>(null)
+const onVersionSelect = (rows: Record<string, any>[]) => { selectedVersions.value = rows }
+const compareSelected = async () => {
+  if (selectedVersions.value.length !== 2) return ElMessage.warning('请选择两个版本进行对比')
+  const [v1, v2] = selectedVersions.value
+  try {
+    compareData.value = await compareVersions(v1.configType, v1.configKey, v1.configVersion, v2.configVersion)
+    compareDialog.value = true
+  } catch { ElMessage.error('对比失败') }
 }
 
 // 工具管理
