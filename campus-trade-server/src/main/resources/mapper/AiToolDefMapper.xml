@@ -35,6 +35,10 @@
         SELECT * FROM t_ai_tool_def WHERE is_active = 1 ORDER BY tool_group, sort_order
     </select>
 
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM t_ai_tool_def ORDER BY tool_group, sort_order
+    </select>
+
     <select id="selectByGroup" resultMap="BaseResultMap">
         SELECT * FROM t_ai_tool_def WHERE is_active = 1 AND tool_group = #{toolGroup} ORDER BY sort_order
     </select>

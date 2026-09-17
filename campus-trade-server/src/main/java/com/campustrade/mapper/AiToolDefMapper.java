@@ -15,6 +15,8 @@ public interface AiToolDefMapper {
 
     List<AiToolDef> selectAllActive();
 
+    List<AiToolDef> selectAll();
+
     List<AiToolDef> selectByGroup(@Param("toolGroup") String toolGroup);
 
     int update(AiToolDef toolDef);

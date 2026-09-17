@@ -152,7 +152,7 @@ public class AiToolService {
     private Set<String> getDisabledToolNames() {
         Set<String> disabled = new HashSet<>();
         try {
-            List<com.campustrade.entity.AiToolDef> all = toolDefMapper.selectAllActive();
+            List<com.campustrade.entity.AiToolDef> all = toolDefMapper.selectAll();
             if (all != null) {
                 for (com.campustrade.entity.AiToolDef t : all) {
                     if (t.getIsActive() != null && t.getIsActive() == 0) disabled.add(t.getToolName());

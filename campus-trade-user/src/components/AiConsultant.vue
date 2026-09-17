@@ -61,7 +61,7 @@
                       <el-icon v-if="!msg.thinkingStatus" size="14" class="process-check"><CircleCheck /></el-icon>
                       <el-icon v-else size="14" class="is-loading"><Loading /></el-icon>
                       <span class="process-title">{{ msg.thinkingStatus || '分析完成' }}</span>
-                      <span class="process-time">{{ ((msg.thinkingEndTime || Date.now()) - (msg.thinkingStartTime || Date.now())) / 1000 | 1 }}s</span>
+                      <span class="process-time">{{ ((msg.thinkingEndTime || Date.now()) - (msg.thinkingStartTime || Date.now())) / 1000).toFixed(1) }}s</span>
                       <el-icon v-if="!msg.loading" size="12" class="process-expand-icon">
                         <ArrowDown v-if="!msg.thinkingExpanded" />
                         <ArrowUp v-else />
@@ -132,7 +132,7 @@
                     <div class="footer-left">
                       <template v-if="msg.thinkingSteps.length > 0">
                         <el-icon :size="14" class="check-icon"><CircleCheck /></el-icon>
-                        <span class="footer-status">任务完成 | 总耗时 {{ ((msg.thinkingEndTime || Date.now()) - msg.thinkingStartTime) / 1000 | 1 }}s</span>
+                        <span class="footer-status">任务完成 | 总耗时 {{ ((msg.thinkingEndTime || Date.now()) - msg.thinkingStartTime) / 1000).toFixed(1) }}s</span>
                       </template>
                     </div>
                     <div class="footer-right">
@@ -750,6 +750,7 @@ const loadQuickQuestions = async () => {
     const data = await getQuickQuestions()
     if (data && data.length > 0) {
       allSuggestions.value = data.map(q => q.question)
+      if (visible.value) refreshSuggestions()
     }
   } catch {
     // API失败时保留fallback

@@ -130,7 +130,11 @@ public class AiSafetyService {
         }
         String sanitized = output;
         for (Pattern p : getSensitivePatterns()) {
-            sanitized = p.matcher(sanitized).replaceAll("$1***");
+            try {
+                sanitized = p.matcher(sanitized).replaceAll("$1***");
+            } catch (Exception ex) {
+                log.debug("敏感信息替换失败，跳过此规则: {}", ex.getMessage());
+            }
         }
         for (String dsmlPattern : getDsmlPatterns()) {
             sanitized = sanitized.replaceAll(dsmlPattern, "");

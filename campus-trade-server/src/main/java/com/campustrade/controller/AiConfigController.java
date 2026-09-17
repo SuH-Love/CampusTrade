@@ -269,8 +269,7 @@ public class AiConfigController {
     @ApiOperation("启用/禁用工具")
     @PatchMapping("/tools/{name}/toggle")
     public Result<Void> toggleTool(@PathVariable String name, @RequestBody Map<String, Integer> body) {
-        toolDefMapper.toggleActive(name, body.get("isActive"));
-        configService.refreshCache();
+        configService.toggleTool(name, body.get("isActive"));
         return Result.success(null);
     }
 

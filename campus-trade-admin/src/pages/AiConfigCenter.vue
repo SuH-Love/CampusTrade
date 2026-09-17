@@ -46,7 +46,7 @@
                 <el-option label="DSML过滤(dsml_filter)" value="dsml_filter" />
                 <el-option label="违禁词(blocked_keyword)" value="blocked_keyword" />
               </el-select>
-              <el-button type="primary" @click="safetyDialog = true; safetyForm = {}">新增规则</el-button>
+              <el-button type="primary" @click="safetyDialog = true; Object.assign(safetyForm, { ruleType:'', rulePattern:'', ruleAction:'block', replacement:'', sortOrder:0, description:'' })">新增规则</el-button>
               <span class="count-tag">共 {{ safetyRules.length }} 条</span>
             </div>
           </template>
@@ -98,7 +98,7 @@
         <el-card>
           <template #header>
             <div class="card-header">
-              <el-button type="primary" @click="questionDialog = true; questionForm = { isActive: 1, sortOrder: 0 }">新增问题</el-button>
+              <el-button type="primary" @click="questionDialog = true; Object.assign(questionForm, { question:'', category:'general', isActive:1, sortOrder:0 })">新增问题</el-button>
               <span class="count-tag">共 {{ quickQuestions.length }} 条</span>
             </div>
           </template>
@@ -523,6 +523,8 @@ const rollbackVersion = async (row: Record<string, any>) => {
     await ElMessageBox.confirm(`确认回滚到版本 ${row.configVersion}？`, '提示', { type: 'warning' })
     await rollbackPrompt(row.configKey, row.configVersion)
     ElMessage.success('回滚成功')
+    await loadVersions()
+    await loadPrompts()
   } catch {}
 }
 
@@ -534,6 +536,10 @@ const onVersionSelect = (rows: Record<string, any>[]) => { selectedVersions.valu
 const compareSelected = async () => {
   if (selectedVersions.value.length !== 2) return ElMessage.warning('请选择两个版本进行对比')
   const [v1, v2] = selectedVersions.value
+  if (v1.configType !== v2.configType || v1.configKey !== v2.configKey) {
+    selectedVersions.value = []
+    return ElMessage.warning('请选择同一配置项的两个版本进行对比')
+  }
   try {
     compareData.value = await compareVersions(v1.configType, v1.configKey, v1.configVersion, v2.configVersion)
     compareDialog.value = true

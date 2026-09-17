@@ -123,6 +123,7 @@ export function chatStream(
           return false
         } else if (currentEvent === 'error') {
           onError(data || 'AI服务暂时不可用')
+          reader.cancel()
           return false
         }
       } else if (line === '') {
