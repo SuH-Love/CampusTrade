@@ -111,6 +111,18 @@ public class AiToolService {
     private static volatile List<Map<String, Object>> CACHED_BASE_TOOLS = null;
     private static volatile List<Map<String, Object>> CACHED_ADMIN_TOOLS = null;
 
+    @javax.annotation.PostConstruct
+    public void initOnStartup() {
+        if (CACHED_BASE_TOOLS == null) {
+            synchronized (AiToolService.class) {
+                if (CACHED_BASE_TOOLS == null) {
+                    buildToolCache();
+                    syncToolDefsToDb();
+                }
+            }
+        }
+    }
+
     public List<Map<String, Object>> getToolDefinitions() {
         if (CACHED_BASE_TOOLS == null) {
             synchronized (AiToolService.class) {

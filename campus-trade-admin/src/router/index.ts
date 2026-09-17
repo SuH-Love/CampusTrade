@@ -96,25 +96,19 @@ const allRoutes: RouteRecordRaw[] = [
         path: 'faq',
         name: 'FaqManage',
         component: lazyLoad(() => import('@/pages/FaqManage.vue')),
-        meta: { title: 'AI知识库', icon: 'ChatLineSquare', permission: 'system:config' }
+        meta: { title: 'FAQ问答库', icon: 'ChatLineSquare', permission: 'system:config' }
       },
       {
         path: 'ai-knowledge',
         name: 'AiKnowledge',
         component: lazyLoad(() => import('@/pages/AiKnowledge.vue')),
-        meta: { title: '平台知识', icon: 'Collection', permission: 'system:config' }
+        meta: { title: '知识块管理', icon: 'Collection', permission: 'system:config' }
       },
       {
         path: 'ai-document',
         name: 'AiDocument',
         component: lazyLoad(() => import('@/pages/AiDocument.vue')),
         meta: { title: '文档知识', icon: 'Document', permission: 'system:config' }
-      },
-      {
-        path: 'ai-tools',
-        name: 'AiTools',
-        component: lazyLoad(() => import('@/pages/AiTools.vue')),
-        meta: { title: 'AI工具', icon: 'MagicStick', permission: 'system:config' }
       },
       {
         path: 'ai-feedback',

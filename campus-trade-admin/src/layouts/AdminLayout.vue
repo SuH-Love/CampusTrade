@@ -168,7 +168,6 @@ const groupConfig: Record<string, { group: string; icon: string }> = {
   '/ai-dashboard': { group: 'AI管理', icon: 'ChatDotRound' },
   '/faq': { group: 'AI管理', icon: 'ChatDotRound' },
   '/ai-knowledge': { group: 'AI管理', icon: 'ChatDotRound' },
-  '/ai-tools': { group: 'AI管理', icon: 'ChatDotRound' },
   '/ai-feedback': { group: 'AI管理', icon: 'ChatDotRound' },
   '/ai-config': { group: 'AI管理', icon: 'ChatDotRound' },
   '/log': { group: '系统', icon: 'Setting' },
