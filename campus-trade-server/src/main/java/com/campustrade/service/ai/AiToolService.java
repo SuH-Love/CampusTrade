@@ -185,6 +185,10 @@ public class AiToolService {
                     def.setDisplayName(name);
                     def.setToolGroup(name.startsWith("admin_") ? "admin" : "base");
                     def.setDescription(desc != null && desc.length() > 500 ? desc.substring(0, 500) : desc);
+                    def.setParameters("{}");
+                    def.setHandlerClass("");
+                    def.setHandlerMethod("");
+                    def.setRequiredRole("");
                     def.setIsActive(1);
                     def.setIsWriteOperation(writeOps.contains(name) ? 1 : 0);
                     def.setNeedConfirm(0);
