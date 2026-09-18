@@ -108,19 +108,19 @@
                     </div>
                   </div>
                   <div
-                    v-if="msg.role === 'user' && parseQuote(msg.content).quote"
+                    v-if="msg.role === 'user' && parseQuoteCached(msg.content).quote"
                     class="msg-quote-display"
                   >
                     <span class="quote-mark">"</span>
-                    <span class="quote-text-display">{{ parseQuote(msg.content).quote.length > 40 ? parseQuote(msg.content).quote.slice(0, 40) + '...' : parseQuote(msg.content).quote }}</span>
+                    <span class="quote-text-display">{{ parseQuoteCached(msg.content).quote.length > 40 ? parseQuoteCached(msg.content).quote.slice(0, 40) + '...' : parseQuoteCached(msg.content).quote }}</span>
                   </div>
                   <div
-                    v-if="msg.content && parseQuote(msg.content).body"
+                    v-if="msg.content && parseQuoteCached(msg.content).body"
                     class="msg-content"
-                    v-html="msg.role === 'assistant' && !msg.streaming ? renderMarkdown(parseQuote(msg.content).body) : escapeHtml(parseQuote(msg.content).body)"
+                    v-html="msg.role === 'assistant' && !msg.streaming ? renderMarkdown(parseQuoteCached(msg.content).body) : escapeHtml(parseQuoteCached(msg.content).body)"
                   ></div>
                   <div
-                    v-if="msg.content && !parseQuote(msg.content).quote && !parseQuote(msg.content).body"
+                    v-if="msg.content && !parseQuoteCached(msg.content).quote && !parseQuoteCached(msg.content).body"
                     class="msg-content"
                     v-html="msg.role === 'assistant' && !msg.streaming ? renderMarkdown(msg.content) : escapeHtml(msg.content)"
                   ></div>
@@ -371,6 +371,17 @@ const parseQuote = (content: string): { quote: string; body: string } => {
   const quoteRaw = lines.slice(0, quoteEnd).join(' ').replace(/^>\s*/, '').replace(/>\s*/g, ' ').trim()
   const rest = lines.slice(quoteEnd).join('\n').replace(/^\n+/, '')
   return { quote: quoteRaw, body: rest }
+}
+
+const _parseQuoteCache = new Map<string, { quote: string; body: string }>()
+const parseQuoteCached = (content: string): { quote: string; body: string } => {
+  if (!content) return { quote: '', body: content }
+  const cached = _parseQuoteCache.get(content)
+  if (cached) return cached
+  const result = parseQuote(content)
+  if (_parseQuoteCache.size > 200) _parseQuoteCache.clear()
+  _parseQuoteCache.set(content, result)
+  return result
 }
 
 const formatTime = (ts?: number): string => {
