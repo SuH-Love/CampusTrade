@@ -1075,10 +1075,10 @@ public class AiController {
     public Result<Map<String, Object>> status() {
         Map<String, Object> status = new LinkedHashMap<>();
         status.put("enabled", deepSeekClient.isEnabled());
-        Health aiHealth = aiHealthIndicator.health();
-        status.put("healthy", "UP".equals(aiHealth.getStatus().getCode()));
+        Map<String, Object> apiStatus = deepSeekClient.getApiStatus();
+        status.put("apiStatus", apiStatus);
+        status.put("healthy", "available".equals(apiStatus.get("status")));
         status.put("model", deepSeekClient.getEffectiveModel());
-        status.put("apiStatus", deepSeekClient.getApiStatus());
         return Result.success(status);
     }
 
@@ -1195,8 +1195,9 @@ public class AiController {
         }
         Map<String, Object> config = new LinkedHashMap<>();
         config.put("enabled", deepSeekClient.isEnabled());
-        Health cfgHealth = aiHealthIndicator.health();
-        config.put("healthy", "UP".equals(cfgHealth.getStatus().getCode()));
+        Map<String, Object> apiStatus = deepSeekClient.getApiStatus();
+        config.put("apiStatus", apiStatus);
+        config.put("healthy", "available".equals(apiStatus.get("status")));
         config.put("model", deepSeekClient.getEffectiveModel());
         config.put("apiKeyMasked", deepSeekClient.getCurrentApiKeyMasked());
         config.put("baseUrl", deepSeekClient.getCurrentBaseUrl());
@@ -1205,7 +1206,6 @@ public class AiController {
         config.put("embBaseUrl", deepSeekClient.getCurrentEmbBaseUrl());
         config.put("embModel", deepSeekClient.getCurrentEmbModel());
         config.put("embeddingAvailable", deepSeekClient.isEmbeddingAvailable());
-        config.put("apiStatus", deepSeekClient.getApiStatus());
         config.put("routingEnabled", deepSeekClient.isCurrentRoutingEnabled());
         config.put("reasonerModel", deepSeekClient.getCurrentReasonerModel());
         config.put("visionModel", deepSeekClient.getCurrentVisionModel());

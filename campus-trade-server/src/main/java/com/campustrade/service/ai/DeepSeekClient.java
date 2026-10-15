@@ -147,6 +147,9 @@ public class DeepSeekClient {
     private volatile long cbOpenTime = 0;
     private volatile boolean cbOpen = false;
     private volatile String lastFailureReason = null;
+    private volatile java.util.Map<String, Object> cachedApiStatus = null;
+    private volatile long apiStatusCacheTime = 0;
+    private static final long API_STATUS_CACHE_TTL_MS = 10_000L;
     private static final int CB_FAILURE_THRESHOLD = 5;
     private static final long CB_RECOVERY_TIMEOUT_MS = 30000;
 
@@ -197,6 +200,7 @@ public class DeepSeekClient {
         cbFailureCount = 0;
         cbOpen = false;
         lastFailureReason = null;
+        cachedApiStatus = null;
         try { stringRedisTemplate.delete(REDIS_KEY_CB_STATE); } catch (Exception ignored) {}
         notifyCbStateChange("closed");
     }
@@ -223,6 +227,7 @@ public class DeepSeekClient {
 
     private void cbRecordFailure(String reason) {
         if (reason != null) lastFailureReason = reason;
+        cachedApiStatus = null;
         cbFailureCount++;
         if (cbFailureCount >= CB_FAILURE_THRESHOLD && !cbOpen) {
             cbOpen = true;
@@ -666,6 +671,9 @@ public class DeepSeekClient {
                 return status;
             }
         }
+        if (cachedApiStatus != null && (System.currentTimeMillis() - apiStatusCacheTime) < API_STATUS_CACHE_TTL_MS) {
+            return new LinkedHashMap<>(cachedApiStatus);
+        }
         if (cbFailureCount > 0) {
             String reason = lastFailureReason != null ? lastFailureReason + "，" : "";
             status.put("status", "degraded");
@@ -706,6 +714,8 @@ public class DeepSeekClient {
             status.put("status", "timeout");
             status.put("message", "API连接超时或网络异常");
         }
+        cachedApiStatus = new LinkedHashMap<>(status);
+        apiStatusCacheTime = System.currentTimeMillis();
         return status;
     }
 
