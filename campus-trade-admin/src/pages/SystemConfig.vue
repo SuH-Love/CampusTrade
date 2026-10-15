@@ -102,8 +102,8 @@
         <div class="admin-card-header">
           <h3>AI 助手配置 — 渠道管理</h3>
           <el-tag v-if="aiStatusLoading" type="info" size="default">检测中...</el-tag>
-          <el-tag v-else :type="aiConfig.healthy ? 'success' : 'danger'" size="default">
-            {{ aiConfig.healthy ? '在线' : '离线' }}
+          <el-tag v-else :type="aiConfig.apiStatus?.status === 'available' ? 'success' : (aiConfig.apiStatus?.status === 'degraded' ? 'warning' : 'danger')" size="default">
+            {{ aiConfig.apiStatus?.status === 'available' ? '在线' : (aiConfig.apiStatus?.message || '离线') }}
           </el-tag>
         </div>
       </template>

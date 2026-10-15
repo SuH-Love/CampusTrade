@@ -74,13 +74,13 @@
               <div class="ai-card-header">
                 <span class="card-title">AI 服务</span>
                 <div class="ai-header-status">
-                  <el-tag :type="aiHealthStatus === 'UP' ? 'success' : 'danger'" size="small" effect="dark" round>{{ aiHealthStatus === 'UP' ? '服务正常' : '服务异常' }}</el-tag>
+                  <el-tag :type="aiHealthStatus === 'UP' ? 'success' : 'danger'" size="small" effect="dark" round>{{ aiHealthStatus === 'UP' ? '服务正常' : (aiHealthDetail || '服务异常') }}</el-tag>
                   <el-tag :type="aiStats?.embeddingAvailable ? 'success' : 'warning'" size="small" effect="dark" round>{{ aiStats?.embeddingAvailable ? '向量检索' : 'TF-IDF' }}</el-tag>
                 </div>
               </div>
             </template>
-            <div class="ai-model-badge" v-if="aiHealthDetail">
-              <span class="ai-model-badge-text">模型：{{ aiHealthDetail }}</span>
+            <div class="ai-model-badge" v-if="aiHealthStatus === 'UP' ? aiHealthDetail : true">
+              <span class="ai-model-badge-text">{{ aiHealthStatus === 'UP' ? `模型：${aiHealthDetail}` : '服务异常，模型无法获取' }}</span>
             </div>
             <div class="ai-metrics" v-if="aiStats">
               <div class="ai-metric" style="--mc: #6366f1">
@@ -132,7 +132,7 @@
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { User, Sunny, Plus, Box, ShoppingCart, Tickets, ArrowRight, Lock, TrendCharts, Refresh } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
-import { getDashboardStats, getReportList, getOperationLogs, getAiHealth, getAlipayStatus, getEmailStatus, getAiStats, getAiTools, getAiFeedbackList } from '@/api/admin'
+import { getDashboardStats, getReportList, getOperationLogs, getAiHealth, getAlipayStatus, getEmailStatus, getAiStats, getAiTools, getAiFeedbackList, getAiSimpleStatus } from '@/api/admin'
 import { formatDateTime } from '@/utils/labels'
 import { operationLabel, moduleLabel, goodsStatusLabel, orderStatusLabel } from '@/utils/labels'
 import type { OperationLogVO, PageQueryParams } from '@/types'
@@ -290,19 +290,20 @@ const loadRecentLogs = async () => {
 
 const loadAiHealth = async () => {
   try {
-    const res = await getAiHealth()
-    const components = res.components as Record<string, { status: string; details?: Record<string, unknown> }> | undefined
-    if (components?.ai) {
-      aiHealthStatus.value = components.ai.status
-      const details = components.ai.details as Record<string, unknown> | undefined
-      if (details) {
-        const reason = details['reason'] || details['error']
-        const model = details['model']
-        const status = details['status']
-        aiHealthDetail.value = reason ? String(reason) : `${model || 'unknown'} · ${status || ''}`
-      }
+    const status = await getAiSimpleStatus()
+    const apiStatus = status.apiStatus
+    if (!status.enabled) {
+      aiHealthStatus.value = 'DOWN'
+      aiHealthDetail.value = 'AI服务未启用'
+    } else if (apiStatus && apiStatus.status !== 'available') {
+      aiHealthStatus.value = 'DOWN'
+      aiHealthDetail.value = apiStatus.message || '服务异常'
+    } else if (status.healthy) {
+      aiHealthStatus.value = 'UP'
+      aiHealthDetail.value = status.model || 'unknown'
     } else {
-      aiHealthDetail.value = '指标未暴露'
+      aiHealthStatus.value = 'DOWN'
+      aiHealthDetail.value = '服务异常'
     }
   } catch { aiHealthStatus.value = 'UNKNOWN'; aiHealthDetail.value = '无法获取' }
   try {
@@ -334,8 +335,13 @@ const handleResize = () => {
   orderChart?.resize()
 }
 
-onMounted(() => { loadStats(); loadRecentLogs(); loadAiHealth(); loadServiceStatus(); window.addEventListener('resize', handleResize) })
-onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeEventListener('resize', handleResize) })
+let aiStatusTimerId: number | null = null
+
+onMounted(() => {
+  loadStats(); loadRecentLogs(); loadAiHealth(); loadServiceStatus(); window.addEventListener('resize', handleResize)
+  aiStatusTimerId = window.setInterval(() => { loadAiHealth() }, 30000)
+})
+onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeEventListener('resize', handleResize); if (aiStatusTimerId) { clearInterval(aiStatusTimerId); aiStatusTimerId = null } })
 </script>
 
 <style scoped lang="scss">

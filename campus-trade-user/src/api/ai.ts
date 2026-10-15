@@ -12,10 +12,16 @@ export interface ChatResponse {
   hasFaqContext: boolean
 }
 
+export interface ApiStatusInfo {
+  status: string
+  message: string
+}
+
 export interface AiStatus {
   enabled: boolean
   healthy: boolean
   model: string
+  apiStatus?: ApiStatusInfo
 }
 
 export const chat = (data: ChatRequest) =>

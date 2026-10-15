@@ -47,6 +47,9 @@ public class AiHealthIndicator implements HealthIndicator {
     }
 
     private Health doHealthCheck() {
+        if (deepSeekClient.isCircuitBreakerOpen()) {
+            return Health.down().withDetail("reason", "熔断保护中，API服务不可用").build();
+        }
         try {
             boolean healthy = deepSeekClient.checkApiHealth();
             if (healthy) {

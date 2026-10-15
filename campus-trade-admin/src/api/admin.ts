@@ -176,6 +176,7 @@ export interface AiConfigStatus {
   reasonerModel?: string
   visionModel?: string
   rateLimitPerMinute?: number
+  apiStatus?: { status: string; message: string }
 }
 
 export const getAiConfigStatus = () =>
@@ -208,6 +209,9 @@ export const suggestFaqs = () =>
 
 export const getAiStats = () =>
   request.get<never, Record<string, unknown>>('/ai/stats')
+
+export const getAiSimpleStatus = () =>
+  request.get<never, { enabled: boolean; healthy: boolean; model: string; apiStatus?: { status: string; message: string } }>('/ai/status')
 
 export const getAiFeedbackStats = () =>
   request.get<never, Record<string, unknown>>('/ai/feedback/stats')

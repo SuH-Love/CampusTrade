@@ -337,9 +337,9 @@ public class AiController {
             return emitter;
         }
 
+        String traceId = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 16);
         try {
             emitter.send(SseEmitter.event().name("session").data(sid));
-            String traceId = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 16);
             long requestStartTime = System.currentTimeMillis();
             emitter.send(SseEmitter.event().name("trace").data("{\"traceId\":\"" + traceId + "\",\"startTime\":" + requestStartTime + "}"));
             log.info("AI chat stream [traceId={}]: message='{}', sessionId={}", traceId, userMessage.substring(0, Math.min(50, userMessage.length())), sid);
@@ -353,7 +353,41 @@ public class AiController {
             return emitter;
         }
 
+        FaqVectorService.FaqItem directFaq = faqVectorService.findDirectFaqAnswer(userMessage);
+        if (directFaq != null) {
+            try {
+                String directAnswer = directFaq.answer;
+                emitter.send(SseEmitter.event().name("message").data(jsonContent(directAnswer)));
+                sessionService.addMessagePair(sid, userMessage, directAnswer);
+                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                emitter.complete();
+                log.info("FAQ direct hit [traceId={}]: score={}, q={}", traceId, directFaq.score, directFaq.question);
+            } catch (Exception ignored) {}
+            return emitter;
+        }
+
         String faqContext = faqVectorService.buildContext(userMessage);
+
+        if (deepSeekClient.isCircuitBreakerOpen()) {
+            try {
+                String fallbackMsg;
+                String lower = userMessage.toLowerCase().trim();
+                if (lower.matches("^(你好|您好|谢谢|感谢|再见|拜拜|晚安|早安|好的|嗯|ok|bye|hi|hello|嗨|哈喽|hey)[啊呀！!。.~]?$")) {
+                    fallbackMsg = "你好！我是小苏，校园交易助手。AI大模型暂时不可用，但我仍可以为您解答常见问题。请问您有什么关于校园交易的问题呢？";
+                } else if (faqContext != null && !faqContext.isEmpty()) {
+                    fallbackMsg = "AI大模型暂时不可用，以下是根据知识库为您找到的参考答案：\n\n" + extractDirectAnswer(faqContext);
+                } else {
+                    fallbackMsg = "AI助手暂时不可用，请稍后再试。您也可以在「帮助中心」查看常见问题，或联系人工客服获取帮助。";
+                }
+                emitter.send(SseEmitter.event().name("message").data(jsonContent(fallbackMsg)));
+                sessionService.addMessagePair(sid, userMessage, fallbackMsg);
+                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                emitter.complete();
+                log.info("AI circuit breaker open, FAQ fallback [traceId={}]: message='{}'", traceId, userMessage.substring(0, Math.min(50, userMessage.length())));
+            } catch (Exception ignored) {}
+            return emitter;
+        }
+
         boolean needTools = mayNeedTools(userMessage);
         String systemPart = truncateToTokenBudget(getSystemPrompt(), configService.getInt("rag", "token_budget_system", 1500));
         String knowledgePart = truncateToTokenBudget(buildPlatformKnowledge(userMessage), configService.getInt("rag", "token_budget_knowledge", 600));
@@ -654,9 +688,21 @@ public class AiController {
 
         if (nonStreamAnswer != null && !nonStreamAnswer.isEmpty()) {
             String content = safetyService.sanitizeOutput(nonStreamAnswer);
-            try {
-                emitter.send(SseEmitter.event().name("message").data(jsonContent(content)));
-            } catch (Exception ignored) {}
+            if (!toolsUsed) {
+                try {
+                    int chunkSize = 3;
+                    for (int i = 0; i < content.length(); i += chunkSize) {
+                        int end = Math.min(i + chunkSize, content.length());
+                        String chunk = content.substring(i, end);
+                        emitter.send(SseEmitter.event().name("message").data(jsonContent(chunk)));
+                        Thread.sleep(25);
+                    }
+                } catch (Exception ignored) {}
+            } else {
+                try {
+                    emitter.send(SseEmitter.event().name("message").data(jsonContent(content)));
+                } catch (Exception ignored) {}
+            }
             sessionService.addMessagePair(sid, userMessage, content, collectedThinking, collectedToolCalls);
             // 缓存简单回复（加prompt版本号）
             if (userMessage.length() < 50 && content.length() < 2000) {
@@ -707,10 +753,21 @@ public class AiController {
                 error -> {
                     try {
                         String partial = fullResponse.toString();
-                        String saveContent = partial.isEmpty() ? "AI服务暂时不可用" : safetyService.sanitizeOutput(partial);
+                        String errMsg = error.getMessage() != null ? error.getMessage() : "";
+                        String displayMsg;
+                        if (errMsg.contains("402") || errMsg.contains("balance")) {
+                            displayMsg = "AI助手暂不可用（余额不足）";
+                        } else if (errMsg.contains("401") || errMsg.contains("unauthorized")) {
+                            displayMsg = "AI助手暂不可用（认证失败）";
+                        } else if (errMsg.contains("熔断")) {
+                            displayMsg = "AI服务暂时不可用（熔断保护中）";
+                        } else {
+                            displayMsg = "AI服务暂时不可用，请稍后再试";
+                        }
+                        String saveContent = partial.isEmpty() ? displayMsg : safetyService.sanitizeOutput(partial);
                         sessionService.addMessagePair(sid, userMessage, saveContent, collectedThinking, collectedToolCalls);
                         synchronized (emitter) {
-                            emitter.send(SseEmitter.event().name("error").data("AI服务暂时不可用"));
+                            emitter.send(SseEmitter.event().name("error").data(displayMsg));
                             emitter.complete();
                         }
                     } catch (Exception ignored) {}
@@ -1021,6 +1078,7 @@ public class AiController {
         Health aiHealth = aiHealthIndicator.health();
         status.put("healthy", "UP".equals(aiHealth.getStatus().getCode()));
         status.put("model", deepSeekClient.getEffectiveModel());
+        status.put("apiStatus", deepSeekClient.getApiStatus());
         return Result.success(status);
     }
 
@@ -1147,6 +1205,7 @@ public class AiController {
         config.put("embBaseUrl", deepSeekClient.getCurrentEmbBaseUrl());
         config.put("embModel", deepSeekClient.getCurrentEmbModel());
         config.put("embeddingAvailable", deepSeekClient.isEmbeddingAvailable());
+        config.put("apiStatus", deepSeekClient.getApiStatus());
         config.put("routingEnabled", deepSeekClient.isCurrentRoutingEnabled());
         config.put("reasonerModel", deepSeekClient.getCurrentReasonerModel());
         config.put("visionModel", deepSeekClient.getCurrentVisionModel());
@@ -1991,6 +2050,7 @@ public class AiController {
                 dashboard.put("todayFeedback", 0);
             }
             dashboard.put("timestamp", System.currentTimeMillis());
+            dashboard.put("apiStatus", deepSeekClient.getApiStatus());
             dashboard.putAll(deepSeekClient.getApiStats());
             return Result.success(dashboard);
         } catch (Exception e) {
@@ -2000,6 +2060,34 @@ public class AiController {
     }
 
     private final java.util.concurrent.CopyOnWriteArrayList<org.springframework.web.servlet.mvc.method.annotation.SseEmitter> dashboardEmitters = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final java.util.concurrent.CopyOnWriteArrayList<org.springframework.web.servlet.mvc.method.annotation.SseEmitter> statusEmitters = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    @javax.annotation.PostConstruct
+    public void registerStatusListener() {
+        deepSeekClient.addCbStateListener(state -> {
+            notifyStatusRefresh();
+            notifyDashboardRefresh();
+        });
+    }
+
+    @org.springframework.web.bind.annotation.GetMapping(value = "/status/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
+    @ApiOperation("AI状态实时推送(SSE)")
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter streamStatus() {
+        org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter = new org.springframework.web.servlet.mvc.method.annotation.SseEmitter(120000L);
+        statusEmitters.add(emitter);
+        emitter.onCompletion(() -> statusEmitters.remove(emitter));
+        emitter.onTimeout(() -> { statusEmitters.remove(emitter); emitter.complete(); });
+        emitter.onError(e -> statusEmitters.remove(emitter));
+        try { emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().name("connected").data("ok")); } catch (Exception ignored) {}
+        return emitter;
+    }
+
+    private void notifyStatusRefresh() {
+        for (org.springframework.web.servlet.mvc.method.annotation.SseEmitter emitter : statusEmitters) {
+            try { emitter.send(org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event().name("refresh").data(System.currentTimeMillis())); }
+            catch (Exception e) { statusEmitters.remove(emitter); }
+        }
+    }
 
     @org.springframework.web.bind.annotation.GetMapping(value = "/dashboard/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
     @ApiOperation("AI看板实时推送(SSE)")

@@ -65,6 +65,7 @@ public class FaqVectorService {
         public String question;
         public String answer;
         public String category;
+        public double score;
 
         public FaqItem() {}
 
@@ -530,6 +531,55 @@ public class FaqVectorService {
         }
         context.append("请基于以上参考信息回答用户的问题。如果参考信息足以回答，请直接给出答案；如果用户的问题超出参考信息范围，请根据校园交易平台常识回答，并提醒用户可以联系人工客服。\n");
         return context.toString();
+    }
+
+    public FaqItem findDirectFaqAnswer(String query) {
+        if (query == null || query.trim().length() < 4) return null;
+        String lower = query.toLowerCase().trim();
+        if (lower.matches("^(你好|您好|谢谢|感谢|再见|拜拜|晚安|早安|好的|嗯|ok|bye|hi|hello|嗨|哈喽|hey)[啊呀！!。.~]?$")) return null;
+        double bestScore = 0;
+        FaqItem bestMatch = null;
+        if (useEmbeddings && !faqEmbeddings.isEmpty() && deepSeekClient != null) {
+            float[] queryEmbedding = null;
+            try {
+                String embModel = deepSeekClient.getCurrentEmbModel();
+                int embDim = faqEmbeddings.isEmpty() ? 0 : faqEmbeddings.get(0).length;
+                String embCacheKey = "ai:emb:cache:" + embModel + ":" + embDim + ":" + Math.abs(query.hashCode());
+                String cached = stringRedisTemplate.opsForValue().get(embCacheKey);
+                if (cached != null && !cached.isEmpty()) {
+                    queryEmbedding = objectMapper.readValue(cached, float[].class);
+                }
+                if (queryEmbedding == null) {
+                    queryEmbedding = deepSeekClient.embedding(query);
+                }
+            } catch (Exception e) {
+                log.warn("findDirectFaqAnswer embedding failed: {}", e.getMessage());
+            }
+            if (queryEmbedding != null && queryEmbedding.length > 0) {
+                for (int i = 0; i < faqItems.size(); i++) {
+                    double score = cosineSimilarity(queryEmbedding, faqEmbeddings.get(i));
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMatch = faqItems.get(i);
+                    }
+                }
+            }
+        }
+        if (bestMatch == null) {
+            Map<String, Double> queryVector = computeTfIdfVector(query);
+            for (int i = 0; i < faqItems.size(); i++) {
+                double score = cosineSimilarity(queryVector, faqVectors.get(i));
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMatch = faqItems.get(i);
+                }
+            }
+        }
+        if (bestMatch != null && bestScore >= 0.65) {
+            bestMatch.score = bestScore;
+            return bestMatch;
+        }
+        return null;
     }
 
     public boolean hasRelevantFaq(String query) {

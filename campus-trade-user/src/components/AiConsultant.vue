@@ -9,7 +9,10 @@
             </div>
             <div class="header-text">
               <span class="title">小苏 AI助手</span>
-              <span class="subtitle">{{ statusText }}</span>
+              <span class="subtitle" :class="{ 'is-offline': !aiEnabled }">
+                <span class="status-dot" :class="aiEnabled ? 'dot-online' : 'dot-offline'"></span>
+                {{ statusText }}
+              </span>
             </div>
           </div>
           <div class="header-actions">
@@ -25,12 +28,16 @@
 
         <div class="chat-body" ref="bodyRef" @scroll="onBodyScroll">
           <div v-if="messages.length === 0" class="welcome">
-            <div class="welcome-icon">
-              <el-icon :size="36"><ChatDotRound /></el-icon>
+            <div class="welcome-icon" :class="{ 'welcome-disabled': !aiEnabled }">
+              <el-icon :size="36"><component :is="aiEnabled ? ChatDotRound : Moon" /></el-icon>
             </div>
-            <p class="welcome-title">你好，我是小苏</p>
-            <p class="welcome-desc">校园贸易平台AI助手，有什么可以帮你的吗？</p>
-            <div class="suggestions">
+            <p class="welcome-title">{{ aiEnabled ? '你好，我是小苏' : '小苏正在休息' }}</p>
+            <p class="welcome-desc">{{ aiEnabled ? '校园贸易平台AI助手，有什么可以帮你的吗？' : 'AI助手暂时不可用，或联系人工客服获取帮助。' }}</p>
+            <button v-if="!aiEnabled" class="welcome-retry-btn" :disabled="statusChecking" @click="handleRetryStatus">
+              <el-icon v-if="statusChecking" size="14" class="is-loading"><Loading /></el-icon>
+              {{ statusChecking ? '检测中...' : '重新检测' }}
+            </button>
+            <div v-if="aiEnabled" class="suggestions">
               <p class="suggestions-label">猜你想了解</p>
               <div class="suggestions-grid">
                 <button
@@ -282,7 +289,7 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { ChatDotRound, Close, Delete, Promotion, Tools, ArrowDown, ArrowUp, Loading, VideoPause, CopyDocument, RefreshRight, FullScreen, CircleCheck, Picture } from '@element-plus/icons-vue'
+import { ChatDotRound, Close, Delete, Promotion, Tools, ArrowDown, ArrowUp, Loading, VideoPause, CopyDocument, RefreshRight, FullScreen, CircleCheck, Picture, Moon } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { chatStream, getAiStatus, clearSession, getSessionHistory, submitAiFeedback, cancelAiFeedback, getSessionFeedback, confirmTool, getQuickQuestions } from '@/api/ai'
 import { useUserStore } from '@/stores/user'
@@ -489,6 +496,10 @@ const feedbackPanel = ref<{
 })
 const hasNewBadge = ref(true)
 const statusText = ref('在线')
+const statusChecking = ref(false)
+let statusSseController: AbortController | null = null
+let statusSseReconnectTimer: number | null = null
+let statusSseReconnectDelay = 3000
 let streamHandle: { close: () => void } | null = null
 let msgIdCounter = 0
 let toolCallIdCounter = 0
@@ -798,15 +809,6 @@ const stopThinkingTimer = () => {
 }
 
 const startAIStream = async (text: string, assistantMsg: Message, regenerate = false) => {
-  if (!aiEnabled.value) {
-    assistantMsg.loading = false
-    assistantMsg.streaming = false
-    assistantMsg.content = 'AI助手暂时不可用，请稍后再试或联系人工客服。'
-    assistantMsg.thinkingEndTime = Date.now()
-    loading.value = false
-    stopThinkingTimer()
-    return
-  }
 
   try {
     let accumulated = ''
@@ -1277,23 +1279,89 @@ onMounted(async () => {
     } catch {}
   }
   window.addEventListener('resize', onResize)
-  try {
-    const status = await getAiStatus()
-    aiEnabled.value = status.enabled && status.healthy
-    statusText.value = (status.enabled && status.healthy) ? `在线 · ${status.model}` : '离线'
-  } catch {
-    aiEnabled.value = false
-    statusText.value = '离线'
-  }
+  await checkStatus()
+  startStatusSSE()
   if (userStore.token && !userStore.userInfo) {
     try { await userStore.fetchUserInfo() } catch {}
   }
   restoreSession()
 })
 
+const startStatusSSE = () => {
+  if (!userStore.token) return
+  stopStatusSSE()
+  statusSseController = new AbortController()
+  fetch('/api/ai/status/stream', {
+    headers: { Authorization: `Bearer ${userStore.token}` },
+    signal: statusSseController.signal
+  }).then(response => {
+    if (!response.ok) { scheduleStatusReconnect(); return }
+    statusSseReconnectDelay = 3000
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let eventType = ''
+    const pump = (): Promise<void> => reader.read().then(({ done, value }) => {
+      if (done) { scheduleStatusReconnect(); return }
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        if (line.startsWith('event:')) eventType = line.slice(6).trim()
+        else if (line.startsWith('data:')) {
+          if (eventType === 'refresh') checkStatus()
+          eventType = ''
+        }
+      }
+      return pump()
+    })
+    return pump()
+  }).catch(() => { scheduleStatusReconnect() })
+}
+
+const scheduleStatusReconnect = () => {
+  if (statusSseReconnectTimer) return
+  statusSseReconnectTimer = window.setTimeout(() => {
+    statusSseReconnectTimer = null
+    statusSseReconnectDelay = Math.min(statusSseReconnectDelay * 1.5, 30000)
+    startStatusSSE()
+  }, statusSseReconnectDelay)
+}
+
+const stopStatusSSE = () => {
+  if (statusSseController) { statusSseController.abort(); statusSseController = null }
+  if (statusSseReconnectTimer) { clearTimeout(statusSseReconnectTimer); statusSseReconnectTimer = null }
+}
+
+const checkStatus = async () => {
+  try {
+    const status = await getAiStatus()
+    aiEnabled.value = status.enabled && status.healthy
+    const apiStatus = status.apiStatus
+    if (!status.enabled || !status.healthy || (apiStatus && apiStatus.status !== 'available')) {
+      aiEnabled.value = false
+      statusText.value = '暂时不可用'
+    } else {
+      statusText.value = '在线'
+    }
+  } catch {
+    aiEnabled.value = false
+    statusText.value = '暂时不可用'
+  }
+}
+
+const handleRetryStatus = async () => {
+  if (statusChecking.value) return
+  statusChecking.value = true
+  await checkStatus()
+  statusChecking.value = false
+  if (aiEnabled.value) ElMessage.success('AI助手已恢复')
+}
+
 onUnmounted(() => {
   if (streamHandle) streamHandle.close()
   stopThinkingTimer()
+  stopStatusSSE()
   window.removeEventListener('resize', onResize)
   pendingImages.value.forEach(img => URL.revokeObjectURL(img.url))
   pendingImages.value = []
@@ -1394,7 +1462,15 @@ onUnmounted(() => {
     display: flex; align-items: center; justify-content: center;
     backdrop-filter: blur(4px);
   }
-  .header-text { display: flex; flex-direction: column; .title { font-size: 15px; font-weight: 700; } .subtitle { font-size: 12px; opacity: 0.85; } }
+  .header-text { display: flex; flex-direction: column; .title { font-size: 15px; font-weight: 700; } .subtitle { font-size: 12px; opacity: 0.85; display: inline-flex; align-items: center; gap: 5px; } }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0;
+    &.dot-online { background: #67c23a; box-shadow: 0 0 6px rgba(103, 194, 58, 0.8); animation: status-pulse 2s ease-in-out infinite; }
+    &.dot-offline { background: #c0c4cc; }
+  }
+  @keyframes status-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
   .header-actions {
     display: flex; gap: 4px;
     :deep(.el-button) {
@@ -1412,7 +1488,13 @@ onUnmounted(() => {
 
 .welcome {
   text-align: center; padding: 28px 0;
-  .welcome-icon { color: var(--primary); margin-bottom: 12px; }
+  .welcome-icon { color: var(--primary); margin-bottom: 12px;
+    &.welcome-disabled { color: #c0c4cc; animation: none; }
+  }
+  .welcome-retry-btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 22px; margin-bottom: 6px; border: 1px solid var(--border); border-radius: 18px; background: var(--bg-card, #fff); color: var(--primary); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    &:hover:not(:disabled) { border-color: var(--primary); background: rgba(14, 165, 233, 0.06); }
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+  }
   .welcome-title { font-size: 20px; font-weight: 800; margin: 0 0 4px; background: var(--primary-gradient-gloss); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
   .welcome-desc { font-size: 13px; color: var(--text-secondary); margin: 0 0 18px; }
   .suggestions { margin-top: 4px; }

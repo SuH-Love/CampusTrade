@@ -29,10 +29,10 @@
             </div>
           </div>
           <div class="metric-cell">
-            <div class="metric-icon" style="background: rgba(16,185,129,0.1); color: #10b981"><el-icon :size="20"><CircleCheck /></el-icon></div>
+            <div class="metric-icon" :style="{ background: aiStatusColor === '#10b981' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: aiStatusColor }"><el-icon :size="20"><component :is="aiStatusColor === '#10b981' ? CircleCheck : CircleClose" /></el-icon></div>
             <div class="metric-text">
-              <div class="metric-value" :style="{ color: data.enabled ? '#10b981' : '#ef4444' }">{{ data.enabled ? '运行中' : '已禁用' }}</div>
-              <div class="metric-label">AI服务</div>
+              <div class="metric-value" :style="{ color: aiStatusColor }">{{ aiStatusText }}</div>
+              <div class="metric-label">{{ aiStatusLabel }}</div>
             </div>
           </div>
           <div class="metric-cell">
@@ -158,6 +158,31 @@ const modelShortName = computed(() => {
   if (!model) return '未配置'
   const parts = model.split('/')
   return parts.length > 1 ? parts[parts.length - 1] : model
+})
+
+const aiStatusText = computed(() => {
+  const s = data.value.apiStatus
+  if (!s) return data.value.enabled ? '运行中' : '已禁用'
+  const map: Record<string, string> = {
+    available: '可用', disabled: '已禁用', insufficient_balance: '余额不足',
+    unauthorized: '认证失败', rate_limited: '频率超限', circuit_breaker: '熔断中',
+    degraded: '降级中', timeout: '连接超时', no_channel: '无渠道', error: '异常'
+  }
+  return map[s.status] || '未知'
+})
+
+const aiStatusColor = computed(() => {
+  const s = data.value.apiStatus
+  if (!s) return data.value.enabled ? '#10b981' : '#ef4444'
+  if (s.status === 'available') return '#10b981'
+  if (s.status === 'degraded') return '#f59e0b'
+  return '#ef4444'
+})
+
+const aiStatusLabel = computed(() => {
+  const s = data.value.apiStatus
+  if (s && s.status !== 'available' && s.message) return s.message
+  return 'AI服务'
 })
 
 const statCards = computed(() => [

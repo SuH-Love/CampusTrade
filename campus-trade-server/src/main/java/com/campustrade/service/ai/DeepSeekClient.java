@@ -123,6 +123,7 @@ public class DeepSeekClient {
     private static final String REDIS_KEY_STAT_API_CALLS = "ai:stats:api_calls";
     private static final String REDIS_KEY_STAT_SUCCESS = "ai:stats:success_calls";
     private static final String REDIS_KEY_STAT_FAILURE = "ai:stats:failure_calls";
+    private static final String REDIS_KEY_CB_STATE = "ai:cb:state";
     private static final String REDIS_KEY_STAT_TOKENS = "ai:stats:total_tokens";
     private static final String REDIS_KEY_STAT_LATENCY_SUM = "ai:stats:latency_sum";
     private static final String REDIS_KEY_STAT_LATENCY_COUNT = "ai:stats:latency_count";
@@ -145,6 +146,7 @@ public class DeepSeekClient {
     private volatile int cbFailureCount = 0;
     private volatile long cbOpenTime = 0;
     private volatile boolean cbOpen = false;
+    private volatile String lastFailureReason = null;
     private static final int CB_FAILURE_THRESHOLD = 5;
     private static final long CB_RECOVERY_TIMEOUT_MS = 30000;
 
@@ -194,14 +196,88 @@ public class DeepSeekClient {
         }
         cbFailureCount = 0;
         cbOpen = false;
+        lastFailureReason = null;
+        try { stringRedisTemplate.delete(REDIS_KEY_CB_STATE); } catch (Exception ignored) {}
+        notifyCbStateChange("closed");
     }
 
     private void cbRecordFailure() {
+        cbRecordFailure(null);
+    }
+
+    private String extractFailureReason(int code, String body) {
+        if (code == 402) return "余额不足";
+        if (code == 401) return "API Key无效或已过期";
+        if (code == 429) return "调用频率超限";
+        if (code >= 500) return "API服务端错误(HTTP " + code + ")";
+        return "HTTP " + code;
+    }
+
+    private String extractExceptionReason(Exception e) {
+        String msg = e.getMessage();
+        if (msg == null) msg = e.getClass().getSimpleName();
+        if (msg.contains("Connect") || msg.contains("connect") || msg.contains("timeout") || msg.contains("Timeout")) return "网络连接超时";
+        msg = msg.length() > 80 ? msg.substring(0, 80) : msg;
+        return msg;
+    }
+
+    private void cbRecordFailure(String reason) {
+        if (reason != null) lastFailureReason = reason;
         cbFailureCount++;
         if (cbFailureCount >= CB_FAILURE_THRESHOLD && !cbOpen) {
             cbOpen = true;
             cbOpenTime = System.currentTimeMillis();
             log.warn("Circuit breaker opened after {} consecutive failures", cbFailureCount);
+        } else if (cbOpen) {
+            cbOpenTime = System.currentTimeMillis();
+            log.warn("Circuit breaker re-opened after half-open test failure");
+        }
+        persistCbState();
+        notifyCbStateChange(cbOpen ? "open" : "degraded");
+    }
+
+    private void persistCbState() {
+        try {
+            java.util.Map<String, String> state = new java.util.HashMap<>();
+            state.put("failCount", String.valueOf(cbFailureCount));
+            state.put("open", String.valueOf(cbOpen));
+            state.put("openTime", String.valueOf(cbOpenTime));
+            state.put("reason", lastFailureReason == null ? "" : lastFailureReason);
+            stringRedisTemplate.opsForHash().putAll(REDIS_KEY_CB_STATE, state);
+        } catch (Exception e) {
+            log.warn("Failed to persist circuit breaker state to Redis", e);
+        }
+    }
+
+    private void restoreCbState() {
+        try {
+            java.util.Map<Object, Object> state = stringRedisTemplate.opsForHash().entries(REDIS_KEY_CB_STATE);
+            if (state == null || state.isEmpty()) return;
+            String fc = (String) state.get("failCount");
+            String open = (String) state.get("open");
+            String ot = (String) state.get("openTime");
+            String reason = (String) state.get("reason");
+            if (fc != null) cbFailureCount = Integer.parseInt(fc);
+            if (ot != null) cbOpenTime = Long.parseLong(ot);
+            if (reason != null && !reason.isEmpty()) lastFailureReason = reason;
+            if ("true".equals(open)) {
+                if (System.currentTimeMillis() - cbOpenTime > CB_RECOVERY_TIMEOUT_MS) {
+                    cbOpen = false;
+                    cbFailureCount = 0;
+                    lastFailureReason = null;
+                    stringRedisTemplate.delete(REDIS_KEY_CB_STATE);
+                    log.info("Circuit breaker state expired while offline, reset to closed");
+                } else {
+                    cbOpen = true;
+                    log.info("Circuit breaker state restored from Redis: open, remaining {}s",
+                            (CB_RECOVERY_TIMEOUT_MS - (System.currentTimeMillis() - cbOpenTime)) / 1000);
+                }
+            } else {
+                cbOpen = false;
+                log.info("Circuit breaker state restored from Redis: failCount={}", cbFailureCount);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to restore circuit breaker state from Redis", e);
         }
     }
 
@@ -264,6 +340,7 @@ public class DeepSeekClient {
             if (sTokens != null) totalTokens.set(Long.parseLong(sTokens));
             log.info("Loaded AI stats from Redis: calls={}, success={}, failure={}, tokens={}",
                     totalApiCalls.get(), successApiCalls.get(), failureApiCalls.get(), totalTokens.get());
+            restoreCbState();
         } catch (Exception e) {
             log.warn("Failed to load AI config from Redis, using defaults", e);
         }
@@ -533,6 +610,22 @@ public class DeepSeekClient {
         return currentBaseUrl;
     }
 
+    public boolean isCircuitBreakerOpen() {
+        return cbOpen;
+    }
+
+    private final java.util.List<java.util.function.Consumer<String>> cbStateListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public void addCbStateListener(java.util.function.Consumer<String> listener) {
+        cbStateListeners.add(listener);
+    }
+
+    private void notifyCbStateChange(String state) {
+        for (java.util.function.Consumer<String> listener : cbStateListeners) {
+            try { listener.accept(state); } catch (Exception ignored) {}
+        }
+    }
+
     public boolean checkApiHealth() {
         String[] routed = routeByScene("chat");
         if (routed != null) {
@@ -543,6 +636,77 @@ public class DeepSeekClient {
             return false;
         }
         return checkEndpointHealth(currentBaseUrl, currentApiKey);
+    }
+
+    public Map<String, Object> getApiStatus() {
+        Map<String, Object> status = new LinkedHashMap<>();
+        if (!isEnabled()) {
+            status.put("status", "disabled");
+            status.put("message", "AI服务未启用或API Key未配置");
+            return status;
+        }
+        if (cbOpen) {
+            long elapsed = System.currentTimeMillis() - cbOpenTime;
+            if (elapsed > CB_RECOVERY_TIMEOUT_MS) {
+                boolean apiOk = checkApiHealth();
+                if (apiOk) {
+                    cbRecordSuccess();
+                    log.info("Circuit breaker auto-recovered via status probe");
+                } else {
+                    cbOpenTime = System.currentTimeMillis();
+                    status.put("status", "circuit_breaker");
+                    status.put("message", "熔断保护中（" + (lastFailureReason != null ? lastFailureReason : "API异常") + "），30秒后重试");
+                    return status;
+                }
+            } else {
+                long remaining = (CB_RECOVERY_TIMEOUT_MS - elapsed) / 1000;
+                String reason = lastFailureReason != null ? "（" + lastFailureReason + "）" : "";
+                status.put("status", "circuit_breaker");
+                status.put("message", "熔断保护中" + reason + "，" + Math.max(0, remaining) + "秒后重试");
+                return status;
+            }
+        }
+        if (cbFailureCount > 0) {
+            String reason = lastFailureReason != null ? lastFailureReason + "，" : "";
+            status.put("status", "degraded");
+            status.put("message", "API异常：" + reason + "连续" + cbFailureCount + "次失败，" + (CB_FAILURE_THRESHOLD - cbFailureCount) + "次后熔断");
+            return status;
+        }
+        String[] routed = routeByScene("chat");
+        String url = routed != null ? routed[0] : currentBaseUrl;
+        String key = routed != null ? routed[1] : currentApiKey;
+        if (url == null || key == null || key.isEmpty()) {
+            status.put("status", "no_channel");
+            status.put("message", "无可用渠道配置");
+            return status;
+        }
+        try {
+            HttpResponse response = HttpRequest.get(url + "/models")
+                    .header("Authorization", "Bearer " + key)
+                    .timeout(10000)
+                    .execute();
+            int code = response.getStatus();
+            if (code >= 200 && code < 300) {
+                status.put("status", "available");
+                status.put("message", "API可用");
+            } else if (code == 402) {
+                status.put("status", "insufficient_balance");
+                status.put("message", "API余额不足，请充值");
+            } else if (code == 401) {
+                status.put("status", "unauthorized");
+                status.put("message", "API Key无效或已过期");
+            } else if (code == 429) {
+                status.put("status", "rate_limited");
+                status.put("message", "API调用频率超限");
+            } else {
+                status.put("status", "error");
+                status.put("message", "API异常: HTTP " + code);
+            }
+        } catch (Exception e) {
+            status.put("status", "timeout");
+            status.put("message", "API连接超时或网络异常");
+        }
+        return status;
     }
 
     private boolean checkEndpointHealth(String url, String key) {
@@ -630,7 +794,7 @@ public class DeepSeekClient {
                 int code = response.getStatus();
                 if (code < 200 || code >= 300) {
                     errorCounter.increment();
-                    cbRecordFailure();
+                    cbRecordFailure(extractFailureReason(code, response.body()));
                     throw new RuntimeException("DeepSeek API error: " + code + " " + response.body());
                 }
                 try (InputStream is = response.bodyStream();
@@ -668,7 +832,7 @@ public class DeepSeekClient {
             } catch (Exception e) {
                 errorCounter.increment();
                 incrRedisStat(REDIS_KEY_STAT_FAILURE, failureApiCalls);
-                cbRecordFailure();
+                cbRecordFailure(extractExceptionReason(e));
                 onError.accept(e);
                 return null;
             } finally {
@@ -735,7 +899,7 @@ public class DeepSeekClient {
             if (code < 200 || code >= 300) {
                 errorCounter.increment();
                 incrRedisStat(REDIS_KEY_STAT_FAILURE, failureApiCalls);
-                cbRecordFailure();
+                cbRecordFailure(extractFailureReason(code, response.body()));
                 log.error("DeepSeek API error: code={}, body={}", code, response.body());
                 return FALLBACK_ANSWERS.get("faq");
             }
@@ -747,7 +911,7 @@ public class DeepSeekClient {
             }
             JSONArray choices = body.getJSONArray("choices");
             if (choices == null || choices.isEmpty()) {
-                cbRecordFailure();
+                cbRecordFailure("API返回空数据");
                 return FALLBACK_ANSWERS.get("faq");
             }
             cbRecordSuccess();
@@ -756,7 +920,7 @@ public class DeepSeekClient {
         } catch (Exception e) {
             errorCounter.increment();
             incrRedisStat(REDIS_KEY_STAT_FAILURE, failureApiCalls);
-            cbRecordFailure();
+            cbRecordFailure(extractExceptionReason(e));
             log.error("DeepSeek API call failed", e);
             return FALLBACK_ANSWERS.get("faq");
         } finally {
@@ -981,7 +1145,7 @@ public class DeepSeekClient {
             if (code < 200 || code >= 300) {
                 errorCounter.increment();
                 incrRedisStat(REDIS_KEY_STAT_FAILURE, failureApiCalls);
-                cbRecordFailure();
+                cbRecordFailure(extractFailureReason(code, response.body()));
                 log.error("DeepSeek API error: code={}, body={}", code, response.body());
                 result.put("content", FALLBACK_ANSWERS.get("faq"));
                 result.put("toolCalls", null);
@@ -995,7 +1159,7 @@ public class DeepSeekClient {
             }
             JSONArray choices = body.getJSONArray("choices");
             if (choices == null || choices.isEmpty()) {
-                cbRecordFailure();
+                cbRecordFailure("API返回空数据");
                 result.put("content", FALLBACK_ANSWERS.get("faq"));
                 result.put("toolCalls", null);
                 return result;
@@ -1010,7 +1174,7 @@ public class DeepSeekClient {
         } catch (Exception e) {
             errorCounter.increment();
             incrRedisStat(REDIS_KEY_STAT_FAILURE, failureApiCalls);
-            cbRecordFailure();
+            cbRecordFailure(extractExceptionReason(e));
             log.error("DeepSeek chatWithTools failed", e);
             result.put("content", FALLBACK_ANSWERS.get("faq"));
             result.put("toolCalls", null);
@@ -1058,13 +1222,13 @@ public class DeepSeekClient {
             int code = response.getStatus();
             if (code < 200 || code >= 300) {
                 log.warn("Embedding API error: {} {}", code, response.body());
-                cbRecordFailure();
+                cbRecordFailure(extractFailureReason(code, response.body()));
                 return result;
             }
             JSONObject body = JSONUtil.parseObj(response.body());
             JSONArray data = body.getJSONArray("data");
             if (data == null) {
-                cbRecordFailure();
+                cbRecordFailure("API返回空数据");
                 return result;
             }
             for (int i = 0; i < data.size(); i++) {
@@ -1080,7 +1244,7 @@ public class DeepSeekClient {
             return result;
         } catch (Exception e) {
             log.warn("Embedding API call failed: {}", e.getMessage());
-            cbRecordFailure();
+            cbRecordFailure(extractExceptionReason(e));
             return result;
         } finally {
             concurrencyLimit.release();
