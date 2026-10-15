@@ -575,7 +575,7 @@ public class FaqVectorService {
                 }
             }
         }
-        if (bestMatch != null && bestScore >= 0.65) {
+        if (bestMatch != null && bestScore >= 0.75) {
             bestMatch.score = bestScore;
             return bestMatch;
         }
