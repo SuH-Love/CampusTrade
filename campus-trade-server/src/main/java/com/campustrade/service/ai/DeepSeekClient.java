@@ -151,7 +151,7 @@ public class DeepSeekClient {
     private volatile long apiStatusCacheTime = 0;
     private static final long API_STATUS_CACHE_TTL_MS = 10_000L;
     private static final int CB_FAILURE_THRESHOLD = 5;
-    private static final long CB_RECOVERY_TIMEOUT_MS = 30000;
+    private static final long CB_RECOVERY_TIMEOUT_MS = 15000;
 
     private final java.util.concurrent.atomic.AtomicLong totalTokens = new java.util.concurrent.atomic.AtomicLong(0);
     private final java.util.concurrent.atomic.AtomicLong totalApiCalls = new java.util.concurrent.atomic.AtomicLong(0);
@@ -677,9 +677,10 @@ public class DeepSeekClient {
                     log.info("Circuit breaker auto-recovered via status probe");
                 } else {
                     cbOpenTime = System.currentTimeMillis();
+                    int timeoutSec = (int)(CB_RECOVERY_TIMEOUT_MS / 1000);
                     status.put("status", "circuit_breaker");
-                    status.put("message", "熔断保护中（" + (lastFailureReason != null ? lastFailureReason : "API异常") + "），30秒后重试");
-                    status.put("remainingSeconds", 30);
+                    status.put("message", "熔断保护中（" + (lastFailureReason != null ? lastFailureReason : "API异常") + "），" + timeoutSec + "秒后重试");
+                    status.put("remainingSeconds", timeoutSec);
                     return status;
                 }
             } else {
@@ -708,53 +709,55 @@ public class DeepSeekClient {
             status.put("message", "无可用渠道配置");
             return status;
         }
-        try {
-            HttpResponse response = HttpRequest.get(url + "/models")
-                    .header("Authorization", "Bearer " + key)
-                    .timeout(10000)
-                    .execute();
-            int code = response.getStatus();
-            if (code >= 200 && code < 300) {
-                status.put("status", "available");
-                status.put("message", "API可用");
-            } else if (code == 402) {
-                status.put("status", "insufficient_balance");
-                status.put("message", "API余额不足，请充值");
-            } else if (code == 401) {
-                status.put("status", "unauthorized");
-                status.put("message", "API Key无效或已过期");
-            } else if (code == 429) {
-                status.put("status", "rate_limited");
-                status.put("message", "API调用频率超限");
-            } else {
-                status.put("status", "error");
-                status.put("message", "API异常: HTTP " + code);
-            }
-        } catch (Exception e) {
+        int code = probeApiHealth(url, key);
+        if (code >= 200 && code < 300) {
+            status.put("status", "available");
+            status.put("message", "API可用");
+        } else if (code == 402) {
+            status.put("status", "insufficient_balance");
+            status.put("message", "API余额不足，请充值");
+        } else if (code == 401) {
+            status.put("status", "unauthorized");
+            status.put("message", "API Key无效或已过期");
+        } else if (code == 429) {
+            status.put("status", "rate_limited");
+            status.put("message", "API调用频率超限");
+        } else if (code < 0) {
             status.put("status", "timeout");
             status.put("message", "API连接超时或网络异常");
+        } else {
+            status.put("status", "error");
+            status.put("message", "API异常: HTTP " + code);
         }
         cachedApiStatus = new LinkedHashMap<>(status);
         apiStatusCacheTime = System.currentTimeMillis();
         return status;
     }
 
-    private boolean checkEndpointHealth(String url, String key) {
+    private int probeApiHealth(String url, String key) {
         try {
-            HttpResponse response = HttpRequest.get(url + "/models")
+            String model = getEffectiveModel();
+            String body = "{\"model\":\"" + model + "\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1,\"stream\":false}";
+            HttpResponse response = HttpRequest.post(url + "/chat/completions")
                     .header("Authorization", "Bearer " + key)
+                    .header("Content-Type", "application/json")
                     .timeout(10000)
+                    .body(body)
                     .execute();
-            int code = response.getStatus();
-            if (code >= 200 && code < 300) {
-                return true;
-            }
-            log.warn("AI health check (GET /models) failed: {} {}", code, response.body());
-            return false;
+            return response.getStatus();
         } catch (Exception e) {
-            log.warn("AI health check (GET /models) error: {}", e.getMessage());
-            return false;
+            log.warn("API probe error: {}", e.getMessage());
+            return -1;
         }
+    }
+
+    private boolean checkEndpointHealth(String url, String key) {
+        int code = probeApiHealth(url, key);
+        if (code >= 200 && code < 300) {
+            return true;
+        }
+        log.warn("AI health check (POST /chat/completions) failed: HTTP {}", code);
+        return false;
     }
 
     private boolean hasChannelWithChatCapability() {

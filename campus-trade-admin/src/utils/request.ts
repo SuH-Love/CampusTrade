@@ -84,6 +84,13 @@ service.interceptors.response.use(
         originalRequest._retry = true
         try {
           const res = await axios.post('/api/auth/refresh', { refreshToken: adminStore.refreshToken })
+          if (res.data.code !== 200 || !res.data.data) {
+            adminStore.clearAuth()
+            router.push('/login')
+            ElMessage.error('登录已过期，请重新登录')
+            pendingRequests = []
+            return Promise.reject(error)
+          }
           const { accessToken, refreshToken: newRefresh } = res.data.data
           adminStore.setAuth(accessToken, newRefresh)
           processPendingRequests(accessToken)
