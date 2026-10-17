@@ -537,6 +537,7 @@ public class FaqVectorService {
         if (query == null || query.trim().length() < 4) return null;
         String lower = query.toLowerCase().trim();
         if (lower.matches("^(你好|您好|谢谢|感谢|再见|拜拜|晚安|早安|好的|嗯|ok|bye|hi|hello|嗨|哈喽|hey)[啊呀！!。.~]?$")) return null;
+        if (lower.length() < 12 && lower.matches(".*?(还有|除此之外|然后呢|继续|更多|别的|其他|另外|呢|啥).*$")) return null;
         double bestScore = 0;
         FaqItem bestMatch = null;
         if (useEmbeddings && !faqEmbeddings.isEmpty() && deepSeekClient != null) {
@@ -575,7 +576,8 @@ public class FaqVectorService {
                 }
             }
         }
-        if (bestMatch != null && bestScore >= 0.75) {
+        double threshold = lower.length() < 8 ? 0.88 : 0.75;
+        if (bestMatch != null && bestScore >= threshold) {
             bestMatch.score = bestScore;
             return bestMatch;
         }

@@ -159,7 +159,6 @@ public class AiController {
         String userMessage = request.getMessage().trim();
 
         String faqContext = faqVectorService.buildContext(userMessage);
-        boolean needTools = mayNeedTools(userMessage);
         String systemPart = truncateToTokenBudget(getSystemPrompt(), configService.getInt("rag", "token_budget_system", 1500));
         String knowledgePart = truncateToTokenBudget(buildPlatformKnowledge(userMessage), configService.getInt("rag", "token_budget_knowledge", 600));
         String docContext = aiDocumentService.buildDocumentContext(userMessage);
@@ -353,17 +352,21 @@ public class AiController {
             return emitter;
         }
 
-        FaqVectorService.FaqItem directFaq = faqVectorService.findDirectFaqAnswer(userMessage);
-        if (directFaq != null) {
-            try {
-                String directAnswer = directFaq.answer;
-                emitter.send(SseEmitter.event().name("message").data(jsonContent(directAnswer)));
-                sessionService.addMessagePair(sid, userMessage, directAnswer);
-                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
-                emitter.complete();
-                log.info("FAQ direct hit [traceId={}]: score={}, q={}", traceId, directFaq.score, directFaq.question);
-            } catch (Exception ignored) {}
-            return emitter;
+        boolean needTools = mayNeedTools(userMessage);
+
+        if (!needTools) {
+            FaqVectorService.FaqItem directFaq = faqVectorService.findDirectFaqAnswer(userMessage);
+            if (directFaq != null) {
+                try {
+                    String directAnswer = directFaq.answer;
+                    emitter.send(SseEmitter.event().name("message").data(jsonContent(directAnswer)));
+                    sessionService.addMessagePair(sid, userMessage, directAnswer);
+                    emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                    emitter.complete();
+                    log.info("FAQ direct hit [traceId={}]: score={}, q={}", traceId, directFaq.score, directFaq.question);
+                } catch (Exception ignored) {}
+                return emitter;
+            }
         }
 
         String faqContext = faqVectorService.buildContext(userMessage);
@@ -388,7 +391,7 @@ public class AiController {
             return emitter;
         }
 
-        boolean needTools = mayNeedTools(userMessage);
+
         String systemPart = truncateToTokenBudget(getSystemPrompt(), configService.getInt("rag", "token_budget_system", 1500));
         String knowledgePart = truncateToTokenBudget(buildPlatformKnowledge(userMessage), configService.getInt("rag", "token_budget_knowledge", 600));
         String docContext = aiDocumentService.buildDocumentContext(userMessage);
