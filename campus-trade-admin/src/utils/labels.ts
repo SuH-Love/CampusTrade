@@ -9,7 +9,7 @@ export const moduleLabel = (mod: string): string => {
     OperationLog: '操作日志', SecurityLog: '安全日志',
     Announcement: '系统公告', UserBlacklist: '黑名单', Blacklist: '黑名单',
     PaymentConfig: '收款配置', FundLog: '资金流水', SystemConfig: '系统配置',
-    Ai: 'AI助手'
+    Ai: 'AI助手', AiConfig: 'AI配置'
   }
   return map[mod] || mod
 }
@@ -78,7 +78,12 @@ export const operationLabel = (op: string, mod?: string): string => {
     submitFeedback: '提交AI反馈', getFeedbackStats: 'AI反馈统计', getFeedbackList: 'AI反馈列表',
     updateSystemPrompt: '更新系统提示词', getSystemPromptApi: '获取系统提示词',
     getAiStats: 'AI运行统计', getChannels: '获取AI渠道', saveChannels: '保存AI渠道',
-    getModels: '获取AI模型', saveModels: '保存AI模型', getTools: '获取AI工具'
+    getModels: '获取AI模型', saveModels: '保存AI模型', getTools: '获取AI工具',
+    cancelFeedback: '取消AI反馈', confirmTool: 'AI工具确认',
+    createKnowledge: '创建知识块', deleteKnowledge: '删除知识块', listKnowledge: '知识块列表',
+    getDashboardData: 'AI看板数据', getFeedbackAnalysis: 'AI反馈分析',
+    getQuickQuestions: 'AI快捷问题', getSessionFeedback: 'AI会话反馈',
+    resetSystemPrompt: '重置系统提示词', previewPrompt: '预览提示词'
   }
   return map[op] || op
 }
