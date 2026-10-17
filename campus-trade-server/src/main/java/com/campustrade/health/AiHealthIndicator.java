@@ -12,17 +12,10 @@ import org.springframework.stereotype.Component;
 @Component("ai")
 public class AiHealthIndicator implements HealthIndicator {
 
-    private static final long CACHE_TTL_MS = 60_000L;
-
     @Autowired
     private DeepSeekClient deepSeekClient;
 
-    private volatile Health cachedHealth;
-    private volatile long lastCheckTime;
-
     public void clearCache() {
-        cachedHealth = null;
-        lastCheckTime = 0;
     }
 
     @Override
@@ -30,20 +23,7 @@ public class AiHealthIndicator implements HealthIndicator {
         if (!deepSeekClient.isEnabled()) {
             return Health.down().withDetail("reason", "AI service disabled or API key not configured").build();
         }
-
-        long now = System.currentTimeMillis();
-        if (cachedHealth != null && (now - lastCheckTime) < CACHE_TTL_MS) {
-            return cachedHealth;
-        }
-
-        synchronized (this) {
-            if (cachedHealth != null && (now - lastCheckTime) < CACHE_TTL_MS) {
-                return cachedHealth;
-            }
-            cachedHealth = doHealthCheck();
-            lastCheckTime = now;
-            return cachedHealth;
-        }
+        return doHealthCheck();
     }
 
     private Health doHealthCheck() {
