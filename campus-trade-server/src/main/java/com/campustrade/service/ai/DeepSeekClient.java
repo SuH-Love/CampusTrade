@@ -631,6 +631,24 @@ public class DeepSeekClient {
         }
     }
 
+    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 5000)
+    public void scheduledCircuitBreakerCheck() {
+        if (!cbOpen) return;
+        long elapsed = System.currentTimeMillis() - cbOpenTime;
+        if (elapsed < CB_RECOVERY_TIMEOUT_MS) return;
+        log.info("Circuit breaker recovery timeout, probing API...");
+        boolean apiOk = checkApiHealth();
+        if (apiOk) {
+            cbRecordSuccess();
+            log.info("Circuit breaker auto-recovered via scheduled probe");
+        } else {
+            cbOpenTime = System.currentTimeMillis();
+            persistCbState();
+            notifyCbStateChange("open");
+            log.warn("Circuit breaker re-opened after scheduled probe failure");
+        }
+    }
+
     public boolean checkApiHealth() {
         String[] routed = routeByScene("chat");
         if (routed != null) {
@@ -661,6 +679,7 @@ public class DeepSeekClient {
                     cbOpenTime = System.currentTimeMillis();
                     status.put("status", "circuit_breaker");
                     status.put("message", "熔断保护中（" + (lastFailureReason != null ? lastFailureReason : "API异常") + "），30秒后重试");
+                    status.put("remainingSeconds", 30);
                     return status;
                 }
             } else {
@@ -668,6 +687,7 @@ public class DeepSeekClient {
                 String reason = lastFailureReason != null ? "（" + lastFailureReason + "）" : "";
                 status.put("status", "circuit_breaker");
                 status.put("message", "熔断保护中" + reason + "，" + Math.max(0, remaining) + "秒后重试");
+                status.put("remainingSeconds", Math.max(0, remaining));
                 return status;
             }
         }

@@ -155,6 +155,24 @@ const todoItems = ref([
 const recentLogs = ref<OperationLogVO[]>([])
 const aiHealthStatus = ref('UP')
 const aiHealthDetail = ref('')
+let aiCountdownTimer: ReturnType<typeof setInterval> | null = null
+
+const stopAiCountdown = () => {
+  if (aiCountdownTimer) { clearInterval(aiCountdownTimer); aiCountdownTimer = null }
+}
+
+const startAiCountdown = (seconds: number, msg: string) => {
+  stopAiCountdown()
+  let remaining = seconds
+  const base = msg.replace(/\d+秒后重试.*$/, '')
+  const update = () => { aiHealthDetail.value = `${base}${remaining}秒后重试` }
+  update()
+  aiCountdownTimer = setInterval(() => {
+    remaining--
+    if (remaining > 0) { update() }
+    else { stopAiCountdown(); loadAiHealth() }
+  }, 1000)
+}
 const aiStats = ref<Record<string, unknown> | null>(null)
 const aiTools = ref<Record<string, unknown>[]>([])
 const aiFeedbackList = ref<Record<string, unknown>[]>([])
@@ -297,13 +315,19 @@ const loadAiHealth = async () => {
       aiHealthDetail.value = 'AI服务未启用'
     } else if (apiStatus && apiStatus.status !== 'available') {
       aiHealthStatus.value = 'DOWN'
-      aiHealthDetail.value = apiStatus.message || '服务异常'
+      if (apiStatus.remainingSeconds > 0) {
+        startAiCountdown(apiStatus.remainingSeconds, apiStatus.message)
+      } else {
+        aiHealthDetail.value = apiStatus.message || '服务异常'
+      }
     } else if (status.healthy) {
       aiHealthStatus.value = 'UP'
       aiHealthDetail.value = status.model || 'unknown'
+      stopAiCountdown()
     } else {
       aiHealthStatus.value = 'DOWN'
       aiHealthDetail.value = '服务异常'
+      stopAiCountdown()
     }
   } catch { aiHealthStatus.value = 'UNKNOWN'; aiHealthDetail.value = '无法获取' }
   try {
@@ -341,7 +365,7 @@ onMounted(() => {
   loadStats(); loadRecentLogs(); loadAiHealth(); loadServiceStatus(); window.addEventListener('resize', handleResize)
   aiStatusTimerId = window.setInterval(() => { loadAiHealth() }, 30000)
 })
-onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeEventListener('resize', handleResize); if (aiStatusTimerId) { clearInterval(aiStatusTimerId); aiStatusTimerId = null } })
+onUnmounted(() => { goodsChart?.dispose(); orderChart?.dispose(); window.removeEventListener('resize', handleResize); if (aiStatusTimerId) { clearInterval(aiStatusTimerId); aiStatusTimerId = null }; stopAiCountdown() })
 </script>
 
 <style scoped lang="scss">

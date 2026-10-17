@@ -32,7 +32,7 @@
             <div class="metric-icon" :style="{ background: aiStatusColor === '#10b981' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: aiStatusColor }"><el-icon :size="20"><component :is="aiStatusColor === '#10b981' ? CircleCheck : CircleClose" /></el-icon></div>
             <div class="metric-text">
               <div class="metric-value" :style="{ color: aiStatusColor }">{{ aiStatusText }}</div>
-              <div class="metric-label">{{ aiStatusLabel }}</div>
+              <div class="metric-label">{{ aiCountdownText || aiStatusLabel }}</div>
             </div>
           </div>
           <div class="metric-cell">
@@ -185,6 +185,27 @@ const aiStatusLabel = computed(() => {
   return 'AI服务'
 })
 
+const aiCountdownText = ref('')
+let aiCountdownTimer: ReturnType<typeof setInterval> | null = null
+
+const stopAiCountdown = () => {
+  if (aiCountdownTimer) { clearInterval(aiCountdownTimer); aiCountdownTimer = null }
+  aiCountdownText.value = ''
+}
+
+const startAiCountdown = (seconds: number, msg: string) => {
+  stopAiCountdown()
+  let remaining = seconds
+  const base = msg.replace(/\d+秒后重试.*$/, '')
+  const update = () => { aiCountdownText.value = `${base}${remaining}秒后重试` }
+  update()
+  aiCountdownTimer = setInterval(() => {
+    remaining--
+    if (remaining > 0) { update() }
+    else { stopAiCountdown(); loadData() }
+  }, 1000)
+}
+
 const statCards = computed(() => [
   { label: '总反馈', value: data.value.totalFeedback || 0, c1: '#667eea', c2: '#764ba2', icon: ChatLineRound, svgPath: null },
   { label: '好评率', value: goodRate.value + '%', c1: '#11998e', c2: '#38ef7d', icon: null, svgPath: THUMBS_UP_PATH },
@@ -218,6 +239,12 @@ const loadData = async () => {
   try {
     const res = await getAiDashboard()
     data.value = res
+    const apiStatus = data.value.apiStatus
+    if (apiStatus && apiStatus.remainingSeconds > 0) {
+      startAiCountdown(apiStatus.remainingSeconds, apiStatus.message)
+    } else {
+      stopAiCountdown()
+    }
     await nextTick()
     renderCharts()
   } catch { /* ignore */ }
@@ -331,6 +358,7 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   pieChart?.dispose(); trendChart?.dispose()
   sseController?.abort()
+  stopAiCountdown()
 })
 </script>
 

@@ -497,6 +497,26 @@ const feedbackPanel = ref<{
 const hasNewBadge = ref(true)
 const statusText = ref('在线')
 const statusChecking = ref(false)
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+const stopCountdown = () => {
+  if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
+}
+
+const startCountdown = (seconds: number) => {
+  stopCountdown()
+  let remaining = seconds
+  statusText.value = `${remaining}秒后重试`
+  countdownTimer = setInterval(() => {
+    remaining--
+    if (remaining > 0) {
+      statusText.value = `${remaining}秒后重试`
+    } else {
+      stopCountdown()
+      checkStatus()
+    }
+  }, 1000)
+}
 let statusSseController: AbortController | null = null
 let statusSseReconnectTimer: number | null = null
 let statusSseReconnectDelay = 3000
@@ -1340,9 +1360,15 @@ const checkStatus = async () => {
     const apiStatus = status.apiStatus
     if (!status.enabled || !status.healthy || (apiStatus && apiStatus.status !== 'available')) {
       aiEnabled.value = false
-      statusText.value = '暂时不可用'
+      if (apiStatus && apiStatus.remainingSeconds > 0) {
+        startCountdown(apiStatus.remainingSeconds)
+      } else {
+        statusText.value = '暂时不可用'
+      }
     } else {
+      aiEnabled.value = true
       statusText.value = '在线'
+      stopCountdown()
     }
   } catch {
     aiEnabled.value = false
@@ -1362,6 +1388,7 @@ onUnmounted(() => {
   if (streamHandle) streamHandle.close()
   stopThinkingTimer()
   stopStatusSSE()
+  stopCountdown()
   window.removeEventListener('resize', onResize)
   pendingImages.value.forEach(img => URL.revokeObjectURL(img.url))
   pendingImages.value = []
