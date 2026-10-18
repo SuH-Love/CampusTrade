@@ -85,6 +85,10 @@ public class AiController {
     @Autowired
     private com.campustrade.service.ai.AiDocumentService aiDocumentService;
 
+    @Autowired
+    @org.springframework.beans.factory.annotation.Qualifier("aiAgentExecutor")
+    private org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor aiAgentExecutor;
+
     @Value("${ai.system-prompt:}")
     private String systemPrompt;
 
@@ -104,6 +108,7 @@ public class AiController {
 
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
     private final java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.CompletableFuture<Boolean>> pendingConfirmations = new java.util.concurrent.ConcurrentHashMap<>();
+    private final java.util.concurrent.ConcurrentHashMap<String, Long> pendingConfirmationOwners = new java.util.concurrent.ConcurrentHashMap<>();
 
     private String jsonContent(String text) {
         if (text == null) text = "";
@@ -159,7 +164,7 @@ public class AiController {
         String userMessage = request.getMessage().trim();
 
         String faqContext = faqVectorService.buildContext(userMessage);
-        String systemPart = truncateToTokenBudget(getSystemPrompt(), configService.getInt("rag", "token_budget_system", 1500));
+        String systemPart = truncateToTokenBudget(getSystemPrompt(), configService.getInt("rag", "token_budget_system", 1500)) + "\n\n" + safetyService.getSafetyReminder();
         String knowledgePart = truncateToTokenBudget(buildPlatformKnowledge(userMessage), configService.getInt("rag", "token_budget_knowledge", 600));
         String docContext = aiDocumentService.buildDocumentContext(userMessage);
         String truncatedDoc = truncateToTokenBudget(docContext, configService.getInt("rag", "token_budget_doc", 500));
@@ -261,6 +266,15 @@ public class AiController {
                         args = new com.fasterxml.jackson.databind.ObjectMapper().readValue(argsStr, Map.class);
                     } catch (Exception ignored) {}
 
+                    if (aiToolService.getWriteToolsSet().contains(toolName)) {
+                        Map<String, Object> toolMsg = new LinkedHashMap<>();
+                        toolMsg.put("role", "tool");
+                        toolMsg.put("tool_call_id", toolCallId);
+                        toolMsg.put("content", "{\"error\":\"写操作需要用户确认，请通过对话界面执行\"}");
+                        messages.add(toolMsg);
+                        log.warn("Blocked write tool in non-stream chat: {}", toolName);
+                        continue;
+                    }
                     String toolResult = aiToolService.executeTool(toolName, args);
                     Map<String, Object> toolMsg = new LinkedHashMap<>();
                     toolMsg.put("role", "tool");
@@ -313,12 +327,8 @@ public class AiController {
             return emitter;
         }
 
-        String sidTemp = sessionId != null && !sessionId.isEmpty() ? sessionId : UUID.randomUUID().toString();
         Long currentUserId = com.campustrade.util.SecurityUtil.requireCurrentUserId();
-        if (sidTemp.startsWith("user:") && !sidTemp.equals("user:" + currentUserId)) {
-            sidTemp = "user:" + currentUserId;
-        }
-        final String sid = sidTemp;
+        final String sid = "user:" + currentUserId;
         String userMessage = message.trim();
 
 
@@ -391,8 +401,12 @@ public class AiController {
             return emitter;
         }
 
+        final org.springframework.security.core.context.SecurityContext streamSecCtx = org.springframework.security.core.context.SecurityContextHolder.getContext();
+        aiAgentExecutor.execute(() -> {
+            org.springframework.security.core.context.SecurityContextHolder.setContext(streamSecCtx);
+            try {
 
-        String systemPart = truncateToTokenBudget(getSystemPrompt(), configService.getInt("rag", "token_budget_system", 1500));
+        String systemPart = truncateToTokenBudget(getSystemPrompt(), configService.getInt("rag", "token_budget_system", 1500)) + "\n\n" + safetyService.getSafetyReminder();
         String knowledgePart = truncateToTokenBudget(buildPlatformKnowledge(userMessage), configService.getInt("rag", "token_budget_knowledge", 600));
         String docContext = aiDocumentService.buildDocumentContext(userMessage);
         String truncatedDoc = truncateToTokenBudget(docContext, configService.getInt("rag", "token_budget_doc", 500));
@@ -413,7 +427,7 @@ public class AiController {
                 emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                 emitter.complete();
             } catch (Exception ignored) {}
-            return emitter;
+            return;
         }
 
         try {
@@ -480,7 +494,7 @@ public class AiController {
                 emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                 emitter.complete();
             } catch (Exception ignored) {}
-            return emitter;
+            return;
         }
         // 简单问题缓存（加prompt版本号避免prompt更新后旧缓存命中）
         String promptHash = String.valueOf(prompt.hashCode());
@@ -496,7 +510,7 @@ public class AiController {
                     sessionService.addMessagePair(sid, userMessage, cached);
                     emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                     emitter.complete();
-                    return emitter;
+                    return;
                 }
             } catch (Exception ignored) {}
         }
@@ -506,10 +520,21 @@ public class AiController {
         String nonStreamAnswer = null;
         boolean toolsUsed = false;
         Set<String> streamCalledSignatures = new HashSet<>();
+        int streamMaxIterations = configService.getInt("agent", "max_iterations", 10);
+        int streamMaxTokenBudget = configService.getInt("agent", "max_token_budget", 8000);
 
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < streamMaxIterations; i++) {
+            int estimatedTokens = 0;
+            for (Map<String, Object> msg : messages) {
+                Object content = msg.get("content");
+                if (content != null) estimatedTokens += SessionService.estimateTokens(content.toString());
+            }
+            if (estimatedTokens > streamMaxTokenBudget) {
+                log.info("Stream Agent loop stopped at iteration {} due to token budget ({}/{})", i, estimatedTokens, streamMaxTokenBudget);
+                break;
+            }
             String intentStep = i == 0 ? "理解意图" : "继续分析";
-            String intentDetail = i == 0 ? analyzeIntent(userMessage) + "（使用推理模型分析）" : "根据工具返回结果继续分析";
+            String intentDetail = i == 0 ? analyzeIntent(userMessage) + "（正在智能分析执行方案）" : "根据工具返回结果继续分析";
             sendThinking(emitter, intentStep, intentDetail);
             collectedThinking.add(Map.of("status", intentStep, "detail", intentDetail));
             Map<String, Object> aiResult;
@@ -574,8 +599,10 @@ public class AiController {
                     callInfo.put("name", toolName);
                     callInfo.put("args", args);
                     callInfo.put("displayName", toolDisplayName(toolName));
-                    emitter.send(SseEmitter.event().name("tool_call").data(
-                        new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(callInfo)));
+                    synchronized (emitter) {
+                        emitter.send(SseEmitter.event().name("tool_call").data(
+                            new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(callInfo)));
+                    }
                     collectedToolCalls.add(callInfo);
                 } catch (Exception ignored) {}
 
@@ -601,6 +628,7 @@ public class AiController {
                             String confirmId = fnCallId;
                             java.util.concurrent.CompletableFuture<Boolean> confirmFuture = new java.util.concurrent.CompletableFuture<>();
                             pendingConfirmations.put(confirmId, confirmFuture);
+                            pendingConfirmationOwners.put(confirmId, com.campustrade.util.SecurityUtil.getCurrentUserId());
                             try {
                                 Map<String, Object> confirmInfo = new LinkedHashMap<>();
                                 confirmInfo.put("id", confirmId);
@@ -619,9 +647,11 @@ public class AiController {
                                 }
                             } catch (Exception e) {
                                 pendingConfirmations.remove(confirmId);
+                                pendingConfirmationOwners.remove(confirmId);
                                 return "{\"error\":\"确认超时，请重试\"}";
                             } finally {
                                 pendingConfirmations.remove(confirmId);
+                                pendingConfirmationOwners.remove(confirmId);
                             }
                         }
                         return aiToolService.executeTool(fnName, fnArgs);
@@ -640,7 +670,7 @@ public class AiController {
                     } finally {
                         org.springframework.security.core.context.SecurityContextHolder.clearContext();
                     }
-                }));
+                }, aiAgentExecutor));
             }
 
             List<String> completedToolNames = new ArrayList<>();
@@ -664,9 +694,11 @@ public class AiController {
                     Map<String, Object> resultInfo = new LinkedHashMap<>();
                     resultInfo.put("id", toolCallId);
                     resultInfo.put("name", toolName);
-                    resultInfo.put("result", toolResult.length() > 500 ? toolResult.substring(0, 500) + "..." : toolResult);
-                    emitter.send(SseEmitter.event().name("tool_result").data(
-                        new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(resultInfo)));
+                    resultInfo.put("result", toolResult.length() > 2000 ? toolResult.substring(0, 2000) + "..." : toolResult);
+                    synchronized (emitter) {
+                        emitter.send(SseEmitter.event().name("tool_result").data(
+                            new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(resultInfo)));
+                    }
                     for (Map<String, Object> tc : collectedToolCalls) {
                         if (toolCallId.equals(tc.get("id"))) {
                             tc.put("result", resultInfo.get("result"));
@@ -717,7 +749,7 @@ public class AiController {
                 emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                 emitter.complete();
             } catch (Exception ignored) {}
-            return emitter;
+            return;
         }
 
         if (toolsUsed) {
@@ -777,11 +809,24 @@ public class AiController {
                 }
         );
 
+            } catch (Exception e) {
+                log.error("AI stream async error [traceId={}]", traceId, e);
+                try {
+                    synchronized (emitter) {
+                        emitter.send(SseEmitter.event().name("error").data("AI服务异常，请稍后再试"));
+                        emitter.complete();
+                    }
+                } catch (Exception ignored) {}
+            } finally {
+                org.springframework.security.core.context.SecurityContextHolder.clearContext();
+            }
+        });
         return emitter;
     }
 
     private long getToolTimeout(String toolName) {
         if (toolName == null) return 15;
+        if (aiToolService.getWriteToolsSet().contains(toolName)) return 90;
         if (toolName.startsWith("get_") || toolName.startsWith("search_") ||
             "admin_dashboard".equals(toolName) || "admin_list_users".equals(toolName) ||
             "admin_list_reports".equals(toolName) || "get_announcements".equals(toolName)) {
@@ -1047,13 +1092,8 @@ public class AiController {
     @DeleteMapping("/session/{sessionId}")
     public Result<Void> clearSession(@PathVariable String sessionId) {
         Long currentUserId = SecurityUtil.getCurrentUserId();
-        if (currentUserId != null && sessionId.startsWith("user:")) {
-            String expectedPrefix = "user:" + currentUserId;
-            if (!sessionId.startsWith(expectedPrefix)) {
-                return Result.error(403, "无权操作其他用户的会话");
-            }
-        }
-        sessionService.clearSession(sessionId);
+        if (currentUserId == null) return Result.error(401, "未登录");
+        sessionService.clearSession("user:" + currentUserId);
         return Result.success();
     }
 
@@ -1064,6 +1104,11 @@ public class AiController {
         Boolean confirmed = (Boolean) body.get("confirmed");
         if (confirmId == null || confirmed == null) {
             return Result.error(400, "缺少参数");
+        }
+        Long ownerId = pendingConfirmationOwners.remove(confirmId);
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        if (currentUserId == null || ownerId == null || !ownerId.equals(currentUserId)) {
+            return Result.error(403, "无权确认该请求");
         }
         java.util.concurrent.CompletableFuture<Boolean> future = pendingConfirmations.remove(confirmId);
         if (future == null) {
@@ -1110,13 +1155,8 @@ public class AiController {
     @GetMapping("/session/{sessionId}/history")
     public Result<List<Map<String, Object>>> getSessionHistory(@PathVariable String sessionId) {
         Long currentUserId = SecurityUtil.getCurrentUserId();
-        if (currentUserId != null && sessionId.startsWith("user:")) {
-            String expectedPrefix = "user:" + currentUserId;
-            if (!sessionId.startsWith(expectedPrefix)) {
-                return Result.error(403, "无权查看其他用户的会话");
-            }
-        }
-        return Result.success(sessionService.getHistory(sessionId));
+        if (currentUserId == null) return Result.error(401, "未登录");
+        return Result.success(sessionService.getHistory("user:" + currentUserId));
     }
 
     @ApiOperation("获取AI标题优化建议")
@@ -1174,7 +1214,6 @@ public class AiController {
         if (body.containsKey("visionModel")) {
             deepSeekClient.updateVisionModel(body.get("visionModel"));
         }
-        aiHealthIndicator.clearCache();
         notifyDashboardRefresh();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("enabled", deepSeekClient.isEnabled());
@@ -1672,7 +1711,7 @@ public class AiController {
             } catch (Exception e) {
                 log.warn("Failed to analyze negative feedback: {}", e.getMessage());
             }
-        });
+        }, aiAgentExecutor);
     }
 
     @org.springframework.web.bind.annotation.DeleteMapping("/feedback")
@@ -2123,7 +2162,6 @@ public class AiController {
     public Result<?> saveChannels(@org.springframework.web.bind.annotation.RequestBody String body) {
         if (!SecurityUtil.isAdmin()) return Result.error(403, "无权限");
         deepSeekClient.saveChannelsJson(body);
-        aiHealthIndicator.clearCache();
         notifyDashboardRefresh();
         return Result.success("保存成功");
     }
@@ -2140,7 +2178,6 @@ public class AiController {
     public Result<?> saveModels(@org.springframework.web.bind.annotation.RequestBody String body) {
         if (!SecurityUtil.isAdmin()) return Result.error(403, "无权限");
         deepSeekClient.saveModelsJson(body);
-        aiHealthIndicator.clearCache();
         notifyDashboardRefresh();
         return Result.success("保存成功");
     }

@@ -143,7 +143,8 @@ public class DeepSeekClient {
     private volatile String currentReasonerModel;
     private volatile String currentVisionModel;
 
-    private volatile int cbFailureCount = 0;
+    private final java.util.concurrent.atomic.AtomicInteger cbFailureCount = new java.util.concurrent.atomic.AtomicInteger(0);
+    private final java.util.concurrent.atomic.AtomicBoolean halfOpenProbe = new java.util.concurrent.atomic.AtomicBoolean(false);
     private volatile long cbOpenTime = 0;
     private volatile boolean cbOpen = false;
     private volatile String lastFailureReason = null;
@@ -187,17 +188,21 @@ public class DeepSeekClient {
     private boolean cbAllowRequest() {
         if (!cbOpen) return true;
         if (System.currentTimeMillis() - cbOpenTime > CB_RECOVERY_TIMEOUT_MS) {
-            log.info("Circuit breaker entering half-open state");
-            return true;
+            if (halfOpenProbe.compareAndSet(false, true)) {
+                log.info("Circuit breaker entering half-open state, probe granted");
+                return true;
+            }
+            return false;
         }
         return false;
     }
 
     private void cbRecordSuccess() {
-        if (cbFailureCount > 0 || cbOpen) {
+        if (cbFailureCount.get() > 0 || cbOpen) {
             log.info("Circuit breaker closed (recovered)");
         }
-        cbFailureCount = 0;
+        cbFailureCount.set(0);
+        halfOpenProbe.set(false);
         cbOpen = false;
         lastFailureReason = null;
         cachedApiStatus = null;
@@ -228,11 +233,12 @@ public class DeepSeekClient {
     private void cbRecordFailure(String reason) {
         if (reason != null) lastFailureReason = reason;
         cachedApiStatus = null;
-        cbFailureCount++;
-        if (cbFailureCount >= CB_FAILURE_THRESHOLD && !cbOpen) {
+        halfOpenProbe.set(false);
+        int newCount = cbFailureCount.incrementAndGet();
+        if (newCount >= CB_FAILURE_THRESHOLD && !cbOpen) {
             cbOpen = true;
             cbOpenTime = System.currentTimeMillis();
-            log.warn("Circuit breaker opened after {} consecutive failures", cbFailureCount);
+            log.warn("Circuit breaker opened after {} consecutive failures", newCount);
         } else if (cbOpen) {
             cbOpenTime = System.currentTimeMillis();
             log.warn("Circuit breaker re-opened after half-open test failure");
@@ -244,7 +250,7 @@ public class DeepSeekClient {
     private void persistCbState() {
         try {
             java.util.Map<String, String> state = new java.util.HashMap<>();
-            state.put("failCount", String.valueOf(cbFailureCount));
+            state.put("failCount", String.valueOf(cbFailureCount.get()));
             state.put("open", String.valueOf(cbOpen));
             state.put("openTime", String.valueOf(cbOpenTime));
             state.put("reason", lastFailureReason == null ? "" : lastFailureReason);
@@ -262,13 +268,13 @@ public class DeepSeekClient {
             String open = (String) state.get("open");
             String ot = (String) state.get("openTime");
             String reason = (String) state.get("reason");
-            if (fc != null) cbFailureCount = Integer.parseInt(fc);
+            if (fc != null) cbFailureCount.set(Integer.parseInt(fc));
             if (ot != null) cbOpenTime = Long.parseLong(ot);
             if (reason != null && !reason.isEmpty()) lastFailureReason = reason;
             if ("true".equals(open)) {
                 if (System.currentTimeMillis() - cbOpenTime > CB_RECOVERY_TIMEOUT_MS) {
                     cbOpen = false;
-                    cbFailureCount = 0;
+                    cbFailureCount.set(0);
                     lastFailureReason = null;
                     stringRedisTemplate.delete(REDIS_KEY_CB_STATE);
                     log.info("Circuit breaker state expired while offline, reset to closed");
@@ -279,7 +285,7 @@ public class DeepSeekClient {
                 }
             } else {
                 cbOpen = false;
-                log.info("Circuit breaker state restored from Redis: failCount={}", cbFailureCount);
+                log.info("Circuit breaker state restored from Redis: failCount={}", cbFailureCount.get());
             }
         } catch (Exception e) {
             log.warn("Failed to restore circuit breaker state from Redis", e);
@@ -377,6 +383,12 @@ public class DeepSeekClient {
             if (savedRoutingEnabled != null) currentRoutingEnabled = "true".equals(savedRoutingEnabled);
             if (savedReasoner != null && !savedReasoner.isEmpty()) currentReasonerModel = savedReasoner;
             if (savedVisionModel != null && !savedVisionModel.isEmpty()) currentVisionModel = savedVisionModel;
+            String savedEmbKey = stringRedisTemplate.opsForValue().get(REDIS_KEY_EMB_APIKEY);
+            String savedEmbUrl = stringRedisTemplate.opsForValue().get(REDIS_KEY_EMB_BASEURL);
+            String savedEmbModel = stringRedisTemplate.opsForValue().get(REDIS_KEY_EMB_MODEL);
+            if (savedEmbKey != null && !savedEmbKey.isEmpty()) currentEmbApiKey = savedEmbKey;
+            if (savedEmbUrl != null && !savedEmbUrl.isEmpty()) currentEmbBaseUrl = savedEmbUrl;
+            if (savedEmbModel != null && !savedEmbModel.isEmpty()) currentEmbModel = savedEmbModel;
             clearEmbeddingAvailableCache();
             log.info("AI config reloaded from Redis: model={}, routingEnabled={}", currentModel, currentRoutingEnabled);
         } catch (Exception e) {
@@ -695,10 +707,11 @@ public class DeepSeekClient {
         if (cachedApiStatus != null && (System.currentTimeMillis() - apiStatusCacheTime) < API_STATUS_CACHE_TTL_MS) {
             return new LinkedHashMap<>(cachedApiStatus);
         }
-        if (cbFailureCount > 0) {
+        int fc = cbFailureCount.get();
+        if (fc > 0) {
             String reason = lastFailureReason != null ? lastFailureReason + "，" : "";
             status.put("status", "degraded");
-            status.put("message", "API异常：" + reason + "连续" + cbFailureCount + "次失败，" + (CB_FAILURE_THRESHOLD - cbFailureCount) + "次后熔断");
+            status.put("message", "API异常：" + reason + "连续" + fc + "次失败，" + (CB_FAILURE_THRESHOLD - fc) + "次后熔断");
             return status;
         }
         String[] routed = routeByScene("chat");
@@ -1118,6 +1131,18 @@ public class DeepSeekClient {
         try {
             String filePath = urlPath.replace(urlPrefix, uploadBasePath);
             File file = new File(filePath);
+            String canonical = file.getCanonicalPath();
+            String baseCanonical = new File(uploadBasePath).getCanonicalPath();
+            if (!canonical.equals(baseCanonical) && !canonical.startsWith(baseCanonical + File.separator)) {
+                log.warn("Blocked path traversal attempt: {}", urlPath);
+                return null;
+            }
+            String lower = canonical.toLowerCase();
+            if (!lower.endsWith(".png") && !lower.endsWith(".jpg") && !lower.endsWith(".jpeg")
+                    && !lower.endsWith(".gif") && !lower.endsWith(".webp")) {
+                log.warn("Blocked non-image file access: {}", canonical);
+                return null;
+            }
             if (!file.exists()) {
                 log.warn("Image file not found: {}", filePath);
                 return null;
@@ -1125,9 +1150,9 @@ public class DeepSeekClient {
             byte[] bytes = Files.readAllBytes(file.toPath());
             String base64 = Base64.getEncoder().encodeToString(bytes);
             String mimeType = "image/png";
-            if (filePath.endsWith(".jpg") || filePath.endsWith(".jpeg")) mimeType = "image/jpeg";
-            else if (filePath.endsWith(".gif")) mimeType = "image/gif";
-            else if (filePath.endsWith(".webp")) mimeType = "image/webp";
+            if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) mimeType = "image/jpeg";
+            else if (lower.endsWith(".gif")) mimeType = "image/gif";
+            else if (lower.endsWith(".webp")) mimeType = "image/webp";
             return "data:" + mimeType + ";base64," + base64;
         } catch (Exception e) {
             log.warn("Failed to convert image to base64: {}", urlPath, e);

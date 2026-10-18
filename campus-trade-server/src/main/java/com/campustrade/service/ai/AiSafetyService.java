@@ -139,12 +139,17 @@ public class AiSafetyService {
         for (String dsmlPattern : getDsmlPatterns()) {
             sanitized = sanitized.replaceAll(dsmlPattern, "");
         }
+        sanitized = sanitized.replaceAll("(?s)<[^>]{0,40}tool_calls[^>]{0,40}>.*?</[^>]{0,40}tool_calls[^>]{0,40}>", "");
+        sanitized = sanitized.replaceAll("(?s)<[^>]{0,40}tool_calls[^>]{0,40}>", "");
         return sanitized.trim();
     }
 
     public boolean isTokenSafe(String token) {
         if (token == null) return false;
-        return !token.contains("DSML") && !token.contains("invoke") && !token.contains("parameter");
+        if (token.contains("DSML")) return false;
+        String trimmed = token.trim().toLowerCase();
+        return !trimmed.startsWith("<invoke") && !trimmed.startsWith("</invoke")
+                && !trimmed.startsWith("<parameter") && !trimmed.startsWith("</parameter");
     }
 
     public String getSafetyReminder() {

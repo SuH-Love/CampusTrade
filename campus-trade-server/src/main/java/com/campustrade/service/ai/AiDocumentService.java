@@ -23,6 +23,9 @@ public class AiDocumentService {
     @Autowired private TextChunker textChunker;
     @Autowired private DeepSeekClient deepSeekClient;
     @Autowired private VectorStore vectorStore;
+    @Autowired
+    @org.springframework.beans.factory.annotation.Qualifier("aiAgentExecutor")
+    private org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor docExecutor;
 
     @Value("${ai.document.storage-path:/app/ai-documents}")
     private String storagePath;
@@ -94,7 +97,7 @@ public class AiDocumentService {
                 log.error("Failed to process document {}: {}", docId, e.getMessage());
                 documentMapper.updateStatus(docId, "error", e.getMessage(), 0);
             }
-        });
+        }, docExecutor);
     }
 
     private void processDocument(Long docId, byte[] content, String fileName) {

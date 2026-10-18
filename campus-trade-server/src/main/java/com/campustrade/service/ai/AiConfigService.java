@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.context.ApplicationContext;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -46,7 +47,26 @@ public class AiConfigService {
     @PostConstruct
     public void init() {
         loadAllToCache();
+        registerChangeListener();
+    }
 
+    private void registerChangeListener() {
+        try {
+            RedisMessageListenerContainer container = applicationContext.getBean(RedisMessageListenerContainer.class);
+            container.addMessageListener((message, pattern) -> {
+                try {
+                    log.info("AI config changed notification received, refreshing caches");
+                    refreshCache();
+                    DeepSeekClient client = applicationContext.getBean(DeepSeekClient.class);
+                    client.reloadConfig();
+                } catch (Exception e) {
+                    log.warn("Handle AI config change failed: {}", e.getMessage());
+                }
+            }, new org.springframework.data.redis.listener.ChannelTopic(CHANNEL));
+            log.info("AI config change listener registered on channel: {}", CHANNEL);
+        } catch (Exception e) {
+            log.warn("Register AI config change listener failed: {}", e.getMessage());
+        }
     }
 
     @Scheduled(fixedRate = 600000)
