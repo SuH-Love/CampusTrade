@@ -158,13 +158,27 @@ public class SessionService {
             if (chunks.size() >= 20) chunks.remove(0);
             Map<String, Object> chunk = new HashMap<>();
             chunk.put("text", summary);
-            chunk.put("emb", emb);
+            chunk.put("emb", floatArrayToBase64(emb));
             chunks.add(chunk);
             stringRedisTemplate.opsForValue().set(vecKey, objectMapper.writeValueAsString(chunks));
             stringRedisTemplate.expire(vecKey, sessionTtlHours, TimeUnit.HOURS);
         } catch (Exception e) {
             log.warn("Failed to save summary embedding: {}", e.getMessage());
         }
+    }
+
+    private static String floatArrayToBase64(float[] arr) {
+        java.nio.ByteBuffer bb = java.nio.ByteBuffer.allocate(arr.length * 4);
+        for (float v : arr) bb.putFloat(v);
+        return java.util.Base64.getEncoder().encodeToString(bb.array());
+    }
+
+    private static float[] base64ToFloatArray(String base64) {
+        byte[] bytes = java.util.Base64.getDecoder().decode(base64);
+        java.nio.ByteBuffer bb = java.nio.ByteBuffer.wrap(bytes);
+        float[] arr = new float[bytes.length / 4];
+        for (int i = 0; i < arr.length; i++) arr[i] = bb.getFloat();
+        return arr;
     }
 
     private String getRelevantSummaryContext(String sessionId, String userMessage) {
@@ -184,11 +198,16 @@ public class SessionService {
             List<double[]> scored = new ArrayList<>();
             for (int i = 0; i < chunks.size(); i++) {
                 Object embObj = chunks.get(i).get("emb");
-                if (embObj instanceof List) {
+                float[] emb = null;
+                if (embObj instanceof String) {
+                    emb = base64ToFloatArray((String) embObj);
+                } else if (embObj instanceof List) {
                     @SuppressWarnings("unchecked")
                     List<Number> embList = (List<Number>) embObj;
-                    float[] emb = new float[embList.size()];
+                    emb = new float[embList.size()];
                     for (int j = 0; j < embList.size(); j++) emb[j] = embList.get(j).floatValue();
+                }
+                if (emb != null) {
                     double score = DeepSeekClient.cosineSim(queryEmb, emb);
                     scored.add(new double[]{i, score});
                 }

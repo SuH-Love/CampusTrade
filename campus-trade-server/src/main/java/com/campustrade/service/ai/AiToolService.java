@@ -167,11 +167,6 @@ public class AiToolService {
     private void syncToolDefsToDb() {
         try {
             log.info("Syncing tool definitions to DB (upsert mode)...");
-            Set<String> writeOps = new HashSet<>(Arrays.asList(
-                "cancel_order", "confirm_receipt", "ship_order", "request_refund", "rate_order",
-                "toggle_favorite", "add_to_cart", "toggle_follow_user", "online_offline_goods",
-                "add_address", "submit_report", "admin_ban_user", "admin_audit_goods", "admin_handle_refund"
-            ));
             int order = 0;
             for (List<Map<String, Object>> list : Arrays.asList(CACHED_BASE_TOOLS, CACHED_ADMIN_TOOLS)) {
                 if (list == null) continue;
@@ -189,7 +184,7 @@ public class AiToolService {
                     def.setHandlerMethod("");
                     def.setRequiredRole("");
                     def.setIsActive(1);
-                    def.setIsWriteOperation(writeOps.contains(name) ? 1 : 0);
+                    def.setIsWriteOperation(WRITE_TOOLS.contains(name) ? 1 : 0);
                     def.setNeedConfirm(0);
                     def.setSortOrder(order++);
                     def.setConfigVersion(1);
