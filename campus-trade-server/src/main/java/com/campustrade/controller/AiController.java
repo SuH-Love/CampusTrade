@@ -195,7 +195,7 @@ public class AiController {
             com.campustrade.service.ai.ChatOutputAdapter syncAdapter = new com.campustrade.service.ai.ChatOutputAdapter() {
                 @Override public void onThinking(String step, String detail) {}
                 @Override public void onToolCall(String id, String name, String args) {}
-                @Override public void onToolStart(String name) {}
+                @Override public void onToolStart(String id, String name) {}
                 @Override public void onToolResult(String id, String name, String result) {}
                 @Override public void onToken(String token) { syncResponse.append(token); }
                 @Override public void onComplete(String fullResponse) {}
@@ -432,7 +432,12 @@ public class AiController {
 
         com.campustrade.service.ai.ChatOutputAdapter sseAdapter = new com.campustrade.service.ai.ChatOutputAdapter() {
             @Override public void onThinking(String step, String detail) {
-                try { synchronized (emitter) { emitter.send(SseEmitter.event().name("thinking").data(jsonContent(step) + "|" + jsonContent(detail))); } } catch (Exception ignored) {}
+                try {
+                    Map<String, String> data = new LinkedHashMap<>();
+                    data.put("step", step);
+                    data.put("detail", detail != null ? detail : "");
+                    synchronized (emitter) { emitter.send(SseEmitter.event().name("thinking").data(objectMapper.writeValueAsString(data))); }
+                } catch (Exception ignored) {}
             }
             @Override public void onToolCall(String toolCallId, String toolName, String args) {
                 try {
@@ -444,8 +449,13 @@ public class AiController {
                     synchronized (emitter) { emitter.send(SseEmitter.event().name("tool_call").data(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(callInfo))); }
                 } catch (Exception ignored) {}
             }
-            @Override public void onToolStart(String toolName) {
-                try { synchronized (emitter) { emitter.send(SseEmitter.event().name("tool_start").data(toolName)); } } catch (Exception ignored) {}
+            @Override public void onToolStart(String toolCallId, String toolName) {
+                try {
+                    Map<String, Object> startInfo = new LinkedHashMap<>();
+                    startInfo.put("id", toolCallId);
+                    startInfo.put("name", toolName);
+                    synchronized (emitter) { emitter.send(SseEmitter.event().name("tool_start").data(new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(startInfo))); }
+                } catch (Exception ignored) {}
             }
             @Override public void onToolResult(String toolCallId, String toolName, String result) {
                 try {
@@ -465,9 +475,10 @@ public class AiController {
             @Override public void onError(String error) {
                 try { synchronized (emitter) { emitter.send(SseEmitter.event().name("error").data(error)); emitter.complete(); } } catch (Exception ignored) {}
             }
-            @Override public void onToolConfirm(String toolName, String args) {
+            @Override public void onToolConfirm(String toolCallId, String toolName, String args) {
                 try {
                     Map<String, Object> confirmInfo = new LinkedHashMap<>();
+                    confirmInfo.put("id", toolCallId);
                     confirmInfo.put("name", toolName);
                     confirmInfo.put("displayName", toolDisplayName(toolName));
                     confirmInfo.put("args", new com.fasterxml.jackson.databind.ObjectMapper().readValue(args, Map.class));

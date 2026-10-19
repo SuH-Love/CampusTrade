@@ -192,7 +192,7 @@ public class AiChatOrchestrator {
                 toolFutures.add(CompletableFuture.supplyAsync(() -> {
                     org.springframework.security.core.context.SecurityContextHolder.setContext(secCtx);
                     try {
-                        adapter.onToolStart(fnName);
+                        adapter.onToolStart(fnCallId, fnName);
                         if (aiToolService.getWriteToolsSet().contains(fnName)) {
                             if (!adapter.isStreaming()) {
                                 return "{\"error\":\"写操作需要用户确认，请通过对话界面执行\"}";
@@ -200,7 +200,7 @@ public class AiChatOrchestrator {
                             CompletableFuture<Boolean> confirmFuture = new CompletableFuture<>();
                             pendingConfirmations.put(fnCallId, confirmFuture);
                             pendingConfirmationOwners.put(fnCallId, SecurityUtil.getCurrentUserId());
-                            adapter.onToolConfirm(fnName, argsStr);
+                            adapter.onToolConfirm(fnCallId, fnName, argsStr);
                             try {
                                 Boolean confirmed = confirmFuture.orTimeout(60, TimeUnit.SECONDS).join();
                                 if (!confirmed) return "{\"error\":\"用户取消了操作\"}";

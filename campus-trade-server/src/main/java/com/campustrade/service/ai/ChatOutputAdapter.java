@@ -13,7 +13,7 @@ public interface ChatOutputAdapter {
 
     void onToolCall(String toolCallId, String toolName, String args);
 
-    void onToolStart(String toolName);
+    void onToolStart(String toolCallId, String toolName);
 
     void onToolResult(String toolCallId, String toolName, String result);
 
@@ -25,5 +25,5 @@ public interface ChatOutputAdapter {
 
     boolean isStreaming();
 
-    default void onToolConfirm(String toolName, String args) {}
+    default void onToolConfirm(String toolCallId, String toolName, String args) {}
 }
