@@ -799,9 +799,11 @@ public class DeepSeekClient {
         String lower = model.toLowerCase();
         if (lower.contains("reasoner") || lower.contains("thinking") || lower.contains("qwq")) {
             payload.set("enable_thinking", true);
-        } else if (lower.contains("deepseek-v4") || lower.contains("deepseek-ai/deepseek-v4") || lower.contains("glm-5")) {
+        } else if (lower.contains("deepseek-v4") || lower.contains("glm-5")) {
             payload.set("enable_thinking", true);
             payload.set("reasoning_effort", "medium");
+        } else if (lower.contains("deepseek-v3") || lower.contains("deepseek")) {
+            payload.set("enable_thinking", true);
         } else if (lower.contains("qwen3") || lower.contains("qwen/qwen3")) {
             payload.set("enable_thinking", true);
         } else if (lower.contains("glm")) {
@@ -817,6 +819,11 @@ public class DeepSeekClient {
 
     public CompletableFuture<Void> chatStream(
             List<Map<String, Object>> messages, Consumer<String> onToken, Consumer<String> onReasoning, Consumer<Void> onDone, Consumer<Throwable> onError) {
+        return chatStream(messages, onToken, onReasoning, onDone, onError, null);
+    }
+
+    public CompletableFuture<Void> chatStream(
+            List<Map<String, Object>> messages, Consumer<String> onToken, Consumer<String> onReasoning, Consumer<Void> onDone, Consumer<Throwable> onError, String scene) {
         if (!isEnabled()) {
             onError.accept(new IllegalStateException("AI service disabled or api key not configured"));
             onDone.accept(null);
@@ -838,7 +845,17 @@ public class DeepSeekClient {
                     throw new RuntimeException("AI concurrent request limit reached");
                 }
                 JSONObject payload = new JSONObject();
-                RoutedConfig routed = routeModel(messages);
+                RoutedConfig routed;
+                if (scene != null && !scene.isEmpty()) {
+                    String[] routedArr = routeByScene(scene);
+                    if (routedArr != null) {
+                        routed = new RoutedConfig(routedArr[0], routedArr[1], routedArr[2]);
+                    } else {
+                        routed = routeModel(messages);
+                    }
+                } else {
+                    routed = routeModel(messages);
+                }
                 payload.set("model", routed.model);
                 List<Map<String, Object>> messagesToSend = convertMessagesForVision(messages, routed.model);
                 payload.set("messages", JSONUtil.parseArray(JSONUtil.toJsonStr(messagesToSend)));
@@ -956,6 +973,7 @@ public class DeepSeekClient {
             payload.set("stream", false);
             payload.set("temperature", 0.3);
             payload.set("max_tokens", maxTokens);
+            addThinkingParams(payload, chatModel);
 
             HttpResponse response = HttpRequest.post(chatUrl + "/chat/completions")
                     .header("Authorization", "Bearer " + chatKey)
@@ -1211,6 +1229,7 @@ public class DeepSeekClient {
             payload.set("stream", false);
             payload.set("temperature", 0.3);
             payload.set("max_tokens", maxTokens);
+            addThinkingParams(payload, chatModel);
             if (tools != null && !tools.isEmpty()) {
                 payload.set("tools", JSONUtil.parseArray(tools));
             }

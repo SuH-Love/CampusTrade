@@ -301,7 +301,8 @@ public class AiChatOrchestrator {
                 String saveContent = partial.isEmpty() ? displayMsg : safetyService.sanitizeOutput(partial);
                 sessionService.addMessagePair(sessionId, userMessage, saveContent, finalCollectedThinking, finalCollectedToolCalls);
                 adapter.onError(displayMsg);
-            }
+            },
+            "reasoning"
         );
         return fullResponse.toString();
     }
