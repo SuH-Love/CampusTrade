@@ -850,11 +850,14 @@ public class DeepSeekClient {
                     String[] routedArr = routeByScene(scene);
                     if (routedArr != null) {
                         routed = new RoutedConfig(routedArr[0], routedArr[1], routedArr[2]);
+                        log.info("chatStream routing via scene: scene={} -> model={}", scene, routedArr[2]);
                     } else {
                         routed = routeModel(messages);
+                        log.info("chatStream scene routing failed, fallback to routeModel: model={}", routed.model);
                     }
                 } else {
                     routed = routeModel(messages);
+                    log.info("chatStream routing via routeModel: model={}", routed.model);
                 }
                 payload.set("model", routed.model);
                 List<Map<String, Object>> messagesToSend = convertMessagesForVision(messages, routed.model);
@@ -1265,6 +1268,7 @@ public class DeepSeekClient {
             }
             JSONObject message = choices.getJSONObject(0).getJSONObject("message");
             result.put("content", message.getStr("content"));
+            result.put("reasoning_content", message.getStr("reasoning_content"));
             JSONArray toolCalls = message.getJSONArray("tool_calls");
             result.put("toolCalls", toolCalls != null && !toolCalls.isEmpty() ? JSONUtil.toList(toolCalls, Map.class) : null);
             cbRecordSuccess();

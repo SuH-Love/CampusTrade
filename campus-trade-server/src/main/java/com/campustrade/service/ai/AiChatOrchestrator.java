@@ -114,6 +114,7 @@ public class AiChatOrchestrator {
                                List<Map<String, Object>> messages, ChatOutputAdapter adapter) {
         List<Map<String, Object>> tools = aiToolService.getToolDefinitions();
         String nonStreamAnswer = null;
+        String nonStreamReasoning = null;
         boolean toolsUsed = false;
         Set<String> calledSignatures = new HashSet<>();
         int maxIterations = configService.getInt("agent", "max_iterations", 10);
@@ -151,6 +152,7 @@ public class AiChatOrchestrator {
             }
 
             nonStreamAnswer = (String) aiResult.get("content");
+            nonStreamReasoning = (String) aiResult.get("reasoning_content");
             List<Map<String, Object>> toolCalls = (List<Map<String, Object>>) aiResult.get("toolCalls");
 
             String planDetail = analyzePlan(toolCalls);
@@ -253,6 +255,9 @@ public class AiChatOrchestrator {
         }
 
         if (nonStreamAnswer != null && !nonStreamAnswer.isEmpty()) {
+            if (nonStreamReasoning != null && !nonStreamReasoning.isEmpty()) {
+                adapter.onReasoning(nonStreamReasoning);
+            }
             String content = safetyService.sanitizeOutput(nonStreamAnswer);
             if (!toolsUsed && adapter.isStreaming()) {
                 int chunkSize = 3;
