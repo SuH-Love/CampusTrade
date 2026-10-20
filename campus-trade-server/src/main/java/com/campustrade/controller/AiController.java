@@ -469,6 +469,9 @@ public class AiController {
             @Override public void onToken(String token) {
                 try { synchronized (emitter) { emitter.send(SseEmitter.event().name("message").data(jsonContent(token))); } } catch (Exception ignored) {}
             }
+            @Override public void onReasoning(String token) {
+                try { synchronized (emitter) { emitter.send(SseEmitter.event().name("reasoning").data(jsonContent(token))); } } catch (Exception ignored) {}
+            }
             @Override public void onComplete(String fullResponse) {
                 try { synchronized (emitter) { emitter.send(SseEmitter.event().name("done").data("[DONE]")); emitter.complete(); } } catch (Exception ignored) {}
             }

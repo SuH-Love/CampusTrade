@@ -794,12 +794,29 @@ public class DeepSeekClient {
         }
     }
 
+    private void addThinkingParams(JSONObject payload, String model) {
+        if (model == null) return;
+        String lower = model.toLowerCase();
+        if (lower.contains("reasoner") || lower.contains("thinking") || lower.contains("qwq")) {
+            payload.set("enable_thinking", true);
+        } else if (lower.contains("deepseek-v4") || lower.contains("deepseek-ai/deepseek-v4") || lower.contains("glm-5")) {
+            payload.set("enable_thinking", true);
+            payload.set("reasoning_effort", "medium");
+        } else if (lower.contains("qwen3") || lower.contains("qwen/qwen3")) {
+            payload.set("enable_thinking", true);
+        } else if (lower.contains("glm")) {
+            payload.set("enable_thinking", true);
+        } else if (lower.contains("gemini")) {
+            payload.set("enable_thinking", true);
+        }
+    }
+
     public CompletableFuture<String> chatAsync(List<Map<String, Object>> messages) {
         return CompletableFuture.supplyAsync(() -> chat(messages), aiTaskExecutor);
     }
 
     public CompletableFuture<Void> chatStream(
-            List<Map<String, Object>> messages, Consumer<String> onToken, Consumer<Void> onDone, Consumer<Throwable> onError) {
+            List<Map<String, Object>> messages, Consumer<String> onToken, Consumer<String> onReasoning, Consumer<Void> onDone, Consumer<Throwable> onError) {
         if (!isEnabled()) {
             onError.accept(new IllegalStateException("AI service disabled or api key not configured"));
             onDone.accept(null);
@@ -829,6 +846,7 @@ public class DeepSeekClient {
                 payload.set("stream_options", JSONUtil.parseObj("{\"include_usage\": true}"));
                 payload.set("temperature", 0.3);
                 payload.set("max_tokens", maxTokens);
+                addThinkingParams(payload, routed.model);
 
                 response = HttpRequest.post(routed.baseUrl + "/chat/completions")
                         .header("Authorization", "Bearer " + routed.apiKey)
@@ -862,6 +880,10 @@ public class DeepSeekClient {
                             JSONObject choice = choices.getJSONObject(0);
                             JSONObject delta = choice.getJSONObject("delta");
                             if (delta == null) continue;
+                            String reasoningToken = delta.getStr("reasoning_content");
+                            if (reasoningToken != null && !reasoningToken.isEmpty() && onReasoning != null) {
+                                onReasoning.accept(reasoningToken);
+                            }
                             String token = delta.getStr("content");
                             if (token != null && !token.isEmpty()) {
                                 onToken.accept(token);

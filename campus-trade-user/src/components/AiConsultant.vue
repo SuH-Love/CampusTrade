@@ -63,6 +63,19 @@
                   <span class="dot"></span><span class="dot"></span><span class="dot"></span>
                 </span>
                 <template v-else>
+                  <div v-if="msg.reasoning" class="reasoning-panel">
+                    <div class="reasoning-header" @click="!msg.loading && (msg.reasoningExpanded = !msg.reasoningExpanded)">
+                      <el-icon size="14" :class="{ 'is-loading': msg.loading && !msg.content }"><Loading v-if="msg.loading && !msg.content" /><CircleCheck v-else /></el-icon>
+                      <span class="reasoning-title">{{ msg.loading && !msg.content ? '思考中...' : '思考完成' }}</span>
+                      <el-icon v-if="!msg.loading" size="12" class="process-expand-icon">
+                        <ArrowDown v-if="!msg.reasoningExpanded" />
+                        <ArrowUp v-else />
+                      </el-icon>
+                    </div>
+                    <div v-if="(msg.loading && !msg.content) || msg.reasoningExpanded" class="reasoning-body">
+                      {{ msg.reasoning }}
+                    </div>
+                  </div>
                   <div v-if="msg.thinkingSteps.length > 0" class="thinking-process">
                     <div class="process-header" @click="!msg.loading && (msg.thinkingExpanded = !msg.thinkingExpanded)">
                       <el-icon v-if="!msg.thinkingStatus" size="14" class="process-check"><CircleCheck /></el-icon>
@@ -333,6 +346,8 @@ interface Message {
   thinkingEndTime?: number
   thinkingSteps: ThinkingStep[]
   thinkingExpanded?: boolean
+  reasoning?: string
+  reasoningExpanded?: boolean
   feedback?: number
 }
 
@@ -852,11 +867,15 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
 
     const processQueue = () => {
       if (tokenQueue.length > 0) {
-        accumulated += tokenQueue.shift()!
+        const batchSize = Math.max(1, Math.floor(tokenQueue.length / 10))
+        for (let i = 0; i < batchSize && tokenQueue.length > 0; i++) {
+          accumulated += tokenQueue.shift()!
+        }
         assistantMsg.content = accumulated
         assistantMsg.loading = false
         if (assistantMsg.thinkingStatus) {
           assistantMsg.thinkingStatus = undefined
+          assistantMsg.reasoningExpanded = false
           const lastStep = assistantMsg.thinkingSteps[assistantMsg.thinkingSteps.length - 1]
           if (lastStep && !lastStep.endTime) lastStep.endTime = Date.now()
         }
@@ -971,6 +990,11 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
         } catch {
           await confirmTool(toolConfirm.id, false)
         }
+      },
+      (reasoningToken: string) => {
+        assistantMsg.reasoning = (assistantMsg.reasoning || '') + reasoningToken
+        if (assistantMsg.reasoningExpanded === undefined) assistantMsg.reasoningExpanded = true
+        scrollToBottom()
       }
     , regenerate)
   } catch (e) {
@@ -1598,6 +1622,22 @@ onUnmounted(() => {
   }
 }
 
+.reasoning-panel {
+  margin-bottom: 8px; font-size: 12px;
+  background: rgba(168, 85, 247, 0.06);
+  border-radius: 6px; overflow: hidden;
+  .reasoning-header {
+    display: flex; align-items: center; gap: 6px; padding: 6px 10px; cursor: pointer;
+    &:hover { background: rgba(168, 85, 247, 0.08); }
+    .is-loading { color: #a855f7; flex-shrink: 0; animation: rotating 1.5s linear infinite; }
+    .reasoning-title { font-weight: 600; color: #a855f7; }
+    .process-expand-icon { color: var(--text-muted); }
+  }
+  .reasoning-body {
+    padding: 8px 10px; color: var(--text-muted); line-height: 1.6;
+    font-style: italic; white-space: pre-wrap; max-height: 200px; overflow-y: auto;
+  }
+}
 .thinking-process {
   margin-bottom: 8px; font-size: 12px;
   background: rgba(14, 165, 233, 0.06);
