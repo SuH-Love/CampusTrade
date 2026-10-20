@@ -5,6 +5,14 @@ import type { LoginParams, RegisterParams, TokenVO } from '@/api/auth'
 import { getUserInfo } from '@/api/user'
 import type { UserVO } from '@/api/user'
 
+const getExpiresFromToken = (t: string): number => {
+  try {
+    const payload = JSON.parse(atob(t.split('.')[1]))
+    if (payload.exp) return payload.exp - Math.floor(Date.now() / 1000)
+  } catch {}
+  return 0
+}
+
 export const useUserStore = defineStore('user', () => {
   const token = ref<string>(localStorage.getItem('token') || '')
   const refreshToken = ref<string>(localStorage.getItem('refreshToken') || '')
@@ -38,6 +46,24 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('token')
     localStorage.removeItem('refreshToken')
     if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null }
+  }
+
+  if (token.value) {
+    const remaining = getExpiresFromToken(token.value)
+    if (remaining > 300) scheduleRefresh(remaining)
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'token' && e.newValue && e.newValue !== token.value) {
+        token.value = e.newValue
+        const remaining = getExpiresFromToken(e.newValue)
+        if (remaining > 300) scheduleRefresh(remaining)
+      }
+      if (e.key === 'refreshToken' && e.newValue) {
+        refreshToken.value = e.newValue
+      }
+    })
   }
 
   const login = async (params: LoginParams) => {

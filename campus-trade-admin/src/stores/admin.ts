@@ -3,6 +3,14 @@ import { ref, computed } from 'vue'
 import { adminLogin as loginApi, getAdminInfo } from '@/api/admin'
 import axios from 'axios'
 
+const getExpiresFromToken = (t: string): number => {
+  try {
+    const payload = JSON.parse(atob(t.split('.')[1]))
+    if (payload.exp) return payload.exp - Math.floor(Date.now() / 1000)
+  } catch {}
+  return 0
+}
+
 export const useAdminStore = defineStore('admin', () => {
   const token = ref<string>(localStorage.getItem('admin_token') || '')
   const refreshToken = ref<string>(localStorage.getItem('admin_refresh_token') || '')
@@ -50,6 +58,24 @@ export const useAdminStore = defineStore('admin', () => {
     localStorage.removeItem('admin_token')
     localStorage.removeItem('admin_refresh_token')
     if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null }
+  }
+
+  if (token.value) {
+    const remaining = getExpiresFromToken(token.value)
+    if (remaining > 300) scheduleRefresh(remaining)
+  }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'admin_token' && e.newValue && e.newValue !== token.value) {
+        token.value = e.newValue
+        const remaining = getExpiresFromToken(e.newValue)
+        if (remaining > 300) scheduleRefresh(remaining)
+      }
+      if (e.key === 'admin_refresh_token' && e.newValue) {
+        refreshToken.value = e.newValue
+      }
+    })
   }
 
   const login = async (params: { username: string; password: string }) => {
