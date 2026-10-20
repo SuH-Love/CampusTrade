@@ -15,6 +15,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { ElMessage } from 'element-plus'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -180,6 +181,23 @@ onMounted(async () => {
     } catch {
       userStore.clearAuth()
     }
+  }
+  if (userStore.token) {
+    const SESSION_TIMEOUT = 30 * 60 * 1000
+    let timeoutId: ReturnType<typeof setTimeout>
+    const resetTimeout = () => {
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => {
+        if (userStore.token) {
+          userStore.clearAuth()
+          ElMessage.warning('长时间未操作，请重新登录')
+          window.location.href = '/login'
+        }
+      }, SESSION_TIMEOUT)
+    }
+    document.addEventListener('click', resetTimeout, { passive: true })
+    document.addEventListener('keydown', resetTimeout, { passive: true })
+    resetTimeout()
   }
 })
 </script>

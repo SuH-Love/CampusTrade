@@ -139,7 +139,7 @@ public class AuthServiceImpl implements AuthService {
         redisTemplate.opsForValue().set(RedisConstant.PERMISSIONS_PREFIX + user.getId(), permissions,
                 RedisConstant.TOKEN_TTL, TimeUnit.SECONDS);
 
-        return generateTokenPair(user);
+        return generateTokenPair(user, true);
     }
 
     @Override
@@ -221,7 +221,7 @@ public class AuthServiceImpl implements AuthService {
         redisTemplate.opsForValue().set(RedisConstant.PERMISSIONS_PREFIX + user.getId(), permissions,
                 RedisConstant.TOKEN_TTL, TimeUnit.SECONDS);
 
-        return generateTokenPair(user);
+        return generateTokenPair(user, true);
     }
 
     @Override
@@ -260,7 +260,7 @@ public class AuthServiceImpl implements AuthService {
         redisTemplate.opsForValue().set(RedisConstant.PERMISSIONS_PREFIX + user.getId(), permissions,
                 RedisConstant.TOKEN_TTL, TimeUnit.SECONDS);
 
-        return generateTokenPair(user);
+        return generateTokenPair(user, false);
     }
 
     private List<String> loadUserPermissions(Long userId) {
@@ -284,9 +284,9 @@ public class AuthServiceImpl implements AuthService {
         return securityLog;
     }
 
-    private Result<TokenVO> generateTokenPair(User user) {
+    private Result<TokenVO> generateTokenPair(User user, boolean kickOld) {
         String oldToken = (String) redisTemplate.opsForValue().get(RedisConstant.TOKEN_PREFIX + user.getId());
-        if (oldToken != null && !oldToken.isEmpty()) {
+        if (kickOld && oldToken != null && !oldToken.isEmpty()) {
             try {
                 redisTemplate.opsForValue().set(RedisConstant.BLACKLIST_PREFIX + oldToken, "1",
                         RedisConstant.TOKEN_TTL, TimeUnit.SECONDS);

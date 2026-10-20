@@ -91,8 +91,8 @@ service.interceptors.response.use(
             pendingRequests = []
             return Promise.reject(error)
           }
-          const { accessToken, refreshToken: newRefresh } = res.data.data
-          adminStore.setAuth(accessToken, newRefresh)
+          const { accessToken, refreshToken: newRefresh, expiresIn } = res.data.data
+          adminStore.setAuth(accessToken, newRefresh, expiresIn)
           processPendingRequests(accessToken)
           originalRequest.headers = originalRequest.headers || {}
           originalRequest.headers.Authorization = `Bearer ${accessToken}`

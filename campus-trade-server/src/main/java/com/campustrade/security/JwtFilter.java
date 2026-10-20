@@ -52,7 +52,7 @@ public class JwtFilter extends OncePerRequestFilter {
             String blacklistKey = RedisConstant.BLACKLIST_PREFIX + token;
             Boolean isBlacklisted = redisTemplate.hasKey(blacklistKey);
             if (isBlacklisted != null && isBlacklisted) {
-                String storedAfterBlacklist = (String) redisTemplate.opsForValue().get("token:user:" + userId);
+                String storedAfterBlacklist = (String) redisTemplate.opsForValue().get(RedisConstant.TOKEN_PREFIX + userId);
                 if (storedAfterBlacklist != null && !storedAfterBlacklist.isEmpty() && !token.equals(storedAfterBlacklist)) {
                     log.info("Kicked out: userId={} token blacklisted by another device login", userId);
                     response.setStatus(401);
@@ -71,7 +71,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 return;
             }
 
-            String storedToken = (String) redisTemplate.opsForValue().get("token:user:" + userId);
+            String storedToken = (String) redisTemplate.opsForValue().get(RedisConstant.TOKEN_PREFIX + userId);
             if (storedToken != null && !storedToken.isEmpty() && !token.equals(storedToken)) {
                 log.info("Token mismatch for userId={}: token replaced by another device login", userId);
                 response.setStatus(401);

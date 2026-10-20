@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { adminLogin as loginApi, getAdminInfo } from '@/api/admin'
+import axios from 'axios'
 
 export const useAdminStore = defineStore('admin', () => {
   const token = ref<string>(localStorage.getItem('admin_token') || '')
@@ -11,14 +12,30 @@ export const useAdminStore = defineStore('admin', () => {
   const permissions = ref<string[]>([])
   const avatar = ref<string>('')
   const nickname = ref<string>('')
+  let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
   const isSuperAdmin = computed(() => roles.value.includes('ROLE_SUPER_ADMIN'))
 
-  const setAuth = (accessToken: string, refresh: string) => {
+  const scheduleRefresh = (expiresIn: number) => {
+    if (refreshTimer) clearTimeout(refreshTimer)
+    const delay = Math.max((expiresIn - 300) * 1000, 60 * 1000)
+    refreshTimer = setTimeout(async () => {
+      if (!refreshToken.value) return
+      try {
+        const res = await axios.post('/api/auth/refresh', { refreshToken: refreshToken.value })
+        if (res.data.code === 200 && res.data.data) {
+          setAuth(res.data.data.accessToken, res.data.data.refreshToken, res.data.data.expiresIn)
+        }
+      } catch { /* 401拦截器会处理 */ }
+    }, delay)
+  }
+
+  const setAuth = (accessToken: string, refresh: string, expiresIn?: number) => {
     token.value = accessToken
     refreshToken.value = refresh
     localStorage.setItem('admin_token', accessToken)
     localStorage.setItem('admin_refresh_token', refresh)
+    if (expiresIn) scheduleRefresh(expiresIn)
   }
 
   const clearAuth = () => {
@@ -32,11 +49,12 @@ export const useAdminStore = defineStore('admin', () => {
     nickname.value = ''
     localStorage.removeItem('admin_token')
     localStorage.removeItem('admin_refresh_token')
+    if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null }
   }
 
   const login = async (params: { username: string; password: string }) => {
     const data = await loginApi(params)
-    setAuth(data.accessToken, data.refreshToken)
+    setAuth(data.accessToken, data.refreshToken, data.expiresIn)
     username.value = params.username
     await fetchAdminInfo()
   }
