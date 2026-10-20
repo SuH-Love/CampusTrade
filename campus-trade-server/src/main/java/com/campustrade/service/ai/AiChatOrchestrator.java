@@ -153,6 +153,9 @@ public class AiChatOrchestrator {
 
             nonStreamAnswer = (String) aiResult.get("content");
             nonStreamReasoning = (String) aiResult.get("reasoning_content");
+            if (nonStreamReasoning != null && !nonStreamReasoning.isEmpty()) {
+                adapter.onReasoning(nonStreamReasoning);
+            }
             List<Map<String, Object>> toolCalls = (List<Map<String, Object>>) aiResult.get("toolCalls");
 
             String planDetail = analyzePlan(toolCalls);
@@ -255,9 +258,7 @@ public class AiChatOrchestrator {
         }
 
         if (nonStreamAnswer != null && !nonStreamAnswer.isEmpty()) {
-            if (nonStreamReasoning != null && !nonStreamReasoning.isEmpty()) {
-                adapter.onReasoning(nonStreamReasoning);
-            }
+
             String content = safetyService.sanitizeOutput(nonStreamAnswer);
             if (!toolsUsed && adapter.isStreaming()) {
                 int chunkSize = 3;
