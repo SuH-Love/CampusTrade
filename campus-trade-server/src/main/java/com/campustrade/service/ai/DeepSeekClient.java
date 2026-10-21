@@ -1069,6 +1069,132 @@ public class DeepSeekClient {
         return doChatWithToolsConfig(messages, tools, routed.apiKey, routed.baseUrl, routed.model);
     }
 
+    public Map<String, Object> chatWithToolsStream(
+            List<Map<String, Object>> messages, List<Map<String, Object>> tools, String sceneOverride,
+            Consumer<String> onReasoning, Consumer<String> onContent) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("content", null);
+        result.put("reasoning_content", null);
+        result.put("toolCalls", null);
+        if (!isEnabled()) { result.put("content", FALLBACK_ANSWERS.get("faq")); return result; }
+
+        RoutedConfig routed;
+        if (sceneOverride != null && !sceneOverride.isEmpty()) {
+            String[] routedArr = routeByScene(sceneOverride);
+            if (routedArr != null) {
+                routed = new RoutedConfig(routedArr[0], routedArr[1], routedArr[2]);
+                log.info("chatWithToolsStream routing: scene={} -> model={}", sceneOverride, routedArr[2]);
+            } else { routed = routeModel(messages); }
+        } else { routed = routeModel(messages); }
+
+        try {
+            JSONObject payload = new JSONObject();
+            payload.set("model", routed.model);
+            payload.set("messages", JSONUtil.parseArray(JSONUtil.toJsonStr(convertMessagesForVision(messages, routed.model))));
+            payload.set("stream", true);
+            payload.set("stream_options", JSONUtil.parseObj("{\"include_usage\": true}"));
+            payload.set("temperature", 0.3);
+            payload.set("max_tokens", maxTokens);
+            addThinkingParams(payload, routed.model, true);
+            if (tools != null && !tools.isEmpty()) payload.set("tools", JSONUtil.parseArray(tools));
+
+            HttpResponse response = HttpRequest.post(routed.baseUrl + "/chat/completions")
+                    .header("Authorization", "Bearer " + routed.apiKey)
+                    .header("Content-Type", "application/json")
+                    .body(payload.toString())
+                    .timeout(streamTimeoutMs)
+                    .execute();
+            int code = response.getStatus();
+            if (code < 200 || code >= 300) {
+                log.error("chatWithToolsStream API error: code={}", code);
+                result.put("content", FALLBACK_ANSWERS.get("faq"));
+                return result;
+            }
+
+            StringBuilder contentBuilder = new StringBuilder();
+            StringBuilder reasoningBuilder = new StringBuilder();
+            Map<Integer, JSONObject> tcBuffers = new LinkedHashMap<>();
+
+            try (InputStream is = response.bodyStream();
+                 BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (!line.startsWith("data:")) continue;
+                    String data = line.substring(5).trim();
+                    if ("[DONE]".equals(data)) break;
+                    try {
+                        JSONObject obj = JSONUtil.parseObj(data);
+                        JSONArray choices = obj.getJSONArray("choices");
+                        if (choices == null || choices.isEmpty()) continue;
+                        JSONObject choice = choices.getJSONObject(0);
+                        JSONObject delta = choice.getJSONObject("delta");
+                        if (delta == null) continue;
+
+                        String reasoningToken = delta.getStr("reasoning_content");
+                        if (reasoningToken != null && !reasoningToken.isEmpty()) {
+                            reasoningBuilder.append(reasoningToken);
+                            if (onReasoning != null) onReasoning.accept(reasoningToken);
+                        }
+
+                        String contentToken = delta.getStr("content");
+                        if (contentToken != null && !contentToken.isEmpty()) {
+                            contentBuilder.append(contentToken);
+                            if (onContent != null) onContent.accept(contentToken);
+                        }
+
+                        JSONArray deltaToolCalls = delta.getJSONArray("tool_calls");
+                        if (deltaToolCalls != null) {
+                            for (int ti = 0; ti < deltaToolCalls.size(); ti++) {
+                                JSONObject tc = deltaToolCalls.getJSONObject(ti);
+                                int idx = tc.getInt("index", 0);
+                                JSONObject buf = tcBuffers.computeIfAbsent(idx, k -> {
+                                    JSONObject b = new JSONObject();
+                                    b.set("id", "");
+                                    b.set("name", "");
+                                    b.set("arguments", "");
+                                    return b;
+                                });
+                                if (tc.getStr("id") != null && !tc.getStr("id").isEmpty()) buf.set("id", tc.getStr("id"));
+                                JSONObject fn = tc.getJSONObject("function");
+                                if (fn != null) {
+                                    if (fn.getStr("name") != null && !fn.getStr("name").isEmpty()) buf.set("name", fn.getStr("name"));
+                                    String argsFrag = fn.getStr("arguments");
+                                    if (argsFrag != null) buf.set("arguments", buf.getStr("arguments") + argsFrag);
+                                }
+                            }
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to parse chatWithToolsStream line: {}", data, e);
+                    }
+                }
+            }
+
+            result.put("content", contentBuilder.toString());
+            result.put("reasoning_content", reasoningBuilder.toString());
+            if (!tcBuffers.isEmpty()) {
+                List<Map<String, Object>> toolCalls = new ArrayList<>();
+                for (JSONObject buf : tcBuffers.values()) {
+                    Map<String, Object> tc = new LinkedHashMap<>();
+                    tc.put("id", buf.getStr("id"));
+                    Map<String, Object> fn = new LinkedHashMap<>();
+                    fn.put("name", buf.getStr("name"));
+                    fn.put("arguments", buf.getStr("arguments"));
+                    tc.put("function", fn);
+                    tc.put("type", "function");
+                    toolCalls.add(tc);
+                }
+                result.put("toolCalls", toolCalls);
+            }
+            log.info("chatWithToolsStream done: contentLen={} reasoningLen={} toolCalls={}",
+                contentBuilder.length(), reasoningBuilder.length(), tcBuffers.size());
+            return result;
+        } catch (Exception e) {
+            log.error("chatWithToolsStream failed", e);
+            result.put("content", FALLBACK_ANSWERS.get("faq"));
+            return result;
+        }
+    }
+
     private boolean isVisionModel(String modelName) {
         if (modelName == null || modelName.isEmpty()) return false;
         try {

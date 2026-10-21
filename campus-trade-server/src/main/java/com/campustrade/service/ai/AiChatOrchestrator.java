@@ -142,25 +142,17 @@ public class AiChatOrchestrator {
             try {
                 String sceneOverride;
                 if (i == 0 && userMessage.contains("[图片:")) sceneOverride = "vision";
-
                 else sceneOverride = "chat";
-                aiResult = deepSeekClient.chatWithToolsForScene(messages, tools, sceneOverride);
+                aiResult = deepSeekClient.chatWithToolsStream(messages, tools, sceneOverride,
+                    reasoning -> adapter.onReasoning(reasoning), null);
             } catch (Exception e) {
-                log.error("Agent loop chatWithTools failed", e);
+                log.error("Agent loop chatWithToolsStream failed", e);
                 adapter.onError("AI分析失败，请重试");
                 break;
             }
 
             nonStreamAnswer = (String) aiResult.get("content");
             nonStreamReasoning = (String) aiResult.get("reasoning_content");
-            if (nonStreamReasoning != null && !nonStreamReasoning.isEmpty()) {
-                int chunkSize = 5;
-                for (int ci = 0; ci < nonStreamReasoning.length(); ci += chunkSize) {
-                    int cend = Math.min(ci + chunkSize, nonStreamReasoning.length());
-                    adapter.onReasoning(nonStreamReasoning.substring(ci, cend));
-                    try { Thread.sleep(20); } catch (Exception ignored) {}
-                }
-            }
             List<Map<String, Object>> toolCalls = (List<Map<String, Object>>) aiResult.get("toolCalls");
 
             String planDetail = analyzePlan(toolCalls);
