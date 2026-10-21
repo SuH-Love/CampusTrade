@@ -794,7 +794,11 @@ public class DeepSeekClient {
         }
     }
 
-    private void addThinkingParams(JSONObject payload, String model) {
+    private void addThinkingParams(JSONObject payload, String model, boolean enable) {
+        if (!enable) {
+            payload.set("enable_thinking", false);
+            return;
+        }
         if (model == null) return;
         String lower = model.toLowerCase();
         if (lower.contains("reasoner") || lower.contains("thinking") || lower.contains("qwq")) {
@@ -866,7 +870,7 @@ public class DeepSeekClient {
                 payload.set("stream_options", JSONUtil.parseObj("{\"include_usage\": true}"));
                 payload.set("temperature", 0.3);
                 payload.set("max_tokens", maxTokens);
-                addThinkingParams(payload, routed.model);
+                addThinkingParams(payload, routed.model, true);
 
                 response = HttpRequest.post(routed.baseUrl + "/chat/completions")
                         .header("Authorization", "Bearer " + routed.apiKey)
@@ -976,7 +980,7 @@ public class DeepSeekClient {
             payload.set("stream", false);
             payload.set("temperature", 0.3);
             payload.set("max_tokens", maxTokens);
-            addThinkingParams(payload, chatModel);
+            addThinkingParams(payload, chatModel, false);
 
             HttpResponse response = HttpRequest.post(chatUrl + "/chat/completions")
                     .header("Authorization", "Bearer " + chatKey)
@@ -1232,7 +1236,7 @@ public class DeepSeekClient {
             payload.set("stream", false);
             payload.set("temperature", 0.3);
             payload.set("max_tokens", maxTokens);
-            addThinkingParams(payload, chatModel);
+            addThinkingParams(payload, chatModel, false);
             if (tools != null && !tools.isEmpty()) {
                 payload.set("tools", JSONUtil.parseArray(tools));
             }
