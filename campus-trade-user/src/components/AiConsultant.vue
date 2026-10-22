@@ -1664,10 +1664,15 @@ onUnmounted(() => {
   }
   .reasoning-body {
     padding: 8px 10px; color: var(--text-muted); line-height: 1.6;
-    font-style: italic; max-height: 200px; overflow-y: auto;
+    max-height: 200px; overflow-y: auto; overflow-x: auto;
+    :deep(p) { margin: 0 0 8px; &:last-child { margin-bottom: 0; } }
     :deep(ul), :deep(ol) { margin: 4px 0 8px; padding-left: 20px; }
-    :deep(p) { margin: 4px 0; }
+    :deep(li) { margin: 2px 0; }
+    :deep(code) { background: rgba(0, 0, 0, 0.06); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
     :deep(pre) { background: rgba(0, 0, 0, 0.06); padding: 8px 12px; border-radius: 8px; overflow-x: auto; margin: 4px 0; code { background: none; padding: 0; } }
+    :deep(table) { border-collapse: collapse; margin: 4px 0; th, td { border: 1px solid var(--border); padding: 4px 8px; } th { background: var(--bg-hover); } }
+    :deep(strong) { font-weight: 700; }
+    :deep(a) { color: var(--primary); text-decoration: none; &:hover { text-decoration: underline; } }
   }
 }
 .thinking-process {
