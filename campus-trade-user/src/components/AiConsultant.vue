@@ -63,7 +63,7 @@
                   <span class="dot"></span><span class="dot"></span><span class="dot"></span>
                 </span>
                 <template v-else>
-                  <div v-if="msg.reasoning" class="reasoning-panel">
+                  <div v-if="msg.reasoning || msg.reasoningActive" class="reasoning-panel">
                     <div class="reasoning-header" @click="!msg.reasoningActive && (msg.reasoningExpanded = !msg.reasoningExpanded)">
                       <el-icon size="14" :class="{ 'is-loading': msg.reasoningActive }"><Loading v-if="msg.reasoningActive" /><CircleCheck v-else /></el-icon>
                       <span class="reasoning-title">{{ msg.reasoningActive ? '思考中...' : '思考完成' }}</span>
@@ -72,9 +72,7 @@
                         <ArrowUp v-else />
                       </el-icon>
                     </div>
-                    <div v-if="msg.reasoningActive || msg.reasoningExpanded" class="reasoning-body">
-                      {{ msg.reasoning }}
-                    </div>
+                    <div v-if="msg.reasoningActive || msg.reasoningExpanded" class="reasoning-body" v-html="renderMarkdown(msg.reasoning || '')"></div>
                   </div>
                   <div v-if="msg.thinkingSteps.length > 0" class="thinking-process">
                     <div class="process-header" @click="!msg.loading && (msg.thinkingExpanded = !msg.thinkingExpanded)">
@@ -484,10 +482,20 @@ const messages = ref<Message[]>([])
 const sessionId = ref<string | undefined>(undefined)
 const bodyRef = ref<HTMLElement>()
 const showScrollBottom = ref(false)
+const isAtBottom = ref(true)
 const onBodyScroll = () => {
   if (!bodyRef.value) return
   const { scrollTop, scrollHeight, clientHeight } = bodyRef.value
-  showScrollBottom.value = scrollHeight - scrollTop - clientHeight > 120
+  const dist = scrollHeight - scrollTop - clientHeight
+  showScrollBottom.value = dist > 120
+  isAtBottom.value = dist < 60
+}
+const scrollReasoningBody = () => {
+  const els = bodyRef.value?.querySelectorAll('.reasoning-body')
+  if (els && els.length) {
+    const el = els[els.length - 1] as HTMLElement
+    el.scrollTop = el.scrollHeight
+  }
 }
 const textareaRef = ref<HTMLTextAreaElement>()
 const fileInputRef = ref<HTMLInputElement>()
@@ -820,15 +828,18 @@ const loadQuickQuestions = async () => {
 }
 
 let scrollRafId: number | null = null
-const scrollToBottom = (smooth = false) => {
+const scrollToBottom = (smooth = false, force = false) => {
+  if (!force && !isAtBottom.value) return
   if (smooth && bodyRef.value) {
     bodyRef.value.scrollTo({ top: bodyRef.value.scrollHeight, behavior: 'smooth' })
+    isAtBottom.value = true
     return
   }
   if (scrollRafId !== null) return
   scrollRafId = requestAnimationFrame(() => {
     if (bodyRef.value) {
       bodyRef.value.scrollTop = bodyRef.value.scrollHeight
+      isAtBottom.value = true
     }
     scrollRafId = null
   })
@@ -931,10 +942,15 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
       (thinkingData: { step: string; detail?: string }) => {
         if (!assistantMsg.content) {
           assistantMsg.reasoningActive = false
-          assistantMsg.thinkingStatus = thinkingData.step
-          assistantMsg.thinkingSteps.push({ status: thinkingData.step, detail: thinkingData.detail, startTime: Date.now() })
-          if (assistantMsg.thinkingSteps.length > 1) {
-            assistantMsg.thinkingSteps[assistantMsg.thinkingSteps.length - 2].endTime = Date.now()
+          const lastStep = assistantMsg.thinkingSteps[assistantMsg.thinkingSteps.length - 1]
+          if (lastStep && lastStep.status === thinkingData.step) {
+            if (thinkingData.detail) lastStep.detail = thinkingData.detail
+          } else {
+            assistantMsg.thinkingStatus = thinkingData.step
+            assistantMsg.thinkingSteps.push({ status: thinkingData.step, detail: thinkingData.detail, startTime: Date.now() })
+            if (assistantMsg.thinkingSteps.length > 1) {
+              assistantMsg.thinkingSteps[assistantMsg.thinkingSteps.length - 2].endTime = Date.now()
+            }
           }
         }
       },
@@ -1004,6 +1020,7 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
         assistantMsg.reasoningActive = true
         if (assistantMsg.reasoningExpanded === undefined) assistantMsg.reasoningExpanded = true
         scrollToBottom()
+        nextTick(scrollReasoningBody)
       }
     , regenerate)
   } catch (e) {
@@ -1039,6 +1056,7 @@ const sendMessage = async (text: string) => {
     content: '',
     loading: true,
     streaming: true,
+    reasoningActive: true,
     toolCalls: [],
     timestamp: Date.now(),
     thinkingStartTime: Date.now(),
@@ -1047,7 +1065,7 @@ const sendMessage = async (text: string) => {
   messages.value.push(assistantMsg)
   loading.value = true
   startThinkingTimer()
-  scrollToBottom()
+  scrollToBottom(false, true)
 
   await startAIStream(trimmed, assistantMsg)
 }
@@ -1188,6 +1206,7 @@ const regenerateAnswer = (idx: number) => {
     content: '',
     loading: true,
     streaming: true,
+    reasoningActive: true,
     toolCalls: [],
     timestamp: Date.now(),
     thinkingStartTime: Date.now(),
@@ -1196,7 +1215,7 @@ const regenerateAnswer = (idx: number) => {
   messages.value.push(assistantMsg)
   loading.value = true
   startThinkingTimer()
-  scrollToBottom()
+  scrollToBottom(false, true)
   startAIStream(userMsg.content, assistantMsg, true)
 }
 
