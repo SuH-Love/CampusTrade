@@ -64,15 +64,15 @@
                 </span>
                 <template v-else>
                   <div v-if="msg.reasoning" class="reasoning-panel">
-                    <div class="reasoning-header" @click="!msg.loading && (msg.reasoningExpanded = !msg.reasoningExpanded)">
-                      <el-icon size="14" :class="{ 'is-loading': msg.loading && !msg.content }"><Loading v-if="msg.loading && !msg.content" /><CircleCheck v-else /></el-icon>
-                      <span class="reasoning-title">{{ msg.loading && !msg.content ? '思考中...' : '思考完成' }}</span>
-                      <el-icon v-if="!msg.loading" size="12" class="process-expand-icon">
+                    <div class="reasoning-header" @click="!msg.reasoningActive && (msg.reasoningExpanded = !msg.reasoningExpanded)">
+                      <el-icon size="14" :class="{ 'is-loading': msg.reasoningActive }"><Loading v-if="msg.reasoningActive" /><CircleCheck v-else /></el-icon>
+                      <span class="reasoning-title">{{ msg.reasoningActive ? '思考中...' : '思考完成' }}</span>
+                      <el-icon v-if="!msg.reasoningActive" size="12" class="process-expand-icon">
                         <ArrowDown v-if="!msg.reasoningExpanded" />
                         <ArrowUp v-else />
                       </el-icon>
                     </div>
-                    <div v-if="(msg.loading && !msg.content) || msg.reasoningExpanded" class="reasoning-body">
+                    <div v-if="msg.reasoningActive || msg.reasoningExpanded" class="reasoning-body">
                       {{ msg.reasoning }}
                     </div>
                   </div>
@@ -347,6 +347,7 @@ interface Message {
   thinkingSteps: ThinkingStep[]
   thinkingExpanded?: boolean
   reasoning?: string
+  reasoningActive?: boolean
   reasoningExpanded?: boolean
   feedback?: number
 }
@@ -877,9 +878,10 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
         }
         assistantMsg.content = accumulated
         assistantMsg.loading = false
+        assistantMsg.reasoningActive = false
+        assistantMsg.reasoningExpanded = false
         if (assistantMsg.thinkingStatus) {
           assistantMsg.thinkingStatus = undefined
-          assistantMsg.reasoningExpanded = false
           const lastStep = assistantMsg.thinkingSteps[assistantMsg.thinkingSteps.length - 1]
           if (lastStep && !lastStep.endTime) lastStep.endTime = Date.now()
         }
@@ -928,6 +930,7 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
       },
       (thinkingData: { step: string; detail?: string }) => {
         if (!assistantMsg.content) {
+          assistantMsg.reasoningActive = false
           assistantMsg.thinkingStatus = thinkingData.step
           assistantMsg.thinkingSteps.push({ status: thinkingData.step, detail: thinkingData.detail, startTime: Date.now() })
           if (assistantMsg.thinkingSteps.length > 1) {
@@ -936,6 +939,7 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
         }
       },
       (toolCall: { id: string; name: string; args: Record<string, unknown> }) => {
+        assistantMsg.reasoningActive = false
         const tcStartTime = Date.now()
         assistantMsg.toolCalls.push({
           id: ++toolCallIdCounter,
@@ -997,6 +1001,7 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
       },
       (reasoningToken: string) => {
         assistantMsg.reasoning = (assistantMsg.reasoning || '') + reasoningToken
+        assistantMsg.reasoningActive = true
         if (assistantMsg.reasoningExpanded === undefined) assistantMsg.reasoningExpanded = true
         scrollToBottom()
       }
@@ -1635,7 +1640,7 @@ onUnmounted(() => {
     &:hover { background: rgba(168, 85, 247, 0.08); }
     .is-loading { color: #a855f7; flex-shrink: 0; animation: rotating 1.5s linear infinite; }
     .reasoning-title { font-weight: 600; color: #a855f7; }
-    .process-expand-icon { color: var(--text-muted); }
+    .process-expand-icon { color: var(--text-muted); margin-left: auto; }
   }
   .reasoning-body {
     padding: 8px 10px; color: var(--text-muted); line-height: 1.6;
