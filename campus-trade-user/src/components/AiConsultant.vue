@@ -1664,7 +1664,10 @@ onUnmounted(() => {
   }
   .reasoning-body {
     padding: 8px 10px; color: var(--text-muted); line-height: 1.6;
-    font-style: italic; white-space: pre-wrap; max-height: 200px; overflow-y: auto;
+    font-style: italic; max-height: 200px; overflow-y: auto;
+    :deep(ul), :deep(ol) { margin: 4px 0 8px; padding-left: 20px; }
+    :deep(p) { margin: 4px 0; }
+    :deep(pre) { background: rgba(0, 0, 0, 0.06); padding: 8px 12px; border-radius: 8px; overflow-x: auto; margin: 4px 0; code { background: none; padding: 0; } }
   }
 }
 .thinking-process {
