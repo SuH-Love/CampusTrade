@@ -1021,7 +1021,8 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
         if (assistantMsg.reasoningExpanded === undefined) assistantMsg.reasoningExpanded = true
         scrollToBottom()
         nextTick(scrollReasoningBody)
-      }
+      },
+      () => { assistantMsg.reasoningActive = false }
     , regenerate)
   } catch (e) {
     assistantMsg.loading = false

@@ -21,6 +21,8 @@ public interface ChatOutputAdapter {
 
     default void onReasoning(String token) {}
 
+    default void onReasoningEnd() {}
+
     void onComplete(String fullResponse);
 
     void onError(String error);

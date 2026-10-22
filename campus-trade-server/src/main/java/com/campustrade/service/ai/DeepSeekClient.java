@@ -1071,7 +1071,7 @@ public class DeepSeekClient {
 
     public Map<String, Object> chatWithToolsStream(
             List<Map<String, Object>> messages, List<Map<String, Object>> tools, String sceneOverride,
-            Consumer<String> onReasoning, Consumer<String> onContent) {
+            Consumer<String> onReasoning, Consumer<String> onContent, Runnable onReasoningEnd) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("content", null);
         result.put("reasoning_content", null);
@@ -1120,6 +1120,7 @@ public class DeepSeekClient {
             StringBuilder contentBuilder = new StringBuilder();
             StringBuilder reasoningBuilder = new StringBuilder();
             Map<Integer, JSONObject> tcBuffers = new LinkedHashMap<>();
+            final boolean[] reasoningEnded = {false};
 
             try (InputStream is = conn.getInputStream();
                  BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
@@ -1143,6 +1144,13 @@ public class DeepSeekClient {
                         }
 
                         String contentToken = delta.getStr("content");
+                        JSONArray tcPeek = delta.getJSONArray("tool_calls");
+                        if ((contentToken != null && !contentToken.isEmpty()) || (tcPeek != null && !tcPeek.isEmpty())) {
+                            if (reasoningBuilder.length() > 0 && !reasoningEnded[0]) {
+                                reasoningEnded[0] = true;
+                                if (onReasoningEnd != null) onReasoningEnd.run();
+                            }
+                        }
                         if (contentToken != null && !contentToken.isEmpty()) {
                             contentBuilder.append(contentToken);
                             if (onContent != null) onContent.accept(contentToken);

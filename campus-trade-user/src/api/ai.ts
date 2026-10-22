@@ -53,6 +53,7 @@ export function chatStream(
   onToolError?: (toolError: { id: string; name: string; error: string }) => void,
   onToolConfirm?: (toolConfirm: { id: string; name: string; displayName: string; args: Record<string, unknown> }) => void,
   onReasoning?: (token: string) => void,
+  onReasoningEnd?: () => void,
   regenerate?: boolean
 ): { close: () => void } {
   const params = new URLSearchParams({ message })
@@ -112,6 +113,8 @@ export function chatStream(
           } catch {
             onReasoning(data)
           }
+        } else if (currentEvent === 'reasoning_end') {
+          if (onReasoningEnd) onReasoningEnd()
         } else if (currentEvent === 'tool_call' && onToolCall) {
           try {
             onToolCall(JSON.parse(data))

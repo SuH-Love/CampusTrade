@@ -134,10 +134,11 @@ public class AiChatOrchestrator {
                 break;
             }
 
-            String intentStep = i == 0 ? "理解意图" : "继续分析";
-            String intentDetail = i == 0 ? analyzeIntent(userMessage) + "（正在智能分析执行方案）" : "根据工具返回结果继续分析";
-            adapter.onThinking(intentStep, intentDetail);
-            collectedThinking.add(Map.of("status", intentStep, "detail", intentDetail));
+            if (i == 0) {
+                String intentDetail = analyzeIntent(userMessage);
+                adapter.onThinking("理解意图", intentDetail);
+                collectedThinking.add(Map.of("status", "理解意图", "detail", intentDetail));
+            }
 
             Map<String, Object> aiResult;
             try {
@@ -145,7 +146,8 @@ public class AiChatOrchestrator {
                 if (i == 0 && userMessage.contains("[图片:")) sceneOverride = "vision";
                 else sceneOverride = "chat";
                 aiResult = deepSeekClient.chatWithToolsStream(messages, tools, sceneOverride,
-                    reasoning -> { collectedReasoning.append(reasoning); adapter.onReasoning(reasoning); }, null);
+                    reasoning -> { collectedReasoning.append(reasoning); adapter.onReasoning(reasoning); }, null,
+                    () -> adapter.onReasoningEnd());
             } catch (Exception e) {
                 log.error("Agent loop chatWithToolsStream failed", e);
                 adapter.onError("AI分析失败，请重试");
