@@ -158,11 +158,14 @@ public class AiChatOrchestrator {
             nonStreamReasoning = (String) aiResult.get("reasoning_content");
             List<Map<String, Object>> toolCalls = (List<Map<String, Object>>) aiResult.get("toolCalls");
 
+            if (toolCalls == null || toolCalls.isEmpty()) {
+                adapter.onThinking("生成回答", "根据查询结果组织回答");
+                collectedThinking.add(Map.of("status", "生成回答", "detail", "根据查询结果组织回答"));
+                break;
+            }
             String planDetail = analyzePlan(toolCalls);
             adapter.onThinking("分析完成", planDetail);
             collectedThinking.add(Map.of("status", "分析完成", "detail", planDetail));
-
-            if (toolCalls == null || toolCalls.isEmpty()) break;
 
             toolsUsed = true;
             Map<String, Object> assistantMsg = new LinkedHashMap<>();

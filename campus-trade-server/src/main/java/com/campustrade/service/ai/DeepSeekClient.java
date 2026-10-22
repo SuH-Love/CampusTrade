@@ -1201,6 +1201,11 @@ public class DeepSeekClient {
             }
             log.info("chatWithToolsStream done: contentLen={} reasoningLen={} toolCalls={}",
                 contentBuilder.length(), reasoningBuilder.length(), tcBuffers.size());
+            if (reasoningBuilder.length() > 0) {
+                String rtail = reasoningBuilder.length() > 160 ? reasoningBuilder.substring(reasoningBuilder.length() - 160) : reasoningBuilder.toString();
+                String chead = contentBuilder.length() > 160 ? contentBuilder.substring(0, 160) : contentBuilder.toString();
+                log.info("chatWithToolsStream VERIFY: reasoningTail=[{}] contentHead=[{}]", rtail, chead);
+            }
             conn.disconnect();
             return result;
         } catch (Exception e) {
