@@ -59,7 +59,7 @@
           <div v-for="(msg, idx) in messages" :key="msg.id" :class="['msg-row', msg.role]">
             <div class="msg-wrapper">
               <div class="msg-bubble">
-                <span v-if="msg.role === 'assistant' && msg.loading && !msg.content" class="typing">
+                <span v-if="msg.role === 'assistant' && msg.loading && !msg.content && !msg.reasoning && msg.thinkingSteps.length === 0" class="typing">
                   <span class="dot"></span><span class="dot"></span><span class="dot"></span>
                 </span>
                 <template v-else>
