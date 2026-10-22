@@ -1098,16 +1098,22 @@ public class DeepSeekClient {
             addThinkingParams(payload, routed.model, true);
             if (tools != null && !tools.isEmpty()) payload.set("tools", JSONUtil.parseArray(tools));
 
-            HttpResponse response = HttpRequest.post(routed.baseUrl + "/chat/completions")
-                    .header("Authorization", "Bearer " + routed.apiKey)
-                    .header("Content-Type", "application/json")
-                    .body(payload.toString())
-                    .timeout(streamTimeoutMs)
-                    .execute();
-            int code = response.getStatus();
+            java.net.URL apiUrl = new java.net.URL(routed.baseUrl + "/chat/completions");
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) apiUrl.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Authorization", "Bearer " + routed.apiKey);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setConnectTimeout(30000);
+            conn.setReadTimeout(streamTimeoutMs);
+            conn.setDoOutput(true);
+            try (java.io.OutputStream os = conn.getOutputStream()) {
+                os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
+            }
+            int code = conn.getResponseCode();
             if (code < 200 || code >= 300) {
                 log.error("chatWithToolsStream API error: code={}", code);
                 result.put("content", FALLBACK_ANSWERS.get("faq"));
+                conn.disconnect();
                 return result;
             }
 
@@ -1115,7 +1121,7 @@ public class DeepSeekClient {
             StringBuilder reasoningBuilder = new StringBuilder();
             Map<Integer, JSONObject> tcBuffers = new LinkedHashMap<>();
 
-            try (InputStream is = response.bodyStream();
+            try (InputStream is = conn.getInputStream();
                  BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -1187,6 +1193,7 @@ public class DeepSeekClient {
             }
             log.info("chatWithToolsStream done: contentLen={} reasoningLen={} toolCalls={}",
                 contentBuilder.length(), reasoningBuilder.length(), tcBuffers.size());
+            conn.disconnect();
             return result;
         } catch (Exception e) {
             log.error("chatWithToolsStream failed", e);

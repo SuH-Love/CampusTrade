@@ -116,6 +116,9 @@ ai:
   routing:
     enabled: ${AI_ROUTING_ENABLED:false}
     reasoner-model: ${AI_ROUTING_REASONER_MODEL:deepseek-reasoner}
+  faq:
+    rerank:
+      enabled: ${AI_FAQ_RERANK_ENABLED:false}
   document:
     chunk-size: ${AI_DOC_CHUNK_SIZE:500}
     chunk-overlap: ${AI_DOC_CHUNK_OVERLAP:100}

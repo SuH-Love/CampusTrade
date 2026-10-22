@@ -189,7 +189,7 @@ public class AiController {
         }
 
         try {
-            chatOrchestrator.summarizeIfNeeded(sessionId);
+            java.util.concurrent.CompletableFuture.runAsync(() -> chatOrchestrator.summarizeIfNeeded(sessionId));
             List<Map<String, Object>> messages = sessionService.buildMessages(sessionId, prompt, userMessage);
             StringBuilder syncResponse = new StringBuilder();
             com.campustrade.service.ai.ChatOutputAdapter syncAdapter = new com.campustrade.service.ai.ChatOutputAdapter() {
@@ -267,6 +267,7 @@ public class AiController {
             long requestStartTime = System.currentTimeMillis();
             emitter.send(SseEmitter.event().name("trace").data("{\"traceId\":\"" + traceId + "\",\"startTime\":" + requestStartTime + "}"));
             log.info("AI chat stream [traceId={}]: message='{}', sessionId={}", traceId, userMessage.substring(0, Math.min(50, userMessage.length())), sid);
+            emitter.send(SseEmitter.event().name("thinking").data("{\"step\":\"理解意图\",\"detail\":\"小苏正在分析您的需求...\"}"));
         } catch (Exception ignored) {}
 
         if (!safetyService.isInputSafe(userMessage)) {
@@ -345,24 +346,26 @@ public class AiController {
             return;
         }
 
-        try {
-            if (sessionService.shouldSummarize(sid)) {
-                String rawHistory = sessionService.prepareSummaryContext(sid, "请将以下对话历史总结为简洁的摘要，保留关键信息：");
-                if (rawHistory != null) {
-                    List<Map<String, Object>> sumMsgs = new ArrayList<>();
-                    Map<String, Object> sMsg = new HashMap<>();
-                    sMsg.put("role", "user");
-                    sMsg.put("content", rawHistory);
-                    sumMsgs.add(sMsg);
-                    String summary = deepSeekClient.chat(sumMsgs);
-                    if (summary != null && !summary.isEmpty()) {
-                        sessionService.applySummary(sid, summary);
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                if (sessionService.shouldSummarize(sid)) {
+                    String rawHistory = sessionService.prepareSummaryContext(sid, "请将以下对话历史总结为简洁的摘要，保留关键信息：");
+                    if (rawHistory != null) {
+                        List<Map<String, Object>> sumMsgs = new ArrayList<>();
+                        Map<String, Object> sMsg = new HashMap<>();
+                        sMsg.put("role", "user");
+                        sMsg.put("content", rawHistory);
+                        sumMsgs.add(sMsg);
+                        String summary = deepSeekClient.chat(sumMsgs);
+                        if (summary != null && !summary.isEmpty()) {
+                            sessionService.applySummary(sid, summary);
+                        }
                     }
                 }
+            } catch (Exception e) {
+                log.warn("Session summarize failed: {}", e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("Session summarize failed: {}", e.getMessage());
-        }
+        }, aiAgentExecutor);
 
         String effectiveMessage = userMessage;
         List<Map<String, Object>> histForCtx = sessionService.getHistory(sid);
