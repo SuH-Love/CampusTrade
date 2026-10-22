@@ -120,6 +120,7 @@ public class AiChatOrchestrator {
         int maxIterations = configService.getInt("agent", "max_iterations", 10);
         int maxTokenBudget = configService.getInt("agent", "max_token_budget", 8000);
         List<Map<String, Object>> collectedThinking = new ArrayList<>();
+        StringBuilder collectedReasoning = new StringBuilder();
         List<Map<String, Object>> collectedToolCalls = new ArrayList<>();
 
         for (int i = 0; i < maxIterations; i++) {
@@ -144,7 +145,7 @@ public class AiChatOrchestrator {
                 if (i == 0 && userMessage.contains("[图片:")) sceneOverride = "vision";
                 else sceneOverride = "chat";
                 aiResult = deepSeekClient.chatWithToolsStream(messages, tools, sceneOverride,
-                    reasoning -> adapter.onReasoning(reasoning), null);
+                    reasoning -> { collectedReasoning.append(reasoning); adapter.onReasoning(reasoning); }, null);
             } catch (Exception e) {
                 log.error("Agent loop chatWithToolsStream failed", e);
                 adapter.onError("AI分析失败，请重试");
@@ -267,7 +268,7 @@ public class AiChatOrchestrator {
             } else {
                 adapter.onToken(content);
             }
-            sessionService.addMessagePair(sessionId, userMessage, content, collectedThinking, collectedToolCalls);
+            sessionService.addMessagePair(sessionId, userMessage, content, collectedThinking, collectedToolCalls, collectedReasoning.toString());
             adapter.onComplete(content);
             return content;
         }
@@ -287,10 +288,10 @@ public class AiChatOrchestrator {
                 }
                 fullResponse.append(token);
             },
-            reasoning -> adapter.onReasoning(reasoning),
+            reasoning -> { collectedReasoning.append(reasoning); adapter.onReasoning(reasoning); },
             done -> {
                 String sanitizedFull = safetyService.sanitizeOutput(fullResponse.toString());
-                sessionService.addMessagePair(sessionId, userMessage, sanitizedFull, finalCollectedThinking, finalCollectedToolCalls);
+                sessionService.addMessagePair(sessionId, userMessage, sanitizedFull, finalCollectedThinking, finalCollectedToolCalls, collectedReasoning.toString());
                 adapter.onComplete(sanitizedFull);
             },
             error -> {
@@ -302,7 +303,7 @@ public class AiChatOrchestrator {
                 else if (errMsg.contains("熔断")) displayMsg = "AI服务暂时不可用（熔断保护中）";
                 else displayMsg = "AI服务暂时不可用，请稍后再试";
                 String saveContent = partial.isEmpty() ? displayMsg : safetyService.sanitizeOutput(partial);
-                sessionService.addMessagePair(sessionId, userMessage, saveContent, finalCollectedThinking, finalCollectedToolCalls);
+                sessionService.addMessagePair(sessionId, userMessage, saveContent, finalCollectedThinking, finalCollectedToolCalls, collectedReasoning.toString());
                 adapter.onError(displayMsg);
             },
             "reasoning"

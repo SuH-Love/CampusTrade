@@ -80,6 +80,11 @@ public class SessionService {
 
     public void addMessagePair(String sessionId, String userMessage, String assistantMessage,
             List<Map<String, Object>> thinkingSteps, List<Map<String, Object>> toolCalls) {
+        addMessagePair(sessionId, userMessage, assistantMessage, thinkingSteps, toolCalls, null);
+    }
+
+    public void addMessagePair(String sessionId, String userMessage, String assistantMessage,
+            List<Map<String, Object>> thinkingSteps, List<Map<String, Object>> toolCalls, String reasoning) {
         String key = SESSION_PREFIX + sessionId;
         try {
             extractAndSavePreferences(sessionId, userMessage);
@@ -94,6 +99,7 @@ public class SessionService {
             assistantMsg.put("timestamp", now);
             if (thinkingSteps != null && !thinkingSteps.isEmpty()) assistantMsg.put("thinkingSteps", thinkingSteps);
             if (toolCalls != null && !toolCalls.isEmpty()) assistantMsg.put("toolCalls", toolCalls);
+            if (reasoning != null && !reasoning.isEmpty()) assistantMsg.put("reasoning", reasoning);
             String userJson = objectMapper.writeValueAsString(userMsg);
             String assistantJson = objectMapper.writeValueAsString(assistantMsg);
             stringRedisTemplate.executePipelined((org.springframework.data.redis.core.RedisCallback<Object>) connection -> {

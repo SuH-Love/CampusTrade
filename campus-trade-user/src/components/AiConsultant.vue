@@ -646,6 +646,7 @@ const saveThinkingData = (sid: string, msg: Message) => {
       thinkingSteps: msg.thinkingSteps,
       thinkingStartTime: msg.thinkingStartTime,
       thinkingEndTime: msg.thinkingEndTime,
+      reasoning: msg.reasoning,
       toolCalls: msg.toolCalls.map(tc => ({ ...tc, expanded: false }))
     }
     const keys = Object.keys(data)
@@ -669,6 +670,7 @@ const restoreThinkingData = (sid: string, msg: Message) => {
       msg.thinkingSteps = saved.thinkingSteps || []
       msg.thinkingStartTime = saved.thinkingStartTime
       msg.thinkingEndTime = saved.thinkingEndTime
+      msg.reasoning = saved.reasoning
       msg.toolCalls = saved.toolCalls || []
     }
   } catch {}
@@ -707,7 +709,8 @@ const loadHistory = async () => {
           content: msg.content,
           toolCalls: (msg.toolCalls || []).map((tc: any) => ({ ...tc, expanded: false, status: 'done' as const })),
           timestamp: msg.timestamp || Date.now(),
-          thinkingSteps: (msg.thinkingSteps || []).map((ts: any) => ({ ...ts, startTime: ts.startTime || 0, endTime: ts.endTime || 0 }))
+          thinkingSteps: (msg.thinkingSteps || []).map((ts: any) => ({ ...ts, startTime: ts.startTime || 0, endTime: ts.endTime || 0 })),
+          reasoning: (msg as any).reasoning
         }
         if (m.role === 'assistant' && sessionId.value) {
           restoreThinkingData(sessionId.value, m)
@@ -740,7 +743,8 @@ const loadAllHistory = async () => {
           content: msg.content,
           toolCalls: (msg.toolCalls || []).map((tc: any) => ({ ...tc, expanded: false, status: 'done' as const })),
           timestamp: msg.timestamp || Date.now(),
-          thinkingSteps: (msg.thinkingSteps || []).map((ts: any) => ({ ...ts, startTime: ts.startTime || 0, endTime: ts.endTime || 0 }))
+          thinkingSteps: (msg.thinkingSteps || []).map((ts: any) => ({ ...ts, startTime: ts.startTime || 0, endTime: ts.endTime || 0 })),
+          reasoning: (msg as any).reasoning
         }
         if (m.role === 'assistant' && sessionId.value) {
           restoreThinkingData(sessionId.value, m)
