@@ -301,7 +301,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { ChatDotRound, Close, Delete, Promotion, Tools, ArrowDown, ArrowUp, Loading, VideoPause, CopyDocument, RefreshRight, FullScreen, CircleCheck, Picture, Moon } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { chatStream, getAiStatus, clearSession, getSessionHistory, submitAiFeedback, cancelAiFeedback, getSessionFeedback, confirmTool, getQuickQuestions } from '@/api/ai'
@@ -1028,7 +1028,7 @@ const sendMessage = async (text: string) => {
   inputText.value = ''
   if (textareaRef.value) textareaRef.value.style.height = 'auto'
   messages.value.push({ id: ++msgIdCounter, role: 'user', content: trimmed, toolCalls: [], timestamp: Date.now(), thinkingSteps: [] })
-  const assistantMsg: Message = {
+  const assistantMsg = reactive<Message>({
     id: ++msgIdCounter,
     role: 'assistant',
     content: '',
@@ -1038,7 +1038,7 @@ const sendMessage = async (text: string) => {
     timestamp: Date.now(),
     thinkingStartTime: Date.now(),
     thinkingSteps: []
-  }
+  })
   messages.value.push(assistantMsg)
   loading.value = true
   startThinkingTimer()
@@ -1177,7 +1177,7 @@ const regenerateAnswer = (idx: number) => {
   if (!userMsg || userMsg.role !== 'user') return
   messages.value.splice(idx)
   lastUserMessage = userMsg.content
-  const assistantMsg: Message = {
+  const assistantMsg = reactive<Message>({
     id: ++msgIdCounter,
     role: 'assistant',
     content: '',
@@ -1187,7 +1187,7 @@ const regenerateAnswer = (idx: number) => {
     timestamp: Date.now(),
     thinkingStartTime: Date.now(),
     thinkingSteps: []
-  }
+  })
   messages.value.push(assistantMsg)
   loading.value = true
   startThinkingTimer()
