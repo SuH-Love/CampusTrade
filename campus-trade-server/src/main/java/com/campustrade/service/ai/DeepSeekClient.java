@@ -1491,9 +1491,29 @@ public class DeepSeekClient {
         }
     }
 
+    private final java.util.concurrent.ConcurrentHashMap<String, CachedEmbedding> queryEmbCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long QUERY_EMB_CACHE_TTL_MS = 60_000L;
+
+    private static class CachedEmbedding {
+        final float[] vec;
+        final long ts;
+        CachedEmbedding(float[] v, long t) { vec = v; ts = t; }
+    }
+
     public float[] embedding(String text) {
+        if (text == null || text.isEmpty()) return null;
+        String key = text.length() + ":" + text.hashCode();
+        CachedEmbedding ce = queryEmbCache.get(key);
+        if (ce != null && System.currentTimeMillis() - ce.ts < QUERY_EMB_CACHE_TTL_MS) {
+            return ce.vec;
+        }
         List<float[]> results = embeddings(java.util.Collections.singletonList(text));
-        return results.isEmpty() ? null : results.get(0);
+        float[] vec = results.isEmpty() ? null : results.get(0);
+        if (vec != null) {
+            if (queryEmbCache.size() > 1000) queryEmbCache.clear();
+            queryEmbCache.put(key, new CachedEmbedding(vec, System.currentTimeMillis()));
+        }
+        return vec;
     }
 
     private volatile long embeddingAvailableCacheTime = 0;
