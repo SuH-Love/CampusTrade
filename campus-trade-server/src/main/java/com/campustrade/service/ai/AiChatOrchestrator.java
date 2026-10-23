@@ -145,7 +145,9 @@ public class AiChatOrchestrator {
                 String sceneOverride;
                 if (i == 0 && userMessage.contains("[图片:")) sceneOverride = "vision";
                 else sceneOverride = "chat";
-                aiResult = deepSeekClient.chatWithToolsStream(messages, tools, sceneOverride,
+                java.util.List<Map<String, Object>> callTools = "vision".equals(sceneOverride)
+                        ? java.util.Collections.emptyList() : tools;
+                aiResult = deepSeekClient.chatWithToolsStream(messages, callTools, sceneOverride,
                     reasoning -> { collectedReasoning.append(reasoning); adapter.onReasoning(reasoning); }, null,
                     () -> adapter.onReasoningEnd());
             } catch (Exception e) {
@@ -311,7 +313,7 @@ public class AiChatOrchestrator {
                 sessionService.addMessagePair(sessionId, userMessage, saveContent, finalCollectedThinking, finalCollectedToolCalls, collectedReasoning.toString());
                 adapter.onError(displayMsg);
             },
-            "reasoning"
+            userMessage.contains("[图片:") ? "vision" : "reasoning"
         );
         return fullResponse.toString();
     }
