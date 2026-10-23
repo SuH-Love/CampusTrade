@@ -64,6 +64,9 @@ public class DeepSeekClient {
     @Value("${file.upload.url-prefix:/uploads}")
     private String urlPrefix;
 
+    @Value("${ai.vision.public-base-url:}")
+    private String visionPublicBaseUrl;
+
     @Value("${ai.enabled:true}")
     private boolean aiEnabled;
 
@@ -1289,15 +1292,16 @@ public class DeepSeekClient {
                         while (matcher.find()) {
                             String imageUrl = matcher.group(2);
                             matcher.appendReplacement(textPart, "");
-                            String dataUrl = imageToDataUrl(imageUrl);
-                            if (dataUrl != null) {
+                            String finalUrl = buildPublicImageUrl(imageUrl);
+                            if (finalUrl == null) finalUrl = imageToDataUrl(imageUrl);
+                            if (finalUrl != null) {
                                 Map<String, Object> imagePart = new HashMap<>();
                                 imagePart.put("type", "image_url");
                                 Map<String, String> urlMap = new HashMap<>();
-                                urlMap.put("url", dataUrl);
+                                urlMap.put("url", finalUrl);
                                 imagePart.put("image_url", urlMap);
                                 multimodalContent.add(imagePart);
-                                log.info("Image converted to base64: {} ({} chars)", imageUrl, dataUrl.length());
+                                log.info("Image attached: {} ({} chars)", imageUrl, finalUrl.length());
                             }
                         }
                         matcher.appendTail(textPart);
@@ -1318,6 +1322,16 @@ public class DeepSeekClient {
             converted.add(msg);
         }
         return converted;
+    }
+
+    private String buildPublicImageUrl(String urlPath) {
+        if (urlPath == null || urlPath.isEmpty()) return null;
+        if (urlPath.startsWith("http://") || urlPath.startsWith("https://")) return urlPath;
+        if (visionPublicBaseUrl == null || visionPublicBaseUrl.isEmpty()) return null;
+        String base = visionPublicBaseUrl.endsWith("/")
+                ? visionPublicBaseUrl.substring(0, visionPublicBaseUrl.length() - 1)
+                : visionPublicBaseUrl;
+        return base + urlPath;
     }
 
     private String imageToDataUrl(String urlPath) {

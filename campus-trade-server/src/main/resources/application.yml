@@ -119,6 +119,8 @@ ai:
   faq:
     rerank:
       enabled: ${AI_FAQ_RERANK_ENABLED:false}
+  vision:
+    public-base-url: ${AI_VISION_PUBLIC_BASE_URL:https://aisu.site}
   document:
     chunk-size: ${AI_DOC_CHUNK_SIZE:500}
     chunk-overlap: ${AI_DOC_CHUNK_OVERLAP:100}
