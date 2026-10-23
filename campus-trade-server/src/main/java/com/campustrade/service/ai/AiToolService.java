@@ -34,6 +34,7 @@ public class AiToolService {
     @Autowired private FundLogMapper fundLogMapper;
     @Autowired private AnnouncementMapper announcementMapper;
     @Autowired private ReportMapper reportMapper;
+    @Autowired private DeepSeekClient deepSeekClient;
     @Autowired private OrderService orderService;
     @Autowired private GoodsService goodsService;
     @Autowired private UserService userService;
@@ -218,6 +219,10 @@ public class AiToolService {
             props(
                 "keyword", prop("string", "搜索关键词"),
                 "limit", prop("integer", "返回数量（可选，默认10，最大20）"))));
+
+        base.add(tool("describe_image",
+            "识别并描述用户发送的图片内容。当用户消息中包含 [图片: 名称](路径) 标记时，必须先调用本工具获取图片内容，再结合用户问题进行后续处理（如查询订单、搜索商品等）。",
+            props("imageUrl", prop("string", "图片路径，取自消息中 [图片: 名称](路径) 标记括号内的路径"))));
 
         base.add(tool("get_user_profile",
             "查询当前用户的个人信息（昵称、手机、邮箱、实名状态、头像）。当用户问'我的信息'、'我的资料'、'我实名认证了吗'时调用。",
@@ -464,6 +469,7 @@ public class AiToolService {
                 case "get_order_status": return executeGetOrderStatus(arguments);
                 case "get_order_by_no": return executeGetOrderByNo(arguments);
                 case "search_goods": return executeSearchGoods(arguments);
+                case "describe_image": return deepSeekClient.describeImage(arguments.get("imageUrl") == null ? "" : arguments.get("imageUrl").toString());
                 case "get_user_profile": return executeGetUserProfile();
                 case "get_user_stats": return executeGetUserStats();
                 case "get_my_goods": return executeGetMyGoods(arguments);

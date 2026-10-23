@@ -67,6 +67,13 @@ public class DeepSeekClient {
     @Value("${ai.vision.public-base-url:}")
     private String visionPublicBaseUrl;
 
+    @Value("${ai.vision.mode:tool}")
+    private String visionMode;
+
+    public String getVisionMode() {
+        return (visionMode == null || visionMode.isEmpty()) ? "tool" : visionMode;
+    }
+
     @Value("${ai.enabled:true}")
     private boolean aiEnabled;
 
@@ -1253,6 +1260,9 @@ public class DeepSeekClient {
         }
         if (!hasImage) return messages;
 
+        // 视觉即工具模式: 保留 [图片: 名称](路径) 标记, 由主模型调用 describe_image 工具获取内容
+        if ("tool".equals(getVisionMode())) return messages;
+
         boolean modelSupportsVision = isVisionModel(targetModel);
         Pattern imgPattern = Pattern.compile("\\[图片:\\s*([^\\]]+)\\]\\(([^)]+)\\)");
 
@@ -1322,6 +1332,79 @@ public class DeepSeekClient {
             converted.add(msg);
         }
         return converted;
+    }
+
+    public String describeImage(String imageUrl) {
+        try {
+            List<Map<String, Object>> msgs = new ArrayList<>();
+            Map<String, Object> sysMsg = new HashMap<>();
+            sysMsg.put("role", "system");
+            sysMsg.put("content", "你是图像识别助手。请客观描述图片内容，并提取其中可用的关键信息（如订单号、商品名称、金额、日期、状态、账号等）。看不清或不确定时请明确说明，不要臆测、不要编造。");
+            msgs.add(sysMsg);
+
+            Map<String, Object> userMsg = new HashMap<>();
+            userMsg.put("role", "user");
+            List<Object> content = new ArrayList<>();
+            String dataUrl = imageToDownscaledDataUrl(imageUrl, 1024);
+            Map<String, Object> imgPart = new HashMap<>();
+            imgPart.put("type", "image_url");
+            Map<String, String> urlMap = new HashMap<>();
+            urlMap.put("url", dataUrl != null ? dataUrl : (buildPublicImageUrl(imageUrl) != null ? buildPublicImageUrl(imageUrl) : imageUrl));
+            imgPart.put("image_url", urlMap);
+            content.add(imgPart);
+            Map<String, Object> textPart = new HashMap<>();
+            textPart.put("type", "text");
+            textPart.put("text", "请描述这张图片的内容，并提取其中的关键信息。");
+            content.add(textPart);
+            userMsg.put("content", content);
+            msgs.add(userMsg);
+
+            Map<String, Object> res = doChatWithToolsForScene(msgs, new ArrayList<>(), "vision");
+            String desc = (String) res.get("content");
+            if (desc == null || desc.isEmpty()) desc = (String) res.get("reasoning_content");
+            log.info("describeImage: {} -> {}", imageUrl, desc == null ? "" : (desc.length() > 80 ? desc.substring(0, 80) : desc));
+            return desc == null ? "" : desc.trim();
+        } catch (Exception e) {
+            log.warn("describeImage failed: {}", e.getMessage());
+            return "";
+        }
+    }
+
+    private String imageToDownscaledDataUrl(String urlPath, int maxDim) {
+        try {
+            String filePath = urlPath.replace(urlPrefix, uploadBasePath);
+            File file = new File(filePath);
+            String canonical = file.getCanonicalPath();
+            String baseCanonical = new File(uploadBasePath).getCanonicalPath();
+            if (!canonical.equals(baseCanonical) && !canonical.startsWith(baseCanonical + File.separator)) {
+                log.warn("Blocked path traversal attempt: {}", urlPath);
+                return null;
+            }
+            if (!file.exists()) return imageToDataUrl(urlPath);
+            java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(file);
+            if (img == null) return imageToDataUrl(urlPath);
+            int w = img.getWidth(), h = img.getHeight();
+            int mx = Math.max(w, h);
+            if (mx > maxDim) {
+                double scale = (double) maxDim / mx;
+                int nw = Math.max(1, (int) (w * scale));
+                int nh = Math.max(1, (int) (h * scale));
+                java.awt.image.BufferedImage scaled = new java.awt.image.BufferedImage(nw, nh, java.awt.image.BufferedImage.TYPE_INT_RGB);
+                java.awt.Graphics2D g = scaled.createGraphics();
+                g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g.drawImage(img, 0, 0, nw, nh, null);
+                g.dispose();
+                img = scaled;
+            }
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(img, "jpg", baos);
+            byte[] bytes = baos.toByteArray();
+            log.info("Image downscaled: {} -> {}x{} ({} bytes)", urlPath, img.getWidth(), img.getHeight(), bytes.length);
+            return "data:image/jpeg;base64," + java.util.Base64.getEncoder().encodeToString(bytes);
+        } catch (Throwable e) {
+            log.warn("imageToDownscaledDataUrl failed, fallback to raw: {}", e.getMessage());
+            return imageToDataUrl(urlPath);
+        }
     }
 
     private String buildPublicImageUrl(String urlPath) {

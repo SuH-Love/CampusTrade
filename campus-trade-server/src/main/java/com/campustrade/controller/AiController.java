@@ -1394,9 +1394,13 @@ public class AiController {
         String visionModel = deepSeekClient.getCurrentVisionModel();
         boolean visionAvailable = (visionModel != null && !visionModel.isEmpty())
                 || deepSeekClient.getModel().toLowerCase().contains("vision");
-        return visionAvailable
-                ? "\n\n## 图片能力\n当用户消息中包含[图片: xxx]标记时，说明用户发送了图片，你具备图片识别能力，可以描述并分析图片内容，请结合图片内容和用户问题进行回答。"
-                : "\n\n## 图片能力\n当用户消息中包含[图片: xxx]标记时，说明用户发送了图片，请友好地告知用户：您已收到该图片，但当前暂不支持图片内容识别功能，图片识别能力正在升级中，请用文字描述您的问题，我会全力帮您解答。不要说\"超出服务范围\"或\"功能限制\"等生硬措辞。";
+        if (!visionAvailable) {
+            return "\n\n## 图片能力\n当用户消息中包含[图片: xxx]标记时，说明用户发送了图片，请友好地告知用户：您已收到该图片，但当前暂不支持图片内容识别功能，图片识别能力正在升级中，请用文字描述您的问题，我会全力帮您解答。不要说\"超出服务范围\"或\"功能限制\"等生硬措辞。";
+        }
+        if ("tool".equals(deepSeekClient.getVisionMode())) {
+            return "\n\n## 图片能力\n当用户消息中包含 [图片: 名称](路径) 标记时，说明用户发送了图片。请先调用 describe_image 工具（imageUrl 参数取自标记括号内的路径）获取图片内容，再结合用户问题继续处理；如需查询订单、搜索商品等，继续调用相应工具。";
+        }
+        return "\n\n## 图片能力\n当用户消息中包含[图片: xxx]标记时，说明用户发送了图片，你具备图片识别能力，可以描述并分析图片内容，请结合图片内容和用户问题进行回答。";
     }
 
     @org.springframework.web.bind.annotation.PutMapping("/prompt")

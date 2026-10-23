@@ -121,6 +121,7 @@ ai:
       enabled: ${AI_FAQ_RERANK_ENABLED:false}
   vision:
     public-base-url: ${AI_VISION_PUBLIC_BASE_URL:https://aisu.site}
+    mode: ${AI_VISION_MODE:tool}
   document:
     chunk-size: ${AI_DOC_CHUNK_SIZE:500}
     chunk-overlap: ${AI_DOC_CHUNK_OVERLAP:100}

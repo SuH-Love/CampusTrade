@@ -142,9 +142,10 @@ public class AiChatOrchestrator {
 
             Map<String, Object> aiResult;
             try {
-                String sceneOverride;
-                if (i == 0 && userMessage.contains("[图片:")) sceneOverride = "vision";
-                else sceneOverride = "chat";
+                String sceneOverride = "chat";
+                // native模式: 图片由视觉模型直接处理; tool模式(默认): 保留标记, 由主模型调用 describe_image
+                if (i == 0 && userMessage.contains("[图片:") && !"tool".equals(deepSeekClient.getVisionMode()))
+                    sceneOverride = "vision";
                 java.util.List<Map<String, Object>> callTools = "vision".equals(sceneOverride)
                         ? java.util.Collections.emptyList() : tools;
                 aiResult = deepSeekClient.chatWithToolsStream(messages, callTools, sceneOverride,
@@ -334,9 +335,13 @@ public class AiChatOrchestrator {
         String visionModel = deepSeekClient.getCurrentVisionModel();
         boolean visionAvailable = (visionModel != null && !visionModel.isEmpty())
                 || deepSeekClient.getModel().toLowerCase().contains("vision");
-        return visionAvailable
-                ? "\n\n## 图片能力\n当用户消息中包含[图片: xxx]标记时，说明用户发送了图片，你具备图片识别能力，可以描述并分析图片内容，请结合图片内容和用户问题进行回答。"
-                : "\n\n## 图片能力\n当用户消息中包含[图片: xxx]标记时，说明用户发送了图片，请友好地告知用户：您已收到该图片，但当前暂不支持图片内容识别功能，图片识别能力正在升级中，请用文字描述您的问题，我会全力帮您解答。不要说\"超出服务范围\"或\"功能限制\"等生硬措辞。";
+        if (!visionAvailable) {
+            return "\n\n## 图片能力\n当用户消息中包含[图片: xxx]标记时，说明用户发送了图片，请友好地告知用户：您已收到该图片，但当前暂不支持图片内容识别功能，图片识别能力正在升级中，请用文字描述您的问题，我会全力帮您解答。不要说\"超出服务范围\"或\"功能限制\"等生硬措辞。";
+        }
+        if ("tool".equals(deepSeekClient.getVisionMode())) {
+            return "\n\n## 图片能力\n当用户消息中包含 [图片: 名称](路径) 标记时，说明用户发送了图片。请先调用 describe_image 工具（imageUrl 参数取自标记括号内的路径）获取图片内容，再结合用户问题继续处理；如需查询订单、搜索商品等，继续调用相应工具。";
+        }
+        return "\n\n## 图片能力\n当用户消息中包含[图片: xxx]标记时，说明用户发送了图片，你具备图片识别能力，可以描述并分析图片内容，请结合图片内容和用户问题进行回答。";
     }
 
     private String buildDefaultSystemPrompt() {
@@ -356,6 +361,7 @@ public class AiChatOrchestrator {
 
     private long getToolTimeout(String toolName) {
         if (toolName == null) return 15;
+        if ("describe_image".equals(toolName)) return 120;
         if (aiToolService.getWriteToolsSet().contains(toolName)) return 90;
         if (toolName.startsWith("get_") || toolName.startsWith("search_") ||
             "admin_dashboard".equals(toolName) || "admin_list_users".equals(toolName) ||
