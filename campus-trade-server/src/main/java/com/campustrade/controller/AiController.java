@@ -164,7 +164,7 @@ public class AiController {
         String userMessage = request.getMessage().trim();
 
         String faqContext = faqVectorService.buildContext(userMessage);
-        String systemPart = truncateToTokenBudget(getSystemPrompt(), configService.getInt("rag", "token_budget_system", 1500)) + "\n\n" + safetyService.getSafetyReminder();
+        String systemPart = truncateToTokenBudget(getSystemPrompt(), configService.getInt("rag", "token_budget_system", 1500)) + getVisionCapabilityHint() + "\n\n" + safetyService.getSafetyReminder();
         String knowledgePart = truncateToTokenBudget(platformKnowledgeService.buildPlatformKnowledge(userMessage), configService.getInt("rag", "token_budget_knowledge", 600));
         String docContext = aiDocumentService.buildDocumentContext(userMessage);
         String truncatedDoc = truncateToTokenBudget(docContext, configService.getInt("rag", "token_budget_doc", 500));
@@ -322,7 +322,7 @@ public class AiController {
             org.springframework.security.core.context.SecurityContextHolder.setContext(streamSecCtx);
             try {
 
-        String systemPart = truncateToTokenBudget(getSystemPrompt(), configService.getInt("rag", "token_budget_system", 1500)) + "\n\n" + safetyService.getSafetyReminder();
+        String systemPart = truncateToTokenBudget(getSystemPrompt(), configService.getInt("rag", "token_budget_system", 1500)) + getVisionCapabilityHint() + "\n\n" + safetyService.getSafetyReminder();
         String knowledgePart = truncateToTokenBudget(platformKnowledgeService.buildPlatformKnowledge(userMessage), configService.getInt("rag", "token_budget_knowledge", 600));
         String docContext = aiDocumentService.buildDocumentContext(userMessage);
         String truncatedDoc = truncateToTokenBudget(docContext, configService.getInt("rag", "token_budget_doc", 500));
@@ -1387,13 +1387,16 @@ public class AiController {
             log.warn("读取自定义system prompt失败，使用默认: {}", e.getMessage());
             basePrompt = buildDefaultSystemPrompt();
         }
+        return basePrompt;
+    }
+
+    private String getVisionCapabilityHint() {
         String visionModel = deepSeekClient.getCurrentVisionModel();
         boolean visionAvailable = (visionModel != null && !visionModel.isEmpty())
                 || deepSeekClient.getModel().toLowerCase().contains("vision");
-        String visionHint = visionAvailable
+        return visionAvailable
                 ? "\n\n## 图片能力\n当用户消息中包含[图片: xxx]标记时，说明用户发送了图片，你具备图片识别能力，可以描述并分析图片内容，请结合图片内容和用户问题进行回答。"
                 : "\n\n## 图片能力\n当用户消息中包含[图片: xxx]标记时，说明用户发送了图片，请友好地告知用户：您已收到该图片，但当前暂不支持图片内容识别功能，图片识别能力正在升级中，请用文字描述您的问题，我会全力帮您解答。不要说\"超出服务范围\"或\"功能限制\"等生硬措辞。";
-        return basePrompt + visionHint;
     }
 
     @org.springframework.web.bind.annotation.PutMapping("/prompt")
