@@ -59,21 +59,21 @@
           <div v-for="(msg, idx) in messages" :key="msg.id" :class="['msg-row', msg.role]">
             <div class="msg-wrapper">
               <div class="msg-bubble">
+                <div v-if="msg.role === 'assistant' && (msg.reasoning || msg.reasoningActive)" class="reasoning-panel">
+                  <div class="reasoning-header" @click="!msg.reasoningActive && (msg.reasoningExpanded = !msg.reasoningExpanded)">
+                    <el-icon size="14" :class="{ 'is-loading': msg.reasoningActive }"><Loading v-if="msg.reasoningActive" /><CircleCheck v-else /></el-icon>
+                    <span class="reasoning-title">{{ msg.reasoningActive ? '思考中...' : '思考完成' }}</span>
+                    <el-icon v-if="!msg.reasoningActive" size="12" class="process-expand-icon">
+                      <ArrowDown v-if="!msg.reasoningExpanded" />
+                      <ArrowUp v-else />
+                    </el-icon>
+                  </div>
+                  <div v-if="msg.reasoningActive || msg.reasoningExpanded" class="reasoning-body" v-html="renderMarkdown(sanitizeReasoning(msg.reasoning || ''))"></div>
+                </div>
                 <span v-if="msg.role === 'assistant' && msg.loading && !msg.content && !msg.reasoning && !msg.reasoningActive && msg.thinkingSteps.length === 0" class="typing">
                   <span class="dot"></span><span class="dot"></span><span class="dot"></span>
                 </span>
                 <template v-else>
-                  <div v-if="msg.reasoning || msg.reasoningActive" class="reasoning-panel">
-                    <div class="reasoning-header" @click="!msg.reasoningActive && (msg.reasoningExpanded = !msg.reasoningExpanded)">
-                      <el-icon size="14" :class="{ 'is-loading': msg.reasoningActive }"><Loading v-if="msg.reasoningActive" /><CircleCheck v-else /></el-icon>
-                      <span class="reasoning-title">{{ msg.reasoningActive ? '思考中...' : '思考完成' }}</span>
-                      <el-icon v-if="!msg.reasoningActive" size="12" class="process-expand-icon">
-                        <ArrowDown v-if="!msg.reasoningExpanded" />
-                        <ArrowUp v-else />
-                      </el-icon>
-                    </div>
-                    <div v-if="msg.reasoningActive || msg.reasoningExpanded" class="reasoning-body" v-html="renderMarkdown(sanitizeReasoning(msg.reasoning || ''))"></div>
-                  </div>
                   <div v-if="msg.thinkingSteps.length > 0" class="thinking-process">
                     <div class="process-header" @click="!msg.loading && (msg.thinkingExpanded = !msg.thinkingExpanded)">
                       <el-icon v-if="!msg.thinkingStatus" size="14" class="process-check"><CircleCheck /></el-icon>
