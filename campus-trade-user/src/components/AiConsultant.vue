@@ -68,7 +68,10 @@
                       <ArrowUp v-else />
                     </el-icon>
                   </div>
-                  <div v-if="msg.reasoningActive || msg.reasoningExpanded" class="reasoning-body" v-html="renderMarkdown(sanitizeReasoning(msg.reasoning || ''))"></div>
+                  <div v-if="msg.reasoningActive || msg.reasoningExpanded" class="reasoning-body">
+                      <span v-if="msg.reasoningActive && !msg.reasoning" class="reasoning-hint">正在思考…</span>
+                      <span v-else v-html="renderMarkdown(sanitizeReasoning(msg.reasoning || ''))"></span>
+                    </div>
                 </div>
                 <span v-if="msg.role === 'assistant' && msg.loading && !msg.content && !msg.reasoning && !msg.reasoningActive && msg.thinkingSteps.length === 0" class="typing">
                   <span class="dot"></span><span class="dot"></span><span class="dot"></span>
@@ -1723,6 +1726,7 @@ onUnmounted(() => {
     padding: 8px 10px; color: var(--text-muted); line-height: 1.6;
     max-height: 200px; overflow-y: auto; overflow-x: auto;
     :deep(p) { margin: 0 0 8px; &:last-child { margin-bottom: 0; } }
+    .reasoning-hint { color: var(--text-muted); }
     :deep(ul), :deep(ol) { margin: 4px 0 8px; padding-left: 20px; }
     :deep(li) { margin: 2px 0; }
     :deep(code) { background: rgba(0, 0, 0, 0.06); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
