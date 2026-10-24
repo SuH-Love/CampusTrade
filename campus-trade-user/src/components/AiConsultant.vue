@@ -228,7 +228,7 @@
         </div>
 
         <transition name="fade-scale">
-          <div v-if="showScrollBottom" class="scroll-bottom-btn" @click="scrollToBottom(true)">
+          <div v-if="showScrollBottom" class="scroll-bottom-btn" @click="scrollToBottom(true, true)">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
