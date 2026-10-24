@@ -267,7 +267,6 @@ public class AiController {
             long requestStartTime = System.currentTimeMillis();
             emitter.send(SseEmitter.event().name("trace").data("{\"traceId\":\"" + traceId + "\",\"startTime\":" + requestStartTime + "}"));
             log.info("AI chat stream [traceId={}]: message='{}', sessionId={}", traceId, userMessage.substring(0, Math.min(50, userMessage.length())), sid);
-            emitter.send(SseEmitter.event().name("thinking").data("{\"step\":\"理解意图\",\"detail\":\"小苏正在分析您的需求...\"}"));
         } catch (Exception ignored) {}
 
         if (!safetyService.isInputSafe(userMessage)) {
@@ -449,6 +448,11 @@ public class AiController {
                 }
             } catch (Exception ignored) {}
         }
+
+        // 仅当真正进入Agent循环时才显示"理解意图"(模板/缓存/FAQ直答不显示)
+        try {
+            emitter.send(SseEmitter.event().name("thinking").data("{\"step\":\"理解意图\",\"detail\":\"小苏正在分析您的需求...\"}"));
+        } catch (Exception ignored) {}
 
         com.campustrade.service.ai.ChatOutputAdapter sseAdapter = new com.campustrade.service.ai.ChatOutputAdapter() {
             @Override public void onThinking(String step, String detail) {
