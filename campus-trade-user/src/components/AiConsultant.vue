@@ -302,7 +302,7 @@
 import { ref, reactive, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { ChatDotRound, Close, Delete, Promotion, Tools, ArrowDown, ArrowUp, Loading, VideoPause, CopyDocument, RefreshRight, FullScreen, CircleCheck, Picture, Moon } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { chatStream, getAiStatus, clearSession, getSessionHistory, submitAiFeedback, cancelAiFeedback, getSessionFeedback, confirmTool, getQuickQuestions } from '@/api/ai'
+import { chatStream, getAiStatus, clearSession, getSessionHistory, getRunningTask, submitAiFeedback, cancelAiFeedback, getSessionFeedback, confirmTool, getQuickQuestions } from '@/api/ai'
 import { useUserStore } from '@/stores/user'
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
@@ -1324,11 +1324,42 @@ const handleClear = async () => {
   ElMessage.success('对话已清空')
 }
 
+let runningPollTimer: ReturnType<typeof setInterval> | null = null
+const checkRunningTask = async () => {
+  try {
+    const res = await getRunningTask()
+    if (res && (res as any).running) {
+      const exists = messages.value.some(m => m.role === 'assistant' && m.loading && m.streaming)
+      if (!exists) {
+        const ph = reactive<Message>({
+          id: ++msgIdCounter, role: 'assistant', content: '', loading: true, streaming: true,
+          reasoningActive: true, toolCalls: [], timestamp: Date.now(),
+          thinkingStartTime: (res as any).startTime || Date.now(), thinkingSteps: []
+        })
+        messages.value.push(ph)
+        scrollToBottom(false, true)
+      }
+      if (!runningPollTimer) {
+        runningPollTimer = setInterval(async () => {
+          try {
+            const r = await getRunningTask()
+            if (!r || !(r as any).running) {
+              if (runningPollTimer) { clearInterval(runningPollTimer); runningPollTimer = null }
+              await loadHistory()
+            }
+          } catch {}
+        }, 3000)
+      }
+    }
+  } catch {}
+}
+
 watch(visible, async (val) => {
   if (val) {
     refreshSuggestions()
     if (!sessionId.value) restoreSession()
     await loadHistory()
+    checkRunningTask()
   }
 })
 

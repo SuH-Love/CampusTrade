@@ -33,6 +33,9 @@ export const clearSession = (sessionId: string) =>
 export const getAiStatus = () =>
   request.get<never, AiStatus>('/ai/status')
 
+export const getRunningTask = () =>
+  request.get<never, { running: boolean; startTime?: number }>('/ai/session/running')
+
 export const getSessionHistory = (sessionId: string) =>
   request.get<never, Array<{ role: string; content: string; timestamp?: number }>>(`/ai/session/${sessionId}/history`)
 

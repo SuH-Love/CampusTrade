@@ -319,7 +319,7 @@ public class AiController {
 
         // 每会话任务锁: 防止同一会话并发执行导致会话历史交错/上下文污染
         final String sessionLockKey = "ai:session:running:" + sid;
-        Boolean lockAcquired = stringRedisTemplate.opsForValue().setIfAbsent(sessionLockKey, "1", 600, java.util.concurrent.TimeUnit.SECONDS);
+        Boolean lockAcquired = stringRedisTemplate.opsForValue().setIfAbsent(sessionLockKey, String.valueOf(System.currentTimeMillis()), 600, java.util.concurrent.TimeUnit.SECONDS);
         if (lockAcquired == null || !lockAcquired) {
             try {
                 emitter.send(SseEmitter.event().name("error").data("上一条对话还在处理中，请稍候再试"));
@@ -861,6 +861,23 @@ public class AiController {
         Long currentUserId = SecurityUtil.getCurrentUserId();
         if (currentUserId == null) return Result.error(401, "未登录");
         return Result.success(sessionService.getHistory("user:" + currentUserId));
+    }
+
+    @ApiOperation("查询当前会话是否有运行中的任务(重开后显示进行中)")
+    @GetMapping("/session/running")
+    public Result<Map<String, Object>> getRunningTask() {
+        Long currentUserId = SecurityUtil.getCurrentUserId();
+        if (currentUserId == null) return Result.error(401, "未登录");
+        String key = "ai:session:running:user:" + currentUserId;
+        String val = stringRedisTemplate.opsForValue().get(key);
+        Map<String, Object> data = new java.util.HashMap<>();
+        if (val != null) {
+            data.put("running", true);
+            try { data.put("startTime", Long.parseLong(val)); } catch (Exception ignored) {}
+        } else {
+            data.put("running", false);
+        }
+        return Result.success(data);
     }
 
     @ApiOperation("获取AI标题优化建议")
