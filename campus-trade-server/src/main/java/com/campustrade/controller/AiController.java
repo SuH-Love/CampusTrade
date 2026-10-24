@@ -317,6 +317,23 @@ public class AiController {
             return emitter;
         }
 
+        // 每会话任务锁: 防止同一会话并发执行导致会话历史交错/上下文污染
+        final String sessionLockKey = "ai:session:running:" + sid;
+        Boolean lockAcquired = stringRedisTemplate.opsForValue().setIfAbsent(sessionLockKey, "1", 600, java.util.concurrent.TimeUnit.SECONDS);
+        if (lockAcquired == null || !lockAcquired) {
+            try {
+                emitter.send(SseEmitter.event().name("error").data("上一条对话还在处理中，请稍候再试"));
+                emitter.complete();
+            } catch (Exception ignored) {}
+            return emitter;
+        }
+        final Runnable releaseSessionLock = () -> {
+            try { stringRedisTemplate.delete(sessionLockKey); } catch (Exception ignored) {}
+        };
+        emitter.onCompletion(releaseSessionLock);
+        emitter.onTimeout(releaseSessionLock);
+        emitter.onError(t -> releaseSessionLock.run());
+
         final org.springframework.security.core.context.SecurityContext streamSecCtx = org.springframework.security.core.context.SecurityContextHolder.getContext();
         aiAgentExecutor.execute(() -> {
             org.springframework.security.core.context.SecurityContextHolder.setContext(streamSecCtx);
