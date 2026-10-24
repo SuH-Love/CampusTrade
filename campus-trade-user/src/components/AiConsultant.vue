@@ -72,7 +72,7 @@
                         <ArrowUp v-else />
                       </el-icon>
                     </div>
-                    <div v-if="msg.reasoningActive || msg.reasoningExpanded" class="reasoning-body" v-html="renderMarkdown(msg.reasoning || '')"></div>
+                    <div v-if="msg.reasoningActive || msg.reasoningExpanded" class="reasoning-body" v-html="renderMarkdown(sanitizeReasoning(msg.reasoning || ''))"></div>
                   </div>
                   <div v-if="msg.thinkingSteps.length > 0" class="thinking-process">
                     <div class="process-header" @click="!msg.loading && (msg.thinkingExpanded = !msg.thinkingExpanded)">
@@ -490,6 +490,14 @@ const onBodyScroll = () => {
   const dist = scrollHeight - scrollTop - clientHeight
   showScrollBottom.value = dist > 120
   isAtBottom.value = dist < 60
+}
+const sanitizeReasoning = (t: string): string => {
+  if (!t) return t
+  return t
+    .replace(/\/uploads\/[^\s)\]}>,，。；、"'']+/g, '[图片]')
+    .replace(/\/data\/uploads\/[^\s)\]}>,，。；、"'']+/g, '[图片]')
+    .replace(/images?\/[^\s)\]}>,，。；、"'']+\.(jpg|jpeg|png|gif|webp)/gi, '[图片]')
+    .replace(/imageUrl\s*[=:]\s*\S+/gi, '图片')
 }
 const scrollReasoningBody = () => {
   const els = bodyRef.value?.querySelectorAll('.reasoning-body')
@@ -1017,6 +1025,7 @@ const startAIStream = async (text: string, assistantMsg: Message, regenerate = f
         }
       },
       (reasoningToken: string) => {
+        if (assistantMsg.content) return
         assistantMsg.reasoning = (assistantMsg.reasoning || '') + reasoningToken
         assistantMsg.reasoningActive = true
         if (assistantMsg.reasoningExpanded === undefined) assistantMsg.reasoningExpanded = true
