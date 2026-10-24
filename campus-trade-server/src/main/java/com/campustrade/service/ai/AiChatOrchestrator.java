@@ -123,6 +123,7 @@ public class AiChatOrchestrator {
         List<Map<String, Object>> collectedThinking = new ArrayList<>();
         StringBuilder collectedReasoning = new StringBuilder();
         List<Map<String, Object>> collectedToolCalls = new ArrayList<>();
+        sessionService.savePending(sessionId, userMessage, collectedThinking, collectedReasoning.toString());
 
         for (int i = 0; i < maxIterations; i++) {
             int estimatedTokens = 0;
@@ -138,6 +139,7 @@ public class AiChatOrchestrator {
             if (i == 0) {
                 String intentDetail = analyzeIntent(userMessage);
                 adapter.onThinking("理解意图", intentDetail);
+                sessionService.savePending(sessionId, userMessage, collectedThinking, collectedReasoning.toString());
                 collectedThinking.add(Map.of("status", "理解意图", "detail", intentDetail));
             }
 
@@ -150,7 +152,7 @@ public class AiChatOrchestrator {
                 java.util.List<Map<String, Object>> callTools = "vision".equals(sceneOverride)
                         ? java.util.Collections.emptyList() : tools;
                 aiResult = deepSeekClient.chatWithToolsStream(messages, callTools, sceneOverride,
-                    reasoning -> { collectedReasoning.append(reasoning); adapter.onReasoning(reasoning); }, null,
+                    reasoning -> { collectedReasoning.append(reasoning); if (collectedReasoning.length() % 1000 < reasoning.length()) sessionService.savePending(sessionId, userMessage, collectedThinking, collectedReasoning.toString()); adapter.onReasoning(reasoning); }, null,
                     () -> adapter.onReasoningEnd());
             } catch (Exception e) {
                 log.error("Agent loop chatWithToolsStream failed", e);
@@ -165,11 +167,13 @@ public class AiChatOrchestrator {
 
             if (toolCalls == null || toolCalls.isEmpty()) {
                 adapter.onThinking("生成回答", "根据查询结果组织回答");
+                sessionService.savePending(sessionId, userMessage, collectedThinking, collectedReasoning.toString());
                 collectedThinking.add(Map.of("status", "生成回答", "detail", "根据查询结果组织回答"));
                 break;
             }
             String planDetail = analyzePlan(toolCalls);
             adapter.onThinking("执行完成", planDetail);
+            sessionService.savePending(sessionId, userMessage, collectedThinking, collectedReasoning.toString());
             collectedThinking.add(Map.of("status", "执行完成", "detail", planDetail));
 
             toolsUsed = true;
@@ -262,6 +266,7 @@ public class AiChatOrchestrator {
 
             String queryDetail = summarizeResult(completedToolNames, completedToolResults);
             adapter.onThinking("查询完成", queryDetail);
+            sessionService.savePending(sessionId, userMessage, collectedThinking, collectedReasoning.toString());
             collectedThinking.add(Map.of("status", "查询完成", "detail", queryDetail));
         }
 
@@ -280,11 +285,13 @@ public class AiChatOrchestrator {
             }
             sessionService.addMessagePair(sessionId, userMessage, content, collectedThinking, collectedToolCalls, collectedReasoning.toString(), System.currentTimeMillis() - loopStart);
             adapter.onComplete(content);
+            sessionService.clearPending(sessionId);
             return content;
         }
 
         if (toolsUsed) {
             adapter.onThinking("生成回复", "正在根据查询结果生成回答...");
+            sessionService.savePending(sessionId, userMessage, collectedThinking, collectedReasoning.toString());
             collectedThinking.add(Map.of("status", "生成回复", "detail", "正在根据查询结果生成回答..."));
         }
 
@@ -298,7 +305,7 @@ public class AiChatOrchestrator {
                 }
                 fullResponse.append(token);
             },
-            reasoning -> { collectedReasoning.append(reasoning); adapter.onReasoning(reasoning); },
+            reasoning -> { collectedReasoning.append(reasoning); if (collectedReasoning.length() % 1000 < reasoning.length()) sessionService.savePending(sessionId, userMessage, collectedThinking, collectedReasoning.toString()); adapter.onReasoning(reasoning); },
             done -> {
                 String sanitizedFull = safetyService.sanitizeOutput(fullResponse.toString());
                 sessionService.addMessagePair(sessionId, userMessage, sanitizedFull, finalCollectedThinking, finalCollectedToolCalls, collectedReasoning.toString(), System.currentTimeMillis() - loopStart);
@@ -318,6 +325,7 @@ public class AiChatOrchestrator {
             },
             userMessage.contains("[图片:") ? "vision" : "reasoning"
         );
+        sessionService.clearPending(sessionId);
         return fullResponse.toString();
     }
 

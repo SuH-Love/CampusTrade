@@ -1329,12 +1329,24 @@ const checkRunningTask = async () => {
   try {
     const res = await getRunningTask()
     if (res && (res as any).running) {
-      const exists = messages.value.some(m => m.role === 'assistant' && m.loading && m.streaming)
-      if (!exists) {
+      const um = (res as any).userMessage
+      const steps = (res as any).steps || []
+      const reasoning = (res as any).reasoning || ''
+      const st = (res as any).startTime || Date.now()
+      const idx = messages.value.findIndex(m => m.role === 'assistant' && m.loading && m.streaming)
+      if (idx >= 0) {
+        const m = messages.value[idx]
+        m.thinkingSteps = steps
+        m.reasoning = reasoning
+        m.thinkingStartTime = st
+      } else {
+        if (um && !messages.value.some(x => x.role === 'user' && x.content === um)) {
+          messages.value.push({ id: ++msgIdCounter, role: 'user', content: um, toolCalls: [], timestamp: st, thinkingSteps: [] } as Message)
+        }
         const ph = reactive<Message>({
           id: ++msgIdCounter, role: 'assistant', content: '', loading: true, streaming: true,
-          reasoningActive: true, toolCalls: [], timestamp: Date.now(),
-          thinkingStartTime: (res as any).startTime || Date.now(), thinkingSteps: []
+          reasoningActive: true, reasoning: reasoning, toolCalls: [], timestamp: Date.now(),
+          thinkingStartTime: st, thinkingEndTime: 0, thinkingSteps: steps
         })
         messages.value.push(ph)
         scrollToBottom(false, true)

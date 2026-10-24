@@ -868,16 +868,13 @@ public class AiController {
     public Result<Map<String, Object>> getRunningTask() {
         Long currentUserId = SecurityUtil.getCurrentUserId();
         if (currentUserId == null) return Result.error(401, "未登录");
-        String key = "ai:session:running:user:" + currentUserId;
-        String val = stringRedisTemplate.opsForValue().get(key);
-        Map<String, Object> data = new java.util.HashMap<>();
-        if (val != null) {
-            data.put("running", true);
-            try { data.put("startTime", Long.parseLong(val)); } catch (Exception ignored) {}
-        } else {
+        Map<String, Object> pending = sessionService.getPending("user:" + currentUserId);
+        if (pending == null) {
+            Map<String, Object> data = new java.util.HashMap<>();
             data.put("running", false);
+            return Result.success(data);
         }
-        return Result.success(data);
+        return Result.success(pending);
     }
 
     @ApiOperation("获取AI标题优化建议")

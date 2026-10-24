@@ -74,6 +74,41 @@ public class SessionService {
         }
     }
 
+    private static final String PENDING_PREFIX = "ai:session:pending:";
+
+    public void savePending(String sessionId, String userMessage, List<Map<String, Object>> steps, String reasoning) {
+        try {
+            Map<String, Object> m = new HashMap<>();
+            m.put("userMessage", userMessage);
+            m.put("steps", steps == null ? new ArrayList<>() : steps);
+            m.put("reasoning", reasoning == null ? "" : (reasoning.length() > 4000 ? reasoning.substring(reasoning.length() - 4000) : reasoning));
+            m.put("startTime", System.currentTimeMillis());
+            m.put("running", true);
+            stringRedisTemplate.opsForValue().set(PENDING_PREFIX + sessionId,
+                    objectMapper.writeValueAsString(m), 600, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("savePending failed: {}", e.getMessage());
+        }
+    }
+
+    public void clearPending(String sessionId) {
+        try { stringRedisTemplate.delete(PENDING_PREFIX + sessionId); } catch (Exception ignored) {}
+    }
+
+    public Map<String, Object> getPending(String sessionId) {
+        try {
+            String v = stringRedisTemplate.opsForValue().get(PENDING_PREFIX + sessionId);
+            if (v == null || v.isEmpty()) {
+                Map<String, Object> r = new HashMap<>();
+                r.put("running", false);
+                return r;
+            }
+            return objectMapper.readValue(v, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public void addMessagePair(String sessionId, String userMessage, String assistantMessage) {
         addMessagePair(sessionId, userMessage, assistantMessage, null, null);
     }
