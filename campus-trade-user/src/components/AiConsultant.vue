@@ -59,17 +59,17 @@
           <div v-for="(msg, idx) in messages" :key="msg.id" :class="['msg-row', msg.role]">
             <div class="msg-wrapper">
               <div class="msg-bubble">
-                <div v-if="msg.role === 'assistant' && (msg.reasoning || msg.reasoningActive)" class="reasoning-panel">
-                  <div class="reasoning-header" @click="!msg.reasoningActive && (msg.reasoningExpanded = !msg.reasoningExpanded)">
-                    <el-icon size="14" :class="{ 'is-loading': msg.reasoningActive }"><Loading v-if="msg.reasoningActive" /><CircleCheck v-else /></el-icon>
-                    <span class="reasoning-title">{{ msg.reasoningActive ? '思考中...' : '思考完成' }}</span>
-                    <el-icon v-if="!msg.reasoningActive" size="12" class="process-expand-icon">
+                <div v-if="msg.role === 'assistant' && (msg.reasoning || msg.reasoningActive || (msg.streaming && !msg.content))" class="reasoning-panel">
+                  <div class="reasoning-header" @click="!(msg.reasoningActive || (msg.streaming && !msg.content)) && (msg.reasoningExpanded = !msg.reasoningExpanded)">
+                    <el-icon size="14" :class="{ 'is-loading': msg.reasoningActive || (msg.streaming && !msg.content) }"><Loading v-if="msg.reasoningActive || (msg.streaming && !msg.content)" /><CircleCheck v-else /></el-icon>
+                    <span class="reasoning-title">{{ (msg.reasoningActive || (msg.streaming && !msg.content)) ? '思考中...' : '思考完成' }}</span>
+                    <el-icon v-if="!(msg.reasoningActive || (msg.streaming && !msg.content))" size="12" class="process-expand-icon">
                       <ArrowDown v-if="!msg.reasoningExpanded" />
                       <ArrowUp v-else />
                     </el-icon>
                   </div>
-                  <div v-if="msg.reasoningActive || msg.reasoningExpanded" class="reasoning-body">
-                      <span v-if="msg.reasoningActive && !msg.reasoning" class="reasoning-hint">正在思考…</span>
+                  <div v-if="msg.reasoningActive || msg.reasoningExpanded || (msg.streaming && !msg.content)" class="reasoning-body">
+                      <span v-if="(msg.reasoningActive || (msg.streaming && !msg.content)) && !msg.reasoning" class="reasoning-hint">正在思考…</span>
                       <span v-else v-html="renderMarkdown(sanitizeReasoning(msg.reasoning || ''))"></span>
                     </div>
                 </div>
