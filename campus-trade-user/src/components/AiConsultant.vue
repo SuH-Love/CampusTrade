@@ -108,7 +108,7 @@
                     >
                       <div class="tool-call-header" @click="tc.expanded = !tc.expanded">
                         <el-icon :size="14"><Tools /></el-icon>
-                        <span class="tool-name">{{ toolDisplayName(tc.name) }}{{ isQueryTool(tc.name) ? '结果' : '' }}</span>
+                        <span class="tool-name">{{ toolDisplayName(tc.name) }}</span>
                         <span v-if="tc.status === 'pending'" class="tool-status tool-status-pending">等待中</span>
                         <span v-else-if="tc.status === 'running'" class="tool-status tool-status-running">执行中</span>
                         <span v-else-if="tc.status === 'error'" class="tool-status tool-status-error">失败</span>
@@ -474,9 +474,6 @@ const toolDisplayName = (name: string): string => {
   }
   return names[name] || name
 }
-
-const isQueryTool = (name: string): boolean =>
-  name.startsWith('get_') || name.startsWith('search_') || name.startsWith('admin_list') || name === 'admin_dashboard'
 
 const visible = ref(false)
 const expanded = ref(false)
