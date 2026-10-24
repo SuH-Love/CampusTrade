@@ -167,8 +167,8 @@ public class AiChatOrchestrator {
                 break;
             }
             String planDetail = analyzePlan(toolCalls);
-            adapter.onThinking("分析完成", planDetail);
-            collectedThinking.add(Map.of("status", "分析完成", "detail", planDetail));
+            adapter.onThinking("执行完成", planDetail);
+            collectedThinking.add(Map.of("status", "执行完成", "detail", planDetail));
 
             toolsUsed = true;
             Map<String, Object> assistantMsg = new LinkedHashMap<>();
