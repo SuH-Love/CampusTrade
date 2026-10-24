@@ -112,6 +112,7 @@ public class AiChatOrchestrator {
     @SuppressWarnings("unchecked")
     public String runAgentLoop(String sessionId, String userMessage, String prompt,
                                List<Map<String, Object>> messages, ChatOutputAdapter adapter) {
+        long loopStart = System.currentTimeMillis();
         List<Map<String, Object>> tools = aiToolService.getToolDefinitions();
         String nonStreamAnswer = null;
         String nonStreamReasoning = null;
@@ -153,6 +154,7 @@ public class AiChatOrchestrator {
                     () -> adapter.onReasoningEnd());
             } catch (Exception e) {
                 log.error("Agent loop chatWithToolsStream failed", e);
+                sessionService.addMessagePair(sessionId, userMessage, "抱歉，AI 分析失败，请重试。", null, null, null, System.currentTimeMillis() - loopStart);
                 adapter.onError("AI分析失败，请重试");
                 break;
             }
@@ -276,7 +278,7 @@ public class AiChatOrchestrator {
             } else {
                 adapter.onToken(content);
             }
-            sessionService.addMessagePair(sessionId, userMessage, content, collectedThinking, collectedToolCalls, collectedReasoning.toString());
+            sessionService.addMessagePair(sessionId, userMessage, content, collectedThinking, collectedToolCalls, collectedReasoning.toString(), System.currentTimeMillis() - loopStart);
             adapter.onComplete(content);
             return content;
         }
@@ -299,7 +301,7 @@ public class AiChatOrchestrator {
             reasoning -> { collectedReasoning.append(reasoning); adapter.onReasoning(reasoning); },
             done -> {
                 String sanitizedFull = safetyService.sanitizeOutput(fullResponse.toString());
-                sessionService.addMessagePair(sessionId, userMessage, sanitizedFull, finalCollectedThinking, finalCollectedToolCalls, collectedReasoning.toString());
+                sessionService.addMessagePair(sessionId, userMessage, sanitizedFull, finalCollectedThinking, finalCollectedToolCalls, collectedReasoning.toString(), System.currentTimeMillis() - loopStart);
                 adapter.onComplete(sanitizedFull);
             },
             error -> {
@@ -311,7 +313,7 @@ public class AiChatOrchestrator {
                 else if (errMsg.contains("熔断")) displayMsg = "AI服务暂时不可用（熔断保护中）";
                 else displayMsg = "AI服务暂时不可用，请稍后再试";
                 String saveContent = partial.isEmpty() ? displayMsg : safetyService.sanitizeOutput(partial);
-                sessionService.addMessagePair(sessionId, userMessage, saveContent, finalCollectedThinking, finalCollectedToolCalls, collectedReasoning.toString());
+                sessionService.addMessagePair(sessionId, userMessage, saveContent, finalCollectedThinking, finalCollectedToolCalls, collectedReasoning.toString(), System.currentTimeMillis() - loopStart);
                 adapter.onError(displayMsg);
             },
             userMessage.contains("[图片:") ? "vision" : "reasoning"

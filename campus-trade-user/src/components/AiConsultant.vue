@@ -728,7 +728,9 @@ const loadHistory = async () => {
           toolCalls: (msg.toolCalls || []).map((tc: any) => ({ ...tc, expanded: false, status: 'done' as const })),
           timestamp: msg.timestamp || Date.now(),
           thinkingSteps: (msg.thinkingSteps || []).map((ts: any) => ({ ...ts, startTime: ts.startTime || 0, endTime: ts.endTime || 0 })),
-          reasoning: (msg as any).reasoning
+          reasoning: (msg as any).reasoning,
+          thinkingStartTime: 0,
+          thinkingEndTime: (msg as any).duration || 0
         }
         if (m.role === 'assistant' && sessionId.value) {
           restoreThinkingData(sessionId.value, m)
@@ -762,7 +764,9 @@ const loadAllHistory = async () => {
           toolCalls: (msg.toolCalls || []).map((tc: any) => ({ ...tc, expanded: false, status: 'done' as const })),
           timestamp: msg.timestamp || Date.now(),
           thinkingSteps: (msg.thinkingSteps || []).map((ts: any) => ({ ...ts, startTime: ts.startTime || 0, endTime: ts.endTime || 0 })),
-          reasoning: (msg as any).reasoning
+          reasoning: (msg as any).reasoning,
+          thinkingStartTime: 0,
+          thinkingEndTime: (msg as any).duration || 0
         }
         if (m.role === 'assistant' && sessionId.value) {
           restoreThinkingData(sessionId.value, m)
