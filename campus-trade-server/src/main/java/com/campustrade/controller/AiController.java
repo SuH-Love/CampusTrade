@@ -591,24 +591,24 @@ public class AiController {
     private String toolDisplayName(String name) {
         if (name == null) return "未知工具";
         switch (name) {
-            case "get_order_status": return "查询订单列表";
-            case "get_order_by_no": return "按订单号查询";
+            case "get_order_status": return "查询我的订单";
+            case "get_order_by_no": return "查询订单详情";
             case "search_goods": return "搜索商品";
-            case "get_user_profile": return "用户资料";
-            case "get_user_stats": return "用户统计";
-            case "get_my_goods": return "我的商品";
-            case "get_goods_detail": return "商品详情";
-            case "get_favorites": return "我的收藏";
-            case "get_cart": return "购物车";
-            case "get_addresses": return "收货地址";
-            case "get_ratings": return "商品评价";
-            case "get_notifications": return "通知消息";
-            case "get_unread_message_count": return "未读消息数";
-            case "get_recent_contacts": return "最近联系人";
-            case "get_follow_list": return "关注列表";
-            case "get_categories": return "商品分类";
-            case "get_order_fund_logs": return "订单资金流水";
-            case "get_announcements": return "平台公告";
+            case "get_user_profile": return "查询我的资料";
+            case "get_user_stats": return "查询我的统计";
+            case "get_my_goods": return "查询我的商品";
+            case "get_goods_detail": return "查询商品详情";
+            case "get_favorites": return "查询我的收藏";
+            case "get_cart": return "查询我的购物车";
+            case "get_addresses": return "查询我的地址";
+            case "get_ratings": return "查询商品评价";
+            case "get_notifications": return "查询我的通知";
+            case "get_unread_message_count": return "查询未读消息";
+            case "get_recent_contacts": return "查询最近联系人";
+            case "get_follow_list": return "查询关注/粉丝";
+            case "get_categories": return "查询商品分类";
+            case "get_order_fund_logs": return "查询订单资金流水";
+            case "get_announcements": return "查询平台公告";
             case "cancel_order": return "取消订单";
             case "confirm_receipt": return "确认收货";
             case "ship_order": return "发货";
@@ -619,12 +619,12 @@ public class AiController {
             case "toggle_follow_user": return "关注/取消关注";
             case "online_offline_goods": return "上架/下架商品";
             case "add_address": return "添加收货地址";
-            case "submit_report": return "举报";
+            case "submit_report": return "提交举报";
             case "admin_dashboard": return "管理仪表盘";
-            case "admin_list_users": return "用户列表";
+            case "admin_list_users": return "查询用户列表";
             case "admin_ban_user": return "封禁用户";
             case "admin_audit_goods": return "审核商品";
-            case "admin_list_reports": return "举报列表";
+            case "admin_list_reports": return "查询举报列表";
             case "admin_handle_refund": return "处理退款";
             default: return name;
         }

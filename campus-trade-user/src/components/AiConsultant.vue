@@ -108,7 +108,7 @@
                     >
                       <div class="tool-call-header" @click="tc.expanded = !tc.expanded">
                         <el-icon :size="14"><Tools /></el-icon>
-                        <span class="tool-name">{{ toolDisplayName(tc.name) }}结果</span>
+                        <span class="tool-name">{{ toolDisplayName(tc.name) }}{{ isQueryTool(tc.name) ? '结果' : '' }}</span>
                         <span v-if="tc.status === 'pending'" class="tool-status tool-status-pending">等待中</span>
                         <span v-else-if="tc.status === 'running'" class="tool-status tool-status-running">执行中</span>
                         <span v-else-if="tc.status === 'error'" class="tool-status tool-status-error">失败</span>
@@ -451,28 +451,32 @@ const quoteMessage = (content: string) => {
   nextTick(() => textareaRef.value?.focus())
 }
 
-const toolDisplayName = (name: string): string => {  const names: Record<string, string> = {
-    get_order_status: '查询订单', get_order_by_no: '查询订单详情',
-    search_goods: '搜索商品', get_user_profile: '查询个人信息',
-    get_user_stats: '查询统计', get_my_goods: '查询我的商品',
-    get_goods_detail: '查询商品详情', get_favorites: '查询收藏',
-    get_cart: '查询购物车', get_addresses: '查询地址',
-    get_ratings: '查询评价', get_notifications: '查询通知',
-    get_unread_message_count: '查询未读消息', get_recent_contacts: '查询联系人',
-    get_follow_list: '查询关注', get_categories: '查询分类',
-    get_order_fund_logs: '查询资金流水', get_announcements: '查询公告',
+const toolDisplayName = (name: string): string => {
+  const names: Record<string, string> = {
+    get_order_status: '查询我的订单', get_order_by_no: '查询订单详情',
+    search_goods: '搜索商品', get_user_profile: '查询我的资料',
+    get_user_stats: '查询我的统计', get_my_goods: '查询我的商品',
+    get_goods_detail: '查询商品详情', get_favorites: '查询我的收藏',
+    get_cart: '查询我的购物车', get_addresses: '查询我的地址',
+    get_ratings: '查询商品评价', get_notifications: '查询我的通知',
+    get_unread_message_count: '查询未读消息', get_recent_contacts: '查询最近联系人',
+    get_follow_list: '查询关注/粉丝', get_categories: '查询商品分类',
+    get_order_fund_logs: '查询订单资金流水', get_announcements: '查询平台公告',
     cancel_order: '取消订单', confirm_receipt: '确认收货',
     ship_order: '发货', request_refund: '申请退款',
-    rate_order: '评价订单', toggle_favorite: '收藏/取消',
-    add_to_cart: '加入购物车', toggle_follow_user: '关注/取消',
-    online_offline_goods: '上架/下架', add_address: '添加地址',
-    submit_report: '举报', admin_dashboard: '平台概览',
-    admin_list_users: '用户列表', admin_ban_user: '封禁/解封',
-    admin_audit_goods: '审核商品', admin_list_reports: '举报列表',
+    rate_order: '评价订单', toggle_favorite: '收藏/取消收藏',
+    add_to_cart: '加入购物车', toggle_follow_user: '关注/取消关注',
+    online_offline_goods: '上架/下架商品', add_address: '添加收货地址',
+    submit_report: '提交举报', admin_dashboard: '管理仪表盘',
+    admin_list_users: '查询用户列表', admin_ban_user: '封禁/解封',
+    admin_audit_goods: '审核商品', admin_list_reports: '查询举报列表',
     admin_handle_refund: '处理退款'
   }
   return names[name] || name
 }
+
+const isQueryTool = (name: string): boolean =>
+  name.startsWith('get_') || name.startsWith('search_') || name.startsWith('admin_list') || name === 'admin_dashboard'
 
 const visible = ref(false)
 const expanded = ref(false)
